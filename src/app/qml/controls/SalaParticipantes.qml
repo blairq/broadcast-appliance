@@ -10,6 +10,11 @@
 // «⋯»; tocar la celda abre el menú de acciones de esa persona.
 // Lista: una fila por persona con miniatura, nombre, cargo, estado y acciones.
 // Fuera de la parte que se ve, los videos no piden cuadros (VideoItem.enVista).
+//
+// Con 120 adentro, cada celda es liviana: un Item con rectángulos y textos anclados
+// (sin Layouts), solo los íconos que avisan algo (no diez ocultos), y lo que se usa
+// al pasar el mouse (los botones, las ayudas) se crea recién entonces (Loader). Lo
+// que cambia seguido (el semáforo de la red) es un rectángulo suelto: no mueve nada.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -40,47 +45,81 @@ Item {
         sala.elegido = p.uid
         acciones.popup(donde, x, y)
     }
+    // Lo que avisa algo de una persona (`p`, su celda o su fila), en orden: [{g, f, a}]
+    // (glifo, fondo, ayuda). Se rehace solo cuando cambia alguno de estos roles.
+    function avisos(p) {
+        const r = []
+        if (!p) return r
+        if (p.prueba) r.push({ g: "P", f: Theme.amber, a: qsTr("De la prueba de sala: fuera del padrón, la votación y el quórum") })
+        if (p.speaker === "onair") r.push({ g: "●", f: Theme.live, a: qsTr("Orador al aire") })
+        if (p.presenter) r.push({ g: "★", f: "#7c5cd6", a: qsTr("Presentador") })
+        if (p.hand) r.push({ g: "✋", f: Theme.amber, a: qsTr("Levantó la mano") })
+        if (p.screen) r.push({ g: "▭", f: Theme.accent, a: qsTr("Comparte pantalla") })
+        if (p.talk) r.push({ g: "🎙", f: Theme.ok, a: qsTr("Le estás hablando") })
+        if (!p.mic) r.push({ g: "🔇", f: Theme.live, a: qsTr("Micrófono apagado") })
+        if (!p.cam) r.push({ g: "⊘", f: Theme.live, a: qsTr("Cámara apagada") })
+        if (p.sinRetorno) r.push({ g: "🎧", f: Theme.live, a: qsTr("Retorno apagado: no escucha nada (su mezcla sin su voz no llega a la conferencia)") })
+        if (!p.connected || !p.mediaUp)
+            r.push({ g: "!", f: !p.connected ? Theme.live : Theme.amber, a: !p.connected ? qsTr("Reconectando") : qsTr("Conectado, sin medios todavía") })
+        return r
+    }
 
     // --- Íconos de estado (los mismos en la grilla y en la lista) ---------------------
+    // La ayuda al pasar el mouse: se crea solo mientras el mouse está sobre la celda o la
+    // fila (conAyuda), no en cada ícono de cada celda.
+    component Ayuda: Item {
+        property string texto: ""
+        HoverHandler { id: ayudaHov }
+        ToolTip.visible: ayudaHov.hovered && texto !== ""; ToolTip.delay: 300; ToolTip.text: texto
+    }
     component Insignia: Rectangle {
         id: ins
         property string glifo: ""
         property color fondo: Qt.rgba(0, 0, 0, 0.6)
         property string ayuda: ""
+        property bool conAyuda: false
         implicitWidth: 20; implicitHeight: 20; radius: 10
         color: fondo
         border.color: Qt.rgba(1, 1, 1, 0.25)
         Text { anchors.centerIn: parent; text: ins.glifo; color: "white"; font.pixelSize: 11 }
-        HoverHandler { id: insHov }
-        ToolTip.visible: insHov.hovered && ins.ayuda !== ""; ToolTip.delay: 300; ToolTip.text: ins.ayuda
+        Loader {
+            anchors.fill: parent
+            active: ins.conAyuda && ins.ayuda !== ""
+            sourceComponent: Component { Ayuda { texto: ins.ayuda } }
+        }
     }
     component Estados: Row {
         id: est
         property var p: null
+        property bool conAyuda: false
         spacing: 3
-        Insignia { visible: est.p.prueba; glifo: "P"; fondo: Theme.amber; ayuda: qsTr("De la prueba de sala: fuera del padrón, la votación y el quórum") }
-        Insignia { visible: est.p.speaker === "onair"; glifo: "●"; fondo: Theme.live; ayuda: qsTr("Orador al aire") }
-        Insignia { visible: est.p.presenter; glifo: "★"; fondo: "#7c5cd6"; ayuda: qsTr("Presentador") }
-        Insignia { visible: est.p.hand; glifo: "✋"; fondo: Theme.amber; ayuda: qsTr("Levantó la mano") }
-        Insignia { visible: est.p.screen; glifo: "▭"; fondo: Theme.accent; ayuda: qsTr("Comparte pantalla") }
-        Insignia { visible: est.p.talk; glifo: "🎙"; fondo: Theme.ok; ayuda: qsTr("Le estás hablando") }
-        Insignia { visible: !est.p.mic; glifo: "🔇"; fondo: Theme.live; ayuda: qsTr("Micrófono apagado") }
-        Insignia { visible: !est.p.cam; glifo: "⊘"; fondo: Theme.live; ayuda: qsTr("Cámara apagada") }
-        Insignia { visible: est.p.sinRetorno; glifo: "🎧"; fondo: Theme.live
-                   ayuda: qsTr("Retorno apagado: no escucha nada (su mezcla sin su voz no llega a la conferencia)") }
-        Insignia { visible: !est.p.connected || !est.p.mediaUp; glifo: "!"; fondo: !est.p.connected ? Theme.live : Theme.amber
-                   ayuda: !est.p.connected ? qsTr("Reconectando") : qsTr("Conectado, sin medios todavía") }
+        Repeater {
+            model: sala.avisos(est.p)
+            delegate: Insignia {
+                required property var modelData
+                glifo: modelData.g; fondo: modelData.f; ayuda: modelData.a
+                conAyuda: est.conAyuda
+            }
+        }
     }
-    // El semáforo de su red (el color; las cifras, en Prueba técnica).
+    // El semáforo de su red (el color; las cifras, en Prueba técnica). Es lo que cambia
+    // seguido: un rectángulo suelto, de tamaño fijo (no reacomoda el nombre).
     component Semaforo: Rectangle {
+        id: sem
         property string estado: ""
+        property bool conAyuda: false
         visible: estado !== ""
         implicitWidth: 12; implicitHeight: 12; radius: 6
+        width: 12; height: 12
         color: sala.colorSemaforo(estado)
         border.color: "white"; border.width: 1
-        HoverHandler { id: semHov }
-        ToolTip.visible: semHov.hovered; ToolTip.delay: 300
-        ToolTip.text: estado === "rojo" ? qsTr("Red: mala") : estado === "ambar" ? qsTr("Red: con problemas") : qsTr("Red: bien")
+        Loader {
+            anchors.fill: parent
+            active: sem.conAyuda && sem.visible
+            sourceComponent: Component {
+                Ayuda { texto: sem.estado === "rojo" ? qsTr("Red: mala") : sem.estado === "ambar" ? qsTr("Red: con problemas") : qsTr("Red: bien") }
+            }
+        }
     }
     // «Hablarle»: se mantiene apretado (no puede ir en un menú).
     component BotonHablar: GlassButton {
@@ -104,6 +143,7 @@ Item {
         celdaMinima: 160
         delegate: Item {
             id: celda
+            required property int index
             required property string uid
             required property string name
             required property int slot
@@ -124,13 +164,27 @@ Item {
             width: GridView.view.cellWidth
             height: GridView.view.cellHeight
             readonly property bool chica: width < 300
-            readonly property bool mostrarControles: hov.hovered || sala.elegido === uid
+            readonly property real m: chica ? 5 : 8
+            readonly property bool elegida: sala.elegido === uid
+            readonly property bool mostrarControles: hov.hovered || elegida
+            // En la reserva de la grilla (salió de la vista y espera que la reusen): sin video.
+            property bool enReserva: false
+            GridView.onPooled: {
+                enReserva = true
+                // Su menú se cierra: la celda va a ser de otra persona.
+                if (acciones.p === celda) acciones.close()
+            }
+            GridView.onReused: enReserva = false
+            HoverHandler { id: hov }
             Rectangle {
                 id: caja
                 anchors { fill: parent; margins: grilla.margen }
                 radius: celda.chica ? 10 : 14
                 color: "#000000"
-                clip: true
+                // Sin clip: el video ya se ajusta a la caja (Fit/Cover) y el nombre se corta
+                // solo; un clip por celda parte el dibujo en un lote por celda.
+                border.color: celda.elegida ? Theme.accent : celda.presenter ? "#a78bfa" : celda.hand ? Theme.amber : Theme.glassBorder
+                border.width: celda.elegida || celda.presenter || celda.hand ? 2 : 1
                 // Tocarla (o el botón derecho) abre sus acciones donde se tocó. Va debajo de
                 // todo: los botones de arriba se quedan con sus toques.
                 MouseArea {
@@ -139,26 +193,28 @@ Item {
                     cursorShape: Qt.PointingHandCursor
                     onClicked: (ev) => sala.abrirAcciones(celda, caja, ev.x, ev.y)
                 }
-                border.color: sala.elegido === celda.uid ? Theme.accent : celda.presenter ? "#a78bfa" : celda.hand ? Theme.amber : Theme.glassBorder
-                border.width: sala.elegido === celda.uid || celda.presenter || celda.hand ? 2 : 1
                 // El video que B publica para ese lugar (lo mismo que ve el motor). Chica,
-                // recortado para que se vea la cara; grande, entero.
+                // recortado para que se vea la cara; grande, entero. Chica, a 15 cuadros por
+                // segundo (VideoItem.topeCps de fábrica).
                 VideoItem {
                     anchors { fill: parent; margins: 1 }
                     visible: celda.slot > 0
                     source: "guest:" + celda.slot
                     fillMode: celda.chica ? VideoItem.Cover : VideoItem.Fit
                     opacity: celda.connected ? 1 : 0.4
-                    enVista: grilla.enVista(celda.y, celda.height)
+                    enVista: !celda.enReserva && grilla.enVista(celda.index)
                 }
-                Text {
-                    anchors.centerIn: parent
-                    visible: celda.slot <= 0
-                    width: parent.width - 16
-                    horizontalAlignment: Text.AlignHCenter
-                    wrapMode: Text.WordWrap
-                    text: qsTr("sin lugar en el programa")
-                    color: Theme.textFaint; font.pixelSize: celda.chica ? 10 : 12
+                Loader {
+                    anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; margins: 8 }
+                    active: celda.slot <= 0
+                    sourceComponent: Component {
+                        Text {
+                            horizontalAlignment: Text.AlignHCenter
+                            wrapMode: Text.WordWrap
+                            text: qsTr("sin lugar en el programa")
+                            color: Theme.textFaint; font.pixelSize: celda.chica ? 10 : 12
+                        }
+                    }
                 }
                 Rectangle {
                     anchors { left: parent.left; right: parent.right; bottom: parent.bottom }
@@ -168,49 +224,60 @@ Item {
                         GradientStop { position: 1; color: Qt.rgba(0, 0, 0, 0.85) }
                     }
                 }
-                // Nombre y lugar, abajo.
-                RowLayout {
-                    anchors { left: parent.left; right: parent.right; bottom: parent.bottom; margins: celda.chica ? 5 : 8 }
-                    spacing: 5
-                    Rectangle {
-                        implicitWidth: celda.chica ? 18 : 22; implicitHeight: implicitWidth; radius: 6
-                        color: celda.slot > 0 ? Theme.accent : Qt.rgba(1, 1, 1, 0.18)
-                        Text { anchors.centerIn: parent; text: celda.slot > 0 ? celda.slot : "–"; color: celda.slot > 0 ? "#140a04" : "white"
-                               font { pixelSize: celda.chica ? 10 : 12; weight: Font.Bold } }
-                    }
-                    Text {
-                        Layout.fillWidth: true
-                        text: celda.name
-                        color: "white"; elide: Text.ElideRight
-                        font { pixelSize: celda.chica ? 11 : 14; weight: Font.DemiBold }
-                    }
-                    Semaforo { estado: celda.semaforo }
+                // Abajo: el lugar, el nombre y el semáforo (anclados, sin Layout).
+                Rectangle {
+                    id: numero
+                    anchors { left: parent.left; bottom: parent.bottom; margins: celda.m }
+                    width: celda.chica ? 18 : 22; height: width; radius: 6
+                    color: celda.slot > 0 ? Theme.accent : Qt.rgba(1, 1, 1, 0.18)
+                    Text { anchors.centerIn: parent; text: celda.slot > 0 ? celda.slot : "–"; color: celda.slot > 0 ? "#140a04" : "white"
+                           font { pixelSize: celda.chica ? 10 : 12; weight: Font.Bold } }
+                }
+                Text {
+                    anchors { left: numero.right; leftMargin: 5; right: parent.right; rightMargin: celda.m + 17; verticalCenter: numero.verticalCenter }
+                    text: celda.name
+                    color: "white"; elide: Text.ElideRight
+                    font { pixelSize: celda.chica ? 11 : 14; weight: Font.DemiBold }
+                }
+                Semaforo {
+                    anchors { right: parent.right; rightMargin: celda.m; verticalCenter: numero.verticalCenter }
+                    estado: celda.semaforo
+                    conAyuda: hov.hovered
                 }
                 // Lo que avisa algo, arriba a la izquierda.
                 Estados {
-                    anchors { left: parent.left; top: parent.top; margins: celda.chica ? 5 : 8 }
+                    anchors { left: parent.left; top: parent.top; margins: celda.m }
                     p: celda
+                    conAyuda: hov.hovered
                     visible: !celda.mostrarControles || !celda.chica
                 }
-                // Los controles, solo al pasar el mouse o con su menú abierto.
-                Row {
+                // Los controles, solo al pasar el mouse o con su menú abierto (se crean ahí).
+                Loader {
                     anchors { right: parent.right; top: parent.top; margins: celda.chica ? 4 : 8 }
-                    spacing: 4
-                    visible: celda.mostrarControles
-                    BotonHablar { p: celda }
-                    GlassButton {
-                        id: masBtn
-                        compact: true; text: "⋯"
-                        onClicked: sala.abrirAcciones(celda, masBtn, 0, masBtn.height + 4)
-                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Acciones")
+                    active: celda.mostrarControles
+                    sourceComponent: Component {
+                        Row {
+                            spacing: 4
+                            BotonHablar { p: celda }
+                            GlassButton {
+                                id: masBtn
+                                compact: true; text: "⋯"
+                                onClicked: sala.abrirAcciones(celda, masBtn, 0, masBtn.height + 4)
+                                ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Acciones")
+                            }
+                        }
                     }
                 }
-                HoverHandler { id: hov }
             }
         }
     }
 
     // --- Lista -----------------------------------------------------------------------
+    // Las filas que se ven, por índice (una vez por desplazamiento, no un binding por fila
+    // con cada píxel): 52 de alto y 4 entre filas.
+    readonly property int pasoLista: 56
+    readonly property int listaDesde: Math.max(0, Math.floor((lista.contentY - lista.originY) / pasoLista))
+    readonly property int listaHasta: Math.floor((lista.contentY - lista.originY + lista.height) / pasoLista)
     ListView {
         id: lista
         anchors.fill: parent
@@ -218,11 +285,14 @@ Item {
         model: sala.modo === "lista" ? sala.modelo : null
         clip: true
         spacing: 4
-        cacheBuffer: 0
+        // Dos filas preparadas a cada lado (sin video hasta que entran) y las que salen se reusan.
+        cacheBuffer: 2 * sala.pasoLista
+        reuseItems: true
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
         delegate: Rectangle {
             id: fila
+            required property int index
             required property string uid
             required property string name
             required property int slot
@@ -240,6 +310,12 @@ Item {
             required property bool prueba
             required property string semaforo
             required property bool sinRetorno
+            property bool enReserva: false
+            ListView.onPooled: {
+                enReserva = true
+                if (acciones.p === fila) acciones.close()
+            }
+            ListView.onReused: enReserva = false
             width: ListView.view.width - 10
             height: 52
             radius: 10
@@ -257,14 +333,14 @@ Item {
                 spacing: 8
                 Rectangle {
                     implicitWidth: 72; implicitHeight: 40; radius: 6
-                    color: "#000000"; clip: true
+                    color: "#000000"
                     VideoItem {
                         anchors.fill: parent
                         visible: fila.slot > 0
                         source: "guest:" + fila.slot
                         fillMode: VideoItem.Cover
                         opacity: fila.connected ? 1 : 0.4
-                        enVista: fila.y + fila.height > lista.contentY && fila.y < lista.contentY + lista.height
+                        enVista: !fila.enReserva && fila.index >= sala.listaDesde && fila.index <= sala.listaHasta
                     }
                 }
                 Rectangle {
@@ -280,8 +356,8 @@ Item {
                            font { pixelSize: 13; weight: Font.DemiBold } }
                     Text { Layout.fillWidth: true; visible: text !== ""; text: fila.info; color: Theme.textDim; elide: Text.ElideRight; font.pixelSize: 11 }
                 }
-                Estados { p: fila }
-                Semaforo { estado: fila.semaforo }
+                Estados { p: fila; conAyuda: filaHov.hovered }
+                Semaforo { estado: fila.semaforo; conAyuda: filaHov.hovered }
                 BotonHablar { p: fila }
                 GlassButton {
                     compact: true
