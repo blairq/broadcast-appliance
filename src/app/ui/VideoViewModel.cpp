@@ -51,17 +51,6 @@ const json& parte(const json& j, const std::string& k) {
     return it != j.end() ? *it : nada;
 }
 
-/// El tamaño que llega de una entrada (gstreamer.origen de su estado); {0, 0} si no tiene.
-std::pair<int, int> origenDe(const json& st) {
-    const json& o = parte(parte(st, "gstreamer"), "origen");
-    if (!o.is_object()) return {0, 0};
-    const json& w = parte(o, "ancho");
-    const json& h = parte(o, "alto");
-    if (!w.is_number() || !h.is_number()) return {0, 0};
-    const int a = w.get<int>(), b = h.get<int>();
-    return a > 0 && b > 0 ? std::pair<int, int>{a, b} : std::pair<int, int>{0, 0};
-}
-
 } // namespace
 
 VideoViewModel::VideoViewModel(VentanillaMotor& ventanilla, video::VideoGrafos& grafos, QObject* parent)
@@ -88,7 +77,6 @@ void VideoViewModel::alCambiar(unsigned partes) {
 void VideoViewModel::releer() {
     const json& x = v();
     const json& antes = antes_.get();
-    estadosRecalculados_ = 0;
     // Lo que redibuja el patchbay (entradas y grafos), aparte de lo que se mueve siempre.
     // Sin copiar cada parte (llega seguido: la red, el reloj, la latencia).
     const auto difiere = [&](const char* k) { return parte(x, k) != parte(antes, k); };
@@ -126,12 +114,8 @@ void VideoViewModel::releer() {
     const bool eventos = difiere("eventos");
     // Los estados de las entradas (los tamaños que llegan): solo los que cambiaron.
     const json objetoVacio = json::object();
-    const bool tamanos = [&] {
-        const auto previos = tamanosOrigen_;
-        releerEstados(parte(x, "estados"), parte(antes, "estados"), difiere("entradas"));
-        return previos != tamanosOrigen_;
-    }();
-    if (tamanos) avisar.push_back(&VideoViewModel::tamanosOrigenCambio);
+    if (tamanosOrigen_.releer(parte(x, "estados"), parte(antes, "estados"), difiere("entradas")))
+        avisar.push_back(&VideoViewModel::tamanosOrigenCambio);
     // La anterior, compartida (un puntero: copiar la vista entera en cada foto era O(tamaño)).
     // (Desde acá `antes` ya no vale.)
     antes_ = ventanilla_.foto().video;
@@ -198,53 +182,6 @@ QVariantMap VideoViewModel::estudio() const {
         const json& e = parte(antes_.get(), "estudio");
         return aVariant(conResumenes(e.is_object() ? e : json::object())).toMap();
     });
-}
-
-void VideoViewModel::releerEstados(const json& ahora, const json& antes, bool entradasCambiaron) {
-    // Cada entrada se compara con la suya de la foto anterior (sin copiar nada) y solo se
-    // recalcula lo de las que cambiaron. (Antes cada lector copiaba el mapa entero de
-    // estados por cada entrada: O(N²) en cada foto.)
-    bool cambio = false;
-    if (ahora.is_object()) {
-        for (auto it = ahora.begin(); it != ahora.end(); ++it) {
-            if (antes.is_object()) {
-                const auto a = antes.find(it.key());
-                if (a != antes.end() && *a == *it) continue;
-            }
-            ++estadosRecalculados_;
-            const auto t = origenDe(*it);
-            const auto o = origenDe_.find(it.key());
-            if (t.first > 0) {
-                if (o == origenDe_.end()) {
-                    origenDe_.emplace(it.key(), t);
-                    cambio = true;
-                } else if (o->second != t) {
-                    o->second = t;
-                    cambio = true;
-                }
-            } else if (o != origenDe_.end()) {
-                origenDe_.erase(o);
-                cambio = true;
-            }
-        }
-    }
-    // Las que se fueron (solo si cambió la lista de entradas o cuántas tienen estado).
-    const std::size_t nAhora = ahora.is_object() ? ahora.size() : 0;
-    const std::size_t nAntes = antes.is_object() ? antes.size() : 0;
-    if (entradasCambiaron || nAhora != nAntes)
-        for (auto o = origenDe_.begin(); o != origenDe_.end();) {
-            if (!ahora.is_object() || !ahora.contains(o->first)) {
-                o = origenDe_.erase(o);
-                cambio = true;
-            } else {
-                ++o;
-            }
-        }
-    if (!cambio) return;
-    std::vector<std::pair<int, int>> distintos;
-    for (const auto& [e, t] : origenDe_)
-        if (std::find(distintos.begin(), distintos.end(), t) == distintos.end()) distintos.push_back(t);
-    tamanosOrigen_ = std::move(distintos);
 }
 
 void VideoViewModel::seleccionar(const QString& entrada) {

@@ -25,6 +25,7 @@
 
 #include "comun/JsonSignals.hpp"
 #include "emision/Compartido.hpp"
+#include "video/TamanosOrigen.hpp"
 
 #include <QImage>
 #include <QObject>
@@ -206,11 +207,11 @@ class VideoViewModel : public QObject {
     const nlohmann::json* estadoDe(const std::string& entrada) const;
     /// Los tamaños (ancho, alto) distintos que LLEGAN de las entradas (gstreamer.origen de
     /// su estado, antes de los filtros): los arma `releer` mirando solo las entradas cuyo
-    /// estado cambió, y avisa `tamanosOrigenCambio` solo si cambió la lista.
-    const std::vector<std::pair<int, int>>& tamanosOrigen() const { return tamanosOrigen_; }
-    /// Cuántos estados de entrada se recalcularon con la última foto (el test: con una
-    /// entrada que cambia, uno; no las N).
-    int estadosRecalculados() const { return estadosRecalculados_; }
+    /// estado cambió (video/TamanosOrigen), y avisa `tamanosOrigenCambio` solo si cambió la lista.
+    const std::vector<std::pair<int, int>>& tamanosOrigen() const { return tamanosOrigen_.distintos(); }
+    /// Cuántos estados de entrada se recalcularon con la última foto (con una entrada que
+    /// cambia, uno; no las N).
+    int estadosRecalculados() const { return tamanosOrigen_.recalculados(); }
     bool esEntrada(const std::string& nombre) const;
     /// La dirección de una entrada de red ("" si no es de red).
     std::string uriDe(const std::string& entrada) const;
@@ -265,8 +266,6 @@ class VideoViewModel : public QObject {
     /// Llegó una foto: relee la vista si cambió la parte Video.
     void alCambiar(unsigned partes);
     void releer();
-    /// Lo de `releer` para los estados de las entradas: solo las que cambiaron.
-    void releerEstados(const nlohmann::json& ahora, const nlohmann::json& antes, bool entradasCambiaron);
     /// Los controles de cada formulario de la vista (ver `formularios`).
     QVariantMap armarFormularios(const nlohmann::json& formularios) const;
     /// Pedir con la entrada elegida (las ediciones de la página sin entrada explícita).
@@ -288,10 +287,8 @@ class VideoViewModel : public QObject {
     /// Lo que se mostró la última vez (para avisar solo lo que cambió): la vista de la foto
     /// anterior, compartida (un puntero; copiarla entera en cada foto era O(tamaño)).
     Compartido<nlohmann::json> antes_;
-    /// El tamaño que llega de cada entrada que tiene uno (ver `tamanosOrigen`).
-    std::map<std::string, std::pair<int, int>> origenDe_;
-    std::vector<std::pair<int, int>> tamanosOrigen_;
-    int estadosRecalculados_ = 0;
+    /// El tamaño que llega de cada entrada, al día solo con las que cambiaron (ver `tamanosOrigen`).
+    video::TamanosOrigen tamanosOrigen_;
 };
 
 } // namespace ba::app

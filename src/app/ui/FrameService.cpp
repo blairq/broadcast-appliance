@@ -9,6 +9,8 @@
 #include "ipc/SpoutTransport.hpp"
 #include "platform/Hilo.hpp"
 
+#include "ui/LugaresCambiados.hpp"
+
 #include <QQmlPropertyMap>
 #include <QSet>
 
@@ -403,17 +405,11 @@ void FrameService::setGuestNames(const QStringList& names) {
     // Solo los rótulos de los lugares cuyo nombre cambió: las claves no cambian (sin
     // keysChanged: eso hacía releer las claves, los colores y TODOS los rótulos a cada vista
     // con cada foto de la sala en que cambiaba un nombre).
-    const qsizetype n = std::max(antes.size(), names.size());
-    bool alguno = false;
-    for (qsizetype i = 0; i < n; ++i) {
-        const QString a = i < antes.size() ? antes.at(i) : QString();
-        const QString b = i < names.size() ? names.at(i) : QString();
-        if (a == b) continue;
-        alguno = true;
-        for (const QString& k : {QStringLiteral("guest:%1").arg(i + 1), QStringLiteral("share:%1").arg(i + 1)})
+    const std::vector<int> lugares = lugaresCambiados(antes, names);
+    for (const int lugar : lugares)
+        for (const QString& k : {QStringLiteral("guest:%1").arg(lugar), QStringLiteral("share:%1").arg(lugar)})
             if (rotulos_->contains(k)) ponerRotulo(k);
-    }
-    if (alguno) emit rotulosCambio(); // (el catálogo del escritorio, las fuentes de Personas)
+    if (!lugares.empty()) emit rotulosCambio(); // (el catálogo del escritorio, las fuentes de Personas)
 }
 
 std::vector<std::wstring> FrameService::channelsOf(const QString& key) {

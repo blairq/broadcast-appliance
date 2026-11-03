@@ -303,17 +303,13 @@ void Matriz::alCambiarFoto(unsigned partes) {
     bool anotada = false;
     std::vector<std::string> tocadas; ///< las fuentes cuyo ruteo cambió: solo sus filas
     if (!antes.mismo(m.canales)) {
-        const std::vector<FotoMotor::CanalAudio>& viejos = antes.get();
         const std::vector<FotoMotor::CanalAudio>& nuevos = m.canales.get();
         // Entradas que aparecieron o se fueron (al arrancar, el motor las crea después):
         // filas, tomas y lo que se abre del equipo, sin esperar a que alguien mire la matriz.
-        bool otrosNombres = viejos.size() != nuevos.size();
-        for (std::size_t i = 0; !otrosNombres && i < nuevos.size(); ++i) otrosNombres = viejos[i].nombre != nuevos[i].nombre;
-        if (otrosNombres && fuentesConAudio() != filas_) refrescar();
-        for (std::size_t i = 0; i < nuevos.size(); ++i) {
+        if (otrosNombres(antes, m.canales) && fuentesConAudio() != filas_) refrescar();
+        // Solo los que no son iguales al de su lugar en la foto anterior (lo común: uno).
+        for (const std::size_t i : canalesCambiados(antes, m.canales)) {
             const FotoMotor::CanalAudio& c = nuevos[i];
-            // El mismo de antes, en su lugar (lo común): nada que mirar.
-            if (i < viejos.size() && viejos[i] == c) continue;
             // Nació o se rehízo (con el mismo nombre): con lo de fábrica, hasta que se le
             // ponga lo guardado.
             const auto alta = altas_.find(c.nombre);
