@@ -696,6 +696,15 @@ std::shared_ptr<DispositivoVideo> dispositivoVideo() {
 std::atomic<int> gDecD3d{0};
 std::atomic<bool> gAvisoVp{false};      ///< F3: la placa no achica la grilla (avisado una vez)
 std::atomic<long long> gCeldasPlaca{0}; ///< F3: celdas de la grilla achicadas en la placa
+std::atomic<long long> gCeldasConEntero{0}; ///< … de esas, en la misma vuelta que el entero
+/// F3: el procesador de video no lee directo las superficies del decodificador (el arreglo
+/// con BIND_DECODER solo): se copia cada cuadro a una textura intermedia y se achica de ahí.
+/// Lo descubre el primer decodificador al que le falla y vale para todos (es la misma placa);
+/// `gateway.celdaIntermedia` lo fuerza desde el arranque (si la directa no falla pero sale mal).
+std::atomic<bool>& vpIntermedia() {
+    static std::atomic<bool> v{ba::ajustes::siNo("gateway.celdaIntermedia", false)};
+    return v;
+}
 std::atomic<bool> gAvisoD3d{false};
 
 class DecodificadorD3d11 : public webrtc::VideoDecoder {
@@ -1134,6 +1143,9 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
         const webrtc::VideoFrameBuffer* buffer() const override { return b_; }
         bool celdaBgra(int tw, int th, uint8_t* dst, int paso) override { return d_.celdaBgra(tw, th, dst, paso); }
         bool enteroBgra(uint8_t* dst, int paso) override { return d_.enteroBgra(dst, paso); }
+        bool enteroYCelda(uint8_t* dst, int paso, int tw, int th, uint8_t* celda, int pasoCelda, bool& celdaHecha) override {
+            return d_.enteroYCelda(dst, paso, tw, th, celda, pasoCelda, celdaHecha);
+        }
 
        private:
         DecodificadorD3d11& d_;
@@ -1196,12 +1208,43 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
         std::unique_lock<std::mutex> l(dev_->m);
         D3D11_MAPPED_SUBRESOURCE m{};
         if (!mapearPaso(l, m)) return false;
+        convertirPaso(m, dst, pasoDst);
+        return true;
+    }
+
+    /// El NV12 mapeado de la textura de paso → BGRA (con el recorte del SPS), y la suelta.
+    void convertirPaso(const D3D11_MAPPED_SUBRESOURCE& m, uint8_t* dst, int pasoDst) {
         const auto* base = static_cast<const uint8_t*>(m.pData);
         const ptrdiff_t paso = static_cast<ptrdiff_t>(m.RowPitch);
         const uint8_t* y = base + static_cast<ptrdiff_t>(cropArr_) * paso + cropIzq_;
         const uint8_t* uv = base + static_cast<ptrdiff_t>(altoCod_) * paso + static_cast<ptrdiff_t>(cropArr_ / 2) * paso + (cropIzq_ & ~1);
         libyuv::NV12ToARGB(y, static_cast<int>(paso), uv, static_cast<int>(paso), dst, pasoDst, w_, h_);
         dev_->ctx->Unmap(paso_.Get(), 0);
+    }
+
+    /// El entero (para ba-app) y la celda de la grilla en UNA vuelta de la placa: se encola
+    /// la copia del NV12 a la de paso y, detrás, el achique de la celda (procesador de video);
+    /// una sola espera, y se bajan los dos. Antes: el entero solo y la celda achicada del BGRA
+    /// en el procesador (con 40 invitados, todas las celdas iban por ahí). `celdaHecha`: si
+    /// salió la celda (si no, quien llama la achica del entero). false si el entero no salió.
+    bool enteroYCelda(uint8_t* dst, int pasoDst, int tw, int th, uint8_t* celda, int pasoCelda, bool& celdaHecha) {
+        celdaHecha = false;
+        std::unique_lock<std::mutex> l(dev_->m);
+        dev_->ctx->CopySubresourceRegion(paso_.Get(), 0, 0, 0, 0, textura_.Get(),
+                                         D3D11CalcSubresource(0, static_cast<UINT>(sup_), 1), nullptr);
+        const bool conCelda = encolarCelda(tw, th);
+        if (!esperarPlaca(l)) return false;
+        D3D11_MAPPED_SUBRESOURCE m{};
+        const HRESULT hr = dev_->ctx->Map(paso_.Get(), 0, D3D11_MAP_READ, 0, &m);
+        if (FAILED(hr)) {
+            hrUltimo_ = hr;
+            return false;
+        }
+        convertirPaso(m, dst, pasoDst);
+        if (conCelda && leerCelda(tw, th, celda, pasoCelda)) {
+            celdaHecha = true;
+            ++gCeldasConEntero;
+        }
         return true;
     }
 
@@ -1276,6 +1319,8 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
 
     void soltarProcesador() {
         vpEntradas_.clear();
+        vpEntradaIntermedia_.Reset();
+        vpIntermedia_.Reset();
         vpVistaSalida_.Reset();
         vpPaso_.Reset();
         vpSalida_.Reset();
@@ -1286,9 +1331,33 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
 
     /// La celda de la grilla achicada en la placa (NV12 → BGRA en un paso) y bajada sola.
     bool celdaBgra(int tw, int th, uint8_t* dst, int pasoDst) {
-        if (tw <= 0 || th <= 0 || sup_ < 0) return false;
         std::unique_lock<std::mutex> l(dev_->m);
-        if (!prepararProcesador(tw, th)) return false;
+        if (!encolarCelda(tw, th)) return false;
+        if (!esperarPlaca(l)) return false;
+        return leerCelda(tw, th, dst, pasoDst);
+    }
+
+    /// La placa no achica (no se reintenta en cada cuadro): avisado una vez.
+    void romperProcesador(HRESULT hr, const char* que) {
+        hrUltimo_ = hr;
+        soltarProcesador();
+        vpRoto_ = true;
+        if (!gAvisoVp.exchange(true)) aviso(std::string("video: ") + que + " (" + hex(hr) + "): se achica en el procesador");
+    }
+
+    /// El procesador de video no lee directo del arreglo del decodificador: desde ahora (y
+    /// para todos los decodificadores) se copia a la textura intermedia. Avisado una vez.
+    void pasarAIntermedia(HRESULT hr) {
+        hrUltimo_ = hr;
+        vpEntradas_.assign(static_cast<size_t>(superficies_), nullptr);
+        if (!vpIntermedia().exchange(true))
+            aviso("video: la placa no achica directo de las superficies del decodificador (" + hex(hr) +
+                  "): se copia cada cuadro a una textura intermedia");
+    }
+
+    /// La entrada del procesador de video sobre la superficie del cuadro (una vista por
+    /// superficie, hecha al usarla). nullptr si la placa no la acepta.
+    ID3D11VideoProcessorInputView* entradaDirecta() {
         ComPtr<ID3D11VideoProcessorInputView>& ent = vpEntradas_[static_cast<size_t>(sup_)];
         if (!ent) {
             D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC iv{};
@@ -1297,30 +1366,95 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
             const HRESULT hr = dev_->vdev->CreateVideoProcessorInputView(textura_.Get(), vpEnum_.Get(), &iv, &ent);
             if (FAILED(hr)) {
                 hrUltimo_ = hr;
-                soltarProcesador();
-                vpRoto_ = true;
-                if (!gAvisoVp.exchange(true))
-                    aviso("video: la placa no deja leer sus superficies para achicar (" + hex(hr) + "): se achica en el procesador");
-                return false;
+                ent.Reset();
+                return nullptr;
             }
         }
-        RECT origen{cropIzq_, cropArr_, cropIzq_ + w_, cropArr_ + h_};
-        RECT destino{0, 0, tw, th};
-        dev_->vctx->VideoProcessorSetStreamSourceRect(vp_.Get(), 0, TRUE, &origen);
-        dev_->vctx->VideoProcessorSetStreamDestRect(vp_.Get(), 0, TRUE, &destino);
-        dev_->vctx->VideoProcessorSetOutputTargetRect(vp_.Get(), TRUE, &destino);
-        D3D11_VIDEO_PROCESSOR_STREAM st{};
-        st.Enable = TRUE;
-        st.pInputSurface = ent.Get();
-        HRESULT hr = dev_->vctx->VideoProcessorBlt(vp_.Get(), vpVistaSalida_.Get(), 0, 1, &st);
-        if (FAILED(hr)) {
-            hrUltimo_ = hr;
-            return false;
+        return ent.Get();
+    }
+
+    /// La alternativa: la superficie copiada (en la placa) a una textura NV12 propia, del
+    /// tamaño codificado, y la entrada del procesador sobre esa. Se prueba con los permisos
+    /// de más a menos (render target + shader, shader, ninguno): cuál acepta el procesador de
+    /// video como entrada depende del driver. nullptr si ninguno sirve.
+    ID3D11VideoProcessorInputView* entradaIntermedia() {
+        if (!vpEntradaIntermedia_) {
+            HRESULT hr = E_FAIL;
+            for (const UINT bind : {UINT(D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE), UINT(D3D11_BIND_SHADER_RESOURCE), UINT(0)}) {
+                D3D11_TEXTURE2D_DESC td{};
+                td.Width = static_cast<UINT>(anchoCod_);
+                td.Height = static_cast<UINT>(altoCod_);
+                td.MipLevels = 1;
+                td.ArraySize = 1;
+                td.Format = DXGI_FORMAT_NV12;
+                td.SampleDesc.Count = 1;
+                td.Usage = D3D11_USAGE_DEFAULT;
+                td.BindFlags = bind;
+                vpIntermedia_.Reset();
+                if (FAILED(hr = dev_->dev->CreateTexture2D(&td, nullptr, &vpIntermedia_))) continue;
+                D3D11_VIDEO_PROCESSOR_INPUT_VIEW_DESC iv{};
+                iv.ViewDimension = D3D11_VPIV_DIMENSION_TEXTURE2D;
+                iv.Texture2D.ArraySlice = 0;
+                if (SUCCEEDED(hr = dev_->vdev->CreateVideoProcessorInputView(vpIntermedia_.Get(), vpEnum_.Get(), &iv,
+                                                                              &vpEntradaIntermedia_)))
+                    break;
+                vpEntradaIntermedia_.Reset();
+            }
+            if (!vpEntradaIntermedia_) {
+                vpIntermedia_.Reset();
+                hrUltimo_ = hr;
+                return nullptr;
+            }
         }
-        dev_->ctx->CopyResource(vpPaso_.Get(), vpSalida_.Get());
-        if (!esperarPlaca(l)) return false;
+        dev_->ctx->CopySubresourceRegion(vpIntermedia_.Get(), 0, 0, 0, 0, textura_.Get(),
+                                         D3D11CalcSubresource(0, static_cast<UINT>(sup_), 1), nullptr);
+        return vpEntradaIntermedia_.Get();
+    }
+
+    /// Encola (con el candado del dispositivo) el achique de la celda a `tw`x`th` y su copia a
+    /// la de lectura; no espera. Primero desde la superficie del decodificador; si la placa no
+    /// la acepta como entrada del procesador de video (la vista o el Blt fallan), desde la
+    /// textura intermedia. false si no se pudo (se achica en el procesador).
+    bool encolarCelda(int tw, int th) {
+        if (tw <= 0 || th <= 0 || sup_ < 0) return false;
+        if (!prepararProcesador(tw, th)) return false;
+        for (int intento = 0; intento < 2; ++intento) {
+            const bool intermedia = vpIntermedia().load(std::memory_order_relaxed);
+            ID3D11VideoProcessorInputView* ent = intermedia ? entradaIntermedia() : entradaDirecta();
+            if (ent == nullptr) {
+                if (intermedia) {
+                    romperProcesador(hrUltimo_, "la placa no deja achicar ni desde una textura intermedia");
+                    return false;
+                }
+                pasarAIntermedia(hrUltimo_);
+                continue;
+            }
+            RECT origen{cropIzq_, cropArr_, cropIzq_ + w_, cropArr_ + h_};
+            RECT destino{0, 0, tw, th};
+            dev_->vctx->VideoProcessorSetStreamSourceRect(vp_.Get(), 0, TRUE, &origen);
+            dev_->vctx->VideoProcessorSetStreamDestRect(vp_.Get(), 0, TRUE, &destino);
+            dev_->vctx->VideoProcessorSetOutputTargetRect(vp_.Get(), TRUE, &destino);
+            D3D11_VIDEO_PROCESSOR_STREAM st{};
+            st.Enable = TRUE;
+            st.pInputSurface = ent;
+            const HRESULT hr = dev_->vctx->VideoProcessorBlt(vp_.Get(), vpVistaSalida_.Get(), 0, 1, &st);
+            if (SUCCEEDED(hr)) {
+                dev_->ctx->CopyResource(vpPaso_.Get(), vpSalida_.Get());
+                return true;
+            }
+            if (intermedia) {
+                hrUltimo_ = hr; // pasajero (o no: lo dice hrUltimo_); el próximo cuadro prueba de nuevo
+                return false;
+            }
+            pasarAIntermedia(hr);
+        }
+        return false;
+    }
+
+    /// Baja la celda ya achicada (después de esperarPlaca, con el candado).
+    bool leerCelda(int tw, int th, uint8_t* dst, int pasoDst) {
         D3D11_MAPPED_SUBRESOURCE m{};
-        hr = dev_->ctx->Map(vpPaso_.Get(), 0, D3D11_MAP_READ, 0, &m);
+        const HRESULT hr = dev_->ctx->Map(vpPaso_.Get(), 0, D3D11_MAP_READ, 0, &m);
         if (FAILED(hr)) {
             hrUltimo_ = hr;
             return false;
@@ -1379,6 +1513,8 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
     ComPtr<ID3D11Texture2D> vpPaso_;   ///< la de lectura de la celda (staging)
     ComPtr<ID3D11VideoProcessorOutputView> vpVistaSalida_;
     std::vector<ComPtr<ID3D11VideoProcessorInputView>> vpEntradas_; ///< una por superficie, al usarla
+    ComPtr<ID3D11Texture2D> vpIntermedia_;                         ///< la alternativa (vpIntermedia()): NV12 propia
+    ComPtr<ID3D11VideoProcessorInputView> vpEntradaIntermedia_;
     int vpW_ = 0, vpH_ = 0, vpCodW_ = 0, vpCodH_ = 0;
     bool vpRoto_ = false; ///< la placa no achica: no se reintenta
     int superficies_ = 0, siguiente_ = 0, anchoCod_ = 0, altoCod_ = 0, errores_ = 0;
@@ -1956,6 +2092,8 @@ nlohmann::json estado() {
             {"decodificadores_d3d11", gDecD3d.load()},
             {"celdas_en_placa", gCeldasPlaca.load()},  // F3: la grilla achicada en la placa
             {"achica_en_placa", !gAvisoVp.load()},     // false: la placa no pudo y se achica en el procesador
+            {"celdas_con_entero", gCeldasConEntero.load()}, // … en la misma vuelta que el entero para ba-app
+            {"achica_desde", vpIntermedia().load() ? "intermedia" : "superficie"}, // de dónde lee el procesador de video
             {"codificador", h.codificaHw ? h.nombreCodHw : std::string("MediaFoundation (software)")},
             {"fabricante", h.fabricanteCodHw},
             {"placa", h.placa},
