@@ -130,7 +130,12 @@ clave, la página y `acceso_remoto_clave` avisan (con la API key como token el t
 - El puerto del túnel en el gateway tiene que aceptar **PROXY v1 (TCP4 y TCP6)** si se usa
   `--haproxy v1` o si hay algún forwarding tcp/tls en la misma sesión (es global). Si el puerto
   `http` no lo quiere, pasar `--haproxy no` y tomar la IP de `X-Forwarded-For` (que viene siempre;
-  como solo escucha en 127.0.0.1 y lo único que conecta es ba-pinggy, se puede confiar).
+  como solo escucha en 127.0.0.1 y lo único que conecta es ba-pinggy, se puede confiar). Se toma
+  el ÚLTIMO elemento de la última línea (el que agrega pinggy); lo de antes lo escribe el visitante
+  y no cuenta. En el puerto común del gateway `X-Forwarded-For` no vale nunca. La regla entera (una
+  sola para todo el gateway) está en `src/gateway/IpCliente.hpp`.
+- El TURN (forwardings `tcp`/`udp`) no recibe ninguna cabecera ni PROXY: todo le llega desde
+  127.0.0.1 y no decide nada por dirección (lo protege su credencial, que se pide por la web).
 - Para el TURN: `tlstcp` no está en el gratis; `tcp` (puerto al azar, fijo con Pro) y `udp` sí.
   `tls` comparte el 443 con el `http`: con Pro, darle su propio binding (`@turn.<dominio>`).
 - `forwardings[].publico` puede ser `null` si pinggy no devolvió URL para ese forwarding.

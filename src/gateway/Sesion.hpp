@@ -120,8 +120,9 @@ class SesionBorde {
     SesionBorde(std::string webroot, Log& log, Evento alApp);
 
     /// Atiende si es de la sesión (página o WebSocket). true si la tomó. Si es el
-    /// WebSocket, NO vuelve hasta que se cierra. `externo`: llegó por la escucha del
-    /// túnel de pinggy: «afuera» siempre, y la IP es la que dio (PROXY v1), no una cabecera.
+    /// WebSocket, NO vuelve hasta que se cierra. `clientIp` y `externo`
+    /// (llegó por un túnel: «afuera» siempre) vienen de ipcliente::resolver; acá no se lee
+    /// ninguna cabecera de IP.
     bool atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
                  const std::string& headers, std::uint32_t clientIp, bool externo = false);
     /// Rutas /api/v1/sesion/* de la API de control.

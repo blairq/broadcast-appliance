@@ -33,6 +33,7 @@
 #include <system_error>
 
 #include "Borde.hpp"
+#include "IpCliente.hpp"
 #include "HttpIo.hpp"
 #include "ipc/CanalesEscena.hpp"
 #include "ipc/CanalesSalida.hpp"
@@ -414,51 +415,16 @@ bool SignalingServer::start() {
     return true;
 }
 
+// La regla de la IP del cliente vive en IpCliente (una sola para todo el gateway).
 bool SignalingServer::ipDeTexto(const std::string& texto, std::uint32_t& ipRed) {
-    if (texto.empty() || texto.size() > 45) return false;
-    in_addr a{};
-    if (inet_pton(AF_INET, texto.c_str(), &a) == 1) {
-        ipRed = static_cast<std::uint32_t>(a.s_addr);
-        return true;
-    }
-    in6_addr a6{};
-    if (inet_pton(AF_INET6, texto.c_str(), &a6) != 1) return false;
-    const auto* b = reinterpret_cast<const unsigned char*>(&a6);
-    static const unsigned char kMapeada[12] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0xff, 0xff};
-    if (std::memcmp(b, kMapeada, 12) == 0) {
-        std::memcpy(&ipRed, b + 12, 4);
-        return true;
-    }
-    // FNV-1a del /64 (lo que suele ser UN cliente) -> 240.x.y.z.
-    std::uint32_t h = 2166136261u;
-    for (int i = 0; i < 8; ++i) h = (h ^ b[i]) * 16777619u;
-    const unsigned char ip4[4] = {240, static_cast<unsigned char>(h >> 16), static_cast<unsigned char>(h >> 8),
-                                  static_cast<unsigned char>(h)};
-    std::memcpy(&ipRed, ip4, 4);
-    return true;
+    return ipcliente::ipDeTexto(texto, ipRed);
 }
 
 bool SignalingServer::ipDeProxyV1(const std::string& linea, std::uint32_t& ipRed) {
-    char src[64] = {0};
-    char dst[64] = {0};
-    unsigned sp = 0;
-    unsigned dp = 0;
-    if (std::sscanf(linea.c_str(), "PROXY TCP4 %63s %63s %u %u", src, dst, &sp, &dp) == 4 ||
-        std::sscanf(linea.c_str(), "PROXY TCP6 %63s %63s %u %u", src, dst, &sp, &dp) == 4)
-        return ipDeTexto(src, ipRed);
-    return false;
+    return ipcliente::ipDeProxyV1(linea, ipRed);
 }
 
-bool SignalingServer::ipDeXff(const std::string& valor, std::uint32_t& ipRed) {
-    // El ULTIMO de la lista es el que agrego pinggy; los de antes los pudo
-    // escribir el cliente.
-    const size_t coma = valor.rfind(',');
-    std::string ultimo = coma == std::string::npos ? valor : valor.substr(coma + 1);
-    const auto ini = ultimo.find_first_not_of(" \t");
-    const auto fin = ultimo.find_last_not_of(" \t");
-    if (ini == std::string::npos) return false;
-    return ipDeTexto(ultimo.substr(ini, fin - ini + 1), ipRed);
-}
+bool SignalingServer::ipDeXff(const std::string& valor, std::uint32_t& ipRed) { return ipcliente::ipDeXff(valor, ipRed); }
 
 std::vector<std::string> SignalingServer::tomarAcreditaciones() {
     std::lock_guard<std::mutex> g(publicoM_);
@@ -961,16 +927,15 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, Esc
     // 127.0.0.1 pero la IP que cuenta (rate-limit, registro) es la del
     // invitado. Solo se acepta desde loopback. En la escucha del tunel la IP
     // que venga NO cambia que la conexion sea externa.
-    bool ipDeProxy = false;
+    ipcliente::Entrada entrada;
+    entrada.ipSocket = clientIp;
+    entrada.escuchaTunel = externo;
+    entrada.cabeceras = &headers;
     if (headers.rfind("PROXY ", 0) == 0) {
         const size_t eol = headers.find("\r\n");
         const bool fromLoopback = ntohl(clientIp) == INADDR_LOOPBACK;
         if (eol == std::string::npos || !fromLoopback) return;
-        std::uint32_t real = 0;
-        if (ipDeProxyV1(headers.substr(0, eol), real)) {
-            clientIp = real;
-            ipDeProxy = true;
-        }
+        entrada.conProxyV1 = ipDeProxyV1(headers.substr(0, eol), entrada.ipProxyV1);
         headers.erase(0, eol + 2);
         // La cabecera PROXY puede haber llegado sola: se completa la peticion.
         if (headers.find("\r\n\r\n") == std::string::npos) {
@@ -980,13 +945,11 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, Esc
         }
     }
 
-    // Por el tunel de pinggy sin PROXY v1 (con el TURN prendido va sin, ver
-    // main.cpp): la IP real del X-Forwarded-For que agrega ba-pinggy (--xff).
-    // Solo en esa escucha: en la comun esa cabecera la pone cualquiera.
-    if (externo && !ipDeProxy) {
-        std::uint32_t real = 0;
-        if (ipDeXff(http::getHeader(headers, "X-Forwarded-For"), real)) clientIp = real;
-    }
+    // LA IP del cliente y si llegó por un túnel: una sola regla (IpCliente.hpp). PROXY v1
+    // solo desde 127.0.0.1; X-Forwarded-For solo en la escucha de pinggy; las de
+    // Cloudflare solo en la común y desde 127.0.0.1. Desde la red local, el socket.
+    const ipcliente::Origen origen = ipcliente::resolver(entrada);
+    clientIp = origen.ip;
 
     // El cupo por IP de lo que llego por un proceso local y ahora se sabe de quien es.
     if (ipCupo == 0 && ntohl(clientIp) != INADDR_LOOPBACK) {
@@ -1069,13 +1032,13 @@ void SignalingServer::handleConnection(long long fd, std::uint32_t clientIp, Esc
     }
 
     // La botonera (página, emparejamiento y su WebSocket) antes que la sala.
-    if (botonera_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
+    if (botonera_->atender(fd, method, path, query, headers, body, clientIp, origen.porTunel)) return;
     // La sesión remota (página y su WebSocket), también antes que la sala.
-    if (sesion_->atender(fd, method, path, query, headers, clientIp, externo)) return;
+    if (sesion_->atender(fd, method, path, query, headers, clientIp, origen.porTunel)) return;
     // El registro de personas por tótem (página y su WebSocket), también antes que la sala.
-    if (registro_->atender(fd, method, path, query, headers, clientIp, externo)) return;
+    if (registro_->atender(fd, method, path, query, headers, clientIp, origen.porTunel)) return;
     // El control web (dashboard /control/, emparejar y /ws?control), también antes que la sala.
-    if (controlWeb_->atender(fd, method, path, query, headers, body, clientIp, externo)) return;
+    if (controlWeb_->atender(fd, method, path, query, headers, body, clientIp, origen.porTunel)) return;
     if (path == "/api/ice" && method == "GET" && !admin) {
         // Los servidores ICE (TURN de la caja) para el RTCPeerConnection del
         // navegador. Sin servidor TURN (o sin setIce): lo de siempre, sin ICE.

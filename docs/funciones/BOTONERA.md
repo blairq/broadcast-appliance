@@ -43,7 +43,8 @@ en registros). La tablet pide emparejarse y en la app aparece **«… pide empar
 ## Seguridad
 
 - **Solo red local**: se aceptan direcciones privadas (192.168.x, 10.x, 172.16–31.x), link-local y esta
-  máquina. Lo que llega por el túnel de Cloudflare se rechaza.
+  máquina. Lo que llega por un túnel (pinggy o Cloudflare) se rechaza. La dirección es la de la
+  conexión: las cabeceras que dicen otra dirección solo valen si las pone el túnel.
 - **Token por aparato** de 256 bits, que la tablet guarda y manda en el primer mensaje (nunca en la
   URL). La app guarda solo un hash con sal. Vence a los N días sin uso (de fábrica 30) y se revoca uno
   por uno o todos (Aparatos → Revocar): la conexión se corta en el acto.

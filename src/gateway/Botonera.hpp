@@ -59,8 +59,9 @@ class BotoneraBorde {
     BotoneraBorde(std::string webroot, Log& log, Evento alApp);
 
     /// Atiende si es de la botonera (página, API o WebSocket). true si la tomó.
-    /// Si es el WebSocket, NO vuelve hasta que se cierra. `externo`: llegó por la
-    /// escucha del túnel de pinggy (de afuera aunque la IP sea local): se rechaza.
+    /// Si es el WebSocket, NO vuelve hasta que se cierra. `clientIp` y `externo`
+    /// (llegó por un túnel: de afuera aunque la IP sea local; se rechaza) vienen de
+    /// ipcliente::resolver.
     bool atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
                  const std::string& headers, const std::string& body, std::uint32_t clientIp,
                  bool externo = false);

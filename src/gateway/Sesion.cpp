@@ -298,15 +298,11 @@ bool SesionBorde::atender(long long fd, const std::string& method, const std::st
     const bool pagina = path == "/sesion" || path.rfind("/sesion/", 0) == 0;
     const bool paginaConsola = path == "/presidencia" || path.rfind("/presidencia/", 0) == 0;
     if (!ws && !pagina && !paginaConsola) return false;
-    // La IP real si viene por el túnel de Cloudflare (para el registro y los
-    // límites). Por el de pinggy la cabecera no vale (la pone cualquiera): la IP
-    // es la de la conexión, que ya trae la real si vino PROXY v1.
-    std::string ip = externo ? std::string() : http::getHeader(headers, "CF-Connecting-IP");
-    // En la sala (red local) o afuera (por un túnel o una IP pública): la página lo
+    // La IP y «por un túnel» ya vienen resueltas (IpCliente.hpp): acá no se lee
+    // ninguna cabecera de IP. En la sala (red local) o afuera (túnel o IP pública): la página lo
     // usa para no reproducir la sala en un celular que está adentro (acoplaría).
-    const bool tunel = externo || !ip.empty();
-    if (ip.empty() || ip.size() > 45) ip = borde::ipTexto(clientIp);
-    const std::string lugar = !tunel && borde::ipLocal(clientIp) ? "sala" : "afuera";
+    const std::string ip = borde::ipTexto(clientIp);
+    const std::string lugar = !externo && borde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!origenValido(headers)) {
         log_.warn(llenar(traducir("gateway", "sesión: origen ajeno desde %1"), {ip}), -1);
         http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen inválido") + "\n");

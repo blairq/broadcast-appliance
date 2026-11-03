@@ -62,8 +62,8 @@ class ControlWebBorde {
     ControlWebBorde(std::string webroot, Log& log, Evento alApp);
 
     /// Atiende si es del control web (página, emparejar o WebSocket). true si la
-    /// tomó. Si es el WebSocket, NO vuelve hasta que se cierra. `externo`: llegó
-    /// por la escucha del túnel (de afuera aunque la IP sea local).
+    /// tomó. Si es el WebSocket, NO vuelve hasta que se cierra. `clientIp` y `externo`
+    /// (llegó por un túnel: de afuera aunque la IP sea local) vienen de ipcliente::resolver.
     bool atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
                  const std::string& headers, const std::string& body, std::uint32_t clientIp, bool externo = false);
     /// Rutas /api/v1/control/* de la API de control.
@@ -73,8 +73,8 @@ class ControlWebBorde {
     void cerrar();
 
     // --- Para las pruebas ---
-    /// ¿Viene de afuera? (escucha del túnel, IP pública o cabeceras de Cloudflare)
-    static bool deAfuera(std::uint32_t ip, const std::string& headers, bool externo);
+    /// ¿Viene de afuera? (por un túnel o con una IP que no es de la red local)
+    static bool deAfuera(std::uint32_t ip, bool externo);
     /// Origin igual a Host (sin Origin: no es un navegador de otra página).
     static bool mismoOrigen(const std::string& headers);
     /// El aparato del token ("" si ninguno). `remoto`: además tiene que valer el PIN del túnel.

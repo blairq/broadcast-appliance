@@ -53,7 +53,9 @@ int main() {
     CHECK(BotoneraBorde::origenValido("Host: 192.168.1.5:8789\r\nOrigin: https://192.168.1.5:8789"), "mismo origen");
     CHECK(!BotoneraBorde::origenValido("Host: 192.168.1.5:8789\r\nOrigin: https://malo.example"), "origen ajeno");
     CHECK(BotoneraBorde::origenValido("Host: 192.168.1.5:8789"), "sin Origin (no es un navegador de otra página)");
-    CHECK(!BotoneraBorde::origenValido("Host: x\r\nCF-Connecting-IP: 1.2.3.4"), "lo que viene por Cloudflare no");
+    // Cloudflare ya no se mira acá: llega como `externo` (ipcliente::resolver) y se rechaza
+    // por eso; desde la red local la cabecera sola no cambia nada (test_ip_cliente, test_pinggy).
+    CHECK(BotoneraBorde::origenValido("Host: x\r\nCF-Connecting-IP: 1.2.3.4"), "las cabeceras de IP no deciden el origen");
 
     CHECK(ba::gateway::borde::hashConSal("abc") == "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad",
           "sha256 de referencia");

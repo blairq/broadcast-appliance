@@ -58,9 +58,8 @@ BotoneraBorde::BotoneraBorde(std::string webroot, Log& log, Evento alApp)
     : webroot_(std::move(webroot)), log_(log), alApp_(std::move(alApp)) {}
 
 bool BotoneraBorde::origenValido(const std::string& headers) {
-    // Lo que viene por Cloudflare no es la red local.
-    if (!http::getHeader(headers, "CF-Connecting-IP").empty() || !http::getHeader(headers, "CF-Ray").empty())
-        return false;
+    // Lo que viene por Cloudflare ya llega como `externo` (ipcliente::resolver): acá
+    // solo el Origin.
     return borde::mismoOrigen(headers);
 }
 

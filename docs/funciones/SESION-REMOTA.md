@@ -22,6 +22,10 @@ integrantes abren su link en el celular, votan y lo usan de micrófono, y la ses
 - **Dónde está:** el gateway sabe si entró por la red local o desde internet (por el túnel). En la
   sala el celular es **solo micrófono** (apretar para hablar) y **no** reproduce la sala (si no,
   acopla con los parlantes); afuera recibe la vuelta de la sala. El integrante lo puede cambiar.
+  «En la sala» o «afuera», el tope de intentos por dirección y el bloqueo por PIN se deciden con la
+  dirección real de la conexión: un aparato de la red local no puede hacerse pasar por otra
+  dirección ni figurar «afuera». La dirección que informa un túnel (pinggy, Cloudflare) solo se
+  toma cuando llega por ese túnel.
 - **Voz a la sala:** la salida «A la sala» de la matriz va a la entrada de la CCU cuando anda, o
   directo a la potencia de sala cuando no (se elige en el panel de audio, sin tocar nada más).
 - **Fila y voto:** con la central, su fila y la de los celulares se unen; sin la central, la de los

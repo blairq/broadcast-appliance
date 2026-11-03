@@ -101,8 +101,8 @@ class RegistroBorde {
     RegistroBorde(std::string webroot, Log& log, Evento alApp);
 
     /// Atiende si es del registro (página o WebSocket). true si la tomó. Si es el
-    /// WebSocket, NO vuelve hasta que se cierra. `externo`: llegó por la escucha del
-    /// túnel de pinggy (la IP es la que dio, no una cabecera).
+    /// WebSocket, NO vuelve hasta que se cierra. `clientIp` y `externo`
+    /// (llegó por un túnel) vienen de ipcliente::resolver, no de una cabecera.
     bool atender(long long fd, const std::string& method, const std::string& path, const std::string& query,
                  const std::string& headers, std::uint32_t clientIp, bool externo = false);
     /// Rutas /api/v1/registro/* de la API de control.

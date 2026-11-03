@@ -349,6 +349,36 @@ void escuchaTunel() {
     CHECK(codigo(ida(tp, conXff("200.3.3.3, 200.4.4.4", "9182"))) == 200, "XFF: cuenta el último, no el primero");
     // En la común el XFF no vale: 127.0.0.1 sigue sin bloquear.
     CHECK(codigo(ida(gp, conXff("200.1.1.1", "9182"))) == 200, "en la común el XFF se ignora");
+    // Dos líneas X-Forwarded-For: cuenta la última (la del túnel), no la que mandó el visitante.
+    for (int i = 0; i < 3; ++i) ida(tp, conXff("200.3.3.4\r\nX-Forwarded-For: 200.3.3.5", "0000"));
+    CHECK(codigo(ida(tp, conXff("200.3.3.5", "0000"))) == 429, "XFF en dos líneas: la última es la que erró");
+    CHECK(codigo(ida(tp, conXff("200.3.3.4", "9182"))) == 200, "XFF en dos líneas: la primera no cuenta");
+
+    // Las cabeceras de IP no esquivan el tope por IP: desde la red local (aquí la IP del
+    // PROXY v1 de ba-web) CF-Connecting-IP, X-Forwarded-For, X-Real-IP y Forwarded se ignoran.
+    const auto conCabecera = [](std::string p, const std::string& linea) {
+        return p.insert(p.find("\r\n") + 2, linea + "\r\n");
+    };
+    for (int i = 0; i < 3; ++i) {
+        const std::string otra = "203.0.113." + std::to_string(10 + i);
+        ida(gp, proxyV1("192.168.0.40") + conCabecera(postJoin("0000"), "CF-Connecting-IP: " + otra + "\r\nCF-Ray: x\r\nX-Forwarded-For: " +
+                                                                        otra + "\r\nX-Real-IP: " + otra + "\r\nForwarded: for=" + otra));
+    }
+    CHECK(codigo(ida(gp, proxyV1("192.168.0.40") + conCabecera(postJoin("9182"), "CF-Connecting-IP: 203.0.113.99"))) == 429,
+          "desde la red local, cambiar las cabeceras no saltea el bloqueo de PIN");
+    CHECK(codigo(ida(gp, proxyV1("192.168.0.20") + conCabecera(botonera, "CF-Connecting-IP: 8.8.8.8\r\nCF-Ray: x"))) == 200,
+          "desde la red local, ponerse cabeceras de Cloudflare no lo hace «de afuera»");
+    // Cloudflare (cloudflared se conecta a la común desde 127.0.0.1): afuera, con su IP.
+    CHECK(codigo(ida(gp, conCabecera(botonera, "CF-Connecting-IP: 200.9.9.9\r\nCF-Ray: x"))) == 403,
+          "cloudflared desde 127.0.0.1: afuera (la botonera no)");
+    CHECK(codigo(ida(gp, conCabecera(botonera, "CF-Ray: x"))) == 403, "CF-Ray solo, desde 127.0.0.1: afuera igual");
+    for (int i = 0; i < 3; ++i) ida(gp, conCabecera(postJoin("0000"), "CF-Connecting-IP: 200.9.9.10"));
+    CHECK(codigo(ida(gp, conCabecera(postJoin("0000"), "CF-Connecting-IP: 200.9.9.10"))) == 429,
+          "por Cloudflare el bloqueo de PIN es por la IP del visitante");
+    CHECK(codigo(ida(gp, conCabecera(postJoin("9182"), "CF-Connecting-IP: 200.9.9.11"))) == 200,
+          "otro visitante de Cloudflare entra");
+    CHECK(codigo(ida(tp, conCabecera(postJoin("9182"), "CF-Connecting-IP: 200.3.3.5"))) == 200,
+          "en la escucha del túnel CF-Connecting-IP no vale (cuenta 127.0.0.1, no la IP bloqueada)");
 
     // GET /api/remoto (API de control).
     const std::string bearer = "Authorization: Bearer token-operador\r\n";

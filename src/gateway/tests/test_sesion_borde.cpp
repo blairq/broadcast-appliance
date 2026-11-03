@@ -219,11 +219,14 @@ int main() {
 #ifndef _WIN32
         // De punta a punta, por el WebSocket de la página.
         SesionBorde w("", log, [](const nlohmann::json&) {});
-        const auto entrar = [&](const nlohmann::json& auth) {
+        // `extra`: cabeceras de más; `desde`: la IP ya resuelta (ipcliente::resolver).
+        const auto entrar = [&](const nlohmann::json& auth, const std::string& extra = "",
+                                std::uint32_t desde = 0x0100007f) {
             int sv[2];
             if (socketpair(AF_UNIX, SOCK_STREAM, 0, sv) != 0) return nlohmann::json();
-            std::thread srv([&w, fd = sv[0]]() {
-                w.atender(fd, "GET", "/ws", "sesion=1", "Host: x\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n", 0x0100007f);
+            std::thread srv([&w, fd = sv[0], extra, desde]() {
+                w.atender(fd, "GET", "/ws", "sesion=1",
+                          "Host: x\r\nSec-WebSocket-Key: dGhlIHNhbXBsZSBub25jZQ==\r\n" + extra, desde);
                 ::close(fd);
             });
             // El pedido de la página: un frame de texto enmascarado (máscara 0).
@@ -304,6 +307,20 @@ int main() {
             frenados += x.value("error", "").find("Demasiados intentos") != std::string::npos ? 1 : 0;
         }
         CHECK(frenados > 0, "a los reales el tope por IP les sigue valiendo");
+        // Las cabeceras de IP no cuentan acá (la IP ya viene resuelta): ponerse otra no
+        // esquiva el tope ni hace a nadie «de afuera».
+        const std::string falsas = "CF-Connecting-IP: 203.0.113.7\r\nCF-Ray: x\r\nX-Forwarded-For: 203.0.113.8\r\n"
+                                   "X-Real-IP: 203.0.113.9\r\n";
+        r = entrar({{"type", "auth"}, {"i", "leg-9"}, {"t", tok}, {"pin", pin}}, falsas);
+        CHECK(r.value("error", "").find("Demasiados intentos") != std::string::npos,
+              "con cabeceras de otra IP sigue frenado (el tope es por la IP de la conexión)");
+        const std::uint32_t lan = 0x1e01a8c0; // 192.168.1.30 en orden de red
+        nlohmann::json deprueba2 = cred("prueba-2", nlohmann::json::array());
+        deprueba2["prueba"] = true;
+        w.ponerCredenciales(nlohmann::json::array({cred("leg-9", nlohmann::json::array()), deprueba, deprueba2}));
+        r = entrar({{"type", "auth"}, {"i", "prueba-2"}, {"t", tok}, {"pin", pin}}, falsas, lan);
+        CHECK(r.value("ok", false) && r.value("lugar", "") == "sala",
+              "desde la red local con cabeceras de Cloudflare: en la sala");
 #endif
     }
 

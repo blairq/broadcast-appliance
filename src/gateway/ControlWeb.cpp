@@ -56,10 +56,9 @@ const std::set<std::string> kTipos{"hola", "llamar", "mirar", "preferencias"};
 ControlWebBorde::ControlWebBorde(std::string webroot, Log& log, Evento alApp)
     : webroot_(std::move(webroot)), log_(log), alApp_(std::move(alApp)) {}
 
-bool ControlWebBorde::deAfuera(std::uint32_t ip, const std::string& headers, bool externo) {
-    if (externo || !borde::ipLocal(ip)) return true;
-    // Lo que viene por Cloudflare no es la red local aunque llegue desde 127.0.0.1.
-    return !http::getHeader(headers, "CF-Connecting-IP").empty() || !http::getHeader(headers, "CF-Ray").empty();
+bool ControlWebBorde::deAfuera(std::uint32_t ip, bool externo) {
+    // Cloudflare (aunque llegue desde 127.0.0.1) ya viene como `externo`: ipcliente::resolver.
+    return externo || !borde::ipLocal(ip);
 }
 
 bool ControlWebBorde::mismoOrigen(const std::string& headers) { return borde::mismoOrigen(headers); }
@@ -145,7 +144,7 @@ bool ControlWebBorde::atender(long long fd, const std::string& method, const std
     const bool pagina = path == "/control" || path.rfind("/control/", 0) == 0;
     const bool api = path == "/api/control/emparejar";
     if (!ws && !pagina && !api) return false;
-    const bool remoto = deAfuera(clientIp, headers, externo);
+    const bool remoto = deAfuera(clientIp, externo);
     // De afuera: solo si la app habilitó el túnel (con PIN); emparejar, nunca.
     if (!mismoOrigen(headers) || (remoto && (api || !tunelHabilitado()))) {
         log_.warn(remoto ? llenar(traducir("gateway", "control web: rechazado %1 %2 (de afuera, sin el acceso por el túnel "

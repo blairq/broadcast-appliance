@@ -309,10 +309,10 @@ bool RegistroBorde::atenderAtiende(long long fd, const std::string& method, cons
     const bool ws = path == "/ws" && q.count("registro_atiende") > 0;
     const bool pagina = path == "/registro-atiende" || path.rfind("/registro-atiende/", 0) == 0;
     if (!ws && !pagina) return false;
-    std::string ip = externo ? std::string() : http::getHeader(headers, "CF-Connecting-IP");
-    const bool tunel = externo || !ip.empty();
-    if (ip.empty() || ip.size() > 45) ip = borde::ipTexto(clientIp);
-    const std::string lugar = !tunel && borde::ipLocal(clientIp) ? "sala" : "afuera";
+    // La IP y «por un túnel» ya vienen resueltas (IpCliente.hpp): acá no se lee
+    // ninguna cabecera de IP. En la sala (red local) o afuera (túnel o IP pública).
+    const std::string ip = borde::ipTexto(clientIp);
+    const std::string lugar = !externo && borde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!SesionBorde::origenValido(headers)) {
         log_.warn(llenar(traducir("gateway", "registro: origen ajeno en la atención remota desde %1"), {ip}), -1);
         http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen inválido") + "\n");

@@ -318,12 +318,10 @@ bool RegistroBorde::atender(long long fd, const std::string& method, const std::
     const bool ws = path == "/ws" && q.count("registro") > 0;
     const bool pagina = path == "/registro" || path.rfind("/registro/", 0) == 0;
     if (!ws && !pagina) return false;
-    // La IP real si viene por el túnel de Cloudflare; por el de pinggy la cabecera no
-    // vale (la pone cualquiera): la de la conexión, que ya trae la real (PROXY v1).
-    std::string ip = externo ? std::string() : http::getHeader(headers, "CF-Connecting-IP");
-    const bool tunel = externo || !ip.empty();
-    if (ip.empty() || ip.size() > 45) ip = borde::ipTexto(clientIp);
-    const std::string lugar = !tunel && borde::ipLocal(clientIp) ? "sala" : "afuera";
+    // La IP y «por un túnel» ya vienen resueltas (IpCliente.hpp): acá no se lee
+    // ninguna cabecera de IP. En la sala (red local) o afuera (túnel o IP pública).
+    const std::string ip = borde::ipTexto(clientIp);
+    const std::string lugar = !externo && borde::ipLocal(clientIp) ? "sala" : "afuera";
     if (!SesionBorde::origenValido(headers)) {
         log_.warn(llenar(traducir("gateway", "registro: origen ajeno desde %1"), {ip}), -1);
         http::sendResponse(fd, 403, "text/plain", traducir("gateway", "origen inválido") + "\n");

@@ -66,10 +66,10 @@ std::uint32_t ip(unsigned a, unsigned b, unsigned c, unsigned d) {
 
 int main() {
     // --- De dónde viene ---------------------------------------------------------------
-    CHECK(!ControlWebBorde::deAfuera(ip(192, 168, 1, 20), "Host: x", false), "red local: adentro");
-    CHECK(ControlWebBorde::deAfuera(ip(192, 168, 1, 20), "Host: x", true), "la escucha del túnel: afuera");
-    CHECK(ControlWebBorde::deAfuera(ip(8, 8, 8, 8), "Host: x", false), "IP pública: afuera");
-    CHECK(ControlWebBorde::deAfuera(ip(127, 0, 0, 1), "Host: x\r\nCF-Ray: abc", false), "Cloudflare: afuera");
+    // (Cloudflare llega como `externo`: lo decide ipcliente::resolver, test_ip_cliente.)
+    CHECK(!ControlWebBorde::deAfuera(ip(192, 168, 1, 20), false), "red local: adentro");
+    CHECK(ControlWebBorde::deAfuera(ip(192, 168, 1, 20), true), "por un túnel: afuera");
+    CHECK(ControlWebBorde::deAfuera(ip(8, 8, 8, 8), false), "IP pública: afuera");
     CHECK(ControlWebBorde::mismoOrigen("Host: 192.168.1.5:8787\r\nOrigin: http://192.168.1.5:8787"), "mismo origen");
     CHECK(!ControlWebBorde::mismoOrigen("Host: 192.168.1.5:8787\r\nOrigin: http://malo.example"), "origen ajeno");
     CHECK(ControlWebBorde::mismoOrigen("Host: 192.168.1.5:8787"), "sin Origin");
