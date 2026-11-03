@@ -100,6 +100,9 @@
 #include "p2p/base/basic_packet_socket_factory.h"
 #include "p2p/client/basic_port_allocator.h"
 #include "rtc_base/network.h"
+#if defined(WEBRTC_WIN)
+#include "rtc_base/win32_socket_init.h"
+#endif
 #include "CodecsVideo.hpp"
 #include "DestinoCamara.hpp"
 #include "media/base/adapted_video_track_source.h"
@@ -911,6 +914,12 @@ class ColasDePaso final : public webrtc::TaskQueueFactory {
 
 /// Estado compartido de las fábricas (lo guarda el hub como void*).
 struct RtcHubState {
+#if defined(WEBRTC_WIN)
+    /// Winsock arriba mientras viva el hub (el primero en nacer, el último en irse): los
+    /// hilos de red crean sockets apenas arrancan y libwebrtc no llama a WSAStartup. En el
+    /// gateway ya lo había hecho otro (HttpIo); un hub solo (los tests) no juntaba candidatos.
+    rtc::WinsockInitializer winsock;
+#endif
     /// Los codificadores de verdad (VP8; H.264 de VideoToolbox en la Mac): los usan los flujos
     /// del retorno compartido. Las PeerConnection ven una fábrica de PASO sobre esta.
     std::shared_ptr<webrtc::VideoEncoderFactory> codificadores;
