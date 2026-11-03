@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/vivos/Vivos.hpp — las cuentas de cada plataforma y los vivos de cada salida
 //
-// docs/funciones/streaming-cuentas.md. Lo que el operador (y el asistente) arma:
+// docs/funciones/STREAMING-CUENTAS.md. Lo que el operador (y el asistente) arma:
 //
 //   - VARIAS CUENTAS POR PLATAFORMA (YouTube, Twitch, Facebook). Son del APARATO, no del
 //     evento: la lista (sin secretos) y el token de cada una van cifrados al almacén de

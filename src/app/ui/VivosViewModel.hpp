@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/ui/VivosViewModel.hpp — las cuentas de las plataformas y los vivos de cada salida
 //
-// La vista de vivos::ServicioVivos (vivos/Vivos.hpp, docs/funciones/streaming-cuentas.md):
+// La vista de vivos::ServicioVivos (vivos/Vivos.hpp, docs/funciones/STREAMING-CUENTAS.md):
 //
 //   - `cuentas`: las de todas las plataformas, una fila por cuenta (clave «uid» =
 //     «plataforma/cuenta»), con su estado (conectada, vencida, sin permiso…). Las de cada

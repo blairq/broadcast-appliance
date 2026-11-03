@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/mcp/McpVivosTools.cpp — varias cuentas por plataforma y los vivos de cada salida
 //
-// docs/funciones/streaming-cuentas.md. Todo pasa por el modelo de la interfaz
+// docs/funciones/STREAMING-CUENTAS.md. Todo pasa por el modelo de la interfaz
 // (ui/VivosViewModel → vivos::ServicioVivos): lo que hace el asistente lo ve el operador
 // en el acto (la sección Cuentas de cada página, la tarjeta de cada salida).
 //
