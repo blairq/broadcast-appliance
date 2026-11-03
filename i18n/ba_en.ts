@@ -41661,6 +41661,16 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: hilos para sacar el audio</source>
+        <translation>Conference: audio playout threads</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuántos hilos sacan cada 10 ms el audio de los invitados (todos al mismo tiempo, cada uno con su parte). 0: automático (uno por hilo de trabajo, hasta 4). 1: uno solo, como antes.</source>
+        <translation>How many threads pull the guests&apos; audio every 10 ms (all at the same time, each with its share). 0: automatic (one per worker thread, up to 4). 1: a single one, as before.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Conference: TURN delivers in memory</translation>
     </message>

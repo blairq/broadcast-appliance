@@ -280,11 +280,19 @@ void marcarPrioridad(const rtc::scoped_refptr<webrtc::RtpSenderInterface>& sende
 class PullAdm;
 
 /// El reloj del audio de TODAS las fábricas (F2: una fábrica por par de hilos red/trabajo,
-/// cada una con su módulo de audio): un solo hilo «webrtc-playout» que cada 10 ms tira de la
-/// reproducción de cada una, no un hilo por fábrica (#10 del plan: una despertada por vuelta).
+/// cada una con su módulo de audio). UN solo tick de 10 ms («webrtc-playout») y K hilos que
+/// tiran de la reproducción (#10 del plan): el del tick hace su grupo y despierta a los otros
+/// K−1 («webrtc-playout-k»), cada uno con las fábricas de su grupo (el grupo de una fábrica es
+/// su hilo de trabajo % K: el reparto ya deja parejos los hilos de trabajo). Todos tiran en
+/// la MISMA vuelta, así que el audio de todos sigue alineado, y cada invitado sale siempre del
+/// mismo hilo (su fábrica no se muda): su anillo hacia ba-app recibe lo mismo que con uno.
+/// Si un grupo se atrasa, se pone al día como hacía el hilo único (una tirada por vuelta
+/// perdida, hasta kTopeAlDia). `gateway.hilosPlayout` = 1: un solo hilo, como antes.
 class RelojPlayout {
    public:
+    explicit RelojPlayout(int grupos = 1) : grupos_(size_t(std::clamp(grupos, 1, 8))) {}
     ~RelojPlayout() { parar(); }
+    int grupos() const { return int(grupos_.size()); }
     void sumar(PullAdm* a);
     void sacar(PullAdm* a);
     void parar() {
@@ -293,16 +301,34 @@ class RelojPlayout {
             if (!corriendo_) return;
             corriendo_ = false;
         }
-        if (hilo_.joinable()) hilo_.join();
+        cv_.notify_all();
+        for (std::thread& h : hilos_)
+            if (h.joinable()) h.join();
+        hilos_.clear();
     }
+    /// {hilos, grupos: [{hilo, adms, vueltas, atrasadas}]}.
+    nlohmann::json estado();
+
+    /// Las vueltas que se pone al día un grupo atrasado de una (más, se pierden).
+    static constexpr std::uint64_t kTopeAlDia = 50;
 
    private:
-    void bucle();
+    struct Grupo {
+        std::mutex m; // la lista; se tiene tomado mientras se tira de cada una
+        std::vector<PullAdm*> adms;
+        std::atomic<std::uint64_t> vueltas{0}, atrasadas{0};
+    };
+    void tick();             ///< el hilo «webrtc-playout»: el reloj y el grupo 0
+    /// «webrtc-playout-k»: el grupo k en cada vuelta del tick desde la vuelta `desde`.
+    void ayudante(size_t k, std::uint64_t desde);
+    void tirarGrupo(size_t k, std::vector<int16_t>& buf);
 
-    std::mutex m_; // la lista; se tiene tomado mientras se tira de cada una
-    std::vector<PullAdm*> adms_;
+    std::vector<Grupo> grupos_;
+    std::mutex m_; // corriendo_, vuelta_ y los hilos
+    std::condition_variable cv_;
+    std::uint64_t vuelta_ = 0; ///< bajo m_: cuántos ticks van
     bool corriendo_ = false;
-    std::thread hilo_;
+    std::vector<std::thread> hilos_;
 };
 
 /// Modulo de audio SIN dispositivo que tira de la reproduccion cada 10 ms.
@@ -313,7 +339,10 @@ class RelojPlayout {
 /// El ritmo lo pone el RelojPlayout común.
 class PullAdm : public webrtc::webrtc_impl::AudioDeviceModuleDefault<webrtc::AudioDeviceModule> {
    public:
-    explicit PullAdm(std::shared_ptr<RelojPlayout> reloj) : reloj_(std::move(reloj)) {}
+    /// `grupo`: el hilo del reloj que tira de esta fábrica (su hilo de trabajo % K).
+    PullAdm(std::shared_ptr<RelojPlayout> reloj, int grupo)
+        : reloj_(std::move(reloj)), grupo_(reloj_ ? grupo % reloj_->grupos() : 0) {}
+    int grupo() const { return grupo_; }
     ~PullAdm() override { StopPlayout(); }
 
     int32_t RegisterAudioCallback(webrtc::AudioTransport* t) override {
@@ -362,48 +391,122 @@ class PullAdm : public webrtc::webrtc_impl::AudioDeviceModuleDefault<webrtc::Aud
 
    private:
     std::shared_ptr<RelojPlayout> reloj_;
+    const int grupo_;
     std::mutex m_;
     webrtc::AudioTransport* transport_ = nullptr;
     std::atomic<bool> playing_{false};
 };
 
 void RelojPlayout::sumar(PullAdm* a) {
+    {
+        Grupo& g = grupos_[size_t(a->grupo())];
+        std::lock_guard<std::mutex> l(g.m);
+        g.adms.push_back(a);
+    }
     std::lock_guard<std::mutex> l(m_);
-    adms_.push_back(a);
-    if (!corriendo_) {
-        corriendo_ = true;
-        if (hilo_.joinable()) hilo_.join(); // uno anterior que ya salió
-        hilo_ = std::thread([this]() {
-            ba::platform::nombrarHilo("webrtc-playout");
+    if (corriendo_) return;
+    corriendo_ = true;
+    for (std::thread& h : hilos_) // unos anteriores que ya salieron
+        if (h.joinable()) h.join();
+    hilos_.clear();
+    const std::uint64_t desde = vuelta_;
+    for (size_t k = 1; k < grupos_.size(); ++k) {
+        hilos_.emplace_back([this, k, desde]() {
+            ba::platform::nombrarHilo("webrtc-playout-" + std::to_string(k + 1));
             ba::platform::nucleos::alGrupoGateway();
-            ba::platform::tiempoRealAudio(10); // tira del audio cada 10 ms: con plazo
-            bucle();
+            ba::platform::tiempoRealAudio(10);
+            ayudante(k, desde);
         });
     }
+    hilos_.emplace_back([this]() {
+        ba::platform::nombrarHilo("webrtc-playout");
+        ba::platform::nucleos::alGrupoGateway();
+        ba::platform::tiempoRealAudio(10); // tira del audio cada 10 ms: con plazo
+        tick();
+    });
 }
 
 void RelojPlayout::sacar(PullAdm* a) {
-    std::lock_guard<std::mutex> l(m_);
-    adms_.erase(std::remove(adms_.begin(), adms_.end(), a), adms_.end());
+    Grupo& g = grupos_[size_t(a->grupo())];
+    std::lock_guard<std::mutex> l(g.m); // al volver, el reloj ya no tira de este
+    g.adms.erase(std::remove(g.adms.begin(), g.adms.end(), a), g.adms.end());
 }
 
-void RelojPlayout::bucle() {
+namespace {
+/// #10 del plan: sacar el audio de todos cada 10 ms (NetEq de cada invitado), por grupo.
+ba::diag::Frontera& fronteraPlayout(size_t k) {
+    if (k == 0) return ba::diag::frontera("audio.playout", 10, "sacar el audio de todos cada 10 ms (webrtc-playout)");
+    return ba::diag::frontera("audio.playout-" + std::to_string(k + 1), 10,
+                              "sacar el audio de su grupo cada 10 ms (webrtc-playout-" + std::to_string(k + 1) + ")");
+}
+} // namespace
+
+void RelojPlayout::tirarGrupo(size_t k, std::vector<int16_t>& buf) {
+    Grupo& g = grupos_[k];
+    static thread_local ba::diag::Frontera* f = nullptr;
+    if (f == nullptr) f = &fronteraPlayout(k);
+    f->despertada();
+    ba::diag::MedirPase medir(*f, buf.size() * sizeof(int16_t));
+    std::lock_guard<std::mutex> l(g.m);
+    for (PullAdm* a : g.adms) a->tirar(buf);
+    g.vueltas.fetch_add(1, std::memory_order_relaxed);
+}
+
+void RelojPlayout::tick() {
     std::vector<int16_t> buf(kFramesPer10Ms * kAudioChannels);
     auto next = std::chrono::steady_clock::now();
-    // #10 del plan: sacar el audio de todos cada 10 ms (NetEq de cada invitado), de todas las fábricas.
-    static ba::diag::Frontera& fPlayout =
-        ba::diag::frontera("audio.playout", 10, "sacar el audio de todos cada 10 ms (webrtc-playout)");
     for (;;) {
         next += std::chrono::milliseconds(10);
-        fPlayout.despertada();
         {
-            ba::diag::MedirPase medir(fPlayout, buf.size() * sizeof(int16_t));
-            std::lock_guard<std::mutex> lock(m_);
+            std::lock_guard<std::mutex> l(m_);
             if (!corriendo_) return;
-            for (PullAdm* a : adms_) a->tirar(buf);
+            ++vuelta_;
         }
+        // Los otros grupos tiran en esta MISMA vuelta (una despertada de K−1 hilos cada 10 ms).
+        if (grupos_.size() > 1) cv_.notify_all();
+        tirarGrupo(0, buf);
         std::this_thread::sleep_until(next);
     }
+}
+
+void RelojPlayout::ayudante(size_t k, std::uint64_t desde) {
+    std::vector<int16_t> buf(kFramesPer10Ms * kAudioChannels);
+    std::uint64_t hecha = desde;
+    for (;;) {
+        std::uint64_t ahora;
+        {
+            std::unique_lock<std::mutex> l(m_);
+            cv_.wait(l, [&] { return !corriendo_ || vuelta_ != hecha; });
+            if (!corriendo_) return;
+            ahora = vuelta_;
+        }
+        // Una tirada por vuelta: si este grupo se atrasó (una tirada larga), se pone al día
+        // como hacía el hilo único al no dormir; más de kTopeAlDia vueltas, se pierden.
+        std::uint64_t n = ahora - hecha;
+        if (n > kTopeAlDia) {
+            grupos_[k].atrasadas.fetch_add(n - kTopeAlDia, std::memory_order_relaxed);
+            n = kTopeAlDia;
+        }
+        for (std::uint64_t i = 0; i < n; ++i) tirarGrupo(k, buf);
+        hecha = ahora;
+    }
+}
+
+nlohmann::json RelojPlayout::estado() {
+    nlohmann::json g = nlohmann::json::array();
+    for (size_t k = 0; k < grupos_.size(); ++k) {
+        Grupo& x = grupos_[k];
+        size_t n = 0;
+        {
+            std::lock_guard<std::mutex> l(x.m);
+            n = x.adms.size();
+        }
+        g.push_back({{"hilo", k == 0 ? std::string("webrtc-playout") : "webrtc-playout-" + std::to_string(k + 1)},
+                     {"fabricas", n},
+                     {"vueltas", x.vueltas.load(std::memory_order_relaxed)},
+                     {"perdidas", x.atrasadas.load(std::memory_order_relaxed)}});
+    }
+    return {{"hilos", grupos_.size()}, {"grupos", std::move(g)}};
 }
 
 /// Fuente de video de retorno: un BufferRetorno (el I420 de CuadroSaliente, el mismo para
@@ -1806,6 +1909,12 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
         st->reparto = std::make_unique<capas::Reparto>(tam, !juntos && ba::ajustes::siNo("gateway.capasCruzadas", true));
     }
     const int R = st->reparto->tamanos().red, T = st->reparto->tamanos().trabajo;
+    // El reloj del audio (#10): K hilos con el mismo tick de 10 ms, uno por hilo de trabajo
+    // (`gateway.hilosPlayout`; 0 = automático, T entre 1 y 4; 1 = uno solo, como antes).
+    {
+        const int pedidos = ba::ajustes::entero("gateway.hilosPlayout", 0);
+        st->reloj = std::make_shared<RelojPlayout>(pedidos > 0 ? std::min(pedidos, 8) : std::clamp(T, 1, 4));
+    }
     const auto nombre = [](const char* base, int i, int n) {
         return n == 1 ? std::string(base) : std::string(base) + "-" + std::to_string(i + 1);
     };
@@ -1869,10 +1978,10 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
             rtc::Thread* hiloRed = st->red[size_t(r)].hilo.get();
             rtc::Thread* hiloTrabajo = st->trabajo[size_t(t)];
             // El ADM se crea en el worker (asi lo espera libwebrtc). Todas las fábricas tiran
-            // del audio con el mismo reloj (un solo «webrtc-playout»).
+            // del audio con el mismo reloj; el grupo (qué hilo del reloj) es el de su trabajo.
             std::shared_ptr<RelojPlayout> reloj = st->reloj;
-            rtc::scoped_refptr<webrtc::AudioDeviceModule> adm = hiloTrabajo->BlockingCall([reloj]() {
-                return rtc::scoped_refptr<webrtc::AudioDeviceModule>(rtc::make_ref_counted<PullAdm>(reloj));
+            rtc::scoped_refptr<webrtc::AudioDeviceModule> adm = hiloTrabajo->BlockingCall([reloj, t]() {
+                return rtc::scoped_refptr<webrtc::AudioDeviceModule>(rtc::make_ref_counted<PullAdm>(reloj, t));
             });
             // Lo mismo que arma webrtc::CreatePeerConnectionFactory, salvo las colas de tareas.
             webrtc::PeerConnectionFactoryDependencies deps;
@@ -2069,6 +2178,7 @@ nlohmann::json WebrtcHub::capasEstado() const {
             e["hilo"] = "ba-rtc-work/" + std::to_string(k + 1);
             esperas.push_back(std::move(e));
         }
+        j["playout"] = st->reloj->estado();
         j["redYTrabajo"] = {{"modo", lote::nombre(st->redYTrabajo)},
                             {"loteUs", st->loteNs / 1000},
                             {"trabajo", std::move(esperas)}};

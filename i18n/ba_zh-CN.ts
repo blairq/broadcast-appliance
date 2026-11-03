@@ -40019,6 +40019,16 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: hilos para sacar el audio</source>
+        <translation>会议：取出音频的线程</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuántos hilos sacan cada 10 ms el audio de los invitados (todos al mismo tiempo, cada uno con su parte). 0: automático (uno por hilo de trabajo, hasta 4). 1: uno solo, como antes.</source>
+        <translation>每 10 毫秒取出嘉宾音频的线程数（同时进行，各负责一部分）。0：自动（每个工作线程一个，最多 4 个）。1：只用一个，与以前相同。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>会议：TURN 在内存中传递</translation>
     </message>

@@ -40181,6 +40181,16 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: hilos para sacar el audio</source>
+        <translation>Conférence : threads pour extraire l&apos;audio</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuántos hilos sacan cada 10 ms el audio de los invitados (todos al mismo tiempo, cada uno con su parte). 0: automático (uno por hilo de trabajo, hasta 4). 1: uno solo, como antes.</source>
+        <translation>Combien de threads extraient l&apos;audio des invités toutes les 10 ms (tous en même temps, chacun avec sa part). 0 : automatique (un par thread de travail, jusqu&apos;à 4). 1 : un seul, comme avant.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Conférence : le TURN livre en mémoire</translation>
     </message>

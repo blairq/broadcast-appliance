@@ -407,6 +407,30 @@ p50 y lo que recibe el invitado (sin cambios). Con `juntos`: CPU y cambios de co
 `ba-rtc-net*` y si la red de un grupo se atrasa (ráfaga de 40 entrando: los DTLS y los
 `SetRemoteDescription` en el mismo hilo que la red).
 
+#### El reloj del audio (#10) repartido
+
+Escrito (2026-11-02, noche; **sin compilar ni medir**). Con 120 invitados en la .177 el hilo
+único `webrtc-playout` (el `RelojPlayout` que cada 10 ms tira de la reproducción de todas las
+fábricas: NetEq y Opus de cada invitado, los sinks hacia ba-app y la grilla) va al 54 % de un
+núcleo y crece con los invitados: el próximo hilo único en llenarse.
+
+- `RelojPlayout` (Webrtc.cpp) con K grupos: UN tick de 10 ms (el hilo `webrtc-playout`, con
+  `sleep_until` como antes) que en cada vuelta despierta a los otros K−1 (`webrtc-playout-k`,
+  una condvar: K−1 despertadas cada 10 ms) y tira de su propio grupo. El grupo de una fábrica
+  es su hilo de trabajo % K (el reparto ya deja parejos los hilos de trabajo).
+- Alineado: todos tiran en la MISMA vuelta (con decenas de µs de diferencia, lo que tarda en
+  despertar un hilo). Cada invitado sale siempre del mismo hilo (su fábrica no se muda): su
+  anillo hacia ba-app recibe los mismos bloques, en el mismo orden y al mismo ritmo que con
+  uno. Lo que comparten los invitados del lado del gateway (`MediaPump::publishAudio`, la voz
+  de `Grillas`) ya tiene su candado. Un grupo atrasado se pone al día como el hilo único (una
+  tirada por vuelta perdida, hasta 50; más se pierden y se cuentan).
+- `gateway.hilosPlayout` (reinicia): 0 = uno por hilo de trabajo, entre 1 y 4 (3 en el
+  5900X); 1 = uno solo, como antes. Fronteras `audio.playout` (el grupo del tick) y
+  `audio.playout-k`; `gateway_estado` → `capas.playout`: los hilos y por grupo las fábricas,
+  vueltas y perdidas. `test_webrtc_capas` comprueba 2 grupos a la par con 2 de trabajo.
+- Qué medir (120 y 40): % de núcleo de cada `webrtc-playout*` (≈ 54/K), edad del audio p50
+  (igual), `perdidas` en 0, y que la mezcla de ba-app no tenga cortes.
+
 Medición (pendiente: se hace con todo junto; `medir-sala.py`, Mac, `--camino turn-mezcla:10`
 con `--turn-prueba` y `--camino directo`, 10 y 40, después 80; grabado, habla 1, decodificar
 todo):

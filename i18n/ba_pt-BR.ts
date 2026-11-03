@@ -40181,6 +40181,16 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: hilos para sacar el audio</source>
+        <translation>Conferência: threads para tirar o áudio</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cuántos hilos sacan cada 10 ms el audio de los invitados (todos al mismo tiempo, cada uno con su parte). 0: automático (uno por hilo de trabajo, hasta 4). 1: uno solo, como antes.</source>
+        <translation>Quantas threads tiram o áudio dos convidados a cada 10 ms (todas ao mesmo tempo, cada uma com sua parte). 0: automático (uma por thread de trabalho, até 4). 1: uma só, como antes.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Conferência: o TURN entrega na memória</translation>
     </message>
