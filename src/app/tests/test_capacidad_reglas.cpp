@@ -72,7 +72,9 @@ int main() {
     {
         const cap::Tiempos t;
         CHECK(cap::entradaCadaMs(10, t) == 300, "pocos: de a 300 ms");
-        CHECK(cap::entradaCadaMs(1000, t) == 50, "muchísimos: nunca menos de 50 ms");
+        // Los 75 s de entrada (120 − 15 − 30) repartidos entre los nuevos.
+        CHECK(cap::entradaCadaMs(1000, t) == 75, "1000 nuevos: de a 75 ms (entran en los 75 s)");
+        CHECK(cap::entradaCadaMs(5000, t) == 50, "muchísimos: nunca menos de 50 ms");
         for (int n : {1, 10, 20, 40, 100, 200, 512})
             CHECK(cap::duracionEscalonS(n, t) <= 120, "ningún escalón pasa de 2 minutos");
         CHECK(cap::duracionEscalonS(10, t) == 3 + 15 + 30, "10 nuevos: entrar 3 s + asentarse + régimen");
