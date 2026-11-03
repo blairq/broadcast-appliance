@@ -1567,6 +1567,12 @@ endif()
     target_include_directories(test_salidas_config PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_salidas_config PRIVATE ba_core nlohmann_json::nlohmann_json)
     add_test(NAME test_salidas_config COMMAND test_salidas_config)
+    # Varias cuentas por plataforma y los vivos de cada salida (vivos/Vivos.hpp): la migración,
+    # asignar con una plataforma de mentira, dos salidas al mismo vivo y el estado de cada destino.
+    add_executable(test_vivos tests/test_vivos.cpp vivos/Vivos.cpp)
+    target_include_directories(test_vivos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_vivos PRIVATE ba_core nlohmann_json::nlohmann_json)
+    add_test(NAME test_vivos COMMAND test_vivos)
     # El documento único de aire (F3-04): corte en cada transición, daño y la versión 1.
     add_executable(test_documento_aire tests/test_documento_aire.cpp emision/DocumentoAire.cpp emision/SalidasConfig.cpp)
     target_include_directories(test_documento_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
