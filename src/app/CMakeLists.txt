@@ -1667,6 +1667,23 @@ endif()
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_qml_carga PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_qml_carga COMMAND test_qml_carga)
+    # Banco de la sala con mucha gente (no es de ctest: se corre a mano, ver el .cpp). Con
+    # QT_QML_DEBUG para poder medir los bindings con qmlprofiler.
+    add_executable(bench_sala_conferencia tests/bench_sala_conferencia.cpp ui/VideoItem.cpp ui/VideoItem.hpp
+                   ui/ProveedorCuadros.cpp ui/ProveedorCuadros.hpp ui/JsonListModel.cpp)
+    target_include_directories(bench_sala_conferencia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(bench_sala_conferencia PRIVATE Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Qml Qt6::Quick)
+    target_compile_definitions(bench_sala_conferencia PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml" QT_QML_DEBUG)
+    set_target_properties(bench_sala_conferencia PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    # La grilla de la sala con 120 (SalaParticipantes de verdad, sin GPU): sin binding loop,
+    # sin un VideoItem por persona, la reserva sin pedir cuadros.
+    add_executable(test_sala_grilla tests/test_sala_grilla.cpp ui/VideoItem.cpp ui/VideoItem.hpp
+                   ui/ProveedorCuadros.cpp ui/ProveedorCuadros.hpp ui/JsonListModel.cpp)
+    target_include_directories(test_sala_grilla PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_sala_grilla PRIVATE Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Qml Qt6::Quick)
+    target_compile_definitions(test_sala_grilla PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
+    set_target_properties(test_sala_grilla PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_sala_grilla COMMAND test_sala_grilla)
     # La lista genérica de la vista avisa solo las filas y los roles que cambiaron.
     add_executable(test_json_list_model tests/test_json_list_model.cpp ui/JsonListModel.cpp)
     target_include_directories(test_json_list_model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
