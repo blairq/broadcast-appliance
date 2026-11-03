@@ -15,6 +15,7 @@
 //   C++ → JS: window.baPuente.enviar(texto), window.baPuente.estado(qué, detalle)
 // ============================================================================
 #include <QDirIterator>
+#include <QFont>
 #include <QFontDatabase>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
@@ -28,6 +29,7 @@
 #include "VideoItemWeb.hpp"
 #include "pantallas/BuscadorCatalogo.hpp"
 #include "ui/ChatHilo.hpp"
+#include "ui/FilaViva.hpp"
 #include "ui/FiltroCatalogo.hpp"
 #include "ui/FotosPersonas.hpp"
 #include "ui/ImagenViva.hpp"
@@ -72,6 +74,14 @@ void baRecibir(std::string texto) {
 void baConectado() {
     if (g_cliente) g_cliente->hola();
 }
+/// Un cuadro que descomprimió el navegador (RGBA): una sola copia de JS a la memoria del módulo.
+void baCuadro(std::string clave, emscripten::val pixeles, int w, int h, double t, double serial) {
+    if (!g_cliente || w <= 0 || h <= 0) return;
+    QImage img(w, h, QImage::Format_RGBA8888);
+    if (img.sizeInBytes() != static_cast<qsizetype>(w) * h * 4) return;
+    emscripten::val(emscripten::typed_memory_view(static_cast<size_t>(img.sizeInBytes()), img.bits())).call<void>("set", pixeles);
+    g_cliente->entregarCuadro(QString::fromStdString(clave), img, static_cast<qint64>(t), static_cast<quint64>(serial));
+}
 void baPedirWebrtc() {
     if (g_cliente) g_cliente->pedirWebrtc();
 }
@@ -83,6 +93,7 @@ EMSCRIPTEN_BINDINGS(ba_tablero) {
     emscripten::function("baRecibir", &baRecibir);
     emscripten::function("baConectado", &baConectado);
     emscripten::function("baPedirWebrtc", &baPedirWebrtc);
+    emscripten::function("baCuadro", &baCuadro);
 }
 #endif
 
@@ -93,6 +104,9 @@ int main(int argc, char** argv) {
     // Las letras de la app (Theme.font, Theme.mono), adentro del .wasm.
     for (QDirIterator it(QStringLiteral(":/fuentes"), {QStringLiteral("*.ttf")}); it.hasNext();)
         QFontDatabase::addApplicationFont(it.next());
+    // Lo que no está en esas (los símbolos de los botones), de DejaVu Sans.
+    QFont::insertSubstitutions(QStringLiteral("Noto Sans"), {QStringLiteral("DejaVu Sans")});
+    QFont::insertSubstitutions(QStringLiteral("JetBrains Mono"), {QStringLiteral("DejaVu Sans")});
 
     g_motor = new QQmlApplicationEngine();
     g_cliente = new ClienteReplica(app);
@@ -121,6 +135,7 @@ int main(int argc, char** argv) {
     qmlRegisterType<ba::app::FiltroCatalogo>("BA", 1, 0, "FiltroCatalogo");
     qmlRegisterType<ba::app::BuscadorCatalogo>("BA", 1, 0, "BuscadorCatalogo");
     qmlRegisterType<ba::app::ChatHilo>("BA", 1, 0, "ChatHilo");
+    qmlRegisterType<ba::app::FilaViva>("BA", 1, 0, "FilaViva");
     qmlRegisterSingletonType(QUrl(QStringLiteral("qrc:/qml/Theme.qml")), "BA", 1, 0, "Theme");
 
     QObject::connect(g_cliente, &ClienteReplica::listoChanged, app, []() {
@@ -135,7 +150,11 @@ int main(int argc, char** argv) {
     // El enlace WebRTC del programa (para comparar la latencia con el de los cuadros).
     QObject::connect(g_cliente, &ClienteReplica::enlaceWebrtc, app, [](const QString& url, const QString& error) {
         const QByteArray u = url.toUtf8(), e = error.toUtf8();
-        EM_ASM({ window.baWebrtc = { url : UTF8ToString($0), error : UTF8ToString($1) }; }, u.constData(), e.constData());
+        EM_ASM({
+            window.baWebrtc = new Object();
+            window.baWebrtc.url = UTF8ToString($0);
+            window.baWebrtc.error = UTF8ToString($1);
+        }, u.constData(), e.constData());
     });
     avisarPagina("arrancado", QString());
 #endif

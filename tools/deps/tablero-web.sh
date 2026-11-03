@@ -46,8 +46,9 @@ mkdir -p "$SALIDA.nueva"
 cp "$B/obj/ba-tablero.wasm" "$B/obj/ba-tablero.js" "$SALIDA.nueva/"
 cp "$B/obj/qtloader.js" "$SALIDA.nueva/" 2>/dev/null || cp "$QTW/plugins/platforms/qtloader.js" "$SALIDA.nueva/"
 cp "$RAIZ/src/tablero-web/web/puente.js" "$RAIZ/src/tablero-web/web/tablero.css" "$SALIDA.nueva/"
-# La versión: el hash del .wasm (otra versión = otra URL; el navegador guarda la vieja para siempre).
-VERSION="$(shasum -a 256 "$SALIDA.nueva/ba-tablero.wasm" 2>/dev/null || sha256sum "$SALIDA.nueva/ba-tablero.wasm")"
+# La versión: el hash del .wasm y los .js (otra versión = otra URL; el navegador guarda la vieja para siempre).
+VERSION="$(cat "$SALIDA.nueva/ba-tablero.wasm" "$SALIDA.nueva/ba-tablero.js" "$SALIDA.nueva/puente.js" "$SALIDA.nueva/qtloader.js" \
+  | { shasum -a 256 2>/dev/null || sha256sum; })"
 VERSION="${VERSION:0:12}"
 sed "s/@VERSION@/$VERSION/g" "$RAIZ/src/tablero-web/web/index.html" > "$SALIDA.nueva/index.html"
 # Comprimido de antemano: .gz para HTTP (el navegador no pide br sin TLS) y .br para HTTPS.

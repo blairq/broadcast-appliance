@@ -35,6 +35,7 @@ qt_add_executable(ba-tablero
     ${BA_APP}/ui/FiltroCatalogo.cpp ${BA_APP}/ui/FiltroCatalogo.hpp
     ${BA_APP}/pantallas/BuscadorCatalogo.cpp ${BA_APP}/pantallas/BuscadorCatalogo.hpp
     ${BA_APP}/ui/ChatHilo.cpp ${BA_APP}/ui/ChatHilo.hpp
+    ${BA_APP}/ui/FilaViva.cpp ${BA_APP}/ui/FilaViva.hpp
 )
 target_include_directories(ba-tablero PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_APP}" "${BA_RAIZ}/src/core")
 target_link_libraries(ba-tablero PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::QmlPrivate Qt6::Quick Qt6::QuickControls2 Qt6::Svg)
@@ -58,7 +59,10 @@ endif()
 # Las letras de Theme (Noto Sans y JetBrains Mono), adentro del .wasm.
 set(_ba_fuentes "")
 foreach(f "${BA_RAIZ}/extern/fuentes-texto/NotoSans-Regular.ttf" "${BA_RAIZ}/extern/fuentes-texto/NotoSans-Bold.ttf"
-          "${BA_RAIZ}/extern/fonts/JetBrainsMono-Regular.ttf")
+          "${BA_RAIZ}/extern/fonts/JetBrainsMono-Regular.ttf"
+          # Los símbolos de la interfaz (⧉ ◐ ▥ …): en la app los pone la letra del sistema;
+          # en el navegador no hay sistema, va DejaVu Sans de respaldo.
+          "${BA_RAIZ}/extern/fuentes-texto/DejaVuSans.ttf")
     if(EXISTS "${f}")
         list(APPEND _ba_fuentes "${f}")
     else()
@@ -76,6 +80,8 @@ qt_import_qml_plugins(ba-tablero PATH_TO_SCAN "${BA_APP}/qml" "${CMAKE_CURRENT_S
 # --- WebAssembly -----------------------------------------------------------------------------
 # Sin hilos (wasm_singlethread): no hace falta COOP/COEP en el servidor y anda en cualquier
 # navegador. Memoria inicial generosa (la QML del dashboard entera) y que crezca si hace falta.
-target_link_options(ba-tablero PRIVATE "SHELL:-s INITIAL_MEMORY=134217728" "SHELL:-s ALLOW_MEMORY_GROWTH=1"
+# Sin eval de JavaScript (DYNAMIC_EXECUTION=0): la página tiene CSP estricta ('wasm-unsafe-eval'
+# para compilar el .wasm, pero NO 'unsafe-eval').
+target_link_options(ba-tablero PRIVATE "SHELL:-s DYNAMIC_EXECUTION=0" "SHELL:-s INITIAL_MEMORY=134217728" "SHELL:-s ALLOW_MEMORY_GROWTH=1"
                     "SHELL:-s ASSERTIONS=0" "-O2" "--bind")
 target_compile_options(ba-tablero PRIVATE "-O2")

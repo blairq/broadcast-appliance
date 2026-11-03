@@ -43,6 +43,39 @@
     for (const t of cola.splice(0)) modulo.baRecibir(t);
   }
 
+  // --- El video ---------------------------------------------------------------------------
+  // Los cuadros llegan en JPEG. Los descomprime el navegador (createImageBitmap: fuera del
+  // hilo de la página, con lo que tenga el aparato) y al módulo le llegan los píxeles. Si
+  // mientras tanto llegan más de la misma vista, se queda solo con el último: nunca se
+  // acumula atraso.
+  const enCurso = new Map(), pendiente = new Map();
+  let lienzo = null, ctx = null;
+  const dec = (window.baMedidasDec = {});
+  async function cuadro(m) {
+    if (enCurso.get(m.clave)) { pendiente.set(m.clave, m); return; }
+    enCurso.set(m.clave, true);
+    const t0 = performance.now();
+    try {
+      const b = atob(m.jpg), bin = new Uint8Array(b.length);
+      for (let i = 0; i < b.length; i++) bin[i] = b.charCodeAt(i);
+      const bmp = await createImageBitmap(new Blob([bin], { type: "image/jpeg" }));
+      const w = bmp.width, h = bmp.height;
+      if (!lienzo) { lienzo = new OffscreenCanvas(w, h); ctx = lienzo.getContext("2d", { willReadFrequently: true }); }
+      if (lienzo.width !== w || lienzo.height !== h) { lienzo.width = w; lienzo.height = h; }
+      ctx.drawImage(bmp, 0, 0);
+      bmp.close();
+      const px = ctx.getImageData(0, 0, w, h).data;
+      if (modulo) modulo.baCuadro(m.clave, px, w, h, m.t, m.s);
+      const x = (dec[m.clave] = dec[m.clave] || { n: 0, suma: 0 });
+      x.n++; x.suma += performance.now() - t0; x.prom = Math.round(x.suma / x.n * 10) / 10;
+    } catch (e) {
+      console.warn("tablero: cuadro", e);
+    }
+    enCurso.set(m.clave, false);
+    const sig = pendiente.get(m.clave);
+    if (sig) { pendiente.delete(m.clave); cuadro(sig); }
+  }
+
   window.baPuente = {
     enviar(texto) {
       if (!canal) return;
@@ -80,6 +113,7 @@
     },
     alMensaje: (m) => {
       if (m.type !== "replica") return;
+      if (m.op === "cuadro") { if (modulo && pedido) cuadro(m); return; }
       const t = JSON.stringify(m);
       if (modulo && pedido) modulo.baRecibir(t);
       else cola.push(t);

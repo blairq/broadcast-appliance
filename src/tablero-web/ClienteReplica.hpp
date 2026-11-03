@@ -74,6 +74,9 @@ class ClienteReplica : public QObject {
     // --- El video ---
     void pedirVideo(QObject* quien, const QString& clave, int ancho, int fps);
     void soltarVideo(QObject* quien);
+    /// Un cuadro ya descomprimido por el navegador (puente.js: createImageBitmap, fuera del
+    /// hilo de la página): se avisa como si hubiera llegado en JPEG.
+    void entregarCuadro(const QString& clave, const QImage& img, qint64 t, quint64 serial) { emit cuadro(clave, img, t, serial); }
     /// Pedir el enlace del programa por WebRTC (/cast/): vuelve en enlaceWebrtc.
     void pedirWebrtc();
 

@@ -31,6 +31,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
 
@@ -147,7 +148,7 @@ def navegador(base, token, t, m, capturas, webrtc):
     puerto = 9300 + os.getpid() % 500
     p = subprocess.Popen([CHROME, "--headless=new", f"--remote-debugging-port={puerto}", f"--user-data-dir={perfil}",
                           "--window-size=1600,1000", "--mute-audio", "--autoplay-policy=no-user-gesture-required",
-                          "--use-angle=metal", "--enable-unsafe-swiftshader", "about:blank"],
+                          "--ignore-certificate-errors", "about:blank"],
                          stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     res = {}
     try:
@@ -192,6 +193,10 @@ def navegador(base, token, t, m, capturas, webrtc):
         sl = m.tool("scene_list")
         print("  scene_list:", {k: (v if not isinstance(v, list) else v[:3]) for k, v in sl.items() if k != "_texto"})
         lista = sl.get("scenes") or sl.get("escenas") or []
+        if len(lista) < 2:  # un evento de cero trae una sola: una copia para tener qué armar
+            m.tool("scene_copy", {"from": lista[0]["name"] if lista and isinstance(lista[0], dict) else "Principal",
+                                  "to": "Segunda"})
+            lista = m.tool("scene_list").get("scenes") or []
         escenas = [e if isinstance(e, str) else (e.get("name") or e.get("nombre")) for e in lista]
         antes = al_aire(m)
         otra = next((e for e in escenas if e and e != antes), None)
@@ -281,10 +286,17 @@ def main():
         _, d = emparejar(m, base, "Tablero de prueba", ["*"])
         token = d.get("token", "")
         t.chequear(bool(token), "aparato emparejado con el perfil «todo»")
-        st, _ = http(base + "/control/app/")
-        t.chequear(st == 200, f"/control/app/ se sirve ({st})")
+        try:
+            with urllib.request.urlopen(urllib.request.Request(base + "/control/app/"), context=_cw.SIN_VERIFICAR,
+                                        timeout=10) as r:
+                st, csp = r.status, r.headers.get("Content-Security-Policy", "")
+        except urllib.error.HTTPError as e:
+            st, csp = e.code, ""
+        t.chequear(st == 200 and "wasm-unsafe-eval" in csp, f"/control/app/ se sirve ({st}, CSP para wasm)")
         medido["replica"] = replica_sin_navegador(base, token, t)
         medido["navegador"] = navegador(base, token, t, m, a.capturas, a.webrtc)
+    except Exception as e:  # lo que sea: igual se vuelve al evento de antes
+        t.chequear(False, f"se cortó: {e!r}")
     finally:
         for ap_ in (m.tool("control_web_aparatos", {}).get("aparatos") or []):
             m.tool("control_web_quitar", {"aparato": ap_.get("id")})
