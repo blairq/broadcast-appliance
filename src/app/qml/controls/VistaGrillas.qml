@@ -23,11 +23,17 @@ ColumnLayout {
     property bool compacta: false
 
     readonly property var ctl: Studio.grillas
-    readonly property var todas: ctl ? ctl.grillas : []
-    readonly property var gente: ctl ? ctl.gente : []
+    // Solo mientras se ve: la Sala, Escenas y la Asamblea la tienen siempre cargada (sus
+    // páginas no se destruyen) y con 200 invitados cada aviso de las grillas convertía y
+    // rearmaba todas las caras en las tres aunque nadie las mirara (trabas de 2-6 s en la PC).
+    // Al volver a verse, se arma una vez con lo de ese momento.
+    readonly property var todas: ctl && vg.visible ? ctl.grillas : []
+    readonly property var gente: ctl && vg.visible ? ctl.gente : []
     readonly property var mias: vg.fuente !== "" ? vg.todas.filter(g => g.fuente === vg.fuente) : vg.todas
-    /// Hay algo que mostrar (para que quien la usa la esconda si no).
-    readonly property bool hay: vg.mias.length > 0
+    /// Hay algo que mostrar (para que quien la usa la esconda si no). No depende de si se ve
+    /// (quien la usa la muestra según esto): mira solo cuántas grillas hay.
+    readonly property bool hay: !ctl ? false : vg.fuente === "" ? ctl.grillas.length > 0
+                                                               : ctl.grillas.some(g => g.fuente === vg.fuente)
 
 
     // Una fila por grilla (las caras las lleva cada fila).
@@ -178,7 +184,8 @@ ColumnLayout {
                     property string elegido: ""
                     // En el resumen (compacta) esta fila no se ve: no se arma (con la gente entrando
                     // y hablando, rehacía el modelo del combo en cada aviso).
-                    readonly property var opciones: vg.compacta ? [] : vg.gente.filter(p => !fila.personas.some(x => x.clave === p.clave))
+                    readonly property var enLaFila: new Set(fila.personas.map(x => x.clave))
+                    readonly property var opciones: vg.compacta ? [] : vg.gente.filter(p => !enLaFila.has(p.clave))
                                                     .map(p => ({ clave: p.clave, texto: (p.nombre || p.clave)
                                                                  + (p.origen === "asamblea" ? " " + qsTr("(asamblea)") : "")
                                                                  + (p.al_aire ? " · " + qsTr("al aire") : "") }))
