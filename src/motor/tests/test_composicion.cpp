@@ -4,6 +4,8 @@
 // píxel por píxel (como lo leería un consumidor: intersrc video:programa):
 //   - una escena con dos capas en su lugar y con su tamaño; el resto, negro;
 //   - corte a otra escena: la nueva enseguida y la vieja se va;
+//   - un take no se ve armándose: lo nuevo se arma invisible y sale entero (capas
+//     tic por tic), con tope si una no llega;
 //   - corte a una escena vacía (y de vuelta): el programa sigue saliendo, sin ráfaga;
 //   - la misma escena con una capa movida: se mueve andando (sin rearmar);
 //   - mezcla de 1 s: a mitad de camino los colores se mezclan; al final, la nueva;
@@ -18,10 +20,12 @@
 #include "Piezas.hpp"
 #include "Entrada.hpp"
 #include "Reloj.hpp"
+#include "ajustes/Ajustes.hpp"
 
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -145,6 +149,153 @@ void probarCapaEn() {
     const Escena v = Escena::desdeJson(e.aJson());
     CHECK(v.capas.size() == 1 && v.capas[0].claves == c.claves && v.capas[0].clavesDesdeNs == 1234,
           "las claves van y vuelven por JSON");
+}
+
+namespace {
+/// La generación de la escena que entra (la más alta de las capas) y cuántas capas suyas
+/// se ven (alfa > 0) de cuántas tiene.
+struct Nuevas {
+    int gen = 0, visibles = 0, total = 0, viejasVisibles = 0;
+};
+Nuevas nuevasDe(const json& st) {
+    Nuevas n;
+    for (const auto& c : st["capas"]) n.gen = std::max(n.gen, c.value("generacion", 0));
+    for (const auto& c : st["capas"]) {
+        const bool ve = c.value("alfa", 0.0) > 0.001;
+        if (c.value("generacion", 0) == n.gen) {
+            ++n.total;
+            if (ve) ++n.visibles;
+        } else if (ve) {
+            ++n.viejasVisibles;
+        }
+    }
+    return n;
+}
+} // namespace
+
+/// UN TAKE NO SE VE ARMÁNDOSE (la regresión de la .177: al cortar a una escena compleja,
+/// al aire iban apareciendo los invitados y el fondo de a uno). La escena que entra tiene
+/// dos capas que ya dan cuadros y dos de entradas que todavía no existen (como invitados
+/// que tardan en dar el primero). Tic por tic, mirando las capas del programa: lo nuevo
+/// se ve entero o no se ve; mientras se arma, al aire sigue la escena anterior entera.
+/// Una entrada recién creada arranca en la placa «sin señal» hasta su primer cuadro: el
+/// programa (como el del motor, con Opciones::esperarEntrada) no la toma por lista.
+void probarTakeAtomico(Reloj& reloj, const Lienzo& lz, std::vector<Entrada*>& es) {
+    Composicion::Opciones op;
+    using Espera = Composicion::Espera;
+    op.esperarEntrada = [&es](const std::string& id, const std::string&) -> Espera {
+        for (const Entrada* e : es)
+            if (e->id() == id) {
+                if (e->sinVideo()) return Espera::NoEsperar;
+                return e->esperandoSenal() ? Espera::Esperar : Espera::Normal;
+            }
+        return Espera::Normal;
+    };
+    Composicion prog(reloj, lz, "take", op);
+    CHECK(prog.anda(), "take: el compositor arranca");
+    prog.mostrar(Escena{"vacia", {}});
+    esperar(es, prog, 500);
+    Visor v(reloj, prog.productor(), prog.latenciaSalidaNs(), lz.ancho, lz.alto);
+    // Un tope holgado: las tardías llegan a ~1 s (en una máquina lenta, más).
+    ba::ajustes::poner("video.esperaCorteMs", 6000);
+    Escena antes;
+    antes.nombre = "Antes";
+    antes.capas.push_back({"rojo", 0, 0, 0, 0});
+    prog.mostrar(antes, "corte");
+    esperar(es, prog, 800);
+    CHECK(igual(v.en(320, 180), 255, 0, 0), "take: antes, el rojo entero al aire");
+
+    Escena nueva;
+    nueva.nombre = "Nueva";
+    nueva.capas.push_back({"azul", 0, 0, 320, 360});
+    nueva.capas.push_back({"verde", 320, 0, 320, 360});
+    Capa k1{"tarde1", 0, 0, 160, 90};
+    k1.orden = 1;
+    Capa k2{"tarde2", 480, 270, 160, 90};
+    k2.orden = 1;
+    nueva.capas.push_back(k1);
+    nueva.capas.push_back(k2);
+    prog.mostrar(nueva, "corte");
+
+    int ticsAMedias = 0, ticsSinNada = 0, miradasMal = 0, ticsArmando = 0;
+    // Un tic: el invariante sobre las capas (y, cada tanto, lo que sale de verdad).
+    const auto unTic = [&](bool mirar) {
+        for (Entrada* e : es) e->tic();
+        prog.tic();
+        const json st = prog.estado();
+        const Nuevas n = nuevasDe(st);
+        if (n.visibles != 0 && n.visibles != n.total) ++ticsAMedias;
+        if (n.visibles == 0 && n.viejasVisibles == 0) ++ticsSinNada;
+        if (st.value("armando", false)) {
+            ++ticsArmando;
+            if (n.visibles != 0) ++ticsAMedias;
+            // Al aire, la anterior entera: ni el azul ni el verde de la nueva.
+            if (mirar && !(igual(v.en(100, 200), 255, 0, 0) && igual(v.en(500, 200), 255, 0, 0))) ++miradasMal;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    };
+    for (int i = 0; i < 25; ++i) unTic(i % 5 == 0);
+    std::printf("take: sin las tardías, armando %d de 25 tics\n", ticsArmando);
+    CHECK(ticsArmando == 25, "take: sin todas sus capas con imagen, la nueva no sale");
+    // Llegan de a una, con 300 ms entre ellas.
+    Entrada t1(reloj, lz, "tarde1", color("0xffffffff"));
+    es.push_back(&t1);
+    for (int i = 0; i < 15; ++i) unTic(i % 5 == 0);
+    CHECK(prog.estado().value("armando", false), "take: con una sola de las tardías, sigue armándose");
+    Entrada t2(reloj, lz, "tarde2", color("0xffffff00"));
+    es.push_back(&t2);
+    for (int i = 0; i < 100 && prog.enTransicion(); ++i) unTic(false);
+    std::printf("take: tics a medias %d, sin nada %d, miradas con la nueva a medio armar %d\n", ticsAMedias, ticsSinNada,
+                miradasMal);
+    CHECK(ticsAMedias == 0, "take: ningún tic con la escena nueva a medio armar");
+    CHECK(ticsSinNada == 0, "take: ningún tic sin escena (ni la vieja ni la nueva)");
+    CHECK(miradasMal == 0, "take: mientras se arma, al aire la anterior entera");
+    CHECK(!prog.enTransicion(), "take: con todas las capas con imagen, cortó");
+    esperar(es, prog, 300);
+    const Rgb az = v.en(200, 200), ve = v.en(400, 200), bl = v.en(80, 45), am = v.en(560, 315);
+    std::printf("take: al aire azul %s verde %s blanco %s amarillo %s\n", txt(az).c_str(), txt(ve).c_str(), txt(bl).c_str(),
+                txt(am).c_str());
+    CHECK(igual(az, 0, 0, 255) && igual(ve, 0, 255, 0) && igual(bl, 255, 255, 255) && igual(am, 255, 255, 0),
+          "take: la nueva entera al aire");
+
+    // Un micrófono en la escena (una entrada sin video) no frena el corte: no va a tener cuadro.
+    {
+        Entrada mic(reloj, lz, "mic", json{{"pipeline_audio", "audiotestsrc is-live=true volume=0"}});
+        es.push_back(&mic);
+        Escena conMic;
+        conMic.nombre = "ConMic";
+        conMic.capas.push_back({"verde", 0, 0, 0, 0});
+        conMic.capas.push_back({"mic", 0, 0, 0, 0});
+        prog.mostrar(conMic, "corte");
+        esperar(es, prog, 700); // el tope es de 6 s
+        std::printf("take con un micrófono: en transición %d\n", prog.enTransicion());
+        CHECK(mic.sinVideo(), "el micrófono no da video");
+        CHECK(!prog.enTransicion(), "con un micrófono en la escena, corta sin esperar el tope");
+        CHECK(igual(v.en(320, 180), 0, 255, 0), "y sale la nueva");
+        prog.mostrar(nueva, "corte"); // que el micrófono se vaya antes de soltarlo
+        esperar(es, prog, 700);
+        es.pop_back();
+    }
+
+    // Una que no llega nunca: al tope (video.esperaCorteMs) corta igual con lo que hay.
+    ba::ajustes::poner("video.esperaCorteMs", 1000);
+    Escena sinUna;
+    sinUna.nombre = "SinUna";
+    sinUna.capas.push_back({"rojo", 0, 0, 0, 0});
+    Capa kn{"nunca", 0, 0, 160, 90};
+    kn.orden = 1;
+    sinUna.capas.push_back(kn);
+    prog.mostrar(sinUna, "corte");
+    esperar(es, prog, 300);
+    CHECK(prog.estado().value("armando", false), "tope: antes del tope, sigue armándose");
+    esperar(es, prog, 1100);
+    CHECK(!prog.enTransicion(), "tope: pasado el tope, cortó con lo que había");
+    CHECK(igual(v.en(320, 180), 255, 0, 0), "tope: al aire la nueva (sin la que no llegó)");
+    ba::ajustes::poner("video.esperaCorteMs", nullptr);
+    es.pop_back();
+    es.pop_back();
+    prog.mostrar(Escena{"vacia2", {}}, "corte");
+    esperar(es, prog, 300);
 }
 
 int main() {
@@ -372,6 +523,7 @@ int main() {
         prog.mostrar(Escena{"vacia", {}}, "corte");
         esperar(es, prog, 300);
     }
+    probarTakeAtomico(reloj, lz, es);
     // Sombra: el verde en el medio sobre el rojo; primero sin sombra, después la MISMA
     // escena con sombra a la derecha (la rama se rearma una vez), y el borde difuso.
     if (hayFabrica("basombra") || hayFabrica("basombragl")) {

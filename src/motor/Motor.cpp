@@ -237,6 +237,7 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
     if (cfg_.video) {
         Composicion::Opciones vop;
         vop.gpu = cfg_.videoGpu;
+        vop.esperarEntrada = esperaDeCapas();
         Composicion::Opciones pop = vop;
         pop.dsk = true; // el PROGRAMA con DSK y clean feed
         s.programa = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "programa" + suf, pop);
@@ -453,6 +454,12 @@ void Motor::bucle() {
                 for (auto& [sid, s] : salidas_) {
                     if (s.programa) s.programa->tic();
                     if (s.preview) s.preview->tic();
+                    // La imagen cortó (o arrancó su mezcla) en este tic: el audio, ahora.
+                    if (s.audioPendiente.activo && (!s.programa || !s.programa->armando())) {
+                        const Salida::AudioPendiente a = std::move(s.audioPendiente);
+                        s.audioPendiente.activo = false;
+                        escenaAlAireYa(a.ids, a.fundidoMs, sid);
+                    }
                 }
                 if (vMulti_) vMulti_->tic();
                 for (auto* comps : {&vEscenas_, &vMinis_})
@@ -769,6 +776,45 @@ std::string Motor::ponerPistasYa(const std::string& id, const std::vector<int>& 
     return {};
 }
 
+std::function<Composicion::Espera(const std::string&, const std::string&)> Motor::esperaDeCapas() {
+    // El TAKE no saca al aire una capa con la placa de una entrada cuya señal está llegando
+    // (se rearmó al volver a usarse), ni una escena interna con capas así: se esperan como
+    // una sin cuadro. Una entrada sin video (un micrófono en la escena) no se espera. Lo
+    // llama Composicion::tic, en el hilo del motor y con su candado (canales_, vEscenas_).
+    using Espera = Composicion::Espera;
+    return [this](const std::string& id, const std::string& productor) -> Espera {
+        for (const bool mini : {false, true}) {
+            const std::string pre = mini ? "video:mini:" : "video:escena:";
+            if (productor.rfind(pre, 0) != 0) continue;
+            const auto& comps = mini ? vMinis_ : vEscenas_;
+            auto it = comps.find(productor.substr(pre.size()));
+            return it != comps.end() && it->second.comp && !it->second.comp->completa() ? Espera::Esperar : Espera::Normal;
+        }
+        // Lo que se ve viene de otra parte (traer): lo de esa entrada no dice nada.
+        if (!productor.empty() && productor != id + ":video") return Espera::Normal;
+        auto it = canales_.find(id);
+        if (it == canales_.end() || !it->second.entrada) return Espera::Normal;
+        if (it->second.entrada->sinVideo()) return Espera::NoEsperar;
+        return it->second.entrada->esperandoSenal() ? Espera::Esperar : Espera::Normal;
+    };
+}
+
+Composicion::Opciones Motor::opcionesDeEscena(const Escena& e) {
+    Composicion::Opciones op = Composicion::Opciones::de(e);
+    op.esperarEntrada = esperaDeCapas(); // lo de adentro también se espera (completa)
+    return op;
+}
+
+void Motor::audioDeEscena(Salida& s, const std::string& salida, const std::vector<std::string>& ids, int fundidoMs) {
+    // La imagen todavía se arma fuera del aire: suena la anterior hasta que corte (bucle).
+    if (s.programa && s.programa->armando()) {
+        s.audioPendiente = {true, ids, fundidoMs};
+        return;
+    }
+    s.audioPendiente.activo = false;
+    escenaAlAireYa(ids, fundidoMs, salida);
+}
+
 void Motor::escenaAlAireYa(const std::vector<std::string>& ids, int fundidoMs, const std::string& salida) {
     BA_CON_CANDADO(mu_);
     Salida* s = laSalida(salida);
@@ -795,7 +841,11 @@ std::string Motor::definirEscenaYa(const json& j) {
             s.programa->mostrar(e);
             std::vector<std::string> ids;
             for (const auto& c : e.capas) ids.push_back(c.entrada);
-            escenaAlAire(ids, 0, sid);
+            // Si todavía se arma (recién puesta), su audio sigue esperando a la imagen.
+            if (s.audioPendiente.activo)
+                s.audioPendiente.ids = ids;
+            else
+                audioDeEscena(s, sid, ids, 0);
         }
         if (e.nombre == s.armada && s.preview) s.preview->mostrar(e);
     }
@@ -811,7 +861,7 @@ std::string Motor::definirEscenaYa(const json& j) {
         // También otro mezclador (la «Mezcla de GStreamer»: otro módulo, o una propiedad fija).
         if (c.lienzo().ancho != l.ancho || c.lienzo().alto != l.alto || !c.ponerFiltros(e.filtros) || !c.ponerMezclador(e.mezclador)) {
             std::unique_ptr<Composicion> vieja = std::move(it->second.comp);
-            it->second.comp = std::make_unique<Composicion>(*reloj_, l, (mini ? "mini:" : "escena:") + e.nombre, Composicion::Opciones::de(e));
+            it->second.comp = std::make_unique<Composicion>(*reloj_, l, (mini ? "mini:" : "escena:") + e.nombre, opcionesDeEscena(e));
             desarmarAparte(std::move(vieja));
         }
         it->second.comp->mostrar(e);
@@ -922,7 +972,7 @@ std::string Motor::alAireYa(const std::string& nombre, const std::string& transi
         if (c.visible) ids.push_back(c.entrada);
     {
         Tramo t("alAire: audio de la escena");
-        escenaAlAire(ids, transicion == "corte" ? 0 : ms, salida);
+        audioDeEscena(*s, salida, ids, transicion == "corte" ? 0 : ms);
     }
     Tramo t("alAire: uso de las entradas");
     actualizarUso(); // las que entran, a todos sus cuadros ya
@@ -1284,7 +1334,7 @@ std::string Motor::usarEscenaYa(const std::string& nombre, bool mini) {
     CompEscena& c = (mini ? vMinis_ : vEscenas_)[nombre];
     if (!c.comp) {
         c.comp = std::make_unique<Composicion>(*reloj_, lienzoDe(e->second, mini), (mini ? "mini:" : "escena:") + nombre,
-                                               Composicion::Opciones::de(e->second));
+                                               opcionesDeEscena(e->second));
         c.comp->mostrar(e->second);
     }
     ++c.pedidos;
@@ -1365,6 +1415,7 @@ bool Motor::tbarYa(const std::string& nombre, double t, bool soltar, std::string
             std::vector<std::string> ids;
             for (const auto& c : it->second.capas)
                 if (c.visible) ids.push_back(c.entrada);
+            s->audioPendiente.activo = false; // lo de un corte anterior que se armaba, ya no
             escenaAlAire(ids, 200, salida);
             actualizarMultiview();
         }

@@ -19,8 +19,15 @@
 //   entrada lenta que se enchufa andando no llega tarde.
 // - ESCENA = un conjunto de capas (qué entrada, dónde, de qué tamaño, recorte,
 //   alfa, orden). `mostrar` pone una escena con una TRANSICIÓN:
-//     corte   la nueva aparece entera; la vieja se saca recién cuando la nueva
-//             ya dio su primer cuadro (nada de un cuadro negro en el medio).
+//     LO NUEVO SE ARMA FUERA DEL AIRE: las capas de la escena que entra se crean con
+//     alfa 0 (no se ven) y la que está sigue entera hasta que TODAS las nuevas dieron
+//     su primer cuadro (o pasó video.esperaCorteMs: corta con lo que haya y lo avisa
+//     en el registro, nombrando las que no llegaron). Recién ahí arranca la transición.
+//     Antes la nueva entraba visible encima de la vieja y cada capa aparecía cuando
+//     llegaba su primer cuadro: al aire se veía la escena armándose de a una (con las
+//     entradas que descansan, los invitados según demanda o una placa que se rearma,
+//     ese primer cuadro tarda distinto en cada una).
+//     corte   la nueva aparece entera de una; la vieja se saca en el mismo tic.
 //     mezcla  la nueva entra encima con su alfa de 0 a 1 en `ms`; después se saca la vieja.
 //     empuje  la nueva entra desde la derecha empujando a la vieja hacia la izquierda.
 //     cortina la nueva se va descubriendo de izquierda a derecha (recorte + ancho del
@@ -60,6 +67,7 @@
 #include <nlohmann/json.hpp>
 
 #include <atomic>
+#include <functional>
 #include <cstdint>
 #include <map>
 #include <set>
@@ -153,6 +161,12 @@ struct Escena {
 
 class Composicion {
    public:
+    /// Qué hacer con una capa de la escena que entra (Opciones::esperarEntrada):
+    ///   Normal     lista cuando pasó su primer cuadro;
+    ///   Esperar    todavía no, aunque pase cuadros (la placa mientras llega su señal; una
+    ///              escena interna incompleta);
+    ///   NoEsperar  no va a tener cuadro nunca (una entrada sin video: un micrófono).
+    enum class Espera { Normal, Esperar, NoEsperar };
     struct Opciones {
         bool gpu = false; ///< glvideomixer (en la placa) en vez de compositor (CPU); también si gpuVideo()
         /// DSK y clean feed: la escena sale también limpia (`video:<nombre>:limpio`) y
@@ -163,6 +177,14 @@ class Composicion {
         nlohmann::json filtros = nlohmann::json::array();
         /// Otro mezclador (ver Escena::mezclador); no con `dsk`.
         nlohmann::json mezclador = nlohmann::json::object();
+        /// ¿Esa entrada todavía está llegando? (recién armada o despertada, en la placa
+        /// esperando su primera señal: Entrada::esperandoSenal). Una capa así no cuenta como
+        /// lista para sacar al aire la escena que entra aunque ya pase cuadros (los de la
+        /// placa «sin señal»). Con `productor` de otra composición (una escena interna,
+        /// «video:escena:<n>»), si esa todavía no está completa (completa()). La llama
+        /// tic, en el hilo del motor (lo pone el Motor).
+        /// Una entrada sin video (NoEsperar) no frena el corte.
+        std::function<Espera(const std::string& entrada, const std::string& productor)> esperarEntrada;
         /// Las de una escena interna: su lienzo, sus filtros y su mezclador.
         static Opciones de(const Escena& e) {
             Opciones op;
@@ -199,6 +221,14 @@ class Composicion {
     const std::string& escena() const { return escena_.nombre; }
     /// ¿Hay una transición en curso?
     bool enTransicion() const;
+    /// ¿La escena que entra se está armando fuera del aire (todavía se ve la anterior
+    /// entera)? Pasa a false en el tic en que corta o arranca su transición.
+    bool armando() const;
+    /// ¿Lo que muestra está completo (ninguna capa de su escena esperando su primer cuadro
+    /// o su señal, ni una escena armándose)? Para la que la usa como capa (una escena
+    /// interna): sus capas en reposo se esperan al sacarla al aire. Si su candado está
+    /// tomado (o una escena se contiene a sí misma), dice que no: se espera un tic más.
+    bool completa() const;
     /// T-bar: lleva a mano una mezcla hacia `e` (t de 0 a 1). Con `soltar` termina:
     /// pasada la mitad queda la nueva; si no, vuelve la de antes. Devuelve true si
     /// la nueva quedó.
@@ -280,6 +310,10 @@ class Composicion {
     /// Llegó una capa: el ancla sobra (el mezclador ya tiene otro pad).
     void soltarAncla();
     void sacarGeneracion(int gen);
+    /// Termina la transición en curso: lo nuevo como tiene que quedar y lo viejo, afuera.
+    void terminarTransicion();
+    /// Las capas de la escena que entra que todavía no dieron su primer cuadro.
+    std::vector<std::string> nuevasSinCuadro() const;
     /// La transición en curso en el punto `t` (0…1).
     void animar(double t);
     /// Una capa animada por claves, en el punto de ahora (si se movió desde la última vez).
@@ -332,6 +366,11 @@ class Composicion {
     int genVieja_ = -1;
     std::string transicion_;
     std::int64_t transDesdeNs_ = 0, transNs_ = 0;
+    /// La escena que entra se está armando fuera del aire (sus capas con alfa 0): la que
+    /// sale se sigue viendo entera hasta que todas tengan cuadro o pase el tope.
+    bool esperando_ = false;
+    std::int64_t esperaDesdeNs_ = 0;
+    std::function<Espera(const std::string&, const std::string&)> esperarEntrada_; ///< Opciones::esperarEntrada
     bool manual_ = false;     ///< la T-bar: la transición no avanza sola
     double manualT_ = 0;
     Escena escenaAntes_;      ///< la que estaba (para volver si se suelta antes de la mitad)

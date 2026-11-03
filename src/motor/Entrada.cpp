@@ -288,12 +288,14 @@ void Entrada::desarmarSalida() {
     gst_element_set_state(salidaV_, GST_STATE_NULL);
     gst_object_unref(salidaV_);
     salidaV_ = nullptr;
+    salidaArmada_ = false;
 }
 
 void Entrada::armarSalida() {
     // Sin placa: los archivos (parados no se ven) y lo que pinta la app (manda solo cuando cambia).
     const bool quiere = daVideo() && !medio_ && !estatica_ && hayFabrica("input-selector");
     conPlaca_ = quiere;
+    llevaPlaca_ = quiere;
     if (!quiere) {
         desarmarSalida();
         return;
@@ -378,6 +380,9 @@ void Entrada::armarSalida() {
             g_object_set(fs, "active-pad", inmediata ? placaPad : senal, nullptr);
             placaActiva_ = inmediata;
         }
+        // Para el TAKE (esperandoSenal): arrancó en la placa y su señal todavía no llegó.
+        senalTrasArmar_ = !inmediata;
+        salidaArmadaUs_ = g_get_monotonic_time();
         ultimoPrimarioUs_ = g_get_monotonic_time(); // el plazo de «sin señal» corre desde ahora
         if (senal != nullptr) {
             gst_pad_add_probe(
@@ -385,6 +390,7 @@ void Entrada::armarSalida() {
                 [](GstPad* pad, GstPadProbeInfo*, gpointer d) -> GstPadProbeReturn {
                     auto* e = static_cast<Entrada*>(d);
                     e->ultimoPrimarioUs_.store(g_get_monotonic_time(), std::memory_order_relaxed);
+                    e->senalTrasArmar_.store(true, std::memory_order_relaxed);
                     if (e->placaActiva_.load(std::memory_order_relaxed))
                         if (GstElement* sel = gst_pad_get_parent_element(pad)) {
                             g_object_set(sel, "active-pad", pad, nullptr); // volvió la señal
@@ -402,6 +408,7 @@ void Entrada::armarSalida() {
     fuentesDePruebaEnHora(p, reloj_.ahora());
     gst_element_set_state(p, GST_STATE_PLAYING);
     salidaV_ = p;
+    salidaArmada_ = true;
     revisarTareas_ = 150; // el appsrc de la placa manda un cuadro y termina
 }
 
@@ -529,6 +536,19 @@ void Entrada::ponerCpsDelAnillo() {
         g_object_set(a, "cps-max", enUso_.load() ? 0 : 2, nullptr);
         gst_object_unref(a);
     }
+}
+
+bool Entrada::esperandoSenal() const {
+    // Un lugar vacío muestra la placa a propósito: no se espera.
+    if (sinGente_.load()) return false;
+    // En uso pero con la salida desarmada (descansó sin uso y se está rearmando): no da
+    // cuadros todavía. Una capa nueva no tendría cuadro igual; esto es para la de una
+    // escena interna, que pasó cuadros hace rato y quedó «lista».
+    if (enUso_.load() && llevaPlaca_.load() && !salidaArmada_.load()) return true;
+    // Una que ya estaba sin señal de antes (armada hace rato) tampoco se espera.
+    if (!placaActiva_.load() || senalTrasArmar_.load()) return false;
+    const std::int64_t armada = salidaArmadaUs_.load();
+    return armada != 0 && g_get_monotonic_time() - armada < kEsperaSenalUs;
 }
 
 bool Entrada::enPlaca() const {
@@ -692,6 +712,7 @@ void Entrada::leer(const json& a) {
     anilloComunA_ = !canalA.empty() && hayFabrica("baanillocomun");
     if (anilloComunV_) descripcion_ = "bavideoanillocomun name=ba_anillo canal=" + canalV;
     if (anilloComunA_) descripcionAudio_ = "baanillocomun canal=" + canalA;
+    daVideoSinCandado_ = daVideo();
     std::lock_guard<std::mutex> lc(canalesM_);
     canalVideo_ = std::move(canalV);
     canalAudio_ = std::move(canalA);
