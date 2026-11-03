@@ -41671,6 +41671,16 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: mezclar el audio de los invitados como libwebrtc</source>
+        <translation>Conference: mix guest audio the libwebrtc way</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apagado (lo normal), el audio de cada invitado se saca por separado y no se arma una mezcla que nadie escucha (ni se la analiza para cancelar eco): menos procesador con muchos invitados. Prendido, como antes, para comparar.</source>
+        <translation>Off (normal): each guest&apos;s audio is pulled separately and no mix that nobody listens to is built (nor analyzed for echo cancellation): less CPU with many guests. On: as before, for comparison.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Conference: TURN delivers in memory</translation>
     </message>

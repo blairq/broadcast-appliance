@@ -431,6 +431,44 @@ núcleo y crece con los invitados: el próximo hilo único en llenarse.
 - Qué medir (120 y 40): % de núcleo de cada `webrtc-playout*` (≈ 54/K), edad del audio p50
   (igual), `perdidas` en 0, y que la mezcla de ba-app no tenga cortes.
 
+**Por qué crecía más que lineal** (medido limpio en la .177: 1,39 ms por vuelta con 40, 35 µs
+por invitado → 9,0 ms con 120, 75 µs por invitado; `webrtc-playout` al 100 %). Lo que se paga
+por invitado en cada vuelta, leído en el camino (PullAdm → `AudioTransportImpl::NeedMorePlayData`
+→ `AudioMixerImpl::Mix` → por fuente `GetAudioFrameWithInfo` (NetEq, Opus, el sink → MediaPump
+y Grillas) → mezcla → APM):
+
+1. **Un `PostTask` al hilo de trabajo por invitado y vuelta** (`SourceTracker::OnFrameDelivered`
+   en M123: `worker_thread_` + `OnFrameDeliveredInternal` `RTC_RUN_ON(worker_thread_)`, se ve en
+   `modules/rtp_rtcp/source/source_tracker.h`). 100 por invitado por segundo (12 mil/s con
+   120), y cada uno, con el de trabajo dormido, es una llamada al sistema que despierta a otro
+   hilo desde el reloj. El costo de esa despertada sube con la carga de la máquina (más
+   hilos listos, más trabajo del planificador): ésa es la parte que no es lineal. **Hecho:**
+   cada hilo del reloj es un `lote::Remitente` (rtc/LoteTrabajo.hpp) y suelta al terminar su
+   grupo: una despertada por hilo de trabajo y vuelta. Frontera `audio.playout.trabajo`
+   (pases = esos PostTask, despertadas, espera). Con `redYTrabajo = separados`, como antes
+   (solo cuenta). Con `juntos` el trabajo es el hilo de red y esto no aplica (sigue el
+   `WakeUp` del `PhysicalSocketServer`; si `juntos` gana, extenderlo a `ServidorRed`).
+2. **La mezcla que nadie escucha**: el `AudioMixerImpl` de M123 mezcla TODAS las fuentes (ya
+   no las 3 más fuertes): energía de cada una, orden, rampa, suma en float y limitador; y
+   después el APM analiza esa mezcla como lo que sale por el parlante (AEC3), por fábrica.
+   **Hecho:** `MezcladorSinSuma` (Webrtc.cpp, `deps.audio_mixer`) tira de cada fuente a
+   48 kHz (lo mismo que pedía el de libwebrtc con Opus: los sinks reciben lo mismo) y devuelve
+   silencio; sin APM (`deps.audio_processing = nullptr`: el ADM no captura nada; el envío va
+   por fuentes propias). `gateway.mezclaAudioWebrtc` = true vuelve a como estaba.
+3. Lo del lado del gateway en el sink es O(1) por invitado y con candado por invitado
+   (`MediaPump::publishAudio`, el anillo y su timbre) salvo dos candados globales:
+   `MediaPump::routesLock_` (cada `forwardAudio` y cada `forwardVideo` copian la ruta) y
+   `Grillas::vozMu_` (con un `map<string>`). Con K hilos de reloj y D de decodificación se
+   disputan más; quedan para mirar si después de 1 y 2 sigue sin ser lineal (`Grillas` es de
+   otro agente).
+
+Qué medir: µs por invitado de `audio.playout*` con 40, 80 y 120 (meta: plano), despertadas/s
+de `audio.playout.trabajo` (≈ 100 × hilos de trabajo, no 100 × invitados), cambios de
+contexto de `ba-rtc-work*`, y que el audio de cada invitado a ba-app no cambie (edad,
+faltantes). Riesgo: que algo de M123 suponga APM no nulo (en M123 es opcional:
+`WEBRTC_EXCLUDE_AUDIO_PROCESSING_MODULE` lo deja nulo); si falla al arrancar, prender
+`gateway.mezclaAudioWebrtc`.
+
 Medición (pendiente: se hace con todo junto; `medir-sala.py`, Mac, `--camino turn-mezcla:10`
 con `--turn-prueba` y `--camino directo`, 10 y 40, después 80; grabado, habla 1, decodificar
 todo):

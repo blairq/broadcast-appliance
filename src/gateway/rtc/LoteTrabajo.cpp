@@ -110,9 +110,10 @@ void Destino::avisar() {
     if (t_urgente || !r->enLote()) {
         if (t_urgente) urgentes_.fetch_add(1, std::memory_order_relaxed);
         const bool d = despertar();
-        if (frontera_ != nullptr) {
-            frontera_->pase(0);
-            if (d) frontera_->despertada();
+        ba::diag::Frontera* f = r->frontera() != nullptr ? r->frontera() : frontera_;
+        if (f != nullptr) {
+            f->pase(0);
+            if (d) f->despertada();
         }
         return;
     }
@@ -120,10 +121,11 @@ void Destino::avisar() {
     r->anotar(*this);
 }
 
-void Destino::contarAnotados(std::uint64_t n, std::uint64_t esperaNs, bool desperto) {
-    if (frontera_ == nullptr) return;
-    frontera_->lote(n, 0, 0, esperaNs + 1);
-    if (desperto) frontera_->despertada();
+void Destino::contarAnotados(std::uint64_t n, std::uint64_t esperaNs, bool desperto, ba::diag::Frontera* f) {
+    if (f == nullptr) f = frontera_;
+    if (f == nullptr) return;
+    f->lote(n, 0, 0, esperaNs + 1);
+    if (desperto) f->despertada();
 }
 
 Destino::Cuentas Destino::cuentas() const {
@@ -151,7 +153,8 @@ nlohmann::json Destino::estado() const {
 
 // ---------------------------------------------------------------------------- Remitente
 
-Remitente::Remitente(bool enLote, std::int64_t loteNs) : enLote_(enLote), loteNs_(std::max<std::int64_t>(0, loteNs)) {
+Remitente::Remitente(bool enLote, std::int64_t loteNs, ba::diag::Frontera* frontera)
+    : enLote_(enLote), loteNs_(std::max<std::int64_t>(0, loteNs)), frontera_(frontera) {
     anotados_.reserve(8);
 }
 
@@ -197,7 +200,7 @@ void Remitente::soltar() {
     const std::uint64_t ahora = ba::diag::relojNs();
     for (Anotado& a : anotados_) {
         const bool d = a.d->despertar();
-        a.d->contarAnotados(a.n, ahora - a.desdeNs, d);
+        a.d->contarAnotados(a.n, ahora - a.desdeNs, d, frontera_);
     }
     anotados_.clear(); // suelta los shared_ptr; la capacidad queda
 }

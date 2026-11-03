@@ -40029,6 +40029,16 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: mezclar el audio de los invitados como libwebrtc</source>
+        <translation>会议：按 libwebrtc 的方式混合嘉宾音频</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apagado (lo normal), el audio de cada invitado se saca por separado y no se arma una mezcla que nadie escucha (ni se la analiza para cancelar eco): menos procesador con muchos invitados. Prendido, como antes, para comparar.</source>
+        <translation>关闭（默认）：分别取出每位嘉宾的音频，不生成无人收听的混音（也不为回声消除分析它）：嘉宾多时占用更少处理器。开启：与以前相同，用于比较。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>会议：TURN 在内存中传递</translation>
     </message>

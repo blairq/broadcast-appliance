@@ -360,6 +360,28 @@ void frontera() {
           "la espera de cada tanda (≥ 1 ms acá) se mide");
 }
 
+void fronteraDelRemitente() {
+    std::printf("-- 10. El remitente con su frontera (el reloj del audio)\n");
+    ba::diag::Frontera& deTrabajo = ba::diag::frontera("test.destino", 4, "prueba");
+    ba::diag::Frontera& delReloj = ba::diag::frontera("test.reloj.trabajo", 10, "prueba");
+    const auto a0 = deTrabajo.leer(), b0 = delReloj.leer();
+    Bucle b(&deTrabajo);
+    std::atomic<int> hechas{0};
+    CHECK(esperarQue([&] { return b.destino().durmiendo(); }), "el de trabajo duerme");
+    std::thread t([&] {
+        lt::Remitente r(true, 2'000'000, &delReloj);
+        r.instalar();
+        for (int i = 0; i < 40; ++i) b.post([&] { hechas.fetch_add(1); }); // 40 invitados en una vuelta
+        r.soltar();                                                          // fin de la vuelta
+        r.desinstalar();
+    });
+    t.join();
+    CHECK(esperarQue([&] { return hechas.load() == 40; }), "corren las 40");
+    const auto a1 = deTrabajo.leer(), b1 = delReloj.leer();
+    CHECK(b1.pases - b0.pases == 40 && b1.despertadas - b0.despertadas == 1, "40 pases y 1 despertada en la del reloj");
+    CHECK(a1.pases == a0.pases && a1.despertadas == a0.despertadas, "nada en la del destino (la #4 es solo de la red)");
+}
+
 void modos() {
     std::printf("-- 0. Modos\n");
     CHECK(lt::modoDeTexto("lote") == lt::Modo::Lote, "lote");
@@ -382,6 +404,7 @@ int main() {
     tope();
     cierre();
     frontera();
+    fronteraDelRemitente();
     std::printf("%s (%d fallas)\n", fallas == 0 ? "PASA" : "FALLA", fallas);
     return fallas == 0 ? 0 : 1;
 }

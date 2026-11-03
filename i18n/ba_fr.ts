@@ -40191,6 +40191,16 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: mezclar el audio de los invitados como libwebrtc</source>
+        <translation>Conférence : mixer l&apos;audio des invités comme libwebrtc</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apagado (lo normal), el audio de cada invitado se saca por separado y no se arma una mezcla que nadie escucha (ni se la analiza para cancelar eco): menos procesador con muchos invitados. Prendido, como antes, para comparar.</source>
+        <translation>Désactivé (normal) : l&apos;audio de chaque invité est extrait séparément et aucun mixage que personne n&apos;écoute n&apos;est construit (ni analysé pour l&apos;annulation d&apos;écho) : moins de processeur avec beaucoup d&apos;invités. Activé : comme avant, pour comparer.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Conférence : le TURN livre en mémoire</translation>
     </message>

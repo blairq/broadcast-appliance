@@ -40191,6 +40191,16 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: mezclar el audio de los invitados como libwebrtc</source>
+        <translation>Conferência: mixar o áudio dos convidados como a libwebrtc</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Apagado (lo normal), el audio de cada invitado se saca por separado y no se arma una mezcla que nadie escucha (ni se la analiza para cancelar eco): menos procesador con muchos invitados. Prendido, como antes, para comparar.</source>
+        <translation>Desligado (o normal): o áudio de cada convidado é tirado separadamente e não se monta uma mixagem que ninguém escuta (nem se analisa para cancelar eco): menos processador com muitos convidados. Ligado: como antes, para comparar.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Conferencia: el TURN entrega en memoria</source>
         <translation>Conferência: o TURN entrega na memória</translation>
     </message>

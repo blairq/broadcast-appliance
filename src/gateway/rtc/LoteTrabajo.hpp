@@ -104,7 +104,8 @@ class Destino : public std::enable_shared_from_this<Destino> {
 
    private:
     friend class Remitente;
-    void contarAnotados(std::uint64_t n, std::uint64_t esperaNs, bool desperto);
+    /// En `f` (la del remitente) o, si es nullptr, en la del destino.
+    void contarAnotados(std::uint64_t n, std::uint64_t esperaNs, bool desperto, ba::diag::Frontera* f);
 
     ba::diag::Frontera* const frontera_;
     mutable std::mutex m_;
@@ -123,7 +124,10 @@ class Remitente {
     /// `loteNs`: cuánto puede esperar la primera anotada mientras este hilo siga ocupado
     /// (0: se suelta al terminar cada tarea o vuelta). `enLote` = false: no anota nada,
     /// despierta en el acto (solo cuenta, para comparar con `separados`).
-    explicit Remitente(bool enLote, std::int64_t loteNs);
+    /// `frontera` (o nullptr): dónde cuenta sus pases y despertadas (si no, en la de cada
+    /// destino: la #4 del hilo de red; el reloj del audio cuenta en la suya).
+    explicit Remitente(bool enLote, std::int64_t loteNs, ba::diag::Frontera* frontera = nullptr);
+    ba::diag::Frontera* frontera() const { return frontera_; }
     ~Remitente();
     Remitente(const Remitente&) = delete;
     Remitente& operator=(const Remitente&) = delete;
@@ -172,6 +176,7 @@ class Remitente {
     };
     const bool enLote_;
     const std::int64_t loteNs_;
+    ba::diag::Frontera* const frontera_;
     std::vector<Anotado> anotados_; ///< solo el hilo dueño; casi siempre 1 a 6
     std::uint64_t primeraNs_ = 0;
     void (*alPrimero_)(void*) = nullptr;
