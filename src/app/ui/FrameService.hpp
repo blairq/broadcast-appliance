@@ -58,12 +58,13 @@
 
 #include "comun/UsoPorVistas.hpp"
 #include "ipc/CanalesRegistro.hpp"
+#include "ui/ProveedorCuadros.hpp"
 
 namespace ba::app {
 
 class BroadcastEngine;
 
-class FrameService : public QObject {
+class FrameService : public ProveedorCuadros {
     Q_OBJECT
     Q_PROPERTY(QStringList keys READ keys NOTIFY keysChanged)
     /// El color de cada salida por la clave de su programa ({"program": …, "program:<id>": …}),
@@ -95,7 +96,11 @@ class FrameService : public QObject {
     QVariantMap rotulos() const { return rotulos_; }
 
     /// Ultima imagen de `key` si es mas nueva que `serial` (y lo actualiza).
-    bool latest(const QString& key, QImage& out, std::uint64_t& serial) const;
+    bool latest(const QString& key, QImage& out, std::uint64_t& serial) const { return ultimo(key, out, serial, 0); }
+    /// Lo mismo, diciendo cada cuánto quiere cuadros quien lee (VideoItem: una celda chica
+    /// de una grilla, 15 por segundo). Un canal entre procesos se lee al ritmo del que más
+    /// quiera de los que lo leyeron en el último segundo.
+    bool ultimo(const QString& key, QImage& out, std::uint64_t& serial, std::int64_t intervaloUs) const override;
     /// Si alguien pidió un cuadro en el último segundo (una vista abierta): sin nadie, el
     /// que llama a poll lo puede espaciar.
     bool mirado() const;
@@ -131,7 +136,7 @@ class FrameService : public QObject {
 
    signals:
     void keysChanged();
-    void framesUpdated();
+    // framesUpdated: de ProveedorCuadros.
 
    private:
     /// Lo común de las vistas y las miniaturas: pedir o soltar un canal del motor.
@@ -141,6 +146,10 @@ class FrameService : public QObject {
         std::uint64_t serial = 0;
         std::uint64_t serieMotor = 0; ///< el último cuadro del motor que se tomó
         mutable std::int64_t pedidoUs = 0; ///< la última vez que alguien lo leyó (latest)
+        /// Cada cuánto lo quiere el que más lo quiere (0: todos los cuadros) y cuándo lo
+        /// renovó: el que pide más espaciado no lo pisa hasta que el otro deja de leer 1 s.
+        mutable std::int64_t intervaloUs = 0;
+        mutable std::int64_t intervaloVistoUs = 0;
     };
     /// El hilo que lee los canales entre procesos (en el .cpp).
     class Canales;

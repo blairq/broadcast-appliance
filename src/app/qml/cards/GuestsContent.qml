@@ -136,17 +136,26 @@ Item {
                 required property string info
                 required property bool sinRetorno
                 required property string semaforo
-                required property var red
+                // `red` (las cifras de su red) NO es un rol de la celda: cambia en cada foto
+                // de la sala y despertaría a todas; se lee del modelo al mirar el «⋯».
                 width: GridView.view.cellWidth
                 height: GridView.view.cellHeight
                 readonly property bool chica: width < 300
                 readonly property bool elegido: acciones.visible && acciones.lugar === lugar
+                readonly property bool mostrarControles: hov.hovered || elegido
+                // En la reserva de la grilla (salió de la vista y espera que la reusen): sin video.
+                property bool enReserva: false
+                GridView.onPooled: {
+                    enReserva = true
+                    if (acciones.lugar === lugar) acciones.close()
+                }
+                GridView.onReused: enReserva = false
                 Rectangle {
                     id: caja
                     anchors { fill: parent; margins: grilla.margen }
                     radius: lugar.chica ? 10 : 12
                     color: "#000000"
-                    clip: true
+                    // Sin clip: el video se ajusta a la caja y el nombre se corta solo.
                     // Tocarla abre sus acciones donde se tocó (debajo de todo: el «⋯» y los
                     // avisos se quedan con lo suyo).
                     MouseArea {
@@ -160,7 +169,7 @@ Item {
                     VideoItem {
                         anchors { fill: parent; margins: 1 }
                         source: "guest:" + (lugar.index + 1); fillMode: VideoItem.Cover
-                        enVista: grilla.enVista(lugar.y, lugar.height)
+                        enVista: !lugar.enReserva && grilla.enVista(lugar.index)
                     }
                     Rectangle {
                         anchors { left: parent.left; bottom: parent.bottom; margins: 5 }
@@ -182,27 +191,36 @@ Item {
                         ToolTip.visible: sinRetHov.hovered; ToolTip.delay: 400
                         ToolTip.text: qsTr("Este invitado no escucha nada: su mezcla sin su voz (mix-minus) no llega a la conferencia. No se le manda el programa entero porque se oiría a sí mismo con demora.")
                     }
-                    // La red de este invitado: semáforo con las cifras.
+                    // La red de este invitado: el semáforo (lo que cambia seguido, un rectángulo
+                    // suelto); las cifras, en la ayuda del «⋯».
                     Rectangle {
-                        visible: lugar.pid !== "" && !masBtn.visible
+                        visible: lugar.pid !== "" && !lugar.mostrarControles
                         anchors { right: parent.right; top: parent.top; margins: 6 }
                         width: 12; height: 12; radius: 6
                         color: lugar.semaforo === "rojo" ? Theme.live : lugar.semaforo === "ambar" ? Theme.amber : lugar.semaforo === "verde" ? Theme.ok : Theme.textFaint
                         border.color: "white"; border.width: 1
-                        ToolTip.visible: semHov.hovered
-                        // Las cifras, solo mientras se las mira (cambian en cada foto).
-                        ToolTip.text: !semHov.hovered ? "" : qsTr("Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms")
-                                          .arg(lugar.red.kbps_in || 0).arg(lugar.red.perdida_pct || 0).arg(lugar.red.jitter_ms || 0).arg(lugar.red.rtt_ms || 0)
-                                      + (lugar.red.alto ? " · " + lugar.red.alto + "p" : "")
-                        HoverHandler { id: semHov }
                     }
-                    GlassButton {
-                        id: masBtn
-                        visible: hov.hovered || lugar.elegido
+                    // El «⋯», solo al pasar el mouse o con su menú abierto (se crea ahí).
+                    Loader {
                         anchors { right: parent.right; top: parent.top; margins: 4 }
-                        compact: true; text: "⋯"
-                        onClicked: acciones.abrir(lugar, masBtn, 0, masBtn.height + 4)
-                        ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Calidad, retorno, ISO y cargo")
+                        active: lugar.mostrarControles
+                        sourceComponent: Component {
+                            GlassButton {
+                                id: masBtn
+                                compact: true; text: "⋯"
+                                onClicked: acciones.abrir(lugar, masBtn, 0, masBtn.height + 4)
+                                // Las cifras de la red, leídas del modelo al mirarlas.
+                                function cifras() {
+                                    const red = lugar.pid !== "" && grilla.model ? (grilla.model.fila(lugar.index).red || {}) : null
+                                    if (!red || red.kbps_in === undefined) return ""
+                                    return "\n" + qsTr("Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms")
+                                        .arg(red.kbps_in || 0).arg(red.perdida_pct || 0).arg(red.jitter_ms || 0).arg(red.rtt_ms || 0)
+                                        + (red.alto ? " · " + red.alto + "p" : "")
+                                }
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: hovered ? qsTr("Calidad, retorno, ISO y cargo") + cifras() : ""
+                            }
+                        }
                     }
                     HoverHandler { id: hov }
                 }
