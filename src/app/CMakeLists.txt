@@ -1418,6 +1418,12 @@ endif()
     target_link_libraries(test_prueba_sala_reglas PRIVATE ba_core Qt6::Core)
     set_target_properties(test_prueba_sala_reglas PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_prueba_sala_reglas COMMAND test_prueba_sala_reglas)
+    # El disco de las pruebas de sala y de asamblea (en el pool) y cortar el probador sin esperarlo.
+    add_executable(test_archivos_prueba tests/test_archivos_prueba.cpp sala/ArchivosPrueba.cpp)
+    target_include_directories(test_archivos_prueba PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_archivos_prueba PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_archivos_prueba PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_archivos_prueba COMMAND test_archivos_prueba)
     # El enlace: cuánto necesita el evento (contra las mediciones de la prueba de sala) y el
     # veredicto con lo medido por el túnel (sala::enlace, sin la sala).
     add_executable(test_enlace_necesita tests/test_enlace_necesita.cpp sala/EnlaceNecesita.cpp)

@@ -10,14 +10,17 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcessEnvironment>
+#include <QThreadPool>
 #include <QUrl>
 
 #include <system_error>
+#include <vector>
 
 #include "diag/Recursos.hpp"
 #include "i18n/I18n.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "platform/Paths.hpp"
+#include "sala/ArchivosPrueba.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/MedidaMaquina.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -70,17 +73,26 @@ PruebaSalaViewModel::PruebaSalaViewModel(Partes p, QObject* parent) : QObject(pa
         }
     });
     connect(&p_.sala, &ConferenceClient::estadoEvento, this, &PruebaSalaViewModel::alPruebaSala);
-    // ¿Quedó una prueba a medias (el programa se cerró en el medio)? Se termina de limpiar
-    // en cuanto la sala conteste.
-    std::string s;
-    if (ba::persist::cola().leer(archivoEnCurso(), s)) {
-        colgada_ = json::parse(s, nullptr, false);
-        colgadaPendiente_ = colgada_.is_object();
-    }
+    // ¿Quedó una prueba a medias (el programa se cerró en el medio)? Se lee en el fondo y se
+    // termina de limpiar en cuanto la sala conteste.
     connect(&p_.sala, &ConferenceClient::onlineChanged, this, [this](bool on) {
         if (on && colgadaPendiente_) limpiarColgada();
     });
-    if (colgadaPendiente_ && p_.sala.online()) QTimer::singleShot(0, this, [this]() { limpiarColgada(); });
+    QPointer<PruebaSalaViewModel> yo(this);
+    const fs::path enCurso = archivoEnCurso();
+    QThreadPool::globalInstance()->start([yo, enCurso]() {
+        json c = sala::archivos::leerJsonEncolado(enCurso);
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, c = std::move(c)]() {
+                // Si ya arrancó otra, el archivo es el de ella: no se toca.
+                if (!yo || !c.is_object() || yo->estado_ != QLatin1String("apagada")) return;
+                yo->colgada_ = c;
+                yo->colgadaPendiente_ = true;
+                if (yo->p_.sala.online()) yo->limpiarColgada();
+            },
+            Qt::QueuedConnection);
+    });
     // El enlace: con otra medición (o la grilla cambió), la cuenta para los N de la prueba.
     connect(&p_.enlace, &EnlaceViewModel::necesidadChanged, this, [this]() { cuentaEnlace(nRevisado_); });
     cuentaEnlace(nRevisado_);
@@ -97,13 +109,11 @@ void PruebaSalaViewModel::cuentaEnlace(int n) {
 }
 
 PruebaSalaViewModel::~PruebaSalaViewModel() {
-    // Al cerrar el programa: el probador se corta YA (es un hijo nuestro). La sala revoca
-    // la credencial sola en kVidaCredencialS (nadie la renueva) y echa a los de prueba;
-    // lo que falte (el cupo) se termina al volver a arrancar (archivoEnCurso).
-    if (hinchada_ && hinchada_->state() != QProcess::NotRunning) {
-        hinchada_->kill();
-        hinchada_->waitForFinished(2000);
-    }
+    // Al cerrar el programa: el probador se corta YA (es un hijo nuestro), sin esperarlo
+    // (sala/ArchivosPrueba: soltarProceso). La sala revoca la credencial sola en
+    // kVidaCredencialS (nadie la renueva) y echa a los de prueba; lo que falte (el cupo) se
+    // termina al volver a arrancar (archivoEnCurso).
+    sala::archivos::soltarProceso(hinchada_, this);
     if (corriendo()) p_.sala.post("/api/v1/prueba-sala/cerrar", QJsonObject{{"motivo", "cierre"}});
 }
 
@@ -239,10 +249,25 @@ void PruebaSalaViewModel::lanzarHinchada(int n, int minutos, int hablan) {
     const fs::path dirEvento = p_.evento.eventoAbierto().dir();
     const QString fecha = QDateTime::currentDateTime().toString("yyyyMMdd-HHmmss");
     salidaHinchada_ = QString::fromStdString((dirEvento / "Pruebas").string()) + "/hinchada-" + fecha;
-    QDir().mkpath(salidaHinchada_);
     // El video grabado de hinchada (~100 MB) es uno para todas las configuraciones.
     const QString grabado = QString::fromStdString((ba::platform::dataRoot() / "Runtime" / "hinchada").string());
-    QDir().mkpath(grabado);
+    // Las carpetas, en el fondo; el probador se lanza cuando estén (si la prueba sigue). Si no
+    // se pudieron crear, el probador no arranca (no puede abrir su consola) y eso se avisa.
+    QPointer<PruebaSalaViewModel> yo(this);
+    const int ronda = ++ronda_;
+    const std::vector<fs::path> carpetas{fs::path(salidaHinchada_.toStdString()), fs::path(grabado.toStdString())};
+    QThreadPool::globalInstance()->start([yo, ronda, carpetas, n, minutos, hablan, grabado]() {
+        sala::archivos::crearCarpetas(carpetas);
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, ronda, n, minutos, hablan, grabado]() {
+                if (yo && yo->corriendo() && ronda == yo->ronda_) yo->arrancarProbador(n, minutos, hablan, grabado);
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void PruebaSalaViewModel::arrancarProbador(int n, int minutos, int hablan, const QString& grabado) {
     auto* proc = new QProcess(this);
     hinchada_ = proc;
     QProcessEnvironment env = QProcessEnvironment::systemEnvironment();

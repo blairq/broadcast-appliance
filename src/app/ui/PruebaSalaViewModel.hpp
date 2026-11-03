@@ -30,7 +30,10 @@
 //   - Si el programa se cerró en medio de una prueba, al volver a arrancar se termina
 //     de limpiar (Runtime/prueba-sala-en-curso.json).
 //
-// Vive en el hilo de la interfaz; lo que mide son llamadas al sistema baratas.
+// Vive en el hilo de la interfaz; lo que mide son llamadas al sistema baratas. El disco
+// (las carpetas del probador, lo que quedó de antes) va al fondo (sala/ArchivosPrueba, en
+// el pool) o a la cola de escritura, con el resultado de vuelta acá; al cerrar, el
+// probador se corta sin esperarlo.
 // ============================================================================
 #pragma once
 
@@ -152,7 +155,9 @@ class PruebaSalaViewModel : public QObject {
     void tic();
     void renovar();
     void terminar(const std::string& motivo, bool porGuardia);
+    /// Crea sus carpetas en el fondo y, de vuelta acá, arrancarProbador.
     void lanzarHinchada(int n, int minutos, int hablan);
+    void arrancarProbador(int n, int minutos, int hablan, const QString& grabado);
     void alPruebaSala(const QString& nombre, const QJsonObject& ev);
     void limpiarColgada();
     QString rutaHinchada() const;
@@ -181,6 +186,7 @@ class PruebaSalaViewModel : public QObject {
     int64_t inicioMs_ = 0;
     int64_t topeMs_ = 0;     ///< cuándo se termina sola
     int64_t renovadaMs_ = 0;
+    int ronda_ = 0; ///< sube con cada probador pedido: lo que vuelve del fondo para otro, no vale
     bool colgadaPendiente_ = false; ///< quedó una prueba de antes de cerrar el programa
     nlohmann::json colgada_;
 };

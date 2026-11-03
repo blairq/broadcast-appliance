@@ -117,11 +117,6 @@ DEUDA_CPP = {
     "ui/PrompterViewModel.cpp|disco": 1,
     "ui/PropertiesModel.cpp|motor": 2,
     "ui/PropertiesModel.cpp|runtime": 1,
-    # Prueba de asamblea (2026-11-03): el mismo esquema que la de sala; se está pasando al fondo.
-    "ui/PruebaAsambleaViewModel.cpp|bloqueante": 1,
-    "ui/PruebaAsambleaViewModel.cpp|disco": 6,
-    "ui/PruebaSalaViewModel.cpp|bloqueante": 1,
-    "ui/PruebaSalaViewModel.cpp|disco": 2,
     "ui/QrViewModel.cpp|disco": 1,
     "ui/Reconocedor.cpp|bloqueante": 2,
     "ui/RecursosViewModel.cpp|runtime": 1,

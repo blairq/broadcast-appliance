@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcessEnvironment>
+#include <QThreadPool>
 #include <QUrl>
 
 #include <algorithm>
@@ -23,6 +24,7 @@
 #include "persist/ColaEscritura.hpp"
 #include "persist/Escritor.hpp"
 #include "platform/Paths.hpp"
+#include "sala/ArchivosPrueba.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/EventoAbierto.hpp"
 #include "ui/EventoViewModel.hpp"
@@ -63,12 +65,10 @@ PruebaAsambleaViewModel::PruebaAsambleaViewModel(Partes p, QObject* parent) : QO
 }
 
 PruebaAsambleaViewModel::~PruebaAsambleaViewModel() {
-    // Al cerrar el programa: el probador se corta ya (es un hijo nuestro). Los integrantes de
-    // prueba quedan en el Cuerpo y se limpian al volver a arrancar (archivoEnCurso).
-    if (hinchada_ && hinchada_->state() != QProcess::NotRunning) {
-        hinchada_->kill();
-        hinchada_->waitForFinished(2000);
-    }
+    // Al cerrar el programa: el probador se corta ya (es un hijo nuestro), sin esperarlo
+    // (sala/ArchivosPrueba: soltarProceso). Los integrantes de prueba quedan en el Cuerpo y
+    // se limpian al volver a arrancar (archivoEnCurso), con el archivo de credenciales.
+    sala::archivos::soltarProceso(hinchada_, this);
 }
 
 std::int64_t PruebaAsambleaViewModel::ahoraMs() { return QDateTime::currentMSecsSinceEpoch(); }
@@ -207,22 +207,47 @@ std::string PruebaAsambleaViewModel::arrancarJson(int n, int minutos, const json
     // Las credenciales para el probador: en la carpeta de esta prueba, solo para el dueño.
     const QString fecha = QDateTime::fromMSecsSinceEpoch(inicioMs_).toString("yyyyMMdd-HHmmss");
     const fs::path carpeta = carpetaPruebas() / ("prueba-asamblea-" + fecha.toStdString());
-    std::error_code ec;
-    fs::create_directories(carpeta, ec);
     salida_ = QString::fromStdString(carpeta.string());
-    std::string err;
     const fs::path archivo = carpeta / "integrantes.json";
-    if (!ba::persist::escribir(archivo, accesosJson_.dump(1), ba::persist::Durabilidad::Normal, ba::persist::Permisos::Privados,
-                               &err)) {
-        terminar(llenar(traducir("asamblea", "no se pudo escribir el archivo de credenciales: %1"), {err}));
-        return traducir("asamblea", "no se pudo escribir el archivo de credenciales");
-    }
-    archivo_ = QString::fromStdString(archivo.string());
+    // Primero lo que hay que deshacer si el programa se cierra (con el archivo, que se va a
+    // escribir): así nunca queda un archivo de credenciales sin quien lo borre.
     ba::persist::cola().escribir(
         archivoEnCurso(),
         json{{"inicioMs", inicioMs_}, {"recinto", recintoAntes_}, {"ids", ids_}, {"archivo", archivo.string()}}.dump());
+    // Para el usuario ya está corriendo; por dentro, «preparando» hasta que el archivo esté
+    // escrito (en el fondo): recién ahí se muestra el archivo y se lanza el probador.
+    preparando_ = true;
     setEstado(QStringLiteral("corriendo"));
     tic_.start();
+    emit accesoChanged();
+    QPointer<PruebaAsambleaViewModel> yo(this);
+    const int ronda = ++ronda_;
+    QThreadPool::globalInstance()->start([yo, ronda, archivo, contenido = accesosJson_.dump(1), conHinchada]() {
+        const std::string err = sala::archivos::escribirCredenciales(archivo, contenido);
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, ronda, archivo, err, conHinchada]() {
+                if (!yo || ronda != yo->ronda_ || !yo->corriendo()) {
+                    // La prueba ya terminó (o es otra): estas credenciales no quedan.
+                    if (err.empty()) QThreadPool::globalInstance()->start([archivo]() { sala::archivos::borrar(archivo); });
+                    return;
+                }
+                yo->credencialesListas(archivo, err, conHinchada);
+            },
+            Qt::QueuedConnection);
+    });
+    return {};
+}
+
+void PruebaAsambleaViewModel::credencialesListas(const fs::path& archivo, const std::string& err, bool conHinchada) {
+    preparando_ = false;
+    if (!err.empty()) {
+        emit notify(qs(traducir("asamblea", "no se pudo escribir el archivo de credenciales")), "error");
+        terminar(llenar(traducir("asamblea", "no se pudo escribir el archivo de credenciales: %1"), {err}));
+        return;
+    }
+    archivo_ = QString::fromStdString(archivo.string());
+    emit accesoChanged();
     // Por dónde entran: el probador local, por la máquina misma (el HTTPS del gateway); uno
     // externo, por la red (la mejor dirección que da el gateway).
     QPointer<PruebaAsambleaViewModel> yo(this);
@@ -248,14 +273,26 @@ std::string PruebaAsambleaViewModel::arrancarJson(int n, int minutos, const json
         }
         yo->lanzarHinchada();
     });
-    emit accesoChanged();
-    return {};
 }
 
 void PruebaAsambleaViewModel::lanzarHinchada() {
-    // El video grabado de hinchada (~200 MB) es uno para todas las pruebas.
+    // El video grabado de hinchada (~200 MB) es uno para todas las pruebas. Su carpeta, en el
+    // fondo; el probador se lanza cuando esté (si la prueba sigue).
     const QString grabado = QString::fromStdString((ba::platform::dataRoot() / "Runtime" / "hinchada").string());
-    QDir().mkpath(grabado);
+    QPointer<PruebaAsambleaViewModel> yo(this);
+    const int ronda = ronda_;
+    QThreadPool::globalInstance()->start([yo, ronda, grabado]() {
+        sala::archivos::crearCarpetas({fs::path(grabado.toStdString())});
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, ronda, grabado]() {
+                if (yo && yo->corriendo() && ronda == yo->ronda_) yo->arrancarProbador(grabado);
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void PruebaAsambleaViewModel::arrancarProbador(const QString& grabado) {
     auto* proc = new QProcess(this);
     hinchada_ = proc;
     // Su consola a un archivo: sin tuberías que se llenen y lo traben.
@@ -379,24 +416,32 @@ int PruebaAsambleaViewModel::limpiarIntegrantes(const json& recinto, bool restau
 
 void PruebaAsambleaViewModel::cerrar(const std::string& motivo) {
     const std::int64_t fin = ahoraMs();
-    // Lo que dejó el probador (si hubo): lo que le pasó a cada uno.
-    json h = json::object();
-    if (!salida_.isEmpty()) {
-        std::string s;
-        if (ba::persist::leerArchivo(fs::path(salida_.toStdString()) / "hinchada" / "informe.json", s)) {
-            const json todo = json::parse(s, nullptr, false);
-            if (todo.is_object())
-                h = {{"carpeta", (fs::path(salida_.toStdString()) / "hinchada").string()},
-                     {"asamblea", todo.value("asamblea", json::object())},
-                     {"integrantes", todo.value("integrantes", json::array())},
-                     {"resumen", todo.value("resumen", json::object())},
-                     {"notas", todo.value("notas", json::array())}};
-        }
+    preparando_ = false;
+    const fs::path salida = salida_.isEmpty() ? fs::path() : fs::path(salida_.toStdString());
+    const fs::path archivo = archivo_.isEmpty() ? fs::path() : fs::path(archivo_.toStdString());
+    if (salida.empty() && archivo.empty()) {
+        cerrarCon(motivo, fin, json::object());
+        return;
     }
+    // En el fondo: lo que dejó el probador (lo que le pasó a cada uno) y el borrado de las
+    // credenciales (no quedan en ningún lado). Mientras, sigue «terminando».
+    QPointer<PruebaAsambleaViewModel> yo(this);
+    QThreadPool::globalInstance()->start([yo, motivo, fin, salida, archivo]() {
+        json h = sala::archivos::informeHinchada(salida);
+        sala::archivos::borrar(archivo);
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, motivo, fin, h = std::move(h)]() {
+                if (yo) yo->cerrarCon(motivo, fin, h);
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void PruebaAsambleaViewModel::cerrarCon(const std::string& motivo, std::int64_t fin, const json& h) {
     const bool habiaPrueba = arranco_;
     const int borrados = limpiarIntegrantes(recintoAntes_, hayRecintoAntes_);
-    // Las credenciales no quedan en ningún lado.
-    if (!archivo_.isEmpty()) ba::persist::borrar(fs::path(archivo_.toStdString()));
+    // Las credenciales ya se borraron (cerrar): recién ahora se olvida lo que había que deshacer.
     ba::persist::cola().borrar(archivoEnCurso());
 
     json fin_{{"tipo", "prueba_asamblea"},
@@ -451,16 +496,35 @@ QString PruebaAsambleaViewModel::limpiar() {
 }
 
 void PruebaAsambleaViewModel::limpiarColgada() {
-    std::string s;
-    json colgada;
-    if (ba::persist::cola().leer(archivoEnCurso(), s)) colgada = json::parse(s, nullptr, false);
+    // Lo que quedó se lee en el fondo.
+    QPointer<PruebaAsambleaViewModel> yo(this);
+    const fs::path enCurso = archivoEnCurso();
+    QThreadPool::globalInstance()->start([yo, enCurso]() {
+        json colgada = sala::archivos::leerJsonEncolado(enCurso);
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, colgada = std::move(colgada)]() {
+                if (yo) yo->limpiarColgadaCon(colgada);
+            },
+            Qt::QueuedConnection);
+    });
+}
+
+void PruebaAsambleaViewModel::limpiarColgadaCon(const json& colgada) {
+    // Si mientras tanto arrancó otra, el archivo y los de prueba son de ella: no se tocan.
+    if (activa()) return;
     const bool hayArchivo = colgada.is_object();
     if (!hayArchivo && integrantesPrueba() == 0) return;
     // El recinto de antes, si la prueba que quedó era de este evento (si no, el recinto no se toca).
     const int n = limpiarIntegrantes(hayArchivo ? colgada.value("recinto", json()) : json(), hayArchivo);
     if (hayArchivo) {
-        if (colgada.contains("archivo") && colgada["archivo"].is_string())
-            ba::persist::borrar(fs::path(colgada["archivo"].get<std::string>()));
+        // Las credenciales que nombra, en el fondo (ya revocadas: limpiarIntegrantes), y el
+        // archivo de lo que quedaba, por la cola (acá: si arranca otra, su archivo nuevo no se pisa).
+        const fs::path credenciales = colgada.contains("archivo") && colgada["archivo"].is_string()
+                                          ? fs::path(colgada["archivo"].get<std::string>())
+                                          : fs::path();
+        if (!credenciales.empty())
+            QThreadPool::globalInstance()->start([credenciales]() { sala::archivos::borrar(credenciales); });
         ba::persist::cola().borrar(archivoEnCurso());
     }
     if (n > 0)
@@ -472,6 +536,7 @@ void PruebaAsambleaViewModel::limpiarColgada() {
 
 json PruebaAsambleaViewModel::estadoJson(bool conAcceso) const {
     json j{{"estado", estado_.toStdString()},
+           {"preparando", preparando_}, // corriendo, con el archivo de credenciales escribiéndose
            {"generador", generador_.toStdString()},
            {"hinchada_disponible", hinchadaDisponible()},
            {"integrantes_reales", integrantesReales()},

@@ -30,7 +30,12 @@
 //   - Si el programa se cerró en el medio, al volver a arrancar se limpia lo que quedó
 //     (Runtime/prueba-asamblea-en-curso.json y los integrantes marcados).
 //
-// Vive en el hilo de la interfaz.
+// Vive en el hilo de la interfaz. El disco (el archivo de credenciales, las carpetas, el
+// informe de hinchada, los borrados) va al fondo (sala/ArchivosPrueba, en el pool) o a la cola
+// de escritura, con el resultado de vuelta acá: «arrancar» vuelve enseguida y, mientras el
+// archivo se escribe, la prueba está «corriendo» con `preparando` (estadoJson); recién con
+// el archivo escrito se muestra y se lanza el probador. Al cerrar, el probador se corta sin
+// esperarlo.
 // ============================================================================
 #pragma once
 
@@ -147,9 +152,16 @@ class PruebaAsambleaViewModel : public QObject {
     asamblea::Cuerpo& cuerpo() const;
     void setEstado(const QString& e);
     void tic();
+    /// De vuelta del fondo con el archivo de credenciales escrito (o `err`): la URL y el probador.
+    void credencialesListas(const std::filesystem::path& archivo, const std::string& err, bool conHinchada);
+    /// Crea la carpeta del video en el fondo y, de vuelta acá, arrancarProbador.
     void lanzarHinchada();
+    void arrancarProbador(const QString& grabado);
     void terminar(const std::string& motivo);
+    /// Lee el informe del probador y borra las credenciales en el fondo; después, cerrarCon.
     void cerrar(const std::string& motivo);
+    void cerrarCon(const std::string& motivo, std::int64_t fin, const nlohmann::json& hinchada);
+    void limpiarColgadaCon(const nlohmann::json& colgada);
     /// Saca a los de prueba de la sesión, revoca su acceso, los borra y deja el recinto. Cuántos.
     int limpiarIntegrantes(const nlohmann::json& recinto, bool restaurarRecinto);
     void limpiarColgada();
@@ -168,6 +180,8 @@ class PruebaAsambleaViewModel : public QObject {
     std::vector<std::string> ids_;
     nlohmann::json accesosJson_;          ///< lo que lee hinchada (PruebaAsambleaReglas::archivoHinchada)
     bool arranco_ = false;                ///< se lanzó (o se abrió para un generador externo)
+    bool preparando_ = false;             ///< corriendo, con las credenciales escribiéndose en el fondo
+    int ronda_ = 0;                       ///< sube con cada arranque: lo que vuelve del fondo para otro, no vale
     nlohmann::json recintoAntes_;          ///< el recinto de antes de la prueba (null: no había)
     bool hayRecintoAntes_ = false;
     std::map<std::string, std::int64_t> esperaDesde_; ///< «habilitar solos»: desde cuándo espera cada uno
