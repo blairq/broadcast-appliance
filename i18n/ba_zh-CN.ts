@@ -5339,7 +5339,9 @@ Recorrer la tira no cambia lo que se ve.</source>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n 人正在进入（每秒 %1 人）</numerusform></translation>
+        <translation>
+            <numerusform>%n 人正在进入（每秒 %1 人）</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -7636,6 +7638,155 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>DistribucionesPantallas</name>
+    <message>
+        <location filename="../src/app/qml/controls/DistribucionesPantallas.qml" line="+25" />
+        <source>Distribuciones</source>
+        <translation>布局</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+9" />
+        <source>%n guardada(s)</source>
+        <translation><numerusform>已保存 %n 个</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1" />
+        <source>puesta en %n monitor(es)</source>
+        <translation><numerusform>用于 %n 台显示器</numerusform></translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Guardar la actual</source>
+        <translation>保存当前布局</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Guarda las ventanas que hay abiertas ahora, dónde están y qué muestran</source>
+        <translation>保存当前打开的窗口：位置以及显示的内容</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Plantilla</source>
+        <translation>模板</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Vacía</source>
+        <translation>空白</translation>
+    </message>
+    <message>
+        <location line="+40" />
+        <location line="+53" />
+        <source>Aplicar</source>
+        <translation>应用</translation>
+    </message>
+    <message>
+        <location line="-43" />
+        <source>Todavía no hay distribuciones. Abrí las ventanas como las querés y «Guardar la actual», o armá una desde una plantilla.</source>
+        <translation>还没有屏幕布局。按需要摆好窗口后点「保存当前布局」，或从模板创建一个。</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Cerrar las ventanas de la distribución</source>
+        <translation>关闭布局的窗口</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>También con Ctrl+Shift+F12 desde cualquier ventana de la app</source>
+        <translation>也可在应用的任意窗口按 Ctrl+Shift+F12</translation>
+    </message>
+    <message>
+        <location line="+23" />
+        <source>Guardar la actual acá</source>
+        <translation>将当前保存到此处</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Reemplaza sus ventanas por las que hay abiertas ahora</source>
+        <translation>用当前打开的窗口替换它的窗口</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Duplicar</source>
+        <translation>复制</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Borrar</source>
+        <translation>删除</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Al abrir el evento</source>
+        <translation>打开活动时</translation>
+    </message>
+    <message>
+        <location line="+127" />
+        <source>Nombre</source>
+        <translation>名称</translation>
+    </message>
+    <message>
+        <location line="+20" />
+        <source>⚠ no está</source>
+        <translation>⚠ 不存在</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Completa</source>
+        <translation>全屏</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Encima</source>
+        <translation>置顶</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Quitar</source>
+        <translation>移除</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <source>Agregar ventana</source>
+        <translation>添加窗口</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Arrastrá los rectángulos; la esquina los agranda. Aplicada, se ve en el acto.</source>
+        <translation>拖动矩形；拖动角可调整大小。已应用时立即生效。</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Elegí una distribución para verla y editarla.</source>
+        <translation>选择一个布局以查看和编辑。</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>Guardar las ventanas de ahora</source>
+        <translation>保存当前窗口</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Distribución nueva</source>
+        <translation>新建布局</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Vacío = el nombre de la plantilla. Después se edita como cualquier otra.</source>
+        <translation>留空 = 使用模板名称。之后可以像其他布局一样编辑。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Queda guardada con el evento. Aplicada, cada monitor lleva una sola ventana sin marco con sus ventanas adentro.</source>
+        <translation>随活动一起保存。应用后，每台显示器只有一个无边框的母窗口，其中包含各个窗口。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Remotos en la sala</source>
+        <translation>现场的远程参与者</translation>
+    </message>
+</context>
+<context>
     <name>DocumentosViewModel</name>
     <message>
         <location filename="../src/app/ui/DocumentosViewModel.cpp" line="+133" />
@@ -8898,7 +9049,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+121" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+135" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>没有名为「%1」的显示器：请提供其编号、名称或 ID。</translation>
     </message>
@@ -14464,7 +14615,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>「%1」已在其窗口中</translation>
     </message>
     <message>
-        <location line="+98" />
+        <location line="+105" />
         <source>Volvió la luz en medio del evento y la línea de tiempo está en HOLD: lo que te cuento es qué está pasando. Pasalo con linea_retomar, proponé cómo seguir (linea_editar o linea_ajustar con probar) y soltá con linea_soltar cuando lo confirme. </source>
         <translation>活动进行中恢复供电，时间线处于 HOLD：我说的是现在的情况。用 linea_retomar 传递，提出如何继续（linea_editar 或 linea_ajustar 加 probar），确认后用 linea_soltar 解除。 </translation>
     </message>
@@ -14794,7 +14945,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>确认（R）</translation>
     </message>
     <message>
-        <location line="+42" />
+        <location line="+50" />
         <source>El servidor (gateway) se reinició: %1</source>
         <translation>服务器（gateway）已重启：%1</translation>
     </message>
@@ -25282,7 +25433,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PantallasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+64" />
+        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+66" />
         <source>mostrando</source>
         <translation>显示中</translation>
     </message>
@@ -25327,7 +25478,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>网络屏幕</translation>
     </message>
     <message numerus="yes">
-        <location line="+18" />
+        <location line="+24" />
         <source>%n mostrando</source>
         <translation>
             <numerusform>%n 个显示中</numerusform>
@@ -30510,7 +30661,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>没有已保存的连接方式：请在 设置 → 远程访问 中设置。</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>在等候室等候</translation>
     </message>
@@ -33487,7 +33638,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+136" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+137" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -33517,7 +33668,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>自动字幕条未能播出：%1</translation>
     </message>
     <message>
-        <location line="+273" />
+        <location line="+274" />
         <source>no contestó</source>
         <translation>无响应</translation>
     </message>
@@ -35435,6 +35586,14 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+33" />
         <source>VOD borrado de Twitch.</source>
         <translation>VOD 已从 Twitch 删除。</translation>
+    </message>
+</context>
+<context>
+    <name>VentanaLienzo</name>
+    <message>
+        <location filename="../src/app/qml/VentanaLienzo.qml" line="+36" />
+        <source>Broadcast Appliance — Distribución, monitor %1</source>
+        <translation>Broadcast Appliance — 屏幕布局，显示器 %1</translation>
     </message>
 </context>
 <context>
@@ -43974,7 +44133,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-885" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-886" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -48340,7 +48499,7 @@ Datos (de %2): %3</source>
         <translation>%1：结构版本 %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+207" />
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+208" />
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1：由更新的版本写入（本版本写入结构版本 %2）：不覆盖，更改未保存</translation>
     </message>
@@ -55758,7 +55917,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+919" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+920" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -60165,7 +60324,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location line="+1" />
         <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="-485" />
         <location filename="../src/app/mcp/McpFacebookTools.cpp" line="+165" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+429" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
         <location filename="../src/app/mcp/McpService.cpp" line="-551" />
@@ -61592,6 +61751,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
     <message>
         <location line="+1" />
         <location line="+146" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+705" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+132" />
         <source>Borrada.</source>
         <translation>已删除。</translation>
@@ -65645,6 +65805,9 @@ No toca la libreta de rostros: la ficha de la persona queda donde estaba.</sourc
     </message>
     <message>
         <location line="+3" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-125" />
+        <location line="+62" />
+        <location line="+58" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+54" />
         <source>id o nombre</source>
         <translation>id 或名称</translation>
@@ -69145,7 +69308,7 @@ Si en el destino ya hay algo con ese nombre, se numera en vez de pisar. Las carp
         <translation>建议已显示在操作员栏中（id %1）。其发送的内容（或忽略）会发到您的聊天中。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-277" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-977" />
         <source>Pantallas externas</source>
         <translation>外部屏幕</translation>
     </message>
@@ -69476,7 +69639,168 @@ Duraciones: un QR necesita al menos 15 segundos para que alguien lo saque del bo
         <translation>有哪些显示器以及每个显示什么</translation>
     </message>
     <message>
-        <location line="-129" />
+        <location line="+112" />
+        <source>Cada ventana: {"nombre": opcional, "cosas": [ids de catalogo_listar con donde=monitor] (una, o varias en grilla), "disposicion": grid|focus|pip|row (con varias cosas), "monitor": id, numero de orden o nombre (monitor_listar; vacio = el primero que no sea el principal), "x", "y", "ancho", "alto": el lugar RELATIVO al monitor, de 0 a 1 (la mitad izquierda: x 0, y 0, ancho 0.5, alto 1; si no se dice, el monitor entero), "absoluta": {x, y, ancho, alto} en pixeles desde la esquina del monitor, solo si hacen falta pixeles exactos (si no entran en el monitor se usa la relativa), "pantallaCompleta": bool, "encima": bool (siempre encima de las demas)}. Al aplicarla, las ventanas de cada monitor van adentro de UNA ventana madre sin marco: el operador no las mueve ni las cierra con el mouse.</source>
+        <translation>每个窗口：{"nombre": 可选, "cosas": [catalogo_listar 中 donde=monitor 的 id]（一个，或多个按网格排列）, "disposicion": grid|focus|pip|row（多个内容时）, "monitor": id、序号或名称（monitor_listar；留空 = 第一个非主显示器）, "x", "y", "ancho", "alto": 相对于显示器的位置，取值 0 到 1（左半边：x 0, y 0, ancho 0.5, alto 1；不指定则为整个显示器）, "absoluta": {x, y, ancho, alto} 从显示器角落起算的像素，仅在需要精确像素时使用（放不进显示器时改用相对位置）, "pantallaCompleta": bool, "encima": bool（始终置于其他窗口之上）}。应用时，每台显示器上的窗口都放在一个无边框的母窗口内：操作员无法用鼠标移动或关闭它们。</translation>
+    </message>
+    <message>
+        <location line="+28" />
+        <source>las ventanas (ver los detalles de la herramienta)</source>
+        <translation>窗口（详见工具说明）</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>No hay una distribucion «%1»: pantallas_distribuciones_listar dice cuales hay.</source>
+        <translation>没有名为「%1」的布局：用 pantallas_distribuciones_listar 查看有哪些。</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Distribuciones de pantallas guardadas</source>
+        <translation>已保存的屏幕布局</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Las distribuciones de pantallas guardadas en el evento: cada una es una lista de ventanas (que muestra cada una, en que monitor, donde y de que tamaño) que se aplica de una vez. Dice cual esta aplicada, cual se abre sola al cargar el evento, los monitores conectados y las plantillas de un clic.</source>
+        <translation>保存在活动中的屏幕布局：每个布局是一组窗口（各显示什么、在哪台显示器、位置和大小），一次性应用。会说明当前应用的是哪个、加载活动时自动打开哪个、已连接的显示器以及一键模板。</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Por ventana vuelve tambien `enMonitor` (donde iria ahora), `faltaMonitor` (su monitor no esta: va al que haya) y `titulo`. `aviso` es lo que paso la ultima vez que se aplico una. Las ventanas de una distribucion son SIN MARCO y QUIETAS: se mueven con pantallas_distribucion_editar.</source>
+        <translation>每个窗口还会返回 `enMonitor`（现在会放到哪里）、`faltaMonitor`（其显示器不在：改放到现有的显示器）和 `titulo`。`aviso` 是上次应用布局时发生的情况。布局中的窗口无边框且固定不动：用 pantallas_distribucion_editar 移动。</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Crear una distribución de pantallas</source>
+        <translation>创建屏幕布局</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Guarda en el evento una distribucion de pantallas con nombre: la lista de ventanas que van en los monitores de esta maquina (el programa, el previo, una escena, una multiview, un invitado, un panel, una pagina...), cada una en su monitor, lugar y tamaño. O desde una `plantilla`, o copiando otra (`desde`). Con `aplicar: true` ademas la pone ya.</source>
+        <translation>在活动中保存一个命名的屏幕布局：本机各显示器上的窗口列表（节目、预览、某个场景、多画面、嘉宾、面板、网页……），每个窗口有自己的显示器、位置和大小。可以从 `plantilla` 创建，或复制另一个（`desde`）。加上 `aplicar: true` 会立即应用。</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>
+
+Antes: monitor_listar (los monitores, su orden y cual es el principal) y catalogo_listar {"donde": "monitor"} (que se puede mostrar). No pongas ventanas en el monitor principal (el de la interfaz) salvo que lo pidan.
+
+Plantillas: mosaico-2x1, mosaico-2x2, una-por-monitor, programa-previo-multiview (con `monitor` y `cosas` opcionales).
+
+`alAbrir: true` = se aplica sola al cargar el evento (una sola puede serlo).</source>
+        <translation>
+
+先调用：monitor_listar（显示器、顺序以及哪个是主显示器）和 catalogo_listar {"donde": "monitor"}（可以显示什么）。除非有要求，不要把窗口放在主显示器（界面所在的显示器）上。
+
+模板：mosaico-2x1、mosaico-2x2、una-por-monitor、programa-previo-multiview（可选 `monitor` 和 `cosas`）。
+
+`alAbrir: true` = 加载活动时自动应用（只能有一个）。</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>con plantilla: en que monitor</source>
+        <translation>使用模板时：在哪台显示器</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>con plantilla: que va en cada lugar, en orden</source>
+        <translation>使用模板时：每个位置放什么，按顺序</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>copiar esta distribucion (id o nombre)</source>
+        <translation>复制此布局（id 或名称）</translation>
+    </message>
+    <message>
+        <location line="+43" />
+        <source>Editar una distribución de pantallas</source>
+        <translation>编辑屏幕布局</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Cambia una distribucion guardada: el nombre, si se abre sola al cargar el evento, la lista entera de ventanas, o una ventana (cambiarla, agregar una, quitar una). Si es la que esta aplicada, las ventanas se mueven en el acto: es la forma de mover las ventanas de una distribucion (sin marco y quietas).</source>
+        <translation>修改已保存的布局：名称、加载活动时是否自动打开、整个窗口列表，或单个窗口（修改、添加、移除）。如果它正在应用，窗口会立即移动：这就是移动布局窗口（无边框且固定）的方法。</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>
+
+`ventanas` reemplaza la lista entera. `ventana` cambia SOLO lo que diga de la ventana numero `indice` (desde 1, en el orden de pantallas_distribuciones_listar). `agregar` suma una ventana; `quitar`, el numero de la que se saca.</source>
+        <translation>
+
+`ventanas` 替换整个列表。`ventana` 只修改第 `indice` 个窗口中指定的内容（从 1 开始，顺序同 pantallas_distribuciones_listar）。`agregar` 添加一个窗口；`quitar` 是要移除的窗口编号。</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>el nombre nuevo</source>
+        <translation>新名称</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>el numero de la ventana que se saca</source>
+        <translation>要移除的窗口编号</translation>
+    </message>
+    <message>
+        <location line="+38" />
+        <source>Aplicar una distribución de pantallas</source>
+        <translation>应用屏幕布局</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Pone la distribucion EXACTAMENTE como dice: en cada monitor que usa, UNA ventana madre sin marco (a pantalla completa si ocupa el monitor entero) con sus ventanas adentro como rectangulos; las ventanas sueltas que hubiera se cierran. Cambiar de distribucion no abre ni cierra ventanas del sistema: cambia lo de adentro. Aplicarla dos veces no cambia nada.</source>
+        <translation>严格按布局内容应用：在用到的每台显示器上放一个无边框的母窗口（占满整个显示器时为全屏），其中的窗口以矩形呈现；原有的独立窗口会被关闭。切换布局不会打开或关闭系统窗口，只改变其中的内容。重复应用不会有任何变化。</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Si un monitor de la distribucion no esta, su ventana va al que haya y vuelve en `aviso` (no falla); si despues aparece, vuelve sola a su lugar. Lo que ya no existe (una escena borrada) se saltea, tambien con aviso. Lo fijo de Salidas -&gt; Pantallas (monitor_asignar) no se toca (si comparte monitor, avisa). La aplicada se recuerda: vuelve sola al reiniciar. Para sacarla: pantallas_distribucion_cerrar.</source>
+        <translation>如果布局中的某台显示器不在，其窗口会放到现有的显示器上，并在 `aviso` 中返回（不报错）；之后该显示器出现时，窗口会自动回到原位。已不存在的内容（例如已删除的场景）会被跳过，同样有提示。输出 -&gt; 屏幕 中固定的内容（monitor_asignar）不受影响（如果共用显示器会提示）。已应用的布局会被记住：重启后自动恢复。要撤下它：pantallas_distribucion_cerrar。</translation>
+    </message>
+    <message>
+        <location line="+23" />
+        <source>Guardar las ventanas de ahora como distribución</source>
+        <translation>将当前窗口保存为布局</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Guarda las ventanas que hay abiertas AHORA (que muestran, en que monitor, donde) como una distribucion nueva con `nombre`, o reemplaza las ventanas de una que ya existe (`distribucion`).</source>
+        <translation>将当前打开的窗口（显示什么、在哪台显示器、位置）保存为一个名为 `nombre` 的新布局，或替换已有布局的窗口（`distribucion`）。</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>El lugar se guarda relativo al monitor (sobrevive a un cambio de resolucion). Lo fijo de Salidas -&gt; Pantallas (monitor_asignar) no entra: son las ventanas sueltas.</source>
+        <translation>位置按相对于显示器保存（分辨率变化后仍然有效）。输出 -&gt; 屏幕 中固定的内容（monitor_asignar）不包括在内：那些是独立窗口。</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>reemplazar las ventanas de esta (id o nombre)</source>
+        <translation>替换此布局的窗口（id 或名称）</translation>
+    </message>
+    <message>
+        <location line="+21" />
+        <source>Borrar una distribución de pantallas</source>
+        <translation>删除屏幕布局</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Borra una distribucion guardada. Sus ventanas, si estan puestas, quedan como estan (para sacarlas: pantallas_distribucion_cerrar).</source>
+        <translation>删除一个已保存的布局。如果其窗口正在显示，会保持原样（要撤下它们：pantallas_distribucion_cerrar）。</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Cerrar las ventanas de la distribución</source>
+        <translation>关闭布局的窗口</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La salida de emergencia: cierra todas las ventanas puestas por una distribucion (van sin marco y quietas: el operador no las puede cerrar con el mouse). La distribucion queda guardada. El operador hace lo mismo con Ctrl+Shift+F12 o desde Pantallas.</source>
+        <translation>紧急出口：关闭布局打开的所有窗口（它们无边框且固定：操作员无法用鼠标关闭）。布局仍然保存。操作员可以用 Ctrl+Shift+F12 或在「屏幕」中做同样的操作。</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Cerradas: %1.</source>
+        <translation>已关闭：%1。</translation>
+    </message>
+    <message>
+        <location line="-536" />
         <source>Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.</source>
         <translation>当前「已打开」并保持心跳的网页界面（电视屏幕、轮播、提词器）。每个都以自己的说法报告正在显示的内容。</translation>
     </message>
@@ -81255,7 +81579,13 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>术语表 术语 翻译 词汇 活动用语 怎么说</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+2" />
+        <source>distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>屏幕布局 窗口布局 排列窗口 显示器布置 拼接 平铺 窗口网格 多屏幕 多显示器 保存窗口位置 设置显示器 远程参与者 节目 预览 多画面 分屏 屏幕预设</translation>
+    </message>
+    <message>
+        <location line="+9" />
         <source>indice catalogo guia empezar</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>索引 目录 指南 入门 开始</translation>
@@ -88777,22 +89107,184 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>不认识该显示器。</translation>
     </message>
     <message>
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+110" />
+        <source>«%1» no es una disposición: grid, focus, pip o row.</source>
+        <translation>「%1」不是有效的排列方式：grid、focus、pip 或 row。</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>No conozco el monitor «%1»: decí su id, su número de orden o su nombre (monitor_listar).</source>
+        <translation>找不到显示器「%1」：请提供它的 id、序号或名称（monitor_listar）。</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>El lugar va relativo al monitor, de 0 a 1: x e y desde la esquina de arriba a la izquierda, ancho y alto mayores que 0, y x+ancho e y+alto hasta 1 (la mitad izquierda es x 0, y 0, ancho 0.5, alto 1).</source>
+        <translation>位置相对于显示器，取值 0 到 1：x 和 y 从左上角起算，宽和高大于 0，且 x+宽 与 y+高 不超过 1（左半边为 x 0, y 0, 宽 0.5, 高 1）。</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>`absoluta` va en píxeles desde la esquina del monitor: x e y desde 0, ancho y alto mayores que 0.</source>
+        <translation>`absoluta` 以像素为单位，从显示器角落起算：x 和 y 从 0 开始，宽和高大于 0。</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+245" />
+        <source>%n ventana(s)</source>
+        <translation><numerusform>%n 个窗口</numerusform></translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Mosaico 2×1</source>
+        <translation>拼接 2×1</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Dos ventanas lado a lado en un monitor (de entrada, el programa y el previo).</source>
+        <translation>一台显示器上两个窗口并排（默认是节目和预览）。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Mosaico 2×2</source>
+        <translation>拼接 2×2</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuatro ventanas en cuadrícula en un monitor.</source>
+        <translation>一台显示器上四个窗口呈网格排列。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Una por monitor</source>
+        <translation>每台显示器一个</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Una cosa a pantalla completa en cada monitor que no sea el principal.</source>
+        <translation>在每台非主显示器上全屏显示一项内容。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Programa + previo + multivista</source>
+        <translation>节目 + 预览 + 多画面</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>En un monitor: el programa y el previo arriba, la multivista abajo.</source>
+        <translation>在一台显示器上：上方为节目和预览，下方为多画面。</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>No hay nada que se llame «%1» en lo que se puede mostrar (catalogo_listar).</source>
+        <translation>可显示的内容中没有名为「%1」的项（catalogo_listar）。</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <location filename="../src/app/pantallas/Ventanas.cpp" line="+2" />
         <source>«%1» no se puede mostrar en una ventana (solo en una TV de la red).</source>
         <translation>「%1」不能在窗口中显示（只能在网络电视上显示）。</translation>
     </message>
     <message>
         <location line="+5" />
+        <source>Cada ventana tiene que mostrar algo: `cosas` con ids de catalogo_listar.</source>
+        <translation>每个窗口都必须显示内容：`cosas` 填入 catalogo_listar 中的 id。</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+192" />
+        <source>Como mucho %1 ventanas en una distribución.</source>
+        <translation>一个布局最多 %1 个窗口。</translation>
+    </message>
+    <message>
+        <location line="-185" />
+        <source>Ventana %1: %2</source>
+        <translation>窗口 %1：%2</translation>
+    </message>
+    <message>
+        <location line="+39" />
+        <location line="+19" />
+        <source>Ponele un nombre a la distribución.</source>
+        <translation>请为布局命名。</translation>
+    </message>
+    <message>
+        <location line="-16" />
+        <source>Ya hay una distribución que se llama «%1»: editala, o elegí otro nombre.</source>
+        <translation>已有名为「%1」的布局：请编辑它，或换个名称。</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <location line="+20" />
+        <location line="+25" />
+        <location line="+83" />
+        <location line="+15" />
+        <location line="+11" />
+        <location line="+14" />
+        <location line="+134" />
+        <location line="+91" />
+        <source>No hay una distribución «%1».</source>
+        <translation>没有名为「%1」的布局。</translation>
+    </message>
+    <message>
+        <location line="-386" />
+        <location line="+21" />
+        <location line="+370" />
+        <source>Ya hay una distribución que se llama «%1».</source>
+        <translation>已有名为「%1」的布局。</translation>
+    </message>
+    <message>
+        <location line="-375" />
+        <source>%1 (copia)</source>
+        <translation>%1（副本）</translation>
+    </message>
+    <message>
+        <location line="+41" />
+        <source>No conozco el monitor «%1» (monitor_listar).</source>
+        <translation>找不到显示器「%1」（monitor_listar）。</translation>
+    </message>
+    <message>
+        <location line="+35" />
+        <location line="+75" />
+        <source>No hay monitores conectados.</source>
+        <translation>没有已连接的显示器。</translation>
+    </message>
+    <message>
+        <location line="-65" />
+        <source>No hay una plantilla «%1»: mosaico-2x1, mosaico-2x2, una-por-monitor o programa-previo-multiview.</source>
+        <translation>没有模板「%1」：mosaico-2x1、mosaico-2x2、una-por-monitor 或 programa-previo-multiview。</translation>
+    </message>
+    <message>
+        <location line="+37" />
+        <location line="+11" />
+        <location line="+14" />
+        <source>Esa distribución no tiene una ventana %1.</source>
+        <translation>该布局没有窗口 %1。</translation>
+    </message>
+    <message>
+        <location line="+62" />
+        <source>«%1» ya no se puede mostrar: se saltea.</source>
+        <translation>「%1」已无法显示：跳过。</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <source>«%1»: su monitor no está conectado; va en el %2 (%3).</source>
+        <translation>「%1」：其显示器未连接；改放到 %2（%3）。</translation>
+    </message>
+    <message>
+        <location line="+29" />
+        <source>El monitor %1 también tiene algo fijo (Pantallas conectadas): se van a tapar. Quitalo ahí si manda la distribución.</source>
+        <translation>显示器 %1 上也有固定内容（已连接的屏幕）：会互相遮挡。如果以布局为准，请在那里移除。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+5" />
         <source>Elegí qué mostrar.</source>
         <translation>选择要显示的内容。</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="-347" />
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+2" />
         <source>Como mucho %1 cosas en una ventana: más ya no se leen.</source>
         <translation>一个窗口最多显示 %1 项：再多就看不清了。</translation>
     </message>
     <message>
-        <location line="+83" />
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+94" />
         <source>No hay una ventana con ese id.</source>
         <translation>没有该 id 的窗口。</translation>
     </message>

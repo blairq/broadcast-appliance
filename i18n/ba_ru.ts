@@ -5399,7 +5399,11 @@ Recorrer la tira no cambia lo que se ve.</source>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n входит (%1 в секунду)</numerusform><numerusform>%n входят (%1 в секунду)</numerusform><numerusform>%n входят (%1 в секунду)</numerusform></translation>
+        <translation>
+            <numerusform>%n входит (%1 в секунду)</numerusform>
+            <numerusform>%n входят (%1 в секунду)</numerusform>
+            <numerusform>%n входят (%1 в секунду)</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -7708,6 +7712,155 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>DistribucionesPantallas</name>
+    <message>
+        <location filename="../src/app/qml/controls/DistribucionesPantallas.qml" line="+25" />
+        <source>Distribuciones</source>
+        <translation>Раскладки</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+9" />
+        <source>%n guardada(s)</source>
+        <translation><numerusform>%n сохранена</numerusform><numerusform>%n сохранены</numerusform><numerusform>%n сохранено</numerusform></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1" />
+        <source>puesta en %n monitor(es)</source>
+        <translation><numerusform>на %n мониторе</numerusform><numerusform>на %n мониторах</numerusform><numerusform>на %n мониторах</numerusform></translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Guardar la actual</source>
+        <translation>Сохранить текущую</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Guarda las ventanas que hay abiertas ahora, dónde están y qué muestran</source>
+        <translation>Сохраняет открытые сейчас окна: где они находятся и что показывают</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Plantilla</source>
+        <translation>Шаблон</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Vacía</source>
+        <translation>Пустая</translation>
+    </message>
+    <message>
+        <location line="+40" />
+        <location line="+53" />
+        <source>Aplicar</source>
+        <translation>Применить</translation>
+    </message>
+    <message>
+        <location line="-43" />
+        <source>Todavía no hay distribuciones. Abrí las ventanas como las querés y «Guardar la actual», o armá una desde una plantilla.</source>
+        <translation>Раскладок пока нет. Расставьте окна как нужно и нажмите «Сохранить текущую» или создайте раскладку из шаблона.</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Cerrar las ventanas de la distribución</source>
+        <translation>Закрыть окна раскладки</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>También con Ctrl+Shift+F12 desde cualquier ventana de la app</source>
+        <translation>Также Ctrl+Shift+F12 из любого окна приложения</translation>
+    </message>
+    <message>
+        <location line="+23" />
+        <source>Guardar la actual acá</source>
+        <translation>Сохранить текущую сюда</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Reemplaza sus ventanas por las que hay abiertas ahora</source>
+        <translation>Заменяет её окна на открытые сейчас</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Duplicar</source>
+        <translation>Дублировать</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Borrar</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Al abrir el evento</source>
+        <translation>При открытии мероприятия</translation>
+    </message>
+    <message>
+        <location line="+127" />
+        <source>Nombre</source>
+        <translation>Название</translation>
+    </message>
+    <message>
+        <location line="+20" />
+        <source>⚠ no está</source>
+        <translation>⚠ отсутствует</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Completa</source>
+        <translation>Во весь экран</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Encima</source>
+        <translation>Поверх</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Quitar</source>
+        <translation>Убрать</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <source>Agregar ventana</source>
+        <translation>Добавить окно</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Arrastrá los rectángulos; la esquina los agranda. Aplicada, se ve en el acto.</source>
+        <translation>Перетаскивайте прямоугольники; угол меняет размер. Если раскладка применена, изменения видны сразу.</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Elegí una distribución para verla y editarla.</source>
+        <translation>Выберите раскладку, чтобы просмотреть и изменить её.</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>Guardar las ventanas de ahora</source>
+        <translation>Сохранить текущие окна</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Distribución nueva</source>
+        <translation>Новая раскладка</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Vacío = el nombre de la plantilla. Después se edita como cualquier otra.</source>
+        <translation>Пусто = название шаблона. Потом её можно изменить, как любую другую.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Queda guardada con el evento. Aplicada, cada monitor lleva una sola ventana sin marco con sus ventanas adentro.</source>
+        <translation>Сохраняется вместе с мероприятием. При применении на каждом мониторе одно родительское окно без рамки, а внутри — его окна.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Remotos en la sala</source>
+        <translation>Удалённые участники в зале</translation>
+    </message>
+</context>
+<context>
     <name>DocumentosViewModel</name>
     <message>
         <location filename="../src/app/ui/DocumentosViewModel.cpp" line="+133" />
@@ -8980,7 +9133,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+121" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+135" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>Монитора «%1» нет: укажите его номер, имя или id.</translation>
     </message>
@@ -14600,7 +14753,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>«%1» уже в своём окне</translation>
     </message>
     <message>
-        <location line="+98" />
+        <location line="+105" />
         <source>Volvió la luz en medio del evento y la línea de tiempo está en HOLD: lo que te cuento es qué está pasando. Pasalo con linea_retomar, proponé cómo seguir (linea_editar o linea_ajustar con probar) y soltá con linea_soltar cuando lo confirme. </source>
         <translation>Питание вернулось посреди мероприятия, и шкала времени на HOLD: то, что я рассказываю, — это что происходит. Передай это через linea_retomar, предложи, как продолжить (linea_editar или linea_ajustar с probar), и сними через linea_soltar, когда я подтвержу. </translation>
     </message>
@@ -14930,7 +15083,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Подтвердить (R)</translation>
     </message>
     <message>
-        <location line="+42" />
+        <location line="+50" />
         <source>El servidor (gateway) se reinició: %1</source>
         <translation>Сервер (шлюз) перезапустился: %1</translation>
     </message>
@@ -25496,7 +25649,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
 <context>
     <name>PantallasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+64" />
+        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+66" />
         <source>mostrando</source>
         <translation>показывает</translation>
     </message>
@@ -25541,7 +25694,7 @@ Agregale imágenes desde la pestaña Archivos.</source>
         <translation>Сетевые экраны</translation>
     </message>
     <message numerus="yes">
-        <location line="+18" />
+        <location line="+24" />
         <source>%n mostrando</source>
         <translation>
             <numerusform>%n показывает</numerusform>
@@ -30774,7 +30927,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>Нет сохранённого способа подключения: настройте его в Настройки → Удалённый доступ.</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>ждёт в зале ожидания</translation>
     </message>
@@ -33777,7 +33930,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+136" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+137" />
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (не удалось: %2)</translation>
     </message>
@@ -33807,7 +33960,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Автоматический титр не вышел: %1</translation>
     </message>
     <message>
-        <location line="+273" />
+        <location line="+274" />
         <source>no contestó</source>
         <translation>не ответил</translation>
     </message>
@@ -35745,6 +35898,14 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <location line="+33" />
         <source>VOD borrado de Twitch.</source>
         <translation>VOD удалён из Twitch.</translation>
+    </message>
+</context>
+<context>
+    <name>VentanaLienzo</name>
+    <message>
+        <location filename="../src/app/qml/VentanaLienzo.qml" line="+36" />
+        <source>Broadcast Appliance — Distribución, monitor %1</source>
+        <translation>Broadcast Appliance — раскладка, монитор %1</translation>
     </message>
 </context>
 <context>
@@ -44298,7 +44459,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-885" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-886" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -48670,7 +48831,7 @@ Datos (de %2): %3</source>
         <translation>%1: схема %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+207" />
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+208" />
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1: записано более новой версией (эта пишет схему %2): не перезаписывается, изменение не сохранено</translation>
     </message>
@@ -56090,7 +56251,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+919" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+920" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>
@@ -60497,7 +60658,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location line="+1" />
         <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="-485" />
         <location filename="../src/app/mcp/McpFacebookTools.cpp" line="+165" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+429" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
         <location filename="../src/app/mcp/McpService.cpp" line="-551" />
@@ -61926,6 +62087,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
     <message>
         <location line="+1" />
         <location line="+146" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+705" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+132" />
         <source>Borrada.</source>
         <translation>Удалена.</translation>
@@ -65989,6 +66151,9 @@ No toca la libreta de rostros: la ficha de la persona queda donde estaba.</sourc
     </message>
     <message>
         <location line="+3" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-125" />
+        <location line="+62" />
+        <location line="+58" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+54" />
         <source>id o nombre</source>
         <translation>id или название</translation>
@@ -69489,7 +69654,7 @@ Si en el destino ya hay algo con ese nombre, se numera en vez de pisar. Las carp
         <translation>Предложения на панели оператора (id %1). То, что он отправит (или проигнорирует), придёт вам в чат.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-277" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-977" />
         <source>Pantallas externas</source>
         <translation>Внешние экраны</translation>
     </message>
@@ -69820,7 +69985,168 @@ Duraciones: un QR necesita al menos 15 segundos para que alguien lo saque del bo
         <translation>Какие есть мониторы и что показывает каждый</translation>
     </message>
     <message>
-        <location line="-129" />
+        <location line="+112" />
+        <source>Cada ventana: {"nombre": opcional, "cosas": [ids de catalogo_listar con donde=monitor] (una, o varias en grilla), "disposicion": grid|focus|pip|row (con varias cosas), "monitor": id, numero de orden o nombre (monitor_listar; vacio = el primero que no sea el principal), "x", "y", "ancho", "alto": el lugar RELATIVO al monitor, de 0 a 1 (la mitad izquierda: x 0, y 0, ancho 0.5, alto 1; si no se dice, el monitor entero), "absoluta": {x, y, ancho, alto} en pixeles desde la esquina del monitor, solo si hacen falta pixeles exactos (si no entran en el monitor se usa la relativa), "pantallaCompleta": bool, "encima": bool (siempre encima de las demas)}. Al aplicarla, las ventanas de cada monitor van adentro de UNA ventana madre sin marco: el operador no las mueve ni las cierra con el mouse.</source>
+        <translation>Каждое окно: {"nombre": необязательно, "cosas": [id из catalogo_listar с donde=monitor] (одно или несколько сеткой), "disposicion": grid|focus|pip|row (если их несколько), "monitor": id, порядковый номер или имя (monitor_listar; пусто = первый, который не основной), "x", "y", "ancho", "alto": место ОТНОСИТЕЛЬНО монитора, от 0 до 1 (левая половина: x 0, y 0, ancho 0.5, alto 1; если не указано — весь монитор), "absoluta": {x, y, ancho, alto} в пикселях от угла монитора, только если нужны точные пиксели (если не помещается на монитор, используется относительное), "pantallaCompleta": bool, "encima": bool (всегда поверх остальных)}. При применении окна каждого монитора помещаются внутрь ОДНОГО родительского окна без рамки: оператор не может двигать или закрывать их мышью.</translation>
+    </message>
+    <message>
+        <location line="+28" />
+        <source>las ventanas (ver los detalles de la herramienta)</source>
+        <translation>окна (подробности — в описании инструмента)</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>No hay una distribucion «%1»: pantallas_distribuciones_listar dice cuales hay.</source>
+        <translation>Раскладки «%1» нет: список есть в pantallas_distribuciones_listar.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Distribuciones de pantallas guardadas</source>
+        <translation>Сохранённые раскладки экранов</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Las distribuciones de pantallas guardadas en el evento: cada una es una lista de ventanas (que muestra cada una, en que monitor, donde y de que tamaño) que se aplica de una vez. Dice cual esta aplicada, cual se abre sola al cargar el evento, los monitores conectados y las plantillas de un clic.</source>
+        <translation>Раскладки экранов, сохранённые в мероприятии: каждая — это список окон (что показывает каждое, на каком мониторе, где и какого размера), который применяется сразу целиком. Показывает, какая применена, какая открывается сама при загрузке мероприятия, подключённые мониторы и шаблоны в один клик.</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Por ventana vuelve tambien `enMonitor` (donde iria ahora), `faltaMonitor` (su monitor no esta: va al que haya) y `titulo`. `aviso` es lo que paso la ultima vez que se aplico una. Las ventanas de una distribucion son SIN MARCO y QUIETAS: se mueven con pantallas_distribucion_editar.</source>
+        <translation>Для каждого окна также возвращаются `enMonitor` (куда оно попадёт сейчас), `faltaMonitor` (его монитора нет: идёт на имеющийся) и `titulo`. `aviso` — что произошло при последнем применении раскладки. Окна раскладки БЕЗ РАМКИ и НЕПОДВИЖНЫ: их перемещают через pantallas_distribucion_editar.</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>Crear una distribución de pantallas</source>
+        <translation>Создать раскладку экранов</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Guarda en el evento una distribucion de pantallas con nombre: la lista de ventanas que van en los monitores de esta maquina (el programa, el previo, una escena, una multiview, un invitado, un panel, una pagina...), cada una en su monitor, lugar y tamaño. O desde una `plantilla`, o copiando otra (`desde`). Con `aplicar: true` ademas la pone ya.</source>
+        <translation>Сохраняет в мероприятии именованную раскладку экранов: список окон для мониторов этого компьютера (программа (эфир), превью, сцена, мультивью, гость, панель, страница...), каждое со своим монитором, местом и размером. Либо из `plantilla`, либо копией другой (`desde`). С `aplicar: true` ещё и сразу применяет её.</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>
+
+Antes: monitor_listar (los monitores, su orden y cual es el principal) y catalogo_listar {"donde": "monitor"} (que se puede mostrar). No pongas ventanas en el monitor principal (el de la interfaz) salvo que lo pidan.
+
+Plantillas: mosaico-2x1, mosaico-2x2, una-por-monitor, programa-previo-multiview (con `monitor` y `cosas` opcionales).
+
+`alAbrir: true` = se aplica sola al cargar el evento (una sola puede serlo).</source>
+        <translation>
+
+Сначала: monitor_listar (мониторы, их порядок и какой основной) и catalogo_listar {"donde": "monitor"} (что можно показать). Не ставь окна на основной монитор (с интерфейсом), если об этом не просят.
+
+Шаблоны: mosaico-2x1, mosaico-2x2, una-por-monitor, programa-previo-multiview (с необязательными `monitor` и `cosas`).
+
+`alAbrir: true` = применяется сама при загрузке мероприятия (такой может быть только одна).</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>con plantilla: en que monitor</source>
+        <translation>с шаблоном: на каком мониторе</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>con plantilla: que va en cada lugar, en orden</source>
+        <translation>с шаблоном: что идёт в каждое место, по порядку</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>copiar esta distribucion (id o nombre)</source>
+        <translation>скопировать эту раскладку (id или название)</translation>
+    </message>
+    <message>
+        <location line="+43" />
+        <source>Editar una distribución de pantallas</source>
+        <translation>Изменить раскладку экранов</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Cambia una distribucion guardada: el nombre, si se abre sola al cargar el evento, la lista entera de ventanas, o una ventana (cambiarla, agregar una, quitar una). Si es la que esta aplicada, las ventanas se mueven en el acto: es la forma de mover las ventanas de una distribucion (sin marco y quietas).</source>
+        <translation>Изменяет сохранённую раскладку: название, открывается ли она сама при загрузке мероприятия, весь список окон или одно окно (изменить, добавить, убрать). Если она применена, окна перемещаются сразу: так и двигают окна раскладки (без рамки и неподвижные).</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>
+
+`ventanas` reemplaza la lista entera. `ventana` cambia SOLO lo que diga de la ventana numero `indice` (desde 1, en el orden de pantallas_distribuciones_listar). `agregar` suma una ventana; `quitar`, el numero de la que se saca.</source>
+        <translation>
+
+`ventanas` заменяет весь список. `ventana` меняет ТОЛЬКО указанное в окне номер `indice` (с 1, в порядке pantallas_distribuciones_listar). `agregar` добавляет окно; `quitar` — номер убираемого окна.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>el nombre nuevo</source>
+        <translation>новое название</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>el numero de la ventana que se saca</source>
+        <translation>номер убираемого окна</translation>
+    </message>
+    <message>
+        <location line="+38" />
+        <source>Aplicar una distribución de pantallas</source>
+        <translation>Применить раскладку экранов</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Pone la distribucion EXACTAMENTE como dice: en cada monitor que usa, UNA ventana madre sin marco (a pantalla completa si ocupa el monitor entero) con sus ventanas adentro como rectangulos; las ventanas sueltas que hubiera se cierran. Cambiar de distribucion no abre ni cierra ventanas del sistema: cambia lo de adentro. Aplicarla dos veces no cambia nada.</source>
+        <translation>Применяет раскладку ТОЧНО как в ней задано: на каждом используемом мониторе ОДНО родительское окно без рамки (во весь экран, если занимает весь монитор) с её окнами внутри в виде прямоугольников; отдельные открытые окна закрываются. Смена раскладки не открывает и не закрывает системные окна: меняется только содержимое. Повторное применение ничего не меняет.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Si un monitor de la distribucion no esta, su ventana va al que haya y vuelve en `aviso` (no falla); si despues aparece, vuelve sola a su lugar. Lo que ya no existe (una escena borrada) se saltea, tambien con aviso. Lo fijo de Salidas -&gt; Pantallas (monitor_asignar) no se toca (si comparte monitor, avisa). La aplicada se recuerda: vuelve sola al reiniciar. Para sacarla: pantallas_distribucion_cerrar.</source>
+        <translation>Если монитора из раскладки нет, его окно идёт на имеющийся, и это возвращается в `aviso` (без ошибки); когда монитор появится, окно само вернётся на место. То, чего уже нет (удалённая сцена), пропускается, тоже с предупреждением. Закреплённое в Выходы -&gt; Экраны (monitor_asignar) не трогается (если монитор общий — предупреждает). Применённая раскладка запоминается: возвращается сама после перезапуска. Чтобы убрать её: pantallas_distribucion_cerrar.</translation>
+    </message>
+    <message>
+        <location line="+23" />
+        <source>Guardar las ventanas de ahora como distribución</source>
+        <translation>Сохранить текущие окна как раскладку</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Guarda las ventanas que hay abiertas AHORA (que muestran, en que monitor, donde) como una distribucion nueva con `nombre`, o reemplaza las ventanas de una que ya existe (`distribucion`).</source>
+        <translation>Сохраняет открытые СЕЙЧАС окна (что показывают, на каком мониторе, где) как новую раскладку с `nombre` или заменяет окна существующей (`distribucion`).</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>El lugar se guarda relativo al monitor (sobrevive a un cambio de resolucion). Lo fijo de Salidas -&gt; Pantallas (monitor_asignar) no entra: son las ventanas sueltas.</source>
+        <translation>Место сохраняется относительно монитора (переживает смену разрешения). Закреплённое в Выходы -&gt; Экраны (monitor_asignar) не входит: это отдельные окна.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>reemplazar las ventanas de esta (id o nombre)</source>
+        <translation>заменить окна этой раскладки (id или название)</translation>
+    </message>
+    <message>
+        <location line="+21" />
+        <source>Borrar una distribución de pantallas</source>
+        <translation>Удалить раскладку экранов</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Borra una distribucion guardada. Sus ventanas, si estan puestas, quedan como estan (para sacarlas: pantallas_distribucion_cerrar).</source>
+        <translation>Удаляет сохранённую раскладку. Её окна, если они выведены, остаются как есть (чтобы убрать их: pantallas_distribucion_cerrar).</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Cerrar las ventanas de la distribución</source>
+        <translation>Закрыть окна раскладки</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La salida de emergencia: cierra todas las ventanas puestas por una distribucion (van sin marco y quietas: el operador no las puede cerrar con el mouse). La distribucion queda guardada. El operador hace lo mismo con Ctrl+Shift+F12 o desde Pantallas.</source>
+        <translation>Аварийный выход: закрывает все окна, выведенные раскладкой (они без рамки и неподвижны: оператор не может закрыть их мышью). Раскладка остаётся сохранённой. Оператор делает то же через Ctrl+Shift+F12 или из раздела «Экраны».</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Cerradas: %1.</source>
+        <translation>Закрыто: %1.</translation>
+    </message>
+    <message>
+        <location line="-536" />
         <source>Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.</source>
         <translation>Веб-поверхности, которые ОТКРЫТЫ и подают признаки жизни прямо сейчас (экран телевизора, карусель, телесуфлёр). Каждая своими словами сообщает, что показывает.</translation>
     </message>
@@ -81623,7 +81949,13 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>глоссарий термины перевод словарь слова мероприятия как сказать</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+2" />
+        <source>distribucion de pantallas layout de ventanas acomodar ventanas en los monitores mosaico grilla de ventanas varias pantallas guardar como estan las ventanas armar los monitores remotos en un monitor programa y previo multiview en otro monitor preset de pantallas</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>раскладка экранов расположение окон расставить окна по мониторам мозаика сетка окон несколько экранов сохранить положение окон настроить мониторы удалённые участники на мониторе программа превью мультивью на другом мониторе пресет экранов компоновка</translation>
+    </message>
+    <message>
+        <location line="+9" />
         <source>indice catalogo guia empezar</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>указатель каталог руководство начать первые шаги</translation>
@@ -89145,22 +89477,184 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Этот монитор мне неизвестен.</translation>
     </message>
     <message>
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+110" />
+        <source>«%1» no es una disposición: grid, focus, pip o row.</source>
+        <translation>«%1» — не вариант расположения: grid, focus, pip или row.</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>No conozco el monitor «%1»: decí su id, su número de orden o su nombre (monitor_listar).</source>
+        <translation>Монитор «%1» не найден: укажите его id, порядковый номер или имя (monitor_listar).</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>El lugar va relativo al monitor, de 0 a 1: x e y desde la esquina de arriba a la izquierda, ancho y alto mayores que 0, y x+ancho e y+alto hasta 1 (la mitad izquierda es x 0, y 0, ancho 0.5, alto 1).</source>
+        <translation>Место задаётся относительно монитора, от 0 до 1: x и y от верхнего левого угла, ширина и высота больше 0, а x+ширина и y+высота не больше 1 (левая половина — x 0, y 0, ширина 0.5, высота 1).</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>`absoluta` va en píxeles desde la esquina del monitor: x e y desde 0, ancho y alto mayores que 0.</source>
+        <translation>`absoluta` задаётся в пикселях от угла монитора: x и y от 0, ширина и высота больше 0.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+245" />
+        <source>%n ventana(s)</source>
+        <translation><numerusform>%n окно</numerusform><numerusform>%n окна</numerusform><numerusform>%n окон</numerusform></translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Mosaico 2×1</source>
+        <translation>Мозаика 2×1</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Dos ventanas lado a lado en un monitor (de entrada, el programa y el previo).</source>
+        <translation>Два окна рядом на одном мониторе (по умолчанию программа и превью).</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Mosaico 2×2</source>
+        <translation>Мозаика 2×2</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuatro ventanas en cuadrícula en un monitor.</source>
+        <translation>Четыре окна сеткой на одном мониторе.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Una por monitor</source>
+        <translation>По одному на монитор</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Una cosa a pantalla completa en cada monitor que no sea el principal.</source>
+        <translation>Что-то одно во весь экран на каждом мониторе, кроме основного.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Programa + previo + multivista</source>
+        <translation>Программа + превью + мультивью</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>En un monitor: el programa y el previo arriba, la multivista abajo.</source>
+        <translation>На одном мониторе: программа и превью сверху, мультивью снизу.</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>No hay nada que se llame «%1» en lo que se puede mostrar (catalogo_listar).</source>
+        <translation>Среди того, что можно показать, нет ничего с названием «%1» (catalogo_listar).</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <location filename="../src/app/pantallas/Ventanas.cpp" line="+2" />
         <source>«%1» no se puede mostrar en una ventana (solo en una TV de la red).</source>
         <translation>«%1» нельзя показать в окне (только на сетевом ТВ).</translation>
     </message>
     <message>
         <location line="+5" />
+        <source>Cada ventana tiene que mostrar algo: `cosas` con ids de catalogo_listar.</source>
+        <translation>Каждое окно должно что-то показывать: `cosas` с id из catalogo_listar.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+192" />
+        <source>Como mucho %1 ventanas en una distribución.</source>
+        <translation>Не больше %1 окон в раскладке.</translation>
+    </message>
+    <message>
+        <location line="-185" />
+        <source>Ventana %1: %2</source>
+        <translation>Окно %1: %2</translation>
+    </message>
+    <message>
+        <location line="+39" />
+        <location line="+19" />
+        <source>Ponele un nombre a la distribución.</source>
+        <translation>Дайте раскладке название.</translation>
+    </message>
+    <message>
+        <location line="-16" />
+        <source>Ya hay una distribución que se llama «%1»: editala, o elegí otro nombre.</source>
+        <translation>Раскладка «%1» уже есть: измените её или выберите другое название.</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <location line="+20" />
+        <location line="+25" />
+        <location line="+83" />
+        <location line="+15" />
+        <location line="+11" />
+        <location line="+14" />
+        <location line="+134" />
+        <location line="+91" />
+        <source>No hay una distribución «%1».</source>
+        <translation>Раскладки «%1» нет.</translation>
+    </message>
+    <message>
+        <location line="-386" />
+        <location line="+21" />
+        <location line="+370" />
+        <source>Ya hay una distribución que se llama «%1».</source>
+        <translation>Раскладка «%1» уже есть.</translation>
+    </message>
+    <message>
+        <location line="-375" />
+        <source>%1 (copia)</source>
+        <translation>%1 (копия)</translation>
+    </message>
+    <message>
+        <location line="+41" />
+        <source>No conozco el monitor «%1» (monitor_listar).</source>
+        <translation>Монитор «%1» не найден (monitor_listar).</translation>
+    </message>
+    <message>
+        <location line="+35" />
+        <location line="+75" />
+        <source>No hay monitores conectados.</source>
+        <translation>Нет подключённых мониторов.</translation>
+    </message>
+    <message>
+        <location line="-65" />
+        <source>No hay una plantilla «%1»: mosaico-2x1, mosaico-2x2, una-por-monitor o programa-previo-multiview.</source>
+        <translation>Шаблона «%1» нет: mosaico-2x1, mosaico-2x2, una-por-monitor или programa-previo-multiview.</translation>
+    </message>
+    <message>
+        <location line="+37" />
+        <location line="+11" />
+        <location line="+14" />
+        <source>Esa distribución no tiene una ventana %1.</source>
+        <translation>В этой раскладке нет окна %1.</translation>
+    </message>
+    <message>
+        <location line="+62" />
+        <source>«%1» ya no se puede mostrar: se saltea.</source>
+        <translation>«%1» больше нельзя показать: пропускается.</translation>
+    </message>
+    <message>
+        <location line="+18" />
+        <source>«%1»: su monitor no está conectado; va en el %2 (%3).</source>
+        <translation>«%1»: его монитор не подключён; выводится на %2 (%3).</translation>
+    </message>
+    <message>
+        <location line="+29" />
+        <source>El monitor %1 también tiene algo fijo (Pantallas conectadas): se van a tapar. Quitalo ahí si manda la distribución.</source>
+        <translation>На мониторе %1 есть и закреплённое (Подключённые экраны): они перекроют друг друга. Уберите его там, если главная — раскладка.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+5" />
         <source>Elegí qué mostrar.</source>
         <translation>Выберите, что показывать.</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="-347" />
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+2" />
         <source>Como mucho %1 cosas en una ventana: más ya no se leen.</source>
         <translation>Не больше %1 элементов в окне: больше уже не читается.</translation>
     </message>
     <message>
-        <location line="+83" />
+        <location filename="../src/app/pantallas/Ventanas.cpp" line="+94" />
         <source>No hay una ventana con ese id.</source>
         <translation>Окна с таким id нет.</translation>
     </message>
