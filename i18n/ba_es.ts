@@ -1733,7 +1733,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>web/correccion</name>
     <message numerus="yes">
-        <location line="+500"/>
+        <location line="+504"/>
         <source>%n esperando</source>
         <translation>
             <numerusform>%n esperando</numerusform>
@@ -1784,6 +1784,14 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>
             <numerusform>Hay %n persona antes que vos.</numerusform>
             <numerusform>Hay %n personas antes que vos.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+6"/>
+        <source>Hay %n persona antes que vos para entrar.</source>
+        <translation>
+            <numerusform>Hay %n persona antes que vos para entrar.</numerusform>
+            <numerusform>Hay %n personas antes que vos para entrar.</numerusform>
         </translation>
     </message>
 </context>
