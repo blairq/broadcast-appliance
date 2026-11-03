@@ -13,6 +13,7 @@
 #include <QJsonObject>
 #include <QUrl>
 
+#include <algorithm>
 #include <vector>
 
 namespace ba::app {
@@ -42,6 +43,25 @@ const json& vacio() {
     return v;
 }
 
+/// `j[k]` sin copiar (y sin crearlo): la nada si no es un objeto o no lo tiene.
+const json& parte(const json& j, const std::string& k) {
+    static const json nada;
+    if (!j.is_object()) return nada;
+    const auto it = j.find(k);
+    return it != j.end() ? *it : nada;
+}
+
+/// El tamaño que llega de una entrada (gstreamer.origen de su estado); {0, 0} si no tiene.
+std::pair<int, int> origenDe(const json& st) {
+    const json& o = parte(parte(st, "gstreamer"), "origen");
+    if (!o.is_object()) return {0, 0};
+    const json& w = parte(o, "ancho");
+    const json& h = parte(o, "alto");
+    if (!w.is_number() || !h.is_number()) return {0, 0};
+    const int a = w.get<int>(), b = h.get<int>();
+    return a > 0 && b > 0 ? std::pair<int, int>{a, b} : std::pair<int, int>{0, 0};
+}
+
 } // namespace
 
 VideoViewModel::VideoViewModel(VentanillaMotor& ventanilla, video::VideoGrafos& grafos, QObject* parent)
@@ -67,14 +87,11 @@ void VideoViewModel::alCambiar(unsigned partes) {
 
 void VideoViewModel::releer() {
     const json& x = v();
+    const json& antes = antes_.get();
+    estadosRecalculados_ = 0;
     // Lo que redibuja el patchbay (entradas y grafos), aparte de lo que se mueve siempre.
     // Sin copiar cada parte (llega seguido: la red, el reloj, la latencia).
-    const auto parte = [](const json& j, const char* k) -> const json& {
-        static const json nada;
-        const auto it = j.find(k);
-        return it != j.end() ? *it : nada;
-    };
-    const auto difiere = [&](const char* k) { return parte(x, k) != parte(antes_, k); };
+    const auto difiere = [&](const char* k) { return parte(x, k) != parte(antes, k); };
     const bool estructura = difiere("entradas") || difiere("info") || difiere("grafos") || difiere("estudio");
     // Lo que se mueve: cada propiedad avisa sola (el reloj o la red no redibujan el automixer).
     std::vector<void (VideoViewModel::*)()> avisar;
@@ -101,26 +118,39 @@ void VideoViewModel::releer() {
     poner("hay_superres", haySuperres_, [&] { return x.value("hay_superres", false); }, &VideoViewModel::haySuperresCambio);
     // Los formularios: solo si cambiaron (la introspección de cada módulo la guarda el catálogo).
     if (difiere("formularios")) {
-        QVariantMap f = armarFormularios(x.value("formularios", json::object()));
+        QVariantMap f = armarFormularios(parte(x, "formularios"));
         if (f != formularios_) {
             formularios_ = std::move(f);
             avisar.push_back(&VideoViewModel::formulariosCambio);
         }
     }
     const bool eventos = difiere("eventos");
-    antes_ = x;
+    // Los estados de las entradas (los tamaños que llegan): solo los que cambiaron.
+    const json objetoVacio = json::object();
+    const bool tamanos = [&] {
+        const auto previos = tamanosOrigen_;
+        releerEstados(parte(x, "estados"), parte(antes, "estados"), difiere("entradas"));
+        return previos != tamanosOrigen_;
+    }();
+    if (tamanos) avisar.push_back(&VideoViewModel::tamanosOrigenCambio);
+    // La anterior, compartida (un puntero: copiar la vista entera en cada foto era O(tamaño)).
+    // (Desde acá `antes` ya no vale.)
+    antes_ = ventanilla_.foto().video;
+    const auto deLaElegida = [&](const char* k) -> json {
+        const json& e = parte(parte(x, k), entrada_.toStdString());
+        return e.is_object() ? e : objetoVacio;
+    };
     if (estructura) {
-        entradas_ = listaDeTextos(x.value("entradas", json::array()));
-        entradasInfo_ = aVariant(x.value("info", json::array())).toList();
-        estudio_ = aVariant(conResumenes(x.value("estudio", json::object()))).toMap();
+        entradas_ = listaDeTextos(parte(x, "entradas"));
+        entradasInfo_ = aVariant(parte(x, "info").is_array() ? parte(x, "info") : json::array()).toList();
+        estudio_ = aVariant(conResumenes(parte(x, "estudio").is_object() ? parte(x, "estudio") : objetoVacio)).toMap();
         // La elegida: la que se eligió acá; si no hay o se fue, la primera.
         if ((entrada_.isEmpty() || !entradas_.contains(entrada_)) && !entradas_.isEmpty()) entrada_ = entradas_.first();
-        grafo_ = entrada_.isEmpty() ? QVariantMap{}
-                                    : aVariant(conResumenes(x.value("grafos", json::object()).value(entrada_.toStdString(), json::object()))).toMap();
+        grafo_ = entrada_.isEmpty() ? QVariantMap{} : aVariant(conResumenes(deLaElegida("grafos"))).toMap();
     }
     // Los eventos son los de la elegida (que puede haber cambiado con la estructura).
     if (eventos || estructura) {
-        QVariantMap e = aVariant(x.value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
+        QVariantMap e = aVariant(deLaElegida("eventos")).toMap();
         if (e != eventos_) {
             eventos_ = std::move(e);
             avisar.push_back(&VideoViewModel::eventosCambio);
@@ -130,11 +160,62 @@ void VideoViewModel::releer() {
     for (const auto senal : avisar) emit(this->*senal)();
 }
 
+void VideoViewModel::releerEstados(const json& ahora, const json& antes, bool entradasCambiaron) {
+    // Cada entrada se compara con la suya de la foto anterior (sin copiar nada) y solo se
+    // recalcula lo de las que cambiaron. (Antes cada lector copiaba el mapa entero de
+    // estados por cada entrada: O(N²) en cada foto.)
+    bool cambio = false;
+    if (ahora.is_object()) {
+        for (auto it = ahora.begin(); it != ahora.end(); ++it) {
+            if (antes.is_object()) {
+                const auto a = antes.find(it.key());
+                if (a != antes.end() && *a == *it) continue;
+            }
+            ++estadosRecalculados_;
+            const auto t = origenDe(*it);
+            const auto o = origenDe_.find(it.key());
+            if (t.first > 0) {
+                if (o == origenDe_.end()) {
+                    origenDe_.emplace(it.key(), t);
+                    cambio = true;
+                } else if (o->second != t) {
+                    o->second = t;
+                    cambio = true;
+                }
+            } else if (o != origenDe_.end()) {
+                origenDe_.erase(o);
+                cambio = true;
+            }
+        }
+    }
+    // Las que se fueron (solo si cambió la lista de entradas o cuántas tienen estado).
+    const std::size_t nAhora = ahora.is_object() ? ahora.size() : 0;
+    const std::size_t nAntes = antes.is_object() ? antes.size() : 0;
+    if (entradasCambiaron || nAhora != nAntes)
+        for (auto o = origenDe_.begin(); o != origenDe_.end();) {
+            if (!ahora.is_object() || !ahora.contains(o->first)) {
+                o = origenDe_.erase(o);
+                cambio = true;
+            } else {
+                ++o;
+            }
+        }
+    if (!cambio) return;
+    std::vector<std::pair<int, int>> distintos;
+    for (const auto& [e, t] : origenDe_)
+        if (std::find(distintos.begin(), distintos.end(), t) == distintos.end()) distintos.push_back(t);
+    tamanosOrigen_ = std::move(distintos);
+}
+
 void VideoViewModel::seleccionar(const QString& entrada) {
     if (entrada == entrada_) return;
     entrada_ = entrada;
-    grafo_ = aVariant(conResumenes(v().value("grafos", json::object()).value(entrada_.toStdString(), json::object()))).toMap();
-    eventos_ = aVariant(v().value("eventos", json::object()).value(entrada_.toStdString(), json::object())).toMap();
+    const auto deLaElegida = [&](const char* k) -> json {
+        const json& e = parte(parte(v(), k), entrada_.toStdString());
+        return e.is_object() ? e : json::object();
+    };
+    grafo_ = aVariant(conResumenes(deLaElegida("grafos"))).toMap();
+    eventos_ = aVariant(deLaElegida("eventos")).toMap();
     emit cambio();
     emit eventosCambio();
     // VideoGrafos también la sabe: las herramientas sin entrada usan la elegida.
@@ -371,18 +452,24 @@ void VideoViewModel::aplicarDisposicionUi(const QString& compositor, const QStri
 
 // --- Para los demás modelos (de la foto) ---------------------------------------------
 
+const json* VideoViewModel::estadoDe(const std::string& entrada) const {
+    // Sin copiar el mapa de estados (se recorre por entrada: copiarlo entero en cada una
+    // era O(N²) con cada foto).
+    const json& st = parte(parte(v(), "estados"), entrada);
+    return st.is_object() ? &st : nullptr;
+}
+
 json VideoViewModel::estadoEntrada(const std::string& entrada) const {
-    const json st = v().value("estados", json::object()).value(entrada, json());
-    if (st.is_object()) return st;
+    if (const json* st = estadoDe(entrada)) return *st;
     return {{"error", tr("«%1» no es una entrada de video").arg(q(entrada)).toStdString()}};
 }
 
 bool VideoViewModel::esEntrada(const std::string& nombre) const { return entradas_.contains(q(nombre)); }
 
 std::string VideoViewModel::uriDe(const std::string& entrada) const {
-    const json f = ventanilla_.foto().fuentesVideo.value(entrada, json());
+    const json& f = parte(ventanilla_.foto().fuentesVideo.get(), entrada);
     if (!f.is_object() || f.value("tipo", std::string()) != "ba_gst_fuente") return {};
-    const json a = f.value("ajustes", json::object());
+    const json& a = parte(f, "ajustes");
     return a.is_object() ? a.value("uri", std::string()) : std::string();
 }
 
@@ -390,7 +477,7 @@ json VideoViewModel::entradasDeHost(const std::string& host) const {
     json out = json::array();
     for (const auto& [n, f] : ventanilla_.foto().fuentesVideo.items()) {
         if (!f.is_object() || f.value("tipo", std::string()) != "ba_gst_fuente") continue;
-        const json a = f.value("ajustes", json::object());
+        const json& a = parte(f, "ajustes");
         const std::string uri = a.is_object() ? a.value("uri", std::string()) : std::string();
         const QUrl u(q(uri));
         if (!uri.empty() && u.host().toStdString() == host) {
@@ -406,7 +493,9 @@ json VideoViewModel::programadorJson() const { return v().value("programador", j
 
 std::vector<std::pair<int, int>> VideoViewModel::tamanosDeEntradas() const {
     std::vector<std::pair<int, int>> out;
-    for (const auto& t : v().value("tamanos", json::array()))
+    const json& tamanos = parte(v(), "tamanos");
+    if (!tamanos.is_array()) return out;
+    for (const auto& t : tamanos)
         if (t.is_array() && t.size() == 2) out.emplace_back(t[0].get<int>(), t[1].get<int>());
     return out;
 }

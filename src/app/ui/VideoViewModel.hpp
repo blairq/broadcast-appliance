@@ -24,6 +24,7 @@
 #pragma once
 
 #include "comun/JsonSignals.hpp"
+#include "emision/Compartido.hpp"
 
 #include <QImage>
 #include <QObject>
@@ -33,6 +34,7 @@
 #include <QVariantMap>
 
 #include <functional>
+#include <map>
 #include <memory>
 #include <string>
 #include <utility>
@@ -195,7 +197,18 @@ class VideoViewModel : public QObject {
 
     // --- Para los demás modelos de la interfaz (de la foto) -----------------------------
     /// El estado de una entrada (VideoGrafos::estadoEntrada, el de la última vista), o {error}.
+    /// Copia SOLO el de esa entrada (para recorrer todas, `estadoDe`, que no copia nada).
     nlohmann::json estadoEntrada(const std::string& entrada) const;
+    /// El estado de una entrada en la foto que tiene la interfaz, sin copiarlo (nullptr si
+    /// no hay). Vale hasta la próxima foto: usarlo y soltarlo en la misma vuelta del hilo.
+    const nlohmann::json* estadoDe(const std::string& entrada) const;
+    /// Los tamaños (ancho, alto) distintos que LLEGAN de las entradas (gstreamer.origen de
+    /// su estado, antes de los filtros): los arma `releer` mirando solo las entradas cuyo
+    /// estado cambió, y avisa `tamanosOrigenCambio` solo si cambió la lista.
+    const std::vector<std::pair<int, int>>& tamanosOrigen() const { return tamanosOrigen_; }
+    /// Cuántos estados de entrada se recalcularon con la última foto (el test: con una
+    /// entrada que cambia, uno; no las N).
+    int estadosRecalculados() const { return estadosRecalculados_; }
     bool esEntrada(const std::string& nombre) const;
     /// La dirección de una entrada de red ("" si no es de red).
     std::string uriDe(const std::string& entrada) const;
@@ -236,6 +249,8 @@ class VideoViewModel : public QObject {
     void escenasCambio();
     void haySuperresCambio();
     void formulariosCambio();
+    /// Cambió la lista de tamaños que llegan de las entradas (`tamanosOrigen`).
+    void tamanosOrigenCambio();
     void gstListo();
     /// El resultado de medirUi.
     void medicion(const QVariantMap& resultado);
@@ -248,6 +263,8 @@ class VideoViewModel : public QObject {
     /// Llegó una foto: relee la vista si cambió la parte Video.
     void alCambiar(unsigned partes);
     void releer();
+    /// Lo de `releer` para los estados de las entradas: solo las que cambiaron.
+    void releerEstados(const nlohmann::json& ahora, const nlohmann::json& antes, bool entradasCambiaron);
     /// Los controles de cada formulario de la vista (ver `formularios`).
     QVariantMap armarFormularios(const nlohmann::json& formularios) const;
     /// Pedir con la entrada elegida (las ediciones de la página sin entrada explícita).
@@ -262,8 +279,13 @@ class VideoViewModel : public QObject {
     QVariantList entradasInfo_, estadoRed_, diagnostico_;
     QVariantMap grafo_, estudio_, eventos_, programador_, reloj_, latencia_, automixer_, filtrosAudio_, formularios_;
     bool haySuperres_ = false;
-    /// Lo que se mostró la última vez (para avisar solo lo que cambió).
-    nlohmann::json antes_ = nlohmann::json::object();
+    /// Lo que se mostró la última vez (para avisar solo lo que cambió): la vista de la foto
+    /// anterior, compartida (un puntero; copiarla entera en cada foto era O(tamaño)).
+    Compartido<nlohmann::json> antes_;
+    /// El tamaño que llega de cada entrada que tiene uno (ver `tamanosOrigen`).
+    std::map<std::string, std::pair<int, int>> origenDe_;
+    std::vector<std::pair<int, int>> tamanosOrigen_;
+    int estadosRecalculados_ = 0;
 };
 
 } // namespace ba::app

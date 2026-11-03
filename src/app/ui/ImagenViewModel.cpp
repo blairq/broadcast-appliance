@@ -293,7 +293,9 @@ QVariantList ImagenViewModel::chequeosDelAparato(bool hayDestino) const {
     }
     if (!hayDestino) agregar(false, tr("No hay destino de transmisión configurado (servidor y clave)"));
     for (const QString& e : videoVm_->entradas()) {
-        const nlohmann::json st = videoVm_->estadoEntrada(e.toStdString());
+        const nlohmann::json* pst = videoVm_->estadoDe(e.toStdString()); // sin copiar
+        if (pst == nullptr) continue;
+        const nlohmann::json& st = *pst;
         if (!st.contains("gstreamer") || !st.value("activa", true)) continue;
         // Una entrada solo de audio (un tono, un micrófono por pipeline) no tiene
         // imagen nunca: no es «sin señal».
