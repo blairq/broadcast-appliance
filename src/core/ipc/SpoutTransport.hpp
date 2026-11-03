@@ -266,6 +266,16 @@ class SpoutSender {
     /// Indica si el sender ya publico su slot.
     bool published() const;
 
+    /// Quién lee este canal ahora (lo dejan los lectores en la cabecera al mirar: ver
+    /// SpoutReceiver::pedirTodos). Es para el productor que prepara cada cuadro solo para
+    /// el canal (convertir, achicar): sin lectores no hace falta; con uno que mira de vez en
+    /// cuando, alcanza uno por segundo. Un lector que no miró en `kLectorVivoNs` ya no cuenta.
+    enum class Demanda { Nadie, DeVezEnCuando, Todos };
+    Demanda demanda() const;
+    /// Más que mirada::kVigia (1 s): un lector que duerme hasta el timbre y no lo tocan
+    /// (porque no se publica nada) mira de nuevo antes de dejar de contar.
+    static constexpr std::uint64_t kLectorVivoNs = 2'500'000'000ULL;
+
    private:
     // Backend CPU: region compartida con cabecera + triple buffer.
     SharedMemoryRegion region_;
@@ -323,6 +333,12 @@ class SpoutReceiver {
     /// :returns: true si llego un frame con frameIndex mayor al ultimo visto;
     ///           false si no hay frame nuevo o el receiver no esta suscrito.
     bool hasData() const;
+
+    /// Qué le pide este lector al productor (SpoutSender::demanda): true (de fábrica), todos
+    /// los cuadros; false, uno de vez en cuando (una vista que nadie mira y se refresca una
+    /// vez por segundo). Se anota en la cabecera cada vez que mira (hasData/receive): un
+    /// lector que deja de mirar deja de pedir solo.
+    void pedirTodos(bool todos) { todos_ = todos; }
 
     /// Ancho del slot en pixeles (0 si no esta suscrito).
     ///
@@ -391,7 +407,11 @@ class SpoutReceiver {
     std::uint64_t lastFrameNs_ = 0; // reloj monotono del ultimo frame (o de la suscripcion)
     std::uint64_t lastCheckNs_ = 0; // ultimo chequeo de stale()
     bool subscribed_ = false;
+    bool todos_ = true;             // pedirTodos
     mirada::Temblor temblor_;       // cuánto tiembla el productor (proximaMirada)
+
+    /// Deja en la cabecera que este lector miró ahora (SpoutSender::demanda).
+    void anotarLectura() const;
 };
 
 } // namespace ba::ipc

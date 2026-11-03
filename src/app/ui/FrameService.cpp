@@ -125,6 +125,9 @@ class FrameService::Canales {
         // Lo que nadie mira (una página que no se ve, un lugar vacío), una vez por segundo
         // y no a cada cuadro: uno por segundo alcanza para que una captura (MCP) no salga vieja.
         const bool mirado = ahora - pedidoUs <= 2'000'000;
+        // Y se le dice al productor (SpoutSender::demanda): el gateway no prepara los cuadros
+        // de un invitado que nadie mira (convertirlo entero a BGRA para esta vista).
+        r.pedirTodos(mirado);
         if (mirado) despertar = std::min(despertar, r.proximaMirada(std::chrono::milliseconds(50)));
         if (!mirado && ahora - lec.leidoUs < 1'000'000) return;
         if (!r.hasData()) return;

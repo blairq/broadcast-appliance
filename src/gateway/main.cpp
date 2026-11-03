@@ -1520,6 +1520,8 @@ int main(int argc, char** argv) {
         uso["retornoVideo"] = hub.retornoCompartido(); // el video de retorno, una vez por capa
         uso["retornoAudio"] = hub.audioCompartidoEstado(); // el audio, una vez por lo que se oye
         uso["codecsVideo"] = hub.codecsVideo(); // H.264 por la placa o no; decodificadores abiertos
+        // Junto a `entrega`: cuántas cámaras lee ba-app (las demás ni se convierten).
+        uso["codecsVideo"]["camaras"] = pump.demandaCamaras();
         // Para gateway_estado (GET /api/v1/gateway): el último uso, con las fronteras aparte.
         {
             std::lock_guard<std::mutex> l(usoMu);

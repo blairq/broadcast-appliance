@@ -8,7 +8,7 @@
 
 namespace ba::gateway {
 
-bool DestinoCamara::quiereEntero() const { return pump_ != nullptr && pump_->quiereCamara(sesion_); }
+bool DestinoCamara::quiereEntero() const { return pump_ != nullptr && pump_->llegoCamara(sesion_); }
 
 void DestinoCamara::entero(const std::uint8_t* bgra, int w, int h) {
     if (pump_ == nullptr || bgra == nullptr || w <= 0 || h <= 0) return;

@@ -198,7 +198,8 @@ struct CuentaEntrega {
     std::atomic<std::uint64_t> salteados{0};    ///< nadie lo usaba: no se convirtió nada
     std::atomic<std::uint64_t> enteros{0};      ///< BGRA entero a ba-app
     std::atomic<std::uint64_t> enterosPlaca{0}; ///< … bajado de la placa directo a BGRA
-    std::atomic<std::uint64_t> celdasPlaca{0};  ///< celda achicada en la placa
+    std::atomic<std::uint64_t> celdasPlaca{0};  ///< celda achicada en la placa (sola o con el entero)
+    std::atomic<std::uint64_t> celdasConEntero{0}; ///< … de esas, en la misma vuelta que el entero
     std::atomic<std::uint64_t> celdasCpu{0};    ///< celda achicada en el procesador
     std::atomic<std::uint64_t> fallas{0};       ///< no se pudo leer el cuadro
 };
@@ -261,11 +262,21 @@ void entregarCamara(const webrtc::VideoFrame& frame, DestinoCamara& destino, std
         }
     }
 
-    // 2) ba-app lo publica: el BGRA entero (de la placa directo, o del I420) y la celda de ahí.
+    // 2) ba-app lo publica: el BGRA entero (de la placa directo, o del I420) y la celda. Con
+    // el cuadro en la placa, la celda sale de allá en la misma vuelta que el entero (una sola
+    // espera); si no, se achica del entero en el procesador.
     if (entero) {
         bgra.resize(static_cast<std::size_t>(w) * h * 4);
         rtc::scoped_refptr<webrtc::I420BufferInterface> i420;
-        bool listo = placa != nullptr && placa->enteroBgra(bgra.data(), w * 4);
+        bool celdaHecha = false;
+        bool listo = false;
+        if (placa != nullptr) {
+            if (celda.vale() && DestinoCamara::celdaEnPlaca())
+                listo = placa->enteroYCelda(bgra.data(), w * 4, celda.ancho, celda.alto, celda.bgra.data(), celda.ancho * 4,
+                                            celdaHecha);
+            else
+                listo = placa->enteroBgra(bgra.data(), w * 4);
+        }
         if (listo) {
             cuenta.enterosPlaca.fetch_add(1, std::memory_order_relaxed);
         } else {
@@ -279,7 +290,12 @@ void entregarCamara(const webrtc::VideoFrame& frame, DestinoCamara& destino, std
             libyuv::I420ToARGB(i420->DataY(), i420->StrideY(), i420->DataU(), i420->StrideU(), i420->DataV(), i420->StrideV(),
                                bgra.data(), w * 4, w, h);
         }
-        if (celda.vale()) {
+        if (celda.vale() && celdaHecha) {
+            // Ya achicada en la placa (su tiempo va en el del entero, #8).
+            destino.guardarCelda(std::move(celda));
+            cuenta.celdasPlaca.fetch_add(1, std::memory_order_relaxed);
+            cuenta.celdasConEntero.fetch_add(1, std::memory_order_relaxed);
+        } else if (celda.vale()) {
             ba::diag::MedirPase m6(fCelda, static_cast<std::uint64_t>(w) * h * 3 / 2);
             if (i420)
                 celdaDesdeI420(*i420, bgra.data(), celda);
@@ -394,7 +410,8 @@ nlohmann::json estado() {
     const CuentaEntrega& e = cuentaEntrega();
     j["entrega"] = {{"salteados", e.salteados.load()},       {"enteros", e.enteros.load()},
                     {"enteros_placa", e.enterosPlaca.load()}, {"celdas_placa", e.celdasPlaca.load()},
-                    {"celdas_cpu", e.celdasCpu.load()},       {"fallas", e.fallas.load()}};
+                    {"celdas_cpu", e.celdasCpu.load()},       {"fallas", e.fallas.load()},
+                    {"celdas_placa_con_entero", e.celdasConEntero.load()}};
     return j;
 }
 

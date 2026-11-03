@@ -35,6 +35,11 @@ class CuadroEnPlaca {
     virtual bool celdaBgra(int tw, int th, std::uint8_t* dst, int paso) = 0;
     /// El cuadro entero en BGRA (filas de `paso` bytes), del NV12 bajado directo. false si no se pudo.
     virtual bool enteroBgra(std::uint8_t* dst, int paso) = 0;
+    /// Los dos en una sola vuelta de la placa (una espera): el entero como enteroBgra y la
+    /// celda `tw`x`th` achicada allá como celdaBgra. `celdaHecha` dice si salió la celda (si
+    /// no, se achica del entero en el procesador). false si no salió el entero.
+    virtual bool enteroYCelda(std::uint8_t* dst, int paso, int tw, int th, std::uint8_t* celda, int pasoCelda,
+                              bool& celdaHecha) = 0;
 
    protected:
     ~CuadroEnPlaca() = default;
