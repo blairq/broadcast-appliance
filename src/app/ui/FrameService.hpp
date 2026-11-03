@@ -60,6 +60,8 @@
 #include "ipc/CanalesRegistro.hpp"
 #include "ui/ProveedorCuadros.hpp"
 
+class QQmlPropertyMap;
+
 namespace ba::app {
 
 class BroadcastEngine;
@@ -75,8 +77,11 @@ class FrameService : public ProveedorCuadros {
     Q_PROPERTY(QStringList programas READ programas NOTIFY keysChanged)
     /// El nombre legible de cada clave ({"program": "Programa", "guest:1": "Ana"…}): cambia
     /// cuando cambian los nombres de los invitados o las salidas. Una clave que no está
-    /// (una entrada o una escena sueltas) se muestra tal cual.
-    Q_PROPERTY(QVariantMap rotulos READ rotulos NOTIFY keysChanged)
+    /// (una entrada o una escena sueltas) se muestra tal cual (`rotulos[k] || k`).
+    /// Es un QQmlPropertyMap: CADA CLAVE AVISA SOLA. Antes era un QVariantMap que avisaba
+    /// entero con cada nombre que cambiaba, y cada binding `rotulos[k]` (una celda por
+    /// invitado) convertía el mapa entero a JS: O(N²) con cada foto de la sala.
+    Q_PROPERTY(QObject* rotulos READ rotulosQml CONSTANT)
    public:
     /// Lo que se le encarga al dueño del motor (pedir y soltar vistas), sin esperar.
     using Encargar = std::function<void(std::function<void(BroadcastEngine&)>)>;
@@ -93,7 +98,7 @@ class FrameService : public ProveedorCuadros {
 
     /// Nombre legible de una clave ("Programa", "Invitado 1").
     QString label(const QString& key) const;
-    QVariantMap rotulos() const { return rotulos_; }
+    QObject* rotulosQml() const;
 
     /// Ultima imagen de `key` si es mas nueva que `serial` (y lo actualiza).
     bool latest(const QString& key, QImage& out, std::uint64_t& serial) const { return ultimo(key, out, serial, 0); }
@@ -118,8 +123,13 @@ class FrameService : public ProveedorCuadros {
     void mirarMiniatura(const QString& escena, bool mirar);
     /// Cambia la cantidad de invitados.
     void setGuests(int guests);
-    /// Nombres de los invitados por slot (indice slot-1) para las etiquetas.
+    /// Nombres de los invitados por slot (indice slot-1) para las etiquetas. Solo toca los
+    /// rótulos de los lugares cuyo nombre cambió (y avisa `rotulosCambio`, no `keysChanged`:
+    /// las claves no cambian con los nombres).
     void setGuestNames(const QStringList& names);
+    /// Cuántos rótulos se reescribieron desde que se creó (el test: un nombre que cambia
+    /// toca los de su lugar, no los N).
+    std::uint64_t rotulosEscritos() const { return rotulosEscritos_; }
     void setLobbySlots(int n);
     /// Las salidas, la por omisión primera: [{id, nombre, color, porOmision}] (la lista
     /// de StudioViewModel::salidas). Para las claves, las etiquetas y los colores.
@@ -136,6 +146,8 @@ class FrameService : public ProveedorCuadros {
 
    signals:
     void keysChanged();
+    /// Cambiaron rótulos (los nombres de los invitados) sin que cambien las claves.
+    void rotulosCambio();
     // framesUpdated: de ProveedorCuadros.
 
    private:
@@ -161,7 +173,13 @@ class FrameService : public ProveedorCuadros {
     /// Las claves de los canales entre procesos que se leen (cambian con los invitados y el lobby).
     void rehacerCanales();
     std::vector<QString> canalesPedidos_;
-    QVariantMap rotulos_; ///< label() de cada clave conocida (se rehace con keysChanged)
+    /// label() de cada clave conocida (ver `rotulos`): se rehace con keysChanged escribiendo
+    /// solo las que cambiaron.
+    QQmlPropertyMap* rotulos_ = nullptr;
+    void rehacerRotulos();
+    /// Escribe un rótulo si cambió (así avisa solo esa clave).
+    void ponerRotulo(const QString& clave);
+    std::uint64_t rotulosEscritos_ = 0;
     std::unique_ptr<Canales> canales_;
     /// Lo que tardó cada poll (µs), el último minuto (anillo de 3600 a 60 Hz).
     std::vector<std::int32_t> pollUs_;

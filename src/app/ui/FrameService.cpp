@@ -9,6 +9,9 @@
 #include "ipc/SpoutTransport.hpp"
 #include "platform/Hilo.hpp"
 
+#include <QQmlPropertyMap>
+#include <QSet>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -193,13 +196,10 @@ FrameService::FrameService(BroadcastEngine& engine, Encargar encargar, int guest
     : ProveedorCuadros(parent), engine_(engine), encargar_(std::move(encargar)), pollUs_(3600, -1) {
     slots_["program"];
     slots_["scene"];
-    // Los nombres de las claves, con cada cambio de claves, nombres o salidas (antes que las
-    // vistas: esta conexión es la primera).
-    connect(this, &FrameService::keysChanged, this, [this]() {
-        QVariantMap m;
-        for (const QString& k : clavesConNombre(keys(), canalesPedidos_, salidas_)) m.insert(k, label(k));
-        rotulos_ = m;
-    });
+    // Los nombres de las claves, con cada cambio de claves o salidas (antes que las vistas:
+    // esta conexión es la primera). Los de los invitados, en setGuestNames.
+    rotulos_ = new QQmlPropertyMap(this);
+    connect(this, &FrameService::keysChanged, this, &FrameService::rehacerRotulos);
     setGuests(guests);
     canales_ = std::make_unique<Canales>();
 }
@@ -377,10 +377,43 @@ void FrameService::rehacerCanales() {
     wanted.push_back("operator");
 }
 
+QObject* FrameService::rotulosQml() const { return rotulos_; }
+
+void FrameService::ponerRotulo(const QString& clave) {
+    const QString l = label(clave);
+    const QVariant actual = rotulos_->value(clave);
+    if (actual.isValid() && actual.toString() == l) return;
+    rotulos_->insert(clave, l); // avisa solo esta clave
+    ++rotulosEscritos_;
+}
+
+void FrameService::rehacerRotulos() {
+    const QStringList claves = clavesConNombre(keys(), canalesPedidos_, salidas_);
+    const QSet<QString> quedan(claves.cbegin(), claves.cend());
+    // Las que ya no están quedan sin valor (la vista muestra la clave tal cual).
+    for (const QString& k : rotulos_->keys())
+        if (!quedan.contains(k) && rotulos_->value(k).isValid()) rotulos_->clear(k);
+    for (const QString& k : claves) ponerRotulo(k);
+}
+
 void FrameService::setGuestNames(const QStringList& names) {
     if (names == names_) return;
+    const QStringList antes = names_;
     names_ = names;
-    emit keysChanged(); // las etiquetas cambian
+    // Solo los rótulos de los lugares cuyo nombre cambió: las claves no cambian (sin
+    // keysChanged: eso hacía releer las claves, los colores y TODOS los rótulos a cada vista
+    // con cada foto de la sala en que cambiaba un nombre).
+    const qsizetype n = std::max(antes.size(), names.size());
+    bool alguno = false;
+    for (qsizetype i = 0; i < n; ++i) {
+        const QString a = i < antes.size() ? antes.at(i) : QString();
+        const QString b = i < names.size() ? names.at(i) : QString();
+        if (a == b) continue;
+        alguno = true;
+        for (const QString& k : {QStringLiteral("guest:%1").arg(i + 1), QStringLiteral("share:%1").arg(i + 1)})
+            if (rotulos_->contains(k)) ponerRotulo(k);
+    }
+    if (alguno) emit rotulosCambio(); // (el catálogo del escritorio, las fuentes de Personas)
 }
 
 std::vector<std::wstring> FrameService::channelsOf(const QString& key) {
