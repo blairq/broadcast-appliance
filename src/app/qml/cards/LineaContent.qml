@@ -33,11 +33,26 @@ Item {
     /// hay título de tarjeta: el mismo botón va arriba a la izquierda del contenido.
     readonly property var nombresVistas: [qsTr("Conducción"), qsTr("Escaleta"), qsTr("Línea")]
     property Component accionesTitulo: Component {
+      Row {
+        spacing: 14
         GlassButton {
             id: puntos
             compact: true
-            text: "⠿"
+            anchors.verticalCenter: parent.verticalCenter
+            implicitWidth: 30
+            implicitHeight: 26
             active: opciones.opened
+            // Seis puntos dibujados (2 × 3) y centrados: el «⠿» de la fuente queda corrido.
+            Grid {
+                anchors.centerIn: parent
+                columns: 2
+                rowSpacing: 2
+                columnSpacing: 3
+                Repeater {
+                    model: 6
+                    Rectangle { width: 3; height: 3; radius: 1.5; color: Theme.text }
+                }
+            }
             onClicked: opciones.opened ? opciones.close() : opciones.open()
             ToolTip.visible: hovered && !opciones.opened; ToolTip.delay: 500
             ToolTip.text: qsTr("Vista: %1").arg(tarjeta.nombresVistas[tarjeta.vista])
@@ -63,6 +78,13 @@ Item {
                 }
             }
         }
+        // Lo de la vista que se usa siempre, en la misma línea del título: el zoom de la multipista.
+        Loader {
+            anchors.verticalCenter: parent.verticalCenter
+            active: tarjeta.vista === 2 && multipista.barraZoom !== null
+            sourceComponent: multipista.barraZoom
+        }
+      }
     }
 
     ColumnLayout {
@@ -102,7 +124,10 @@ Item {
             Layout.fillWidth: true
         }
         LineaMultipista {
+            id: multipista
             visible: tarjeta.vista === 2
+            // En el tablero el zoom va en la línea del título (accionesTitulo); en la ventana, acá.
+            zoomAfuera: !tarjeta.enVentana
             activa: tarjeta.mirada[1]
             Layout.fillWidth: true
             Layout.fillHeight: true

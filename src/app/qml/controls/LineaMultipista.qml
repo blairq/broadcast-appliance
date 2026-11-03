@@ -26,6 +26,36 @@ Item {
     readonly property var d: lv ? lv.multipista : ({})
     property bool activa: visible
     property bool globalesAbiertas: true
+    /// El zoom (Bloque, Evento, 5 min, 1 min, «Ahora») lo pone otro (la línea del título de la
+    /// tarjeta del tablero) con `barraZoom`; acá no se repite.
+    property bool zoomAfuera: false
+    readonly property Component barraZoom: Component {
+        Row {
+            spacing: 6
+            Repeater {
+                model: [qsTr("Bloque"), qsTr("Evento"), qsTr("5 min"), qsTr("1 min")]
+                delegate: GlassButton {
+                    required property string modelData
+                    required property int index
+                    compact: true
+                    text: (index + 1) + " · " + modelData
+                    onClicked: mp.lv.zoom(index + 1)
+                }
+            }
+            Text {
+                anchors.verticalCenter: parent.verticalCenter
+                text: qsTr("ancho: %1").arg(Theme.mmss(mp.lv ? mp.lv.zoomMs / 1000 : 0))
+                color: Theme.textFaint
+                font { family: Theme.mono; pixelSize: 10 }
+            }
+            GlassButton {
+                compact: true
+                visible: mp.lv && !mp.lv.siguiendoAhora
+                text: qsTr("Ahora")
+                onClicked: mp.lv.alAhora()
+            }
+        }
+    }
     readonly property int etiquetas: 92 // la columna con el nombre de cada carril
 
 
@@ -42,27 +72,7 @@ Item {
         RowLayout {
             Layout.fillWidth: true
             spacing: 6
-            Repeater {
-                model: [qsTr("Bloque"), qsTr("Evento"), qsTr("5 min"), qsTr("1 min")]
-                delegate: GlassButton {
-                    required property string modelData
-                    required property int index
-                    compact: true
-                    text: (index + 1) + " · " + modelData
-                    onClicked: mp.lv.zoom(index + 1)
-                }
-            }
-            Text {
-                text: qsTr("ancho: %1").arg(Theme.mmss(mp.lv ? mp.lv.zoomMs / 1000 : 0))
-                color: Theme.textFaint
-                font { family: Theme.mono; pixelSize: 10 }
-            }
-            GlassButton {
-                compact: true
-                visible: mp.lv && !mp.lv.siguiendoAhora
-                text: qsTr("Ahora")
-                onClicked: mp.lv.alAhora()
-            }
+            Loader { active: !mp.zoomAfuera; sourceComponent: mp.barraZoom }
             Item { Layout.fillWidth: true }
             // Silent Edition: lo arrastrado espera acá hasta confirmarlo.
             Text {
