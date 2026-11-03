@@ -1837,10 +1837,11 @@ endif()
 
 # Los ajustes avanzados (src/core/ajustes) y los idiomas (src/core/i18n): muchos tests
 # compilan fuentes de la app sueltas y esas fuentes los consultan. Todos los test_* (y
-# las herramientas capturar_*) enlazan ba_core.
+# las herramientas capturar_* y los bancos bench_*) enlazan ba_core: también por el
+# detector de acoples (diag/Acoples.hpp, BA_ACOPLE en las fuentes de la interfaz).
 get_property(_ba_app_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
 foreach(_t IN LISTS _ba_app_targets)
-    if(_t MATCHES "^(test|capturar)_")
+    if(_t MATCHES "^(test|capturar|bench)_")
         get_target_property(_tipo ${_t} TYPE)
         if(_tipo STREQUAL "EXECUTABLE")
             target_link_libraries(${_t} PRIVATE ba_core)
