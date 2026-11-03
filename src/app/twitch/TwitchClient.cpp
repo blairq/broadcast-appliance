@@ -41,8 +41,8 @@ std::string form(const std::vector<std::pair<std::string, std::string>>& kv) {
 
 } // namespace
 
-TwitchClient::TwitchClient(QString configDir, QObject* parent)
-    : QObject(parent), configDir_(std::move(configDir)) {
+TwitchClient::TwitchClient(QString configDir, QObject* parent, const QString& tokenCred)
+    : QObject(parent), configDir_(std::move(configDir)), tokenCred_(tokenCred.toUtf8()) {
     openBrowser_ = [](const QString& u) { QDesktopServices::openUrl(QUrl(u)); };
     loadFiles();
 }
@@ -55,7 +55,7 @@ void TwitchClient::loadFiles() {
         clientId_ = o.value("client_id").toString();
         clientSecret_ = o.value("client_secret").toString();
     }
-    if (QByteArray tRaw; cred::read(configDir_, "twitch-token", tRaw)) {
+    if (QByteArray tRaw; cred::read(configDir_, tokenCred_.constData(), tRaw)) {
         const QJsonObject o = QJsonDocument::fromJson(tRaw).object();
         refreshToken_ = o.value("refresh_token").toString();
         accessToken_ = o.value("access_token").toString();
@@ -64,9 +64,20 @@ void TwitchClient::loadFiles() {
     }
 }
 
+void TwitchClient::recargar() {
+    clientId_.clear();
+    clientSecret_.clear();
+    refreshToken_.clear();
+    accessToken_.clear();
+    expiresAtMs_ = 0;
+    user_ = {};
+    loadFiles();
+    emit stateChanged();
+}
+
 void TwitchClient::persistToken() {
     if (refreshToken_.isEmpty()) {
-        cred::remove(configDir_, "twitch-token");
+        cred::remove(configDir_, tokenCred_.constData());
         return;
     }
     // El access token de Twitch dura horas: se guarda tambien (evita un
@@ -75,7 +86,7 @@ void TwitchClient::persistToken() {
                         {"refresh_token", refreshToken_},
                         {"expires_at", static_cast<double>(expiresAtMs_)},
                         {"user", user_}};
-    cred::write(configDir_, "twitch-token", QJsonDocument(o).toJson());
+    cred::write(configDir_, tokenCred_.constData(), QJsonDocument(o).toJson());
 }
 
 bool TwitchClient::saveClient(const QString& id, const QString& secret, QString& error) {

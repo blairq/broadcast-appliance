@@ -50,7 +50,10 @@ class YouTubeClient : public QObject {
     };
     using Done = std::function<void(bool ok, const QJsonObject& data, const QString& error)>;
 
-    explicit YouTubeClient(QString configDir, QObject* parent = nullptr);
+    /// `tokenCred`: la credencial con el token de ESTA cuenta (vivos/Vivos.hpp,
+    /// credencialDeCuenta): la principal usa la de siempre («youtube-token»); cada cuenta
+    /// más, la suya. El cliente OAuth (la app de Google) es uno para todas.
+    explicit YouTubeClient(QString configDir, QObject* parent = nullptr, const QString& tokenCred = QStringLiteral("youtube-token"));
     ~YouTubeClient() override;
 
     /// Tests: servidores falsos y "navegador" propio.
@@ -64,12 +67,17 @@ class YouTubeClient : public QObject {
     /// `secret` no esta vacio, `jsonOrId` es el client_id.
     bool saveClient(const QString& jsonOrId, const QString& secret, QString& error);
     void clearClient();
+    /// Vuelve a leer la app y el token del disco (otra cuenta guardó la app de Google).
+    void recargar();
 
     // --- Sesion -------------------------------------------------------------------
     bool loggedIn() const { return !refreshToken_.isEmpty(); }
     bool loginPending() const { return loginServer_ != nullptr; }
     /// Canal conectado: {id, title, thumbnail, uploadsPlaylist, customUrl}.
     QJsonObject account() const { return account_; }
+    /// La última respuesta de la API dijo que el permiso no alcanza (403
+    /// insufficientPermissions): hay que reautorizar. Se borra con la próxima que anda.
+    bool sinPermiso() const { return sinPermiso_; }
     /// Abre el navegador para elegir cuenta; `done` al terminar (o a los 5 min).
     void login(Done done);
     void cancelLogin();
@@ -139,6 +147,8 @@ class YouTubeClient : public QObject {
     QString redirectUri() const;
 
     QString configDir_;
+    QByteArray tokenCred_; ///< la credencial con el token de esta cuenta
+    bool sinPermiso_ = false;
     Endpoints ep_;
     std::function<void(const QUrl&)> openBrowser_;
     QString clientId_;

@@ -40,8 +40,8 @@ QString randomState() {
 
 } // namespace
 
-FacebookClient::FacebookClient(QString configDir, QObject* parent)
-    : QObject(parent), configDir_(std::move(configDir)) {
+FacebookClient::FacebookClient(QString configDir, QObject* parent, const QString& tokenCred)
+    : QObject(parent), configDir_(std::move(configDir)), tokenCred_(tokenCred.toUtf8()) {
     openBrowser_ = [](const QString& u) { QDesktopServices::openUrl(QUrl(u)); };
     loadFiles();
 }
@@ -55,7 +55,7 @@ void FacebookClient::loadFiles() {
         appSecret_ = o.value("app_secret").toString();
         port_ = o.value("port").toInt(8791);
     }
-    if (QByteArray tRaw; cred::read(configDir_, "facebook-token", tRaw)) {
+    if (QByteArray tRaw; cred::read(configDir_, tokenCred_.constData(), tRaw)) {
         const QJsonObject o = QJsonDocument::fromJson(tRaw).object();
         userToken_ = o.value("user_token").toString();
         expiresAtMs_ = static_cast<qint64>(o.value("expires_at").toDouble());
@@ -65,9 +65,21 @@ void FacebookClient::loadFiles() {
     }
 }
 
+void FacebookClient::recargar() {
+    appId_.clear();
+    appSecret_.clear();
+    userToken_.clear();
+    expiresAtMs_ = 0;
+    user_ = {};
+    pages_ = {};
+    pageId_.clear();
+    loadFiles();
+    emit stateChanged();
+}
+
 void FacebookClient::persist() {
     if (userToken_.isEmpty()) {
-        cred::remove(configDir_, "facebook-token");
+        cred::remove(configDir_, tokenCred_.constData());
         return;
     }
     const QJsonObject o{{"user_token", userToken_},
@@ -75,7 +87,7 @@ void FacebookClient::persist() {
                         {"user", user_},
                         {"pages", pages_},
                         {"page_id", pageId_}};
-    cred::write(configDir_, "facebook-token", QJsonDocument(o).toJson());
+    cred::write(configDir_, tokenCred_.constData(), QJsonDocument(o).toJson());
 }
 
 bool FacebookClient::saveClient(const QString& appId, const QString& appSecret, int port, QString& error) {
