@@ -3,6 +3,8 @@
 // ============================================================================
 #include "ui/GuionViewModel.hpp"
 
+#include "diag/Acoples.hpp"
+
 #include <QCoreApplication>
 #include <QDateTime>
 #include <QDir>
@@ -716,6 +718,7 @@ QVariantList GuionViewModel::opcionesDeCampo(const QString& tipo, const QString&
 }
 
 QString GuionViewModel::enlaceDeCue(const QString& tipo, const QVariantMap& datos) const {
+    BA_ACOPLE("invocable", "GuionViewModel::enlaceDeCue");
     // El servidor de la sala, en esta máquina (la pantalla del orador solo lee: sin clave).
     // Cada teleprompter tiene su página: el principal en /prompter/, los demás en /prompter/<id>/.
     if (tipo == "teleprompter") {

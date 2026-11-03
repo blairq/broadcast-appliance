@@ -2,6 +2,8 @@
 // src/app/ui/PrompterViewModel.cpp — ver PrompterViewModel.hpp
 // ============================================================================
 #include "i18n/I18n.hpp"
+
+#include "diag/Acoples.hpp"
 #include "ui/PrompterViewModel.hpp"
 
 #include <algorithm>
@@ -535,6 +537,7 @@ namespace {
 } // namespace
 
 QString PrompterViewModel::avisoParaOrador(const QString& clave) const {
+    BA_ACOPLE("invocable", "PrompterViewModel::avisoParaOrador");
     const QByteArray c = clave.toUtf8();
     return QString::fromStdString(ba::i18n::traducirEvento("prompter", c.constData()));
 }

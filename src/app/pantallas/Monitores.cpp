@@ -2,6 +2,8 @@
 // src/app/pantallas/Monitores.cpp — ver Monitores.hpp
 // ============================================================================
 #include "pantallas/Monitores.hpp"
+
+#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfigQt.hpp"
 
 #include "pantallas/Catalogo.hpp"
@@ -99,6 +101,7 @@ QString MonitoresModel::idDe(const PantallaFisica& p) {
 
 QString MonitoresModel::idDePantalla(const QString& nombre, const QString& fabricante, const QString& modelo,
                                      const QString& serie) const {
+    BA_ACOPLE("invocable", "MonitoresModel::idDePantalla");
     PantallaFisica p{nombre, fabricante, modelo, serie, {}, false};
     const QString base = idDe(p);
     // Los repetidos llevan «#n» según su orden: hay que buscarlo en las filas.

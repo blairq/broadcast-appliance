@@ -1103,6 +1103,8 @@ const Fila kPropias[] = {
     {"diag_falla", QT_TRANSLATE_NOOP("mcp-etiquetas", "inyectar falla codificador sumidero grabacion transmision prueba caos")},
     {"diag_trabar_ui", QT_TRANSLATE_NOOP("mcp-etiquetas", "trabar colgar interfaz bucle ocupado prueba latido alarma caos")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"diag_acoples", QT_TRANSLATE_NOOP("mcp-etiquetas", "detector interfaz vista modelo trabada lenta sabotaje bloqueante binding enganche prueba")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"direcciones", QT_TRANSLATE_NOOP("mcp-etiquetas", "direccion ip url enlace link red local tunel afuera puerto donde entra 127.0.0.1 localhost pinggy")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"web_tema", QT_TRANSLATE_NOOP("mcp-etiquetas", "tema apariencia estilo template plantilla neumorfismo claro oscuro paginas web tablet botonera presidencia colores")},

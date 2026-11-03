@@ -1029,6 +1029,7 @@
         "capacidad_estado",
         "capacidad_recibir",
         "capacidad_ultimo",
+        "diag_acoples",
         "diag_falla",
         "diag_probar_caida",
         "diag_trabar_ui",
@@ -32192,6 +32193,41 @@
         "asistente"
       ],
       "contenidoNoConfiable": true
+    },
+    {
+      "nombre": "diag_acoples",
+      "titulo": "Detector de acoples de la interfaz (solo --test)",
+      "categoria": "sistema",
+      "descripcion": "SOLO EN MODO PRUEBA. El detector de acoples: con `demora_ms` mayor que 0 lo enciende (cada camino de la interfaz que no pasa por el modelo, como entrar directo al motor, la configuración, el disco o la red, o un binding que llama a una función que devuelve datos, espera esos ms de más y queda anotado); con 0 lo apaga. `reiniciar` borra lo anotado. Siempre devuelve el informe: cada lugar con su clase, archivo y línea, veces, lo que costó, lo que corría y la pila de la primera vez, ordenado por tiempo total.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "demora_ms": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 10000
+          },
+          "reiniciar": {
+            "type": "boolean"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "sin_interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "detector interfaz vista modelo trabada lenta sabotaje bloqueante binding enganche prueba",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpService.cpp",
+        "linea": 3746
+      },
+      "roles": [
+        "asistente"
+      ]
     },
     {
       "nombre": "diag_falla",

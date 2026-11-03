@@ -17,6 +17,8 @@
 //   --no-recovery-ui reiniciar solo, sin dialogo de recuperacion
 //   --app-arg=<x>    argumento extra para A (repetible)
 //   --gw-arg=<x>     argumento extra para B (repetible)
+//   --detectar-acoples[=ms]  con --test: el detector de acoples de la interfaz
+//                    (docs/arquitectura/detector-de-acoples.md); pasa a A tal cual
 
 #include "Datos.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -192,6 +194,9 @@ int runLauncher(const std::vector<std::string>& args) {
             cfg.appArgs.emplace_back("--test");
             // Y el gateway: sin --test no acepta lo que es solo de prueba (--turn-prueba).
             cfg.gatewayArgs.emplace_back("--test");
+        } else if (a == "--detectar-acoples" || a.rfind("--detectar-acoples=", 0) == 0) {
+            // El detector de acoples de la interfaz (solo con --test: la app lo ignora sin él).
+            cfg.appArgs.push_back(a);
         } else if (a.rfind("--app-arg=", 0) == 0) {
             cfg.appArgs.push_back(a.substr(10));
         } else if (a.rfind("--gw-arg=", 0) == 0) {

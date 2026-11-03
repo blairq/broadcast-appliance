@@ -3,6 +3,8 @@
 // ============================================================================
 
 #include "ui/ConferenceViewModel.hpp"
+
+#include "diag/Acoples.hpp"
 #include <QMetaObject>
 #include <QPointer>
 #include "ajustes/Ajustes.hpp"
@@ -338,6 +340,7 @@ void ConferenceViewModel::guardarFicha(const QString& id, const QString& name, c
 }
 
 QVariantMap ConferenceViewModel::reloj(int asignadoS, double desdeMs, double ahoraMs) const {
+    BA_ACOPLE("invocable", "ConferenceViewModel::reloj");
     const sala::OradoresSala::Reloj r = sala::OradoresSala::reloj(asignadoS, desdeMs, ahoraMs);
     return {{"restanteMs", r.restanteMs}, {"estado", QString::fromStdString(r.estado)}, {"texto", QString::fromStdString(r.texto)}};
 }
@@ -514,6 +517,7 @@ void ConferenceViewModel::agregarDichoAlAtendido(const QString& id, const QStrin
 }
 
 QString ConferenceViewModel::nameOf(const QString& id) const {
+    BA_ACOPLE("invocable", "ConferenceViewModel::nameOf");
     for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
         if (v.toObject().value("id").toString() == id) return v.toObject().value("name").toString();
     }

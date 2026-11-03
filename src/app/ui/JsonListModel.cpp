@@ -1,5 +1,7 @@
 #include "ui/JsonListModel.hpp"
 
+#include "diag/Acoples.hpp"
+
 #include <QSet>
 
 #include <utility>
@@ -23,6 +25,7 @@ QHash<int, QByteArray> JsonListModel::roleNames() const {
 }
 
 QVariantMap JsonListModel::fila(int i) const {
+    BA_ACOPLE("invocable", "JsonListModel::fila");
     if (i < 0 || i >= items_.size()) return {};
     const QJsonObject o = items_.at(i).toObject();
     QVariantMap out;

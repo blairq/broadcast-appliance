@@ -1,6 +1,8 @@
 // src/app/ui/MultiviewViewModel.cpp — ver el .hpp
 
 #include "ui/MultiviewViewModel.hpp"
+
+#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfigQt.hpp"
 
 #include "pantallas/Monitores.hpp"
@@ -100,6 +102,7 @@ void MultiviewViewModel::guardar() {
 }
 
 QVariantMap MultiviewViewModel::de(const QString& id) const {
+    BA_ACOPLE("invocable", "MultiviewViewModel::de");
     const int i = indice(id.isEmpty() ? actual_ : id);
     return i >= 0 ? vistas_[i].toMap() : QVariantMap{};
 }

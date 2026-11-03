@@ -10,6 +10,7 @@
 #include "arranque/EnergiaAire.hpp"
 #include "fault/ModoSeguro.hpp"
 #include "i18n/I18n.hpp"
+#include "diag/Acoples.hpp"
 #include "diag/Perfil.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/SeguridadSala.hpp"
@@ -3736,6 +3737,33 @@ void McpService::registerTools() {
                 while (std::chrono::steady_clock::now() < fin) {
                 }
             });
+        };
+        core_.addTool(std::move(t));
+    }
+    if (modoPrueba) {
+        // Solo con --test: el detector de acoples (diag/Acoples.hpp,
+        // docs/arquitectura/detector-de-acoples.md). Lo usa tools/diag/recorrer-ui.py.
+        Tool t;
+        t.name = "diag_acoples";
+        t.title = ba::i18n::traducir("mcp", "Detector de acoples de la interfaz (solo --test)");
+        t.category = "sistema";
+        t.clase = Clase::Escritura;
+        t.description = QT_TRANSLATE_NOOP("mcp", "SOLO EN MODO PRUEBA. El detector de acoples: con `demora_ms` mayor que 0 lo "
+                        "enciende (cada camino de la interfaz que no pasa por el modelo, como entrar directo al motor, "
+                        "la configuración, el disco o la red, o un binding que llama a una función que devuelve datos, "
+                        "espera esos ms de más y queda anotado); con 0 lo apaga. `reiniciar` borra lo anotado. Siempre "
+                        "devuelve el informe: cada lugar con su clase, archivo y línea, veces, lo que costó, lo que "
+                        "corría y la pila de la primera vez, ordenado por tiempo total.");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"demora_ms", {{"type", "integer"}, {"minimum", 0}, {"maximum", 10000}}},
+                           {"reiniciar", {{"type", "boolean"}}}}}};
+        // Atómicos y su candado: nada de la interfaz.
+        t.hilo = Hilo::SinInterfaz;
+        t.run = [](const json& a, Done done) {
+            if (a.value("reiniciar", false)) ba::diag::acoples::reiniciar();
+            if (a.contains("demora_ms")) ba::diag::acoples::activar(std::clamp(a.value("demora_ms", 0), 0, 10000));
+            done(ToolResult().data(ba::diag::acoples::informe()));
         };
         core_.addTool(std::move(t));
     }

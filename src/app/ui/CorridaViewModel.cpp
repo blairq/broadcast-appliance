@@ -3,6 +3,8 @@
 // ============================================================================
 #include "ui/CorridaViewModel.hpp"
 
+#include "diag/Acoples.hpp"
+
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -130,6 +132,7 @@ QVariantMap CorridaViewModel::marcasReloj() const {
 }
 
 QVariantMap CorridaViewModel::relojEn(const QVariantMap& m, double ahora) {
+    BA_ACOPLE("invocable", "CorridaViewModel::relojEn");
     if (m.isEmpty()) return QVariantMap{{"desvioSeg", 0}, {"enCueSeg", 0}, {"restanteSeg", 0}};
     ln::MarcasReloj x;
     x.marcaMs = static_cast<int64_t>(m.value("marcaMs").toDouble());

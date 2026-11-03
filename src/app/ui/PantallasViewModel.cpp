@@ -2,6 +2,8 @@
 // src/app/ui/PantallasViewModel.cpp — ver PantallasViewModel.hpp
 // ============================================================================
 #include "ui/PantallasViewModel.hpp"
+
+#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 
@@ -328,6 +330,7 @@ int PantallasViewModel::mostrando() const { return d_->destinos.mostrando(); }
 // --- URLs ----------------------------------------------------------------------------
 
 QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos, const QString& idDestino) {
+    BA_ACOPLE("invocable", "PantallasViewModel::urlDe");
     const std::string t = tipo.toStdString();
     // `url` va tal cual y lo que va en vivo lo pide el gateway: no hace falta la dirección.
     const std::string base = t == "url" || pt::esEnVivo(t) ? std::string() : d_->base(idDestino.toStdString());

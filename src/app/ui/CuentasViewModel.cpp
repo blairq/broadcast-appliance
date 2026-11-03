@@ -2,6 +2,8 @@
 
 #include "ui/CuentasViewModel.hpp"
 
+#include "diag/Acoples.hpp"
+
 #include "arranque/AppRuntime.hpp"
 #include "control/BusEventos.hpp"
 #include "net/AccountGuides.hpp"
@@ -115,6 +117,7 @@ nlohmann::json CuentasViewModel::paraLaWeb() const {
 }
 
 QVariantMap CuentasViewModel::accountGuide(const QString& platform) const {
+    BA_ACOPLE("invocable", "CuentasViewModel::accountGuide");
     const nlohmann::json g = accounts::guide(platform.toStdString(), facebook_->redirectUri().toStdString());
     return QJsonDocument::fromJson(QByteArray::fromStdString(g.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
 }

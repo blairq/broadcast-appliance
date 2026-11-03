@@ -3,7 +3,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message numerus="yes">
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+723" />
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+726"/>
         <source>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</source>
         <translation>
             <numerusform>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</numerusform>
@@ -454,7 +454,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/ui/GuionViewModel.cpp" line="+577" />
+        <location filename="../src/app/ui/GuionViewModel.cpp" line="+579"/>
         <source>La revisión encontró %n problema que impide correr el guion</source>
         <translation>
             <numerusform>La revisión encontró %n problema que impide correr el guion</numerusform>
@@ -668,7 +668,7 @@
 <context>
     <name>MediosViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/MediosViewModel.cpp" line="+372" />
+        <location filename="../src/app/ui/MediosViewModel.cpp" line="+376"/>
         <source>%n archivo a «%1»</source>
         <translation>
             <numerusform>%n archivo a «%1»</numerusform>
@@ -1046,7 +1046,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PantallasViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+369" />
+        <location filename="../src/app/ui/PantallasViewModel.cpp" line="+372"/>
         <source>Encontré %n pantalla</source>
         <translation>
             <numerusform>Encontré %n pantalla</numerusform>

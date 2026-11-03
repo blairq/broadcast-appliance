@@ -21,6 +21,7 @@
 #include <filesystem>
 #include <functional>
 #include <string>
+#include "diag/Acoples.hpp"
 #include "ui/CapturaError.hpp"
 
 namespace ba::app::asamblea {
@@ -75,7 +76,10 @@ class InformesResultado : public QObject {
     Q_INVOKABLE QVariantMap crearUi(const QString& nombre);
     Q_INVOKABLE bool guardarUi(const QString& id, const QString& texto, const QString& nombre);
     Q_INVOKABLE void quitarUi(const QString& id) { avisarError(QString::fromStdString(quitar(id.toStdString()))); }
-    Q_INVOKABLE QString vistaUi(const QString& id) const { return QString::fromStdString(vista(id.toStdString())); }
+    Q_INVOKABLE QString vistaUi(const QString& id) const {
+        BA_ACOPLE("invocable", "InformesResultado::vistaUi");
+        return QString::fromStdString(vista(id.toStdString()));
+    }
     /// {archivo} o {error}.
     Q_INVOKABLE QVariantMap generarUi(const QString& id);
 

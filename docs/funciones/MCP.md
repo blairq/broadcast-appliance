@@ -91,7 +91,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Conferencia (videollamada con invitados) (`sala`) | 53 | 21 | 28 | 4 | 0 |
 | Salidas (`salidas`) | 24 | 6 | 13 | 5 | 0 |
 | Banca virtual (sesión remota) (`sesion`) | 15 | 3 | 12 | 0 | 0 |
-| Sistema (`sistema`) | 13 | 5 | 7 | 1 | 0 |
+| Sistema (`sistema`) | 14 | 5 | 8 | 1 | 0 |
 | Tiempos del pipeline (`tiempos`) | 10 | 6 | 4 | 0 | 0 |
 | Registro de personas (tótems) (`totems`) | 12 | 3 | 9 | 0 | 0 |
 | Traducción en vivo (`traduccion`) | 21 | 6 | 15 | 0 | 0 |

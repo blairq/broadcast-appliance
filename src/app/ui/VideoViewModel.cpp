@@ -1,6 +1,8 @@
 // src/app/ui/VideoViewModel.cpp — ver el .hpp
 
 #include "ui/VideoViewModel.hpp"
+
+#include "diag/Acoples.hpp"
 #include "ui/ResumenNodo.hpp"
 
 #include "emision/VentanillaMotor.hpp"
@@ -237,6 +239,7 @@ QVariantList VideoViewModel::propiedadesModulo(const QString& elemento) const {
 }
 
 QVariantList VideoViewModel::propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const {
+    BA_ACOPLE("invocable", "VideoViewModel::propiedadesModuloCon");
     // Los valores guardados vienen como texto (así van a GStreamer): se pasan al tipo de cada propiedad.
     json act = json::object();
     for (auto it = valores.begin(); it != valores.end(); ++it) {

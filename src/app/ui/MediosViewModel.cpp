@@ -3,6 +3,8 @@
 // ============================================================================
 #include "ui/MediosViewModel.hpp"
 
+#include "diag/Acoples.hpp"
+
 #include <QDir>
 #include <QFileInfo>
 #include <QHash>
@@ -58,6 +60,7 @@ QHash<int, QByteArray> ListaMedios::roleNames() const {
 }
 
 QVariantMap ListaMedios::fila(int i) const {
+    BA_ACOPLE("invocable", "ListaMedios::fila");
     if (i < 0 || i >= rowCount()) return {};
     return aMapa(filas_[i]);
 }
@@ -137,6 +140,7 @@ MediosViewModel::~MediosViewModel() = default;
 QString MediosViewModel::raiz() const { return QString::fromStdWString(rt_.dataRoot().wstring()); }
 
 QString MediosViewModel::carpetaDeMedios() const {
+    BA_ACOPLE("invocable", "MediosViewModel::carpetaDeMedios");
     return QDir(QString::fromStdWString(rt_.dataRoot().wstring())).absoluteFilePath("Media");
 }
 

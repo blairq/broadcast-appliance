@@ -2,6 +2,8 @@
 // src/app/ui/PersonasViewModel.cpp — ver PersonasViewModel.hpp
 // ============================================================================
 #include "ui/PersonasViewModel.hpp"
+
+#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -119,7 +121,7 @@ void PersonasViewModel::usarCamara(const QString&, bool) {}
 void PersonasViewModel::analizar(const QString&, bool, const QString&) {}
 QVariantList PersonasViewModel::vistos() const { return {}; }
 void PersonasViewModel::revisarFuentes() {}
-QString PersonasViewModel::etiquetaDe(const QString& feed) const { return feed; }
+QString PersonasViewModel::etiquetaDe(const QString& feed) const { BA_ACOPLE("invocable", "PersonasViewModel::etiquetaDe"); return feed; }
 bool PersonasViewModel::autoalta() const { return false; }
 void PersonasViewModel::setAutoalta(bool) {}
 bool PersonasViewModel::puertaAuto() const { return false; }
@@ -888,7 +890,10 @@ void PersonasViewModel::resolver(const QString& feed, const QString& uid, std::v
     if (r.alta) emit cambio();
 }
 
-QString PersonasViewModel::etiquetaDe(const QString& feed) const { return d_->tarjetas.etiquetaDe(feed); }
+QString PersonasViewModel::etiquetaDe(const QString& feed) const {
+    BA_ACOPLE("invocable", "PersonasViewModel::etiquetaDe");
+    return d_->tarjetas.etiquetaDe(feed);
+}
 
 void PersonasViewModel::revisarFuentes() {
     QVariantList out;

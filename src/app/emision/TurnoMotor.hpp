@@ -93,7 +93,9 @@ class TurnoMotor {
     void entrarDirecto(std::source_location donde) const;
     /// La interfaz entra directo a algo que toma el turno POR LLAMADA (AppRuntime::engine():
     /// cada método del motor tiene su Guarda): solo se cuenta, una vez por lugar y evento.
-    void contarDirecta(std::source_location donde) const;
+    /// true si se contó (la primera vez de ese lugar en el evento). Con el detector de
+    /// acoples encendido (diag/Acoples.hpp, solo pruebas), ahí espera de más y lo anota.
+    bool contarDirecta(std::source_location donde) const;
 
     /// TENENCIA: cuánto tuvo la interfaz el turno por la vuelta. Desde kTenenciaLargaUs va a
     /// `ba_motor_turno_interfaz_ms{lugar}`; desde kTenenciaAvisoUs, una línea en el registro
