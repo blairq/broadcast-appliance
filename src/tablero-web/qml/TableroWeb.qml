@@ -159,9 +159,22 @@ ApplicationWindow {
     }
 
     // --- El dashboard de la app, tal cual ------------------------------------------------
-    DashboardPage {
+    // En una pantalla chica (un teléfono) el tablero se arma a su tamaño mínimo de la app y
+    // se recorre deslizando, en vez de apretar las tarjetas hasta que no se leen.
+    Flickable {
+        id: recorrido
         anchors { left: parent.left; right: parent.right; top: arriba.bottom; bottom: parent.bottom }
-        leftInset: 12
+        readonly property bool chica: width < 1000 || height < 560
+        contentWidth: chica ? Math.max(width, 1100) : width
+        contentHeight: chica ? Math.max(height, 640) : height
+        interactive: chica
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+        DashboardPage {
+            width: recorrido.contentWidth
+            height: recorrido.contentHeight
+            leftInset: 12
+        }
     }
 
     // --- Avisos y confirmaciones -----------------------------------------------------------
