@@ -176,6 +176,7 @@ if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_
                                 "${CMAKE_CURRENT_SOURCE_DIR}/rtc/ColasCompartidas.cpp"
                                 "${CMAKE_CURRENT_SOURCE_DIR}/rtc/BucleRtc.cpp"
                                 "${CMAKE_CURRENT_SOURCE_DIR}/rtc/SocketsEnMemoria.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/HilosLote.cpp"
                                 PROPERTIES COMPILE_OPTIONS "-fno-rtti")
     # H.264 por VideoToolbox (el SDK de Objective-C): ver CodecsMac.mm. Va en la
     # interfaz para que lo tenga todo el que use libwebrtc (gateway y su prueba).
@@ -224,7 +225,8 @@ elseif(BA_GATEWAY_WEBRTC)
                                 "${CMAKE_CURRENT_SOURCE_DIR}/CodecsWin.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
     set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/rtc/ColasCompartidas.cpp"
                                 "${CMAKE_CURRENT_SOURCE_DIR}/rtc/BucleRtc.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/SocketsEnMemoria.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
+                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/SocketsEnMemoria.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/HilosLote.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
     target_link_libraries(ba-gateway PRIVATE ba_webrtc_win)
 else()
     message(STATUS "ba-gateway (GCC): backend NULL para los tests de logica (BA_GATEWAY_HAVE_WEBRTC=0)")
@@ -334,7 +336,7 @@ endforeach()
 # Windows: los tests de medios reales (RTP/SRTP sobre UDP local; el Opus del retorno
 # compartido) tambien.
 if(BA_GATEWAY_WEBRTC)
-    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes test_colas_compartidas test_webrtc_capas)
+    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes test_colas_compartidas test_webrtc_capas test_webrtc_lote)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/${t}.cpp")
             add_executable(${t} tests/${t}.cpp ${BA_GATEWAY_LIB_SOURCES} "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
             target_include_directories(${t} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}" "${BA_GW_GENERADO}")
@@ -350,7 +352,7 @@ if(BA_GATEWAY_WEBRTC)
     endforeach()
 endif()
 if(BA_GATEWAY_WEBRTC_MAC)
-    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes test_colas_compartidas test_webrtc_capas)
+    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes test_colas_compartidas test_webrtc_capas test_webrtc_lote)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/${t}.cpp")
             add_executable(${t} tests/${t}.cpp ${BA_GATEWAY_LIB_SOURCES} "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
             target_include_directories(${t} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_QRCODEGEN_DIR}" "${BA_GW_GENERADO}")
@@ -411,9 +413,9 @@ if(BA_GATEWAY_REAL_POSIX)
         DEPENDS mbedtls mbedx509 mbedcrypto samplerate argon2
         BUILD_BYPRODUCTS "${BA_GW_RTC_DIR}/ba-gateway" "${BA_GW_RTC_DIR}/test_webrtc_loopback"
                          "${BA_GW_RTC_DIR}/test_webrtc_audio_compartido" "${BA_GW_RTC_DIR}/test_webrtc_redes"
-                         "${BA_GW_RTC_DIR}/test_webrtc_capas")
+                         "${BA_GW_RTC_DIR}/test_webrtc_capas" "${BA_GW_RTC_DIR}/test_webrtc_lote")
     # Medios reales de punta a punta (RTP/SRTP sobre UDP local).
-    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_redes test_webrtc_capas)
+    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_redes test_webrtc_capas test_webrtc_lote)
         add_test(NAME ${t} COMMAND "${BA_GW_RTC_DIR}/${t}")
         set_tests_properties(${t} PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
     endforeach()
