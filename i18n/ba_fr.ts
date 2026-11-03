@@ -40130,8 +40130,8 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+0" />
-        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (un tercio de los núcleos de un bloque de caché, entre 1 y 4). 1: como antes, para comparar.</source>
-        <translation>Combien de threads s'occupent du réseau des invités (leurs connexions et le TURN), chacun avec sa part. 0 : automatique selon la machine (un tiers des cœurs d'un bloc de cache, entre 1 et 4). 1 : comme avant, pour comparer.</translation>
+        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (uno cada 3 núcleos físicos, entre 2 y 8: 4 en un Ryzen 9 5900X). 1: como antes, para comparar.</source>
+        <translation>Combien de threads s'occupent du réseau des invités (leurs connexions et le TURN), chacun avec sa part. 0 : automatique selon la machine (un tous les 3 cœurs physiques, entre 2 et 8 : 4 sur un Ryzen 9 5900X). 1 : comme avant, pour comparer.</translation>
     </message>
     <message>
         <location line="+1" />

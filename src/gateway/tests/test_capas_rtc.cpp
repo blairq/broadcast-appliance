@@ -1,8 +1,11 @@
 // test_capas_rtc.cpp — el reparto de las sesiones en las capas de hilos (rtc/CapasHilos.hpp;
 // F2 de docs/planes/PLAN-GATEWAY-FRAGMENTOS.md)
 //
-//   - Los tamaños automáticos: el 5900X (6 núcleos por CCD) da 2 de red y 3 de trabajo; la
-//     M1 Pro (4 por grupo), 1 y 2; sin saber, 1 y 1. Los pedidos se respetan (hasta 16).
+//   - Los tamaños automáticos: el 5900X (6 núcleos por CCD, 12 físicos) da 4 de red y 3 de
+//     trabajo; la M1 Pro (4 por grupo, 8 de rendimiento), 2 y 2; sin saber los físicos, la
+//     red como antes (bloque/3, 1..4); sin saber nada, 1 y 1. Los pedidos se respetan (hasta 16).
+//   - 200 invitados en los 4 hilos de red del 5900X: parejos (50 cada uno), también con
+//     pesos mezclados y gente que se va y vuelve.
 //   - Al entrar, cada sesión va al par menos cargado; las cargas quedan parejas.
 //   - Una sesión no se muda: subir su peso (720p) solo cambia adónde van las próximas.
 //   - Soltar devuelve la carga; R/T = 1 y R/T = 3 reparten lo mismo en total.
@@ -28,14 +31,43 @@ static int fallas = 0;
 
 int main() {
     // Tamaños.
-    ca::Tamanos t = ca::resolver(0, 0, 6);
-    CHECK(t.red == 2 && t.trabajo == 3, "automático en el 5900X: 2 de red, 3 de trabajo");
-    t = ca::resolver(0, 0, 4);
-    CHECK(t.red == 1 && t.trabajo == 2, "automático en la M1 Pro: 1 y 2");
+    ca::Tamanos t = ca::resolver(0, 0, 6, 12);
+    CHECK(t.red == 4 && t.trabajo == 3, "automático en el 5900X: 4 de red (12 físicos / 3), 3 de trabajo");
+    t = ca::resolver(0, 0, 4, 8);
+    CHECK(t.red == 2 && t.trabajo == 2, "automático en la M1 Pro: 2 y 2");
+    t = ca::resolver(0, 0, 4, 4);
+    CHECK(t.red == 2, "con 4 núcleos, 2 de red (el mínimo)");
+    t = ca::resolver(0, 0, 1, 1);
+    CHECK(t.red == 1, "con un núcleo, no más hilos de red que núcleos");
+    t = ca::resolver(0, 0, 32, 64);
+    CHECK(t.red == 8 && t.trabajo == 6, "automático con topes (8 de red y 6 de trabajo)");
+    t = ca::resolver(0, 0, 6);
+    CHECK(t.red == 2 && t.trabajo == 3, "sin saber los físicos, la red como antes (bloque/3)");
     t = ca::resolver(0, 0, 0);
     CHECK(t.red == 1 && t.trabajo == 1, "sin saber los núcleos: 1 y 1");
     t = ca::resolver(0, 0, 32);
-    CHECK(t.red == 4 && t.trabajo == 6, "automático con topes (4 y 6)");
+    CHECK(t.red == 4 && t.trabajo == 6, "sin los físicos, con topes (4 y 6)");
+    CHECK(ca::nucleosFisicos() >= 0, "los físicos de esta máquina (0 si no se sabe)");
+
+    // 200 invitados en los 4 de red del 5900X: parejos, también con pesos y gente que va y viene.
+    {
+        ca::Reparto r(ca::resolver(0, 0, 6, 12));
+        CHECK(r.tamanos().red == 4, "el reparto del 5900X tiene 4 de red");
+        std::vector<ca::Lugar> ls;
+        for (int i = 0; i < 200; ++i) ls.push_back(r.tomar());
+        for (int i = 0; i < 4; ++i) CHECK(r.sesionesRed(i) == 50 && r.cargaRed(i) == 50, "200 en 4: 50 cada uno");
+        // Se van los pares (100) y entran 100 nuevos, uno de cada 5 en alta.
+        for (size_t i = 0; i < ls.size(); i += 2) r.soltar(ls[i]);
+        for (int i = 0; i < 100; ++i) ls.push_back(r.tomar(i % 5 == 0 ? ca::kPesoAlta : ca::kPesoNormal));
+        int menor = 1 << 30, mayor = 0;
+        for (int i = 0; i < 4; ++i) {
+            menor = std::min(menor, r.cargaRed(i));
+            mayor = std::max(mayor, r.cargaRed(i));
+        }
+        CHECK(mayor - menor <= ca::kPesoAlta, "después de ir y venir, las cargas siguen parejas (a un 720p de diferencia)");
+        for (auto& l : ls) r.soltar(l);
+        for (int i = 0; i < 4; ++i) CHECK(r.cargaRed(i) == 0 && r.sesionesRed(i) == 0, "al irse todos, en cero");
+    }
     t = ca::resolver(3, 5, 4);
     CHECK(t.red == 3 && t.trabajo == 5, "lo pedido se respeta");
     t = ca::resolver(99, 99, 4);

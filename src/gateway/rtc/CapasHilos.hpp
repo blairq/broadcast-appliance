@@ -28,11 +28,19 @@ struct Tamanos {
     int trabajo = 1;
 };
 
-/// Los hilos de cada capa: `red`/`trabajo` > 0 se respetan (hasta 16); 0 = automático según
-/// `nucleos` (los núcleos físicos de un bloque de caché; 0 = no se sabe → 1 y 1):
-/// red = nucleos/3 (1..4) y trabajo = (nucleos+1)/2 (1..6). En el 5900X (6 por CCD) 2 y 3; en
-/// la M1 Pro (4 por grupo) 1 y 2.
-Tamanos resolver(int red, int trabajo, int nucleos);
+/// Los hilos de cada capa: `red`/`trabajo` > 0 se respetan (hasta 16); 0 = automático.
+///   - trabajo = (nucleos+1)/2 (1..6), con `nucleos` los núcleos físicos de un bloque de caché.
+///   - red = UNO CADA 3 NÚCLEOS FÍSICOS de la máquina (`fisicos`, los rápidos), entre 2 y 8
+///     (y no más que `fisicos`). Era nucleos/3 (1..4) del bloque: 2 en el 5900X, y con 120
+///     invitados cada uno iba al 89 % y con 200 al 97-98 % (ETW, 2026-11-03): el primer hilo
+///     del gateway que se llenaba. Ahora: 5900X (12 físicos) 4; M1 Pro (8 de rendimiento) 2;
+///     una de 4 núcleos, 2. Sin saber `fisicos` (0), como antes: nucleos/3 (1..4).
+/// En el 5900X: 4 de red y 3 de trabajo; en la M1 Pro, 2 y 2; sin saber nada, 1 y 1.
+Tamanos resolver(int red, int trabajo, int nucleos, int fisicos = 0);
+
+/// Los núcleos físicos rápidos de la máquina (los de rendimiento en un híbrido; todos si son
+/// iguales); 0 si no se sabe.
+int nucleosFisicos();
 
 /// Los de los ajustes `gateway.hilosRed` y `gateway.hilosTrabajo` en esta máquina.
 Tamanos deLosAjustes();

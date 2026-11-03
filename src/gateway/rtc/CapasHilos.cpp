@@ -4,23 +4,44 @@
 #include "rtc/CapasHilos.hpp"
 
 #include <algorithm>
+#include <string>
+#include <thread>
 
 #include "ajustes/Ajustes.hpp"
+#include "platform/Nucleos.hpp"
 #include "rtc/ColasCompartidas.hpp" // nucleosDeUnBloque
 
 namespace ba::gateway::capas {
 
-Tamanos resolver(int red, int trabajo, int nucleos) {
+Tamanos resolver(int red, int trabajo, int nucleos, int fisicos) {
     Tamanos t;
     const int n = nucleos > 0 ? nucleos : 0;
-    t.red = red > 0 ? std::min(red, 16) : std::clamp(n / 3, 1, 4);
+    const int redAuto = fisicos > 0 ? std::min(std::clamp(fisicos / 3, 2, 8), fisicos) : std::clamp(n / 3, 1, 4);
+    t.red = red > 0 ? std::min(red, 16) : redAuto;
     t.trabajo = trabajo > 0 ? std::min(trabajo, 16) : std::clamp((n + 1) / 2, 1, 6);
     return t;
 }
 
+int nucleosFisicos() {
+    // La topología común (Nucleos.hpp): la clase más rápida trae sus núcleos físicos; en
+    // Linux con núcleos híbridos solo los lógicos (la mitad, por el SMT de los rápidos).
+    const nlohmann::json topo = ba::platform::nucleos::topologia();
+    int fisicos = 0;
+    if (topo.contains("clases") && topo["clases"].is_array())
+        for (const auto& c : topo["clases"]) {
+            const std::string clase = c.value("clase", std::string());
+            if (clase != "rendimiento" && clase != "todos") continue;
+            const int n = c.value("nucleos", 0);
+            fisicos = std::max(fisicos, n > 0 ? n : c.value("logicos", 0) / 2);
+        }
+    if (fisicos > 0) return fisicos;
+    const unsigned logicos = std::thread::hardware_concurrency();
+    return logicos >= 2 ? static_cast<int>(logicos / 2) : 0;
+}
+
 Tamanos deLosAjustes() {
     return resolver(ba::ajustes::entero("gateway.hilosRed", 0), ba::ajustes::entero("gateway.hilosTrabajo", 0),
-                    colas::nucleosDeUnBloque());
+                    colas::nucleosDeUnBloque(), nucleosFisicos());
 }
 
 namespace {

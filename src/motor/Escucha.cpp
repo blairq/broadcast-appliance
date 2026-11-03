@@ -49,24 +49,14 @@ Escucha::~Escucha() {
 }
 
 void Escucha::encargar(std::function<void()> f) {
-    std::lock_guard<std::mutex> l(trabajoM_);
-    std::shared_future<void> antes = trabajo_;
-    trabajo_ = std::async(std::launch::async, [this, antes, f = std::move(f)]() {
-                   ba::platform::nombrarHilo("escucha-trabajo");
-                   if (antes.valid()) antes.wait(); // en orden
-                   std::lock_guard<std::mutex> lm(mu_);
-                   f();
-               }).share();
+    // En orden, en los hilos compartidos del motor (Trabajos.hpp; era un std::async por trabajo).
+    fila_.encargar([this, f = std::move(f)]() {
+        std::lock_guard<std::mutex> lm(mu_);
+        f();
+    });
 }
 
-void Escucha::esperar() {
-    std::shared_future<void> f;
-    {
-        std::lock_guard<std::mutex> l(trabajoM_);
-        f = trabajo_;
-    }
-    if (f.valid()) f.wait();
-}
+void Escucha::esperar() { fila_.esperar(); }
 
 void Escucha::desarmar() {
     if (pipeline_ == nullptr) return;

@@ -39968,8 +39968,8 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+0" />
-        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (un tercio de los núcleos de un bloque de caché, entre 1 y 4). 1: como antes, para comparar.</source>
-        <translation>处理嘉宾网络（其连接和 TURN）的线程数，每个线程负责一部分。0：根据本机自动设定（一个缓存块核心数的三分之一，1 到 4 之间）。1：与以前相同，用于比较。</translation>
+        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (uno cada 3 núcleos físicos, entre 2 y 8: 4 en un Ryzen 9 5900X). 1: como antes, para comparar.</source>
+        <translation>处理嘉宾网络（其连接和 TURN）的线程数，每个线程负责一部分。0：根据本机自动设定（每 3 个物理核心一个，2 到 8 之间：Ryzen 9 5900X 上为 4）。1：与以前相同，用于比较。</translation>
     </message>
     <message>
         <location line="+1" />

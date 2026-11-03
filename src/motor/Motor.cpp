@@ -7,6 +7,8 @@
 #include "i18n/I18n.hpp"
 #include "Candado.hpp"
 #include "GpuPerdida.hpp"
+#include "Memoria.hpp"
+#include "Trabajos.hpp"
 #include "OrigenRed.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/LugaresSala.hpp"
@@ -428,6 +430,7 @@ void Motor::bucle() {
             if (revisarUso) {
                 Tramo t("actualizarUso");
                 actualizarUso();
+                compactarSiToca();
             }
             // (El tic de cada entrada no va acá: lo da su hilo, sin este candado. Ver informe.)
             {
@@ -619,8 +622,17 @@ std::string Motor::agregarEntradaYa(const std::string& id, const json& ajustes, 
             if (p.is_number_integer() && p.get<int>() >= 1 && p.get<int>() <= 6) c.pistas |= 1u << (p.get<int>() - 1);
     }
     if (!opciones.value("audio", true)) c.pistas = 0;
-    c.entrada = std::make_shared<Entrada>(*reloj_, cfg_.lienzo, id, ajustes.is_object() ? ajustes : json::object());
-    aplicarLugar(*c.entrada); // la de un lugar vacío se arma en reposo
+    // NACE COMO VA A ESTAR: sin uso si nada la muestra (sin placa ni sus hilos) y, la de un
+    // lugar vacío, en reposo (READY) desde el primer armado. Antes nacía en uso y andando
+    // hasta la vuelta siguiente del motor, y la placa quedaba armada 2 minutos.
+    Entrada::Inicio inicio;
+    inicio.enUso = entradasEnUsoYa().count(id) > 0;
+    inicio.sinGente = [this](const std::string& canal) {
+        const auto lugar = lugares_.find(canal);
+        return lugar != lugares_.end() && !lugar->second;
+    };
+    c.entrada = std::make_shared<Entrada>(*reloj_, cfg_.lienzo, id, ajustes.is_object() ? ajustes : json::object(), inicio);
+    aplicarLugar(*c.entrada); // (ya nació así: por si algo cambió en el medio)
     indexarDeApp(id, c.entrada);
     canales_[id] = std::move(c);
     for (auto& [sid, s] : salidas_) s.mandos[id] = k;
@@ -839,6 +851,14 @@ std::string Motor::armarYa(const std::string& nombre, const std::string& salida)
 }
 
 void Motor::actualizarUso() {
+    const std::set<std::string> uso = entradasEnUsoYa();
+    for (auto& [id, c] : canales_) {
+        Tramo t("uso: poner en uso una entrada");
+        c.entrada->ponerEnUso(uso.count(id) > 0);
+    }
+}
+
+std::set<std::string> Motor::entradasEnUsoYa() const {
     std::set<std::string> uso, leidos;
     const auto sumar = [](std::set<std::string>& a, const std::set<std::string>& s) { a.insert(s.begin(), s.end()); };
     // Con tramos: si tarda, el registro dice cuál parte (llegó a 650 ms al arrancar).
@@ -875,10 +895,7 @@ void Motor::actualizarUso() {
                 cambio = true;
             }
     }
-    for (auto& [id, c] : canales_) {
-        Tramo t("uso: poner en uso una entrada");
-        c.entrada->ponerEnUso(uso.count(id) > 0);
-    }
+    return uso;
 }
 
 std::string Motor::alAireYa(const std::string& nombre, const std::string& transicion, int ms, const std::string& salida) {
@@ -2122,7 +2139,29 @@ json Motor::estadoYa() const {
              }()},
             {"vistas", vistas_ ? vistas_->estado() : json::object()},
             {"procesador", topologiaCpu()},
+            {"recursos", recursosYa(entradas)},
             {"entradas", entradas}};
+}
+
+// Lo que cuesta tener las entradas armadas (para medir-sala y las pruebas): un lugar vacío
+// no debería tener placa ni andar, y los trabajos van en pocos hilos compartidos.
+json Motor::recursosYa(const json& entradas) const {
+    int placas = 0, enReposo = 0, sinGente = 0, andando = 0;
+    for (const auto& [id, e] : entradas.items()) {
+        if (e.value("placa_armada", false)) ++placas;
+        if (e.value("en_reposo", false)) ++enReposo;
+        if (e.value("sin_gente", false)) ++sinGente;
+        if (e.value("anda", false) && !e.value("en_reposo", false)) ++andando;
+    }
+    const HilosDeTrabajo h = hilosDeTrabajo();
+    const std::int64_t privada = memoria::privada();
+    return {{"entradas", entradas.size()},
+            {"placas_armadas", placas},
+            {"en_reposo", enReposo},
+            {"sin_gente", sinGente},
+            {"andando", andando},
+            {"hilos_trabajo", {{"vivos", h.vivos}, {"ocupados", h.ocupados}, {"maximo", h.maximo}, {"filas_esperando", h.filasEsperando}}},
+            {"memoria_privada_mb", privada < 0 ? json() : json(privada / 1048576)}};
 }
 
 
@@ -2413,7 +2452,37 @@ void Motor::ponerLugares(const std::map<std::string, bool>& canales) {
         BA_CON_CANDADO(mu_);
         lugares_ = canales;
         for (auto& [id, c] : canales_) aplicarLugar(*c.entrada);
+        revisarCompactar();
         return std::string();
+    });
+}
+
+// LA MEMORIA QUE NO VOLVÍA (Memoria.hpp): cuando la sala se vacía bastante (quedan la mitad o
+// menos de los que llegó a haber, y se fueron al menos kMinIdos), a los 15 s se le pide al
+// sistema que recupere lo libre del montón, fuera del motor, y se anota cuánto bajó. Una
+// vez por vaciada: la cuenta vuelve a empezar desde los que quedan.
+void Motor::revisarCompactar() {
+    constexpr int kMinIdos = 10;
+    int conGente = 0;
+    for (const auto& [canal, hay] : lugares_)
+        if (hay) ++conGente;
+    conGenteMax_ = std::max(conGenteMax_, conGente);
+    if (conGenteMax_ - conGente >= kMinIdos && conGente * 2 <= conGenteMax_) {
+        compactarEnUs_ = g_get_monotonic_time() + 15'000'000;
+        conGenteMax_ = conGente;
+    }
+}
+
+void Motor::compactarSiToca() {
+    if (compactarEnUs_ == 0 || g_get_monotonic_time() < compactarEnUs_) return;
+    compactarEnUs_ = 0;
+    static auto* fila = new FilaDeTrabajo; // vive lo que el proceso (como sus hilos)
+    if (fila->pendientes() > 0) return;
+    fila->encargar([]() {
+        const memoria::Compactada c = memoria::compactar();
+        const auto mb = [](std::int64_t b) { return b < 0 ? std::string("?") : std::to_string(b / 1048576); };
+        registrar(Nivel::Info, llenar(traducir("motor", "memoria: se fue gente, se devolvió lo libre del montón: %1 → %2 MB privados (%3 ms)"),
+                                      {mb(c.antes), mb(c.despues), std::to_string(c.us / 1000)}));
     });
 }
 

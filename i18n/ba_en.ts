@@ -41610,8 +41610,8 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+0" />
-        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (un tercio de los núcleos de un bloque de caché, entre 1 y 4). 1: como antes, para comparar.</source>
-        <translation>How many threads handle the guests' network (their connections and the TURN), each with its own share. 0: automatic for this machine (a third of the cores of one cache block, between 1 and 4). 1: as before, to compare.</translation>
+        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (uno cada 3 núcleos físicos, entre 2 y 8: 4 en un Ryzen 9 5900X). 1: como antes, para comparar.</source>
+        <translation>How many threads handle the guests' network (their connections and the TURN), each with its own share. 0: automatic for this machine (one every 3 physical cores, between 2 and 8: 4 on a Ryzen 9 5900X). 1: as before, to compare.</translation>
     </message>
     <message>
         <location line="+1" />

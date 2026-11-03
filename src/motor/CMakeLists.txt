@@ -6,7 +6,7 @@
 # y salidas. Ver docs/planes/PLAN-TODO-EN-UNO.md, bloque M.
 # ============================================================================
 
-add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp MedidorCeldas.cpp Prioridad.cpp Fallas.cpp GpuPerdida.cpp)
+add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Trabajos.cpp Memoria.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp MedidorCeldas.cpp Prioridad.cpp Fallas.cpp GpuPerdida.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
 # Capturas: las ventanas de cada sistema (ver Capturas.hpp).
@@ -102,6 +102,23 @@ if(BUILD_TESTING OR TRUE)
     add_dependencies(test_motor_reposo gstbaaudio gstbaipc)
     add_test(NAME test_motor_reposo COMMAND test_motor_reposo)
     set_tests_properties(test_motor_reposo PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+
+    # Los trabajos de las entradas en pocos hilos compartidos (sin GStreamer).
+    add_executable(test_trabajos tests/test_trabajos.cpp)
+    target_link_libraries(test_trabajos PRIVATE ba_motor)
+    ba_gst_rpath(test_trabajos "")
+    add_test(NAME test_trabajos COMMAND test_trabajos)
+    set_tests_properties(test_trabajos PROPERTIES TIMEOUT 60)
+
+    # Un lugar vacío no tiene hilos; llegar e irse no deja hilos ni memoria colgados.
+    add_executable(test_motor_lugares_vacios tests/test_motor_lugares_vacios.cpp)
+    target_link_libraries(test_motor_lugares_vacios PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_lugares_vacios "")
+    target_compile_definitions(test_motor_lugares_vacios PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_motor_lugares_vacios gstbaaudio gstbaipc)
+    add_test(NAME test_motor_lugares_vacios COMMAND test_motor_lugares_vacios)
+    set_tests_properties(test_motor_lugares_vacios PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
     # Los retornos de muchos invitados (baretornos): sin su voz, lineal, sin cortes.
     add_executable(test_motor_mixminus tests/test_motor_mixminus.cpp)
