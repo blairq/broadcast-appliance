@@ -116,6 +116,9 @@ struct Lienzo {
     bool pantallaCompleta = false; ///< ocupa el monitor entero
     bool encima = false;
     int orden = 0;     ///< el número del monitor (para leer)
+    /// El nombre del QScreen del monitor («sistema» de MonitoresModel; "" = no está
+    /// conectado). La ventana busca su QScreen por esto, sin llamar al C++ desde un binding.
+    QString sistema;
     std::vector<Pieza> piezas;
     bool operator==(const Lienzo&) const = default;
 };
@@ -133,6 +136,7 @@ class LienzosModel : public ListaConClave<Lienzo> {
         EncimaRole,
         OrdenRole,
         PiezasRole, ///< [{nombre, cosas, disposicion, x, y, ancho, alto}] (0..1 en el lienzo)
+        SistemaRole, ///< el nombre del QScreen de su monitor ("" = no está)
     };
     explicit LienzosModel(QObject* parent = nullptr) : ListaConClave(parent) {}
     QVariant data(const QModelIndex& index, int role) const override;
@@ -158,6 +162,7 @@ struct MonitorVisto {
     bool principal = false;
     int orden = 0;
     QString nombre;
+    QString sistema; ///< el nombre del QScreen (QScreen::name)
 };
 
 namespace distribucion {

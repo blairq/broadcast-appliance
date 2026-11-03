@@ -28,6 +28,9 @@ Window {
     required property bool encima
     required property int orden
     required property var piezas
+    /// El nombre del QScreen de su monitor ("" = no está conectado): lo resuelve el modelo
+    /// (LienzosModel), así el binding de abajo no llama al C++.
+    required property string sistema
     /// La ventana principal (le da los componentes a VistaCatalogo).
     required property var principal
 
@@ -42,11 +45,10 @@ Window {
 
     /// El QScreen de su monitor, o null si (todavía) no está.
     readonly property var pantalla: {
+        if (w.sistema === "") return null
         const ss = Qt.application.screens
         for (let i = 0; i < ss.length; ++i)
-            if (Studio.pantallasConectadas.idDePantalla(ss[i].name, ss[i].manufacturer, ss[i].model,
-                                                         ss[i].serialNumber) === w.lienzoId)
-                return ss[i]
+            if (ss[i].name === w.sistema) return ss[i]
         return null
     }
     /// Mientras se está llevando (salir de pantalla completa tiene animación en Mac).

@@ -218,6 +218,7 @@ QVariant LienzosModel::data(const QModelIndex& index, int role) const {
         case PantallaCompletaRole: return l.pantallaCompleta;
         case EncimaRole: return l.encima;
         case OrdenRole: return l.orden;
+        case SistemaRole: return l.sistema;
         case PiezasRole: {
             QVariantList ps;
             for (const Pieza& p : l.piezas)
@@ -232,7 +233,8 @@ QVariant LienzosModel::data(const QModelIndex& index, int role) const {
 
 QHash<int, QByteArray> LienzosModel::roleNames() const {
     return {{LienzoIdRole, "lienzoId"}, {GeometriaRole, "geometria"}, {PantallaCompletaRole, "pantallaCompleta"},
-            {EncimaRole, "encima"},     {OrdenRole, "orden"},         {PiezasRole, "piezas"}};
+            {EncimaRole, "encima"},     {OrdenRole, "orden"},         {PiezasRole, "piezas"},
+            {SistemaRole, "sistema"}};
 }
 
 QList<int> LienzosModel::rolesQueCambian(const Lienzo& a, const Lienzo& b) const {
@@ -241,6 +243,7 @@ QList<int> LienzosModel::rolesQueCambian(const Lienzo& a, const Lienzo& b) const
     if (a.pantallaCompleta != b.pantallaCompleta) r << PantallaCompletaRole;
     if (a.encima != b.encima) r << EncimaRole;
     if (a.orden != b.orden) r << OrdenRole;
+    if (a.sistema != b.sistema) r << SistemaRole;
     if (a.piezas != b.piezas) r << PiezasRole;
     return r;
 }
@@ -292,7 +295,8 @@ std::vector<MonitorVisto> DistribucionesModel::monitoresVistos() const {
         const QVariantMap m = x.toMap();
         out.push_back({m.value("id").toString(),
                        QRect(m.value("x").toInt(), m.value("y").toInt(), m.value("ancho").toInt(), m.value("alto").toInt()),
-                       m.value("principal").toBool(), m.value("orden").toInt(), m.value("nombre").toString()});
+                       m.value("principal").toBool(), m.value("orden").toInt(), m.value("nombre").toString(),
+                       m.value("sistema").toString()});
     }
     return out;
 }
@@ -779,6 +783,7 @@ std::vector<Lienzo> DistribucionesModel::resolver(const Distribucion& d, QString
         if (gr.monitor >= 0) {
             const MonitorVisto& m = hay[static_cast<std::size_t>(gr.monitor)];
             l.orden = m.orden;
+            l.sistema = m.sistema;
             caja = caja.intersected(m.geometria);
             l.pantallaCompleta = caja == m.geometria;
             // Lo fijo de «Pantallas conectadas» en el mismo monitor: quedan las dos.
