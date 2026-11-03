@@ -4,7 +4,6 @@
 
 #include "ui/ListModels.hpp"
 
-#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfig.hpp"
 
 #include <QRegularExpression>
@@ -607,18 +606,25 @@ void MixerModel::soltarPendiente(const std::string& clave) {
     }
 }
 
-QAbstractItemModel* MixerModel::delGrupo(const QString& grupo) {
-    BA_ACOPLE("invocable", "MixerModel::delGrupo");
-    auto& m = delGrupo_[grupo];
-    if (m == nullptr) {
-        auto* f = new QSortFilterProxyModel(this);
-        f->setSourceModel(this);
-        f->setFilterRole(GrupoRole);
-        f->setFilterRegularExpression(
-            QRegularExpression("^" + QRegularExpression::escape(grupo) + "$"));
-        m = f;
+QVariantMap MixerModel::tirasPorGrupo() const {
+    QVariantMap out;
+    for (const std::string& g : grupos_) {
+        if (g.empty()) continue;
+        const QString grupo = qs(g);
+        if (out.contains(grupo)) continue;
+        // Uno por grupo, hecho la primera vez y guardado (la vista lo sigue usando aunque la
+        // lista se rehaga: es un filtro sobre este modelo).
+        auto& m = delGrupo_[grupo];
+        if (m == nullptr) {
+            auto* f = new QSortFilterProxyModel(const_cast<MixerModel*>(this));
+            f->setSourceModel(const_cast<MixerModel*>(this));
+            f->setFilterRole(GrupoRole);
+            f->setFilterRegularExpression(QRegularExpression("^" + QRegularExpression::escape(grupo) + "$"));
+            m = f;
+        }
+        out.insert(grupo, QVariant::fromValue(static_cast<QObject*>(m)));
     }
-    return m;
+    return out;
 }
 
 QVariantList MixerModel::gruposEn(const std::string& salida) const {

@@ -5,6 +5,7 @@
 #include <sstream>
 
 #include "asamblea/Cuerpo.hpp"
+#include "sala/OradoresSala.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>
@@ -16,7 +17,26 @@ namespace ba::app::asamblea {
 
 using json = nlohmann::json;
 
-Bancas::Bancas(Cuerpo& cuerpo, Ganchos g, QObject* parent) : QObject(parent), cuerpo_(cuerpo), g_(std::move(g)) {}
+Bancas::Bancas(Cuerpo& cuerpo, Ganchos g, QObject* parent) : QObject(parent), cuerpo_(cuerpo), g_(std::move(g)) {
+    // Cuatro veces por segundo (como el de los oradores remotos): el texto cambia al segundo justo.
+    tic_.setInterval(250);
+    connect(&tic_, &QTimer::timeout, this, &Bancas::actualizarReloj);
+    connect(this, &Bancas::cambio, this, &Bancas::actualizarReloj);
+}
+
+void Bancas::actualizarReloj() {
+    QVariantMap r;
+    if (!alAire_.empty()) {
+        const sala::OradoresSala::Reloj x = sala::OradoresSala::reloj(
+            asignadoTurnoS_, static_cast<double>(desdeMs_), static_cast<double>(QDateTime::currentMSecsSinceEpoch()));
+        r = QVariantMap{{"estado", QString::fromStdString(x.estado)}, {"texto", QString::fromStdString(x.texto)}};
+    }
+    if (alAire_.empty()) tic_.stop();
+    else if (!tic_.isActive()) tic_.start();
+    if (r == reloj_) return;
+    reloj_ = r;
+    emit relojCambio();
+}
 
 json Bancas::estadoJson() const {
     json cola = json::array();

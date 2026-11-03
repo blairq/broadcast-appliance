@@ -122,8 +122,10 @@ class AccesoRemoto : public QObject {
     Q_INVOKABLE QString borrarTokenCloudflare();
     Q_INVOKABLE bool guardarApiKey(const QString& clave);
     Q_INVOKABLE QString borrarApiKey();
-    /// Las instrucciones para el que administra el DNS (dominio propio).
-    Q_INVOKABLE QString instruccionesDns(const QString& host, const QString& destino) const;
+    /// Las instrucciones para el que administra el DNS (dominio propio). La página las
+    /// lee de un InstruccionesDns (abajo), con lo que está escrito en el borrador; el MCP,
+    /// de acá.
+    static QString instruccionesDns(const QString& host, const QString& destino);
     /// Resuelve el CNAME de `host` y dice si apunta a `destino` (resultado en `dns`).
     Q_INVOKABLE void verificarDns(const QString& host, const QString& destino);
     /// Consulta los túneles activos en el panel de pinggy con la API key (resultado en `panel`).
@@ -187,6 +189,30 @@ class AccesoRemoto : public QObject {
     std::function<bool()> enVivo_;
     void ponerCuenta(const QString& estado, const QString& texto, const QVariantMap& extra = {});
     void seguirConToken(const std::string& clave, const QString& subdominio);
+};
+
+/// Las instrucciones del DNS de lo que se está escribiendo (la página de Pinggy): `host` y
+/// `destino` vienen del borrador de la configuración; `texto` se rearma cuando cambian.
+/// En QML: InstruccionesDns { host: …; destino: … }.
+class InstruccionesDns : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QString host READ host WRITE setHost NOTIFY cambio)
+    Q_PROPERTY(QString destino READ destino WRITE setDestino NOTIFY cambio)
+    Q_PROPERTY(QString texto READ texto NOTIFY cambio)
+   public:
+    explicit InstruccionesDns(QObject* parent = nullptr);
+    QString host() const { return host_; }
+    QString destino() const { return destino_; }
+    QString texto() const { return texto_; }
+    void setHost(const QString& h);
+    void setDestino(const QString& d);
+
+   signals:
+    void cambio();
+
+   private:
+    void armar();
+    QString host_, destino_, texto_;
 };
 
 } // namespace ba::app

@@ -29,34 +29,17 @@ sys.path.insert(0, str(RAIZ / "tools" / "diag"))
 import acoples  # noqa: E402
 
 # Bindings que llaman a una Q_INVOKABLE no-void, por .qml (relativo a src/app/). SOLO PUEDE BAJAR.
-DEUDA_QML = {
-    "qml/PantallaWindow.qml": 1,
-    "qml/cards/DireccionContent.qml": 1,
-    "qml/cards/GuestsContent.qml": 1,
-    "qml/cards/MixerContent.qml": 1,
-    "qml/cards/SpeakersContent.qml": 1,
-    "qml/controls/EditorDisparador.qml": 1,
-    "qml/controls/EditorFiltroAudio.qml": 1,
-    "qml/controls/PanelArchivos.qml": 1,
-    "qml/controls/PanelInformes.qml": 1,
-    "qml/controls/PanelMezclador.qml": 1,
-    "qml/controls/PanelSuperres.qml": 1,
-    "qml/controls/SelectorHerramientas.qml": 1,
-    "qml/pages/DashboardPage.qml": 5,
-    "qml/pages/FacebookPage.qml": 1,
-    "qml/pages/PantallasPage.qml": 1,
-    "qml/pages/PersonasPage.qml": 2,
-    "qml/pages/SettingsPage.qml": 6,
-    "qml/pages/TwitchPage.qml": 1,
-    "qml/pages/YouTubePage.qml": 1,
-}
+DEUDA_QML: dict[str, int] = {}
 
 # El C++ de la interfaz que espera o entra directo, por «archivo|clase» (relativo a src/app/).
 # SOLO PUEDE BAJAR. Muchos `join`/`wait` son de destructores o de hilos propios: igual se
 # cuentan (un destructor que espera un hilo traba la interfaz al cerrar una página).
 DEUDA_CPP = {
     "agent/AgentViewModel.cpp|bloqueante": 6,
-    "agent/AgentViewModel.cpp|disco": 54,
+    # +2 (2026-11-03): buscar si Claude ya guardó la conversación del evento (QDirIterator en
+    # Credenciales/agentes/claude/projects) al arrancar el asistente; pendiente pasarlo al
+    # fondo junto con el resto del disco del asistente (current/installed/hasKey).
+    "agent/AgentViewModel.cpp|disco": 56,
     "agent/AlarmaSonora.cpp|disco": 2,
     "agent/Despachador.cpp|bloqueante": 1,
     "agent/FlujosTexto.cpp|disco": 2,
@@ -157,27 +140,23 @@ DEUDA_CPP = {
 # RielConfig::paginaDeId/idDePagina/tituloDePagina (→ paginaPorId/idPorPagina/tituloPorPagina) y
 # PrompterViewModel::avisoParaOrador (→ avisoPuesto), ConferenceViewModel::nameOf (→ el rol toName
 # del chat y `nombres`) y MultiviewViewModel::de (→ porId; además `elegida` pasaba por ahí).
+# 2026-11-03 (la deuda QML a cero): CuentasViewModel::accountGuide (→ guias), SettingsModel::
+# seccionVisible/tieneBasicos/tieneAvanzados (→ titulosSecciones, seccionesConBasicos/
+# ConAvanzados), AccesoRemoto::instruccionesDns (→ InstruccionesDns), DashboardModel::kindTitle
+# (→ titulosDeKind), ExtensionesModel::ficha/vista/tituloDeKind/motivoNoCarga (→ fichas,
+# titulos), PersonasViewModel::etiquetaDe (→ etiquetaFeedAuto/Puerta), PantallasViewModel::urlDe
+# (→ UrlDePantalla), MediosViewModel::carpetaDeMedios (→ propiedad), InformesResultado::vistaUi
+# (→ vistas + pedirVista), Botonera::buscarUi/herramientasUi (→ busquedaHerramientas/
+# puntajesHerramientas, nombresHerramientas), VideoViewModel::propiedadesModuloCon (→
+# EditorModulo), Vumetro::fraccion (→ marcasEscala), ConferenceViewModel::reloj (→ Bancas.reloj),
+# CorridaViewModel::relojEn (→ relojVivo), MixerModel::delGrupo (→ tirasPorGrupo) y
+# MonitoresModel::idDePantalla (→ idsPorSistema).
 GANCHOS = {
-    "app/asamblea/InformesResultado.hpp": 1,
-    "app/control/Botonera.cpp": 2,
     "app/emision/TurnoMotor.cpp": 1,
-    "app/net/AccesoRemoto.cpp": 1,
     "app/net/HttpsClient.cpp": 3,
-    "app/pantallas/Monitores.cpp": 1,
-    "app/ui/ConferenceViewModel.cpp": 1,
-    "app/ui/CorridaViewModel.cpp": 1,
-    "app/ui/CuentasViewModel.cpp": 1,
-    "app/ui/DashboardModel.cpp": 1,
-    "app/ui/ExtensionesModel.cpp": 4,
     "app/ui/JsonListModel.cpp": 1,
-    "app/ui/ListModels.cpp": 1,
     "app/ui/ListaObjetos.cpp": 1,
-    "app/ui/MediosViewModel.cpp": 2,
-    "app/ui/PantallasViewModel.cpp": 1,
-    "app/ui/PersonasViewModel.cpp": 2,
-    "app/ui/SettingsModel.cpp": 3,
-    "app/ui/VideoViewModel.cpp": 1,
-    "app/ui/Vumetro.cpp": 1,
+    "app/ui/MediosViewModel.cpp": 1,
     "core/persist/Escritor.cpp": 4,
     "motor/Candado.cpp": 1,
 }

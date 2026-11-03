@@ -16,6 +16,9 @@ ColumnLayout {
     property string elegida: lista.length > 0 ? lista[0].id : ""
     property string ultimo: ""
     function nombreDe(id) { const p = inf.lista.find(x => x.id === id); return p ? p.nombre : id }
+    // Cómo queda la elegida con lo de ahora: la arma el modelo en el fondo (vistas).
+    onElegidaChanged: if (inf.m && inf.elegida !== "") inf.m.pedirVista(inf.elegida)
+    Component.onCompleted: if (inf.m && inf.elegida !== "") inf.m.pedirVista(inf.elegida)
     // Si la elegida desaparece (se quitó), la primera.
     onListaChanged: if (!inf.lista.some(p => p.id === inf.elegida)) inf.elegida = inf.lista.length > 0 ? inf.lista[0].id : ""
 
@@ -48,7 +51,7 @@ ColumnLayout {
                 }
                 GlassButton {
                     compact: true; text: qsTr("Actualizar la vista")
-                    onClicked: vista.text = inf.m.vistaUi(inf.elegida)
+                    onClicked: inf.m.pedirVista(inf.elegida)
                 }
                 Item { Layout.fillWidth: true }
                 GlassButton {
@@ -85,7 +88,7 @@ ColumnLayout {
                     textFormat: TextEdit.MarkdownText
                     wrapMode: TextEdit.Wrap
                     color: Theme.text
-                    text: inf.m && inf.elegida !== "" ? inf.m.vistaUi(inf.elegida) : ""
+                    text: inf.m && inf.elegida !== "" ? (inf.m.vistas[inf.elegida] || "") : ""
                     background: Rectangle { color: Qt.rgba(1, 1, 1, 0.03); radius: 8; border.color: Theme.glassBorder }
                 }
             }

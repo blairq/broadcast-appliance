@@ -96,6 +96,10 @@ class MonitoresModel : public ListaConClave<FilaMonitor> {
     Q_PROPERTY(int esperando READ esperando NOTIFY cambio)
     /// Ancho/alto del rectángulo que encierra a todos los conectados (para el dibujo).
     Q_PROPERTY(double proporcion READ proporcion NOTIFY cambio)
+    /// El id estable de cada monitor conectado por su nombre del sistema (QScreen::name):
+    /// {«DP-2»: «Dell Inc.|DELL U2720Q|SERIE-A»}. Para encontrar el QScreen de un monitor
+    /// (o el monitor de un QScreen) en Qt.application.screens sin preguntarle al modelo.
+    Q_PROPERTY(QVariantMap idsPorSistema READ idsPorSistema NOTIFY cambio)
 
    public:
     enum Roles {
@@ -128,9 +132,10 @@ class MonitoresModel : public ListaConClave<FilaMonitor> {
 
     /// El id estable de un monitor (ver la cabecera).
     static QString idDe(const PantallaFisica& p);
-    /// Lo mismo desde QML, con lo que trae Qt.application.screens[i].
-    Q_INVOKABLE QString idDePantalla(const QString& nombre, const QString& fabricante, const QString& modelo,
-                                     const QString& serie) const;
+    /// Lo mismo con lo que trae un QScreen (los repetidos, con su «#n» de las filas).
+    QString idDePantalla(const QString& nombre, const QString& fabricante, const QString& modelo,
+                         const QString& serie) const;
+    QVariantMap idsPorSistema() const;
 
     /// Lo que hay conectado ahora. Ordena, recalcula ids y avisa fila por fila.
     void actualizarPantallas(const std::vector<PantallaFisica>& pantallas);

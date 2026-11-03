@@ -137,7 +137,7 @@ Item {
                 required property bool sinRetorno
                 required property string semaforo
                 // `red` (las cifras de su red) NO es un rol de la celda: cambia en cada foto
-                // de la sala y despertaría a todas; se lee del modelo al mirar el «⋯».
+                // de la sala y despertaría a todas; la sigue un FilaViva mientras está el «⋯».
                 width: GridView.view.cellWidth
                 height: GridView.view.cellHeight
                 readonly property bool chica: width < 300
@@ -209,9 +209,11 @@ Item {
                                 id: masBtn
                                 compact: true; text: "⋯"
                                 onClicked: acciones.abrir(lugar, masBtn, 0, masBtn.height + 4)
-                                // Las cifras de la red, leídas del modelo al mirarlas.
+                                // Las cifras de la red de ESTE lugar, al día mientras está el «⋯» (solo
+                                // con el mouse encima): una fila del modelo, no un rol de cada celda.
+                                FilaViva { id: suFila; modelo: grilla.model; fila: lugar.index }
                                 function cifras() {
-                                    const red = lugar.pid !== "" && grilla.model ? (grilla.model.fila(lugar.index).red || {}) : null
+                                    const red = lugar.pid !== "" ? (suFila.datos.red || {}) : null
                                     if (!red || red.kbps_in === undefined) return ""
                                     return "\n" + qsTr("Red: %1 kbps · pérdida %2 % · jitter %3 ms · RTT %4 ms")
                                         .arg(red.kbps_in || 0).arg(red.perdida_pct || 0).arg(red.jitter_ms || 0).arg(red.rtt_ms || 0)

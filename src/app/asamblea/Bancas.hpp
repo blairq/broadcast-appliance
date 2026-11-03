@@ -19,6 +19,7 @@
 #pragma once
 
 #include <QObject>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -41,6 +42,10 @@ class Bancas : public QObject {
     }
     void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantMap estado READ estado NOTIFY cambio)
+    /// El reloj del que habla: {estado (ok | aviso | excedido), texto («m:ss», «+m:ss»)},
+    /// con la misma regla que los oradores remotos (sala::OradoresSala::reloj); {} sin nadie
+    /// al aire. Avisa cuando cambia lo que se ve (una vez por segundo mientras alguien habla).
+    Q_PROPERTY(QVariantMap reloj READ reloj NOTIFY relojCambio)
    public:
     /// Lo que Bancas necesita del resto de la app.
     struct Ganchos {
@@ -72,6 +77,7 @@ class Bancas : public QObject {
 
     /// {cola: [integrantes], al_aire: integrante|null, desde_ms, usado_s, asignado_s, bancas: [todas]}.
     QVariantMap estado() const;
+    QVariantMap reloj() const { return reloj_; }
     nlohmann::json estadoJson() const;
 
     /// Suma a la fila (por banca, id o nombre). El error va por la señal del modelo.
@@ -121,8 +127,14 @@ class Bancas : public QObject {
     /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
     void notify(const QString& texto, const QString& tipo);
     void cambio();
+    void relojCambio();
 
    private:
+    /// Rearma `reloj` con la hora de ahora y avisa si cambió lo que se ve; el temporizador
+    /// corre solo con alguien al aire.
+    void actualizarReloj();
+    QTimer tic_;
+    QVariantMap reloj_;
     bool frenoPorAire_ = false; ///< enfocarFrenoPorAire
     Cuerpo& cuerpo_;
     Ganchos g_;

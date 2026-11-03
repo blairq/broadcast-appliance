@@ -90,6 +90,9 @@ class SalidasViewModel : public QObject {
     /// reconectando, respaldo}], los suyos), programa (la clave de FrameService de su
     /// programa) y codificador (el que eligió; "" = el de la configuración).
     Q_PROPERTY(QObject* lista READ lista CONSTANT)
+    /// Las mismas filas como lista (para buscar en un binding sin pedirle fila por fila al
+    /// modelo: el «Mute de» de la matriz). Avisa con `cambio`.
+    Q_PROPERTY(QVariantList filasLista READ filasLista NOTIFY cambio)
     /// El id de la activa.
     Q_PROPERTY(QString activa READ activa WRITE setActiva NOTIFY cambio)
     /// Su fila de `lista`.
@@ -146,6 +149,7 @@ class SalidasViewModel : public QObject {
     QVariantList mediosAlAire() const { return mediosAlAire_; }
 
     QObject* lista() const;
+    QVariantList filasLista() const { return filas().toVariantList(); }
     QString activa() const;
     void setActiva(const QString& id);
     /// La activa como la anota el motor: "" = la por omisión.

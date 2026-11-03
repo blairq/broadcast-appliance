@@ -66,6 +66,7 @@
 #include <memory>
 
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QVariantList>
 #include <QVariantMap>
@@ -141,9 +142,9 @@ class PantallasViewModel : public QObject {
     /// Vuelve a preguntarle cómo está.
     Q_INVOKABLE void refrescar(const QString& id);
     Q_INVOKABLE void silenciar(const QString& id, bool si);
-    /// La URL que se le mandaría: para mostrarla en la interfaz y para probar
-    /// desde un navegador sin tener el televisor a mano.
-    Q_INVOKABLE QString urlDe(const QString& tipo, const QVariantMap& datos, const QString& idDestino = {});
+    /// La URL que se le mandaría: para probar desde un navegador sin tener el televisor a
+    /// mano. La página la muestra con un UrlDePantalla (abajo), que la rearma sola.
+    QString urlDe(const QString& tipo, const QVariantMap& datos, const QString& idDestino = {});
 
     // --- Carruseles -----------------------------------------------------------
     /// Crea uno vacío y devuelve su id.
@@ -199,6 +200,8 @@ class PantallasViewModel : public QObject {
     void cambio();
     void carruselesCambio();
     void superficiesCambio();
+    /// Llegaron las direcciones de esta máquina según la sala (cambian las URLs).
+    void direccionesCambio();
     void notify(const QString& texto, const QString& tipo);
 
    private:
@@ -219,6 +222,40 @@ class PantallasViewModel : public QObject {
 
     struct Impl;
     std::unique_ptr<Impl> d_;
+};
+
+/// La URL que se le mandaría a una pantalla con lo que se está armando (la página
+/// Pantallas): `tipo`, `datos` y `destino` (el id de la pantalla) son lo elegido; `url` se
+/// rearma cuando cambian o cuando cambia lo que sabe el modelo (las pantallas, las
+/// direcciones de esta máquina). En QML: UrlDePantalla { pantallas: Studio.pantallas; … }.
+class UrlDePantalla : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QObject* pantallas READ pantallas WRITE setPantallas NOTIFY entradaCambio)
+    Q_PROPERTY(QString tipo READ tipo WRITE setTipo NOTIFY entradaCambio)
+    Q_PROPERTY(QVariantMap datos READ datos WRITE setDatos NOTIFY entradaCambio)
+    Q_PROPERTY(QString destino READ destino WRITE setDestino NOTIFY entradaCambio)
+    Q_PROPERTY(QString url READ url NOTIFY urlCambio)
+   public:
+    explicit UrlDePantalla(QObject* parent = nullptr) : QObject(parent) {}
+    QObject* pantallas() const { return pantallas_; }
+    void setPantallas(QObject* p);
+    QString tipo() const { return tipo_; }
+    void setTipo(const QString& t);
+    QVariantMap datos() const { return datos_; }
+    void setDatos(const QVariantMap& d);
+    QString destino() const { return destino_; }
+    void setDestino(const QString& d);
+    QString url() const { return url_; }
+
+   signals:
+    void entradaCambio();
+    void urlCambio();
+
+   private:
+    void armar();
+    QPointer<PantallasViewModel> pantallas_;
+    QString tipo_, destino_, url_;
+    QVariantMap datos_;
 };
 
 } // namespace ba::app

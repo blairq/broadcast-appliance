@@ -108,6 +108,17 @@ void SesionRemota::guardar() const {
                                {"acceso_fijo", accesoFijo_}});
 }
 
+void SesionRemota::enLote(const std::function<void()>& f) {
+    ++lote_;
+    f();
+    if (--lote_ > 0) return;
+    if (pendienteCred_) emit credencialesCambio();
+    if (pendienteCambio_) emit cambio();
+    pendienteCred_ = pendienteCambio_ = false;
+}
+
+bool SesionRemota::dePrueba(const std::string& id) const { return Cuerpo::esDePrueba(integrante(id)); }
+
 json SesionRemota::integrante(const std::string& id) const {
     for (const auto& i : cuerpo_.integrantes())
         if (i.value("id", std::string()) == id) return i;
@@ -200,8 +211,8 @@ json SesionRemota::generar(const std::string& id, bool forzar) {
     else almacen.remove(nombreSecreto(id));
     guardar();
     anotar(forzar ? "credencial_renovada" : "credencial", id);
-    emit credencialesCambio();
-    emit cambio();
+    avisarCredenciales();
+    avisarCambio();
     return armarAcceso(i, token, pin);
 }
 
@@ -209,7 +220,7 @@ void SesionRemota::setPinEnQr(bool si) {
     if (si == pinEnQr_) return;
     pinEnQr_ = si;
     guardar();
-    emit cambio();
+    avisarCambio();
 }
 
 void SesionRemota::setAccesoFijo(bool si) {
@@ -223,7 +234,7 @@ void SesionRemota::setAccesoFijo(bool si) {
     }
     guardar();
     anotar(si ? "acceso_fijo" : "acceso_no_fijo", "");
-    emit cambio();
+    avisarCambio();
 }
 
 bool SesionRemota::revocar(const std::string& id) {
@@ -232,8 +243,8 @@ bool SesionRemota::revocar(const std::string& id) {
     ba::security::CredentialStore::bundle().remove(nombreSecreto(id));
     guardar();
     anotar("revocada", id);
-    emit credencialesCambio();
-    emit cambio();
+    avisarCredenciales();
+    avisarCambio();
     return true;
 }
 
@@ -263,8 +274,8 @@ json SesionRemota::generarClave(const std::string& id, const std::string& usuari
     c["hash_clave"] = sha256(c.value("sal", std::string()) + ":clave:" + clave);
     guardar();
     anotar("clave", id, {{"usuario", usuario}});
-    emit credencialesCambio();
-    emit cambio();
+    avisarCredenciales();
+    avisarCambio();
     return {{"usuario", usuario}, {"clave", clave}, {"id", id}, {"nombre", i.value("nombre", std::string())},
             {"entrar", origen() + "/sesion/"}};
 }
@@ -280,7 +291,7 @@ std::string SesionRemota::setDatos(const std::string& id, const json& datos) {
             c["datos"][k] = v;
         }
     guardar();
-    emit cambio();
+    avisarCambio();
     return {};
 }
 
@@ -305,6 +316,8 @@ json SesionRemota::paraGateway() const {
                        {"hash_pin", it.value().value("hash_pin", std::string())},
                        {"usuario", it.value().value("usuario", std::string())},
                        {"hash_clave", it.value().value("hash_clave", std::string())},
+                       // Un integrante de la «Prueba de asamblea» (gateway/Sesion.hpp: sin el tope por IP).
+                       {"prueba", Cuerpo::esDePrueba(i)},
                        {"aparatos", aparatosParaGateway(it.value())}});
     }
     return out;
@@ -352,8 +365,8 @@ json SesionRemota::incorporarAparatos(const json& pendientes) {
     }
     if (nuevos) {
         guardar();
-        emit credencialesCambio();
-        emit cambio();
+        avisarCredenciales();
+        avisarCambio();
     }
     return recibidos;
 }
@@ -404,8 +417,8 @@ int SesionRemota::revocarAparato(const std::string& cual) {
     for (auto it = credenciales_.begin(); it != credenciales_.end(); ++it) barrer(it.key(), it.value());
     if (n == 0) return 0;
     guardar();
-    emit credencialesCambio(); // el gateway corta la conexión de los revocados
-    emit cambio();
+    avisarCredenciales(); // el gateway corta la conexión de los revocados
+    avisarCambio();
     return n;
 }
 
@@ -414,7 +427,7 @@ void SesionRemota::setOrigenes(const std::string& local, const std::string& remo
     origenLocal_ = local;
     origenRemoto_ = remoto;
     motivoOrigen_ = motivo;
-    emit cambio();
+    avisarCambio();
 }
 
 void SesionRemota::ponerLinks(json& out, const std::string& frag) const {
@@ -455,7 +468,7 @@ void SesionRemota::evento(const json& ev) {
             else consolasConectadas_.erase(id);
             anotar(on ? "consola_entro" : "consola_salio", "", {{"consola", id}, {"ip", ev.value("ip", std::string())}});
             emit consolaConexion(QString::fromStdString(id), on);
-            emit cambio();
+            avisarCambio();
         } else if (tipo == "consola") {
             emit accionConsola(QString::fromStdString(id), ev.value("msg", json::object()));
         } else if (tipo == "intento" || tipo == "bloqueo") {
@@ -476,7 +489,7 @@ void SesionRemota::evento(const json& ev) {
             e.lugar = ev.value("lugar", std::string());
             anotar("entro", id, {{"ip", e.ip}, {"lugar", e.lugar}, {"sigue_habilitado", e.habilitado}});
             mandarEstado(id);
-            if (!e.habilitado) {
+            if (!e.habilitado && !dePrueba(id)) { // los de la prueba se ven en su panel, no en avisos
                 emit aviso(tr("%1 entró a la sesión y espera que lo habiliten").arg(QString::fromStdString(nombreDe(id, id))),
                            "info");
             }
@@ -490,7 +503,8 @@ void SesionRemota::evento(const json& ev) {
     } else if (tipo == "bloqueo") {
         e.bloqueadoHasta = ahoraMs() + ev.value("minutos", 15) * 60000LL;
         anotar("bloqueado", id, {{"minutos", ev.value("minutos", 15)}});
-        emit aviso(tr("Acceso de %1 bloqueado 15 minutos por PIN errado varias veces").arg(QString::fromStdString(nombreDe(id, id))),
+        if (!dePrueba(id))
+            emit aviso(tr("Acceso de %1 bloqueado 15 minutos por PIN errado varias veces").arg(QString::fromStdString(nombreDe(id, id))),
                    "warning");
     } else if (tipo == "entrada") {
         const json m = ev.value("msg", json::object());
@@ -520,7 +534,7 @@ void SesionRemota::evento(const json& ev) {
             const bool pedir = m.value("accion", std::string()) != "cancelar";
             anotar(pedir ? "pidio_palabra" : "cancelo_pedido", id);
             emit pedidoPalabra(QString::fromStdString(id), pedir);
-            if (pedir) {
+            if (pedir && !dePrueba(id)) {
                 emit aviso(tr("%1 (remoto) pidió la palabra").arg(QString::fromStdString(nombreDe(id, id))), "info");
             }
         }
@@ -541,11 +555,11 @@ void SesionRemota::evento(const json& ev) {
             vot_.votos[id] = {op, ahoraMs()};
             anotar("voto", id, {{"votacion", vot_.numero}, {"opcion", op}});
             emit enviar(QString::fromStdString(id), json{{"type", "voto"}, {"ok", true}, {"opcion", op}});
-            emit cambio();
+            avisarCambio();
         }
         return;
     }
-    emit cambio();
+    avisarCambio();
 }
 
 std::string SesionRemota::habilitar(const std::string& id, bool si, const std::string& quien) {
@@ -556,7 +570,7 @@ std::string SesionRemota::habilitar(const std::string& id, bool si, const std::s
     it->second.habilitadoPor = si ? quien : std::string();
     anotar(si ? "habilitado" : "deshabilitado", id, {{"por", quien}});
     mandarEstado(id);
-    emit cambio();
+    avisarCambio();
     return {};
 }
 
@@ -567,7 +581,7 @@ std::string SesionRemota::expulsar(const std::string& id, const std::string& qui
     it->second.cayoMs = 0; // sin gracia: si vuelve, hay que habilitarlo de nuevo
     anotar("expulsado", id, {{"por", quien}, {"motivo", motivo}});
     emit cortar(QString::fromStdString(id), QString::fromStdString(motivo.empty() ? ba::i18n::traducirEvento("asamblea", "La presidencia te desconectó.") : motivo));
-    emit cambio();
+    avisarCambio();
     return {};
 }
 
@@ -583,6 +597,7 @@ json SesionRemota::participantes() const {
                {"nombre", i.value("nombre", std::string())},
                {"banca", i.value("banca", std::string())},
                {"credencial", cred},
+               {"prueba", Cuerpo::esDePrueba(i)},
                {"conectado", false},
                {"estado", "sin_conectar"}};
         if (cred) {
@@ -689,7 +704,7 @@ void SesionRemota::darPalabra(const std::string& id, bool palabra, int segundos)
                                                  {"desde_ms", desde}});
     // R3: su micrófono y su cámara entran a la app mientras tenga la palabra.
     emitirMedios();
-    emit cambio();
+    avisarCambio();
 }
 
 void SesionRemota::fila(const std::vector<std::string>& cola, const std::string& alAire) {
@@ -749,7 +764,7 @@ std::string SesionRemota::setVistas(const json& vistas) {
     vistas_ = limpio;
     guardar();
     anotar("vistas", "", {{"vistas", vistas_}});
-    emit cambio();
+    avisarCambio();
     return {};
 }
 
@@ -829,8 +844,8 @@ json SesionRemota::generarConsola(const std::string& nombre) {
                      {"creado_ms", ahoraMs()}};
     guardar();
     anotar("consola_creada", "", {{"consola", id}, {"nombre", nombre}});
-    emit credencialesCambio();
-    emit cambio();
+    avisarCredenciales();
+    avisarCambio();
     const std::string frag = "/presidencia/#c=" + id + "&t=" + token;
     json out{{"id", id}, {"pin", pin}, {"nombre", consolas_[id]["nombre"]}};
     ponerLinks(out, frag);
@@ -842,8 +857,8 @@ bool SesionRemota::revocarConsola(const std::string& id) {
     if (!consolas_.contains(id)) return false;
     consolas_.erase(id);
     guardar();
-    emit credencialesCambio();
-    emit cambio();
+    avisarCredenciales();
+    avisarCambio();
     return true;
 }
 
@@ -891,7 +906,7 @@ std::string SesionRemota::abrirVotacion(int numero, const std::string& tema, con
     vot_.hastaMs = segundos > 0 ? vot_.abiertaMs + segundos * 1000LL : 0;
     anotar("votacion_abierta", "", {{"votacion", numero}, {"tema", tema}, {"origen", origen}});
     mandarVotacion();
-    emit cambio();
+    avisarCambio();
     return {};
 }
 
@@ -899,7 +914,7 @@ void SesionRemota::pausarVotacion(bool pausa) {
     if (vot_.estado != "abierta" && vot_.estado != "pausada") return;
     vot_.estado = pausa ? "pausada" : "abierta";
     mandarVotacion();
-    emit cambio();
+    avisarCambio();
 }
 
 json SesionRemota::cerrarVotacion() {
@@ -907,7 +922,7 @@ json SesionRemota::cerrarVotacion() {
         vot_.estado = "cerrada";
         anotar("votacion_cerrada", "", {{"votacion", vot_.numero}, {"votos_remotos", vot_.votos.size()}});
         mandarVotacion();
-        emit cambio();
+        avisarCambio();
     }
     return votacion().value("votos", json::array());
 }
@@ -970,7 +985,7 @@ void SesionRemota::setVotoSegundos(int s) {
     if (s == votoSegundos_) return;
     votoSegundos_ = s;
     guardar();
-    emit cambio();
+    avisarCambio();
 }
 
 json SesionRemota::opcionesDeMenu(const std::string& menu) {
@@ -1054,7 +1069,7 @@ std::string SesionRemota::anexoActa() const {
 
 void SesionRemota::limpiarRegistro() {
     registro_ = json::array();
-    emit cambio();
+    avisarCambio();
 }
 
 // --- Para la interfaz --------------------------------------------------------------------

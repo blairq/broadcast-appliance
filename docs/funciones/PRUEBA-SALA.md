@@ -3,6 +3,8 @@
 > Para saber **cuántos invitados aguanta** la máquina, otro equipo o la conexión (una rampa
 > automática por escalones, sin tocar el evento), está la pestaña **Capacidad**:
 > [CAPACIDAD.md](CAPACIDAD.md). La prueba de sala es el simulacro de UN evento con N.
+> Para ensayar la **asamblea** (integrantes que entran por la sesión remota, esperan que los
+> habiliten, piden la palabra y votan): [PRUEBA-ASAMBLEA.md](PRUEBA-ASAMBLEA.md).
 
 Antes de un evento con mucha gente, el operador prueba si **la máquina y la red aguantan N
 personas**: entran participantes «de prueba» por el **camino real** de los invitados

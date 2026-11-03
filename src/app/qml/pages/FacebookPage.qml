@@ -100,7 +100,7 @@ Rectangle {
                        text: qsTr("La API de Facebook permite transmitir y administrar videos en PÁGINAS (no en el perfil personal). Para usarla, creá una app de Meta propia (queda en modo desarrollo: solo vos la usás) — unos 5 minutos:") }
                 Repeater {
                     // Depende de redirectUri: se rearma si cambia el puerto.
-                    model: fb.redirectUri !== "" ? Studio.cuentas.accountGuide("facebook").steps : []
+                    model: fb.redirectUri !== "" ? (Studio.cuentas.guias.facebook || {}).steps || [] : []
                     delegate: Rectangle {
                         required property var modelData
                         Layout.fillWidth: true

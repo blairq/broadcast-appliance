@@ -2,8 +2,6 @@
 
 #include "ui/CuentasViewModel.hpp"
 
-#include "diag/Acoples.hpp"
-
 #include "arranque/AppRuntime.hpp"
 #include "control/BusEventos.hpp"
 #include "net/AccountGuides.hpp"
@@ -72,6 +70,9 @@ CuentasViewModel::CuentasViewModel(Partes p, QObject* parent) : QObject(parent),
     connect(vivos_.get(), &VivosViewModel::notify, this, &CuentasViewModel::notify);
     connect(twitch_.get(), &TwitchViewModel::channelChanged, this, &CuentasViewModel::webCambio);
     connect(twitch_.get(), &TwitchViewModel::streamChanged, this, &CuentasViewModel::webCambio);
+    // Las guías: la de Facebook lleva la dirección de vuelta de su app (cambia con el puerto).
+    connect(facebook_.get(), &FacebookViewModel::appChanged, this, &CuentasViewModel::armarGuias);
+    armarGuias();
 }
 
 CuentasViewModel::~CuentasViewModel() = default;
@@ -116,10 +117,18 @@ nlohmann::json CuentasViewModel::paraLaWeb() const {
     return nlohmann::json{{"youtube", yt}, {"twitch", tw}, {"facebook", fb}};
 }
 
-QVariantMap CuentasViewModel::accountGuide(const QString& platform) const {
-    BA_ACOPLE("invocable", "CuentasViewModel::accountGuide");
-    const nlohmann::json g = accounts::guide(platform.toStdString(), facebook_->redirectUri().toStdString());
-    return QJsonDocument::fromJson(QByteArray::fromStdString(g.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object().toVariantMap();
+void CuentasViewModel::armarGuias() {
+    QVariantMap out;
+    for (const char* p : {"youtube", "twitch", "facebook"}) {
+        const nlohmann::json g = accounts::guide(p, facebook_->redirectUri().toStdString());
+        out.insert(QString::fromLatin1(p),
+                   QJsonDocument::fromJson(QByteArray::fromStdString(g.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)))
+                       .object()
+                       .toVariantMap());
+    }
+    if (out == guias_) return;
+    guias_ = out;
+    emit guiasCambio();
 }
 
 void CuentasViewModel::avisarError(const QString& e) {

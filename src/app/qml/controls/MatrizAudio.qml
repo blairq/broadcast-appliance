@@ -594,7 +594,7 @@ Item {
                     textRole: "nombre"
                     // De la propiedad de la lista (avisa al cambiar), no fila por fila.
                     currentIndex: {
-                        const l = Studio.salidas.lista.lista
+                        const l = Studio.salidas.filasLista
                         for (let i = 0; i < l.length; ++i) {
                             const f = l[i]
                             if (busPop.bus.salida ? f.id === busPop.bus.salida : !!f.porOmision) return i

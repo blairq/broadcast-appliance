@@ -34,7 +34,7 @@ Item {
 
     /// El id estable (Salidas → Pantallas) del monitor donde está la ventana.
     function idDeMonitor(s) {
-        return s ? Studio.pantallasConectadas.idDePantalla(s.name, s.manufacturer, s.model, s.serialNumber) : ""
+        return s ? (Studio.pantallasConectadas.idsPorSistema[s.name] || "") : ""
     }
     function pantallaDeSistema(nombre) {
         const ss = Qt.application.screens

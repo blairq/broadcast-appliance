@@ -102,7 +102,7 @@ Item {
                     model: Studio.dashboard.cardKinds
                     delegate: MenuItem {
                         required property string modelData
-                        text: Studio.dashboard.kindTitle(modelData)
+                        text: Studio.dashboard.titulosDeKind[modelData] || modelData
                         onTriggered: Studio.dashboard.addCard(modelData, modelData === "monitor" ? "program" : "")
                     }
                 }
@@ -119,7 +119,7 @@ Item {
                     model: Studio.extensiones ? Studio.extensiones.kinds : []
                     delegate: MenuItem {
                         required property string modelData
-                        text: Studio.extensiones.tituloDeKind(modelData)
+                        text: Studio.extensiones.titulos[modelData] || modelData.slice(4)
                         onTriggered: Studio.dashboard.addCard(modelData, "")
                     }
                 }
@@ -266,9 +266,9 @@ Item {
                 // fabrica y devolveria «ext:reloj» pelado.
                 required title
                 onKindChanged: if (kind.startsWith("ext:") && Studio.extensiones)
-                                   title = Studio.extensiones.tituloDeKind(kind)
+                                   title = Studio.extensiones.titulos[kind] || kind.slice(4)
                 Component.onCompleted: if (kind.startsWith("ext:") && Studio.extensiones)
-                                           title = Studio.extensiones.tituloDeKind(kind)
+                                           title = Studio.extensiones.titulos[kind] || kind.slice(4)
                 area: cardArea
                 backdrop: bgLayer
                 backdropOffset: Qt.point(cardArea.x, cardArea.y)
@@ -300,16 +300,21 @@ Item {
                     focus: true
                     readonly property bool esExt: card.kind.startsWith("ext:")
                     readonly property string extId: esExt ? card.kind.slice(4) : ""
+                    /// Su ficha (Studio.extensiones.fichas) y lo que se puede cargar ahora: ""
+                    /// si está apagada, o en vivo si no se cargó en esta sesión (al salir del
+                    /// modo en vivo, la ficha cambia y se carga sola).
+                    readonly property var fichaExt: esExt && Studio.extensiones ? (Studio.extensiones.fichas[extId] || ({})) : ({})
+                    readonly property string urlExt: fichaExt.cargable || ""
                     source: {
                         if (!esExt)
                             return "../cards/" + card.kind.charAt(0).toUpperCase() +
                                    card.kind.slice(1) + "Content.qml"
-                        if (!Studio.extensiones) return ""
                         // Se anota en el diario ANTES de que el QML se evalúe:
                         // si cuelga la interfaz, el arranque no termina y la
-                        // próxima vez esta tarjeta queda apagada sola.
-                        Studio.extensiones.cargando(extId)
-                        return Studio.extensiones.vista(extId)
+                        // próxima vez esta tarjeta queda apagada sola. Solo
+                        // cuando cambia lo que se carga (urlExt avisa solo si cambió).
+                        if (urlExt !== "") Studio.extensiones.cargando(extId)
+                        return urlExt
                     }
                     onStatusChanged: {
                         if (!esExt) return
@@ -336,9 +341,9 @@ Item {
                     font.pixelSize: 11
                     text: {
                         if (!content.esExt) return qsTr("Esta tarjeta no se pudo cargar.")
-                        const f = Studio.extensiones ? Studio.extensiones.ficha(content.extId) : null
+                        const f = content.fichaExt
                         if (!f || !f.id) return qsTr("La extensión «%1» ya no está.").arg(content.extId)
-                        const vivo = Studio.extensiones.motivoNoCarga(content.extId)
+                        const vivo = f.motivoNoCarga || ""
                         if (vivo !== "") return qsTr("«%1»: %2").arg(f.nombre).arg(vivo)
                         if (f.apagada)
                             return qsTr("«%1» está apagada: se llevó puesto el arranque.\nSe prende desde el Registro.").arg(f.nombre)

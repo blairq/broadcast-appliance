@@ -29,6 +29,7 @@
 
 #include <QImage>
 #include <QObject>
+#include <QPointer>
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
@@ -151,7 +152,10 @@ class VideoViewModel : public QObject {
     QVariantMap formularios() const;
     /// Los de un módulo, para el detalle del catálogo (con estos valores puestos).
     Q_INVOKABLE QVariantList propiedadesModulo(const QString& elemento) const;
-    Q_INVOKABLE QVariantList propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const;
+    /// Las de un módulo con `valores` puestos (texto, como van a GStreamer). Pregunta a
+    /// GStreamer (la primera vez crea el elemento): de cualquier hilo. La vista las lee
+    /// de un EditorModulo (abajo), que las arma en el fondo.
+    static QVariantList propiedadesCon(const video::CatalogoGst& c, const QString& elemento, const QVariantMap& valores);
     static QVariantList virtuales();
 
     // --- Lo que pide QML ("" siempre: el error llega por notify) ------------------------
@@ -289,6 +293,42 @@ class VideoViewModel : public QObject {
     Compartido<nlohmann::json> antes_;
     /// El tamaño que llega de cada entrada, al día solo con las que cambiaron (ver `tamanosOrigen`).
     video::TamanosOrigen tamanosOrigen_;
+};
+
+/// Las propiedades de un módulo de GStreamer mientras se lo arma (el editor de un filtro de
+/// audio, el de un elemento propio de superresolución): `elemento` y `valores` (lo que
+/// cambió, en texto) son lo que se está editando; `propiedades` (el formulario, con esos
+/// valores puestos) se arma en el fondo —preguntarle a GStreamer crea el elemento— y
+/// llega cuando está. En QML: EditorModulo { video: vg; elemento: …; valores: … }.
+class EditorModulo : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(QObject* video READ video WRITE setVideo NOTIFY entradaCambio)
+    Q_PROPERTY(QString elemento READ elemento WRITE setElemento NOTIFY entradaCambio)
+    Q_PROPERTY(QVariantMap valores READ valores WRITE setValores NOTIFY entradaCambio)
+    /// [{nombre, tipo, …, valor}] (ver CatalogoGst::propiedades); vacío sin elemento.
+    Q_PROPERTY(QVariantList propiedades READ propiedades NOTIFY propiedadesCambio)
+   public:
+    explicit EditorModulo(QObject* parent = nullptr) : QObject(parent) {}
+    QObject* video() const { return video_; }
+    void setVideo(QObject* v);
+    QString elemento() const { return elemento_; }
+    void setElemento(const QString& e);
+    QVariantMap valores() const { return valores_; }
+    void setValores(const QVariantMap& v);
+    QVariantList propiedades() const { return propiedades_; }
+
+   signals:
+    void entradaCambio();
+    void propiedadesCambio();
+
+   private:
+    void armar();
+    void poner(const QVariantList& p);
+    QPointer<VideoViewModel> video_;
+    QString elemento_;
+    QVariantMap valores_;
+    QVariantList propiedades_;
+    unsigned pedido_ = 0; ///< lo que vuelve de un pedido anterior se descarta
 };
 
 } // namespace ba::app

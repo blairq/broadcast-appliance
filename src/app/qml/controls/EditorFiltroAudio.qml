@@ -52,7 +52,14 @@ Popup {
                                                     parametros: t.parametros || {} })
         return out
     }
-    readonly property var props: tipo === "modulo" && elemento !== "" && vg ? vg.propiedadesModuloCon(elemento, valores) : []
+    // El formulario del módulo con lo que cambió: lo arma el modelo en el fondo.
+    EditorModulo {
+        id: editorModulo
+        video: ed.vg
+        elemento: ed.tipo === "modulo" ? ed.elemento : ""
+        valores: ed.valores
+    }
+    readonly property var props: editorModulo.propiedades
 
     /// Abre para editar el filtro `i` de `l` (o uno nuevo con i = -1).
     function abrir(l, i) {

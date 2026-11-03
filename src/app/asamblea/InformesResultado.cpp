@@ -3,9 +3,12 @@
 #include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18n.hpp"
 
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
+#include <QThreadPool>
 #include <QVariant>
 
 #include <algorithm>
@@ -319,6 +322,33 @@ std::string InformesResultado::vista(const std::string& id) const {
     json d = contenido_ ? contenido_() : json::object();
     d["generado"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm").toStdString();
     return rellenar(texto(id), d);
+}
+
+void InformesResultado::pedirVista(const QString& id) {
+    if (id.isEmpty()) return;
+    // Lo de la sesión se toma acá (es de la interfaz); leer la plantilla y rellenarla, en el
+    // fondo: la interfaz no espera al disco.
+    json d = contenido_ ? contenido_() : json::object();
+    d["generado"] = QDateTime::currentDateTime().toString("yyyy-MM-dd HH:mm").toStdString();
+    const unsigned n = ++pedidos_;
+    pedidoVista_[id] = n;
+    QThreadPool::globalInstance()->start([yo = QPointer<InformesResultado>(this), carpeta = carpeta_, id, n,
+                                          d = std::move(d)]() {
+        std::string texto;
+        const json i = config::leerObjeto(carpeta / "plantillas.json").value("plantillas", json::array());
+        if (i.is_array())
+            for (const auto& p : i)
+                if (p.value("id", std::string()) == id.toStdString()) texto = leerArchivo(carpeta / (id.toStdString() + ".md"));
+        const QString md = QString::fromStdString(rellenar(texto, d));
+        QMetaObject::invokeMethod(
+            QCoreApplication::instance(),
+            [yo, id, n, md]() {
+                if (!yo || yo->pedidoVista_[id] != n || (yo->vistas_.contains(id) && yo->vistas_.value(id).toString() == md)) return;
+                yo->vistas_[id] = md;
+                emit yo->vistasCambio();
+            },
+            Qt::QueuedConnection);
+    });
 }
 
 json InformesResultado::generar(const std::string& id) {

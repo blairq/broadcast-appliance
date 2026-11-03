@@ -8,7 +8,7 @@
 // de los plugins), con las guías para conectar cada plataforma (net/AccountGuides).
 //
 // En QML las cuentas siguen en Studio (Studio.youtube, Studio.twitch, Studio.facebook);
-// lo propio del área en Studio.cuentas (accountGuide, saveAccountCredential) y las cuentas
+// lo propio del área en Studio.cuentas (guias, saveAccountCredential) y las cuentas
 // de cada plataforma y los vivos de cada salida en Studio.cuentas.vivos (ui/VivosViewModel).
 // ============================================================================
 #pragma once
@@ -49,6 +49,10 @@ class CuentasViewModel : public QObject {
     Q_OBJECT
     /// Varias cuentas por plataforma y los vivos de cada salida (ui/VivosViewModel).
     Q_PROPERTY(QObject* vivos READ vivosQml CONSTANT)
+    /// Los pasos para conectar cada plataforma (misma fuente que el MCP: AccountGuides):
+    /// {youtube, twitch, facebook}, cada una {steps: […], …}. La de Facebook lleva la
+    /// dirección de vuelta de su app: cambia con ella.
+    Q_PROPERTY(QVariantMap guias READ guias NOTIFY guiasCambio)
    public:
     /// Lo que se arma después de las cuentas se pide cada vez.
     struct Partes {
@@ -77,8 +81,7 @@ class CuentasViewModel : public QObject {
     /// «Dónde verlo en vivo» de la página web del evento: {youtube, twitch, facebook}.
     nlohmann::json paraLaWeb() const;
 
-    /// Pasos para conectar una plataforma (misma fuente que el MCP: AccountGuides).
-    Q_INVOKABLE QVariantMap accountGuide(const QString& platform) const;
+    QVariantMap guias() const { return guias_; }
     /// Guarda la credencial de una plataforma desde el formulario seguro: campos
     /// del formulario, {"importFile": ruta} o {"fromDownloads": true}. También las de
     /// las cámaras de la red («camara:<ip>», «camaras:<ip>,<ip>») y las claves de un
@@ -101,13 +104,17 @@ class CuentasViewModel : public QObject {
     void webCambio();
     /// Para el operador (ya traducido).
     void notify(const QString& texto, const QString& nivel);
+    void guiasCambio();
 
    private:
     /// saveAccountCredential: "" o el error.
     QString guardarCredencial(const QString& platform, const QVariantMap& values);
     void avisarError(const QString& e);
+    /// Rearma `guias` (al crear y cuando cambia la dirección de vuelta de Facebook).
+    void armarGuias();
 
     Partes p_;
+    QVariantMap guias_;
     std::unique_ptr<GrabacionesModel> grabaciones_; ///< la comparten YouTube y Facebook (antes que ellos)
     std::unique_ptr<YouTubeViewModel> youtube_;
     std::unique_ptr<TwitchViewModel> twitch_;

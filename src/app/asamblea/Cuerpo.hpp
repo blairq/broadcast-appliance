@@ -95,6 +95,18 @@ class Cuerpo {
     /// la vista no depende de que cada llamador se acuerde de avisar.
     void alCambiar(std::function<void()> fn) { alCambiar_ = std::move(fn); }
 
+    // --- Los integrantes de PRUEBA (la «Prueba de asamblea», ui/PruebaAsambleaViewModel) ---
+    /// Lo creó la prueba (`prueba: true`): no es del padrón real y se borra al terminarla.
+    static bool esDePrueba(const json& integrante) {
+        return integrante.is_object() && integrante.value("prueba", false) == true;
+    }
+    /// Muchos cambios juntos (crear o borrar los de prueba): se avisa una sola vez al final.
+    void enLote(const std::function<void()>& f);
+    /// El recinto tal como está guardado (para dejarlo igual al terminar la prueba).
+    json recintoGuardado() const { return datos_.contains("recinto") ? datos_["recinto"] : json(); }
+    /// Lo vuelve a como estaba (null: sin recinto).
+    void restaurarRecinto(const json& r);
+
    private:
     void guardarArchivo() const;
     /// Cambia la toma sin guardar (setToma y guardar guardan, y avisan, una vez).

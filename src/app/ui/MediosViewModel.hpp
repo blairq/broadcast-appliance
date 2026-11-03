@@ -80,6 +80,9 @@ class MediosViewModel : public QObject {
     Q_OBJECT
     /// Lo que se muestra AHORA: ya filtrado por `consulta` y por `tipo` (ListaMedios).
     Q_PROPERTY(QObject* archivos READ archivosQml CONSTANT)
+    /// La carpeta de medios, para decirle al operador dónde dejar los archivos (la de
+    /// datos no cambia mientras el programa corre).
+    Q_PROPERTY(QString carpetaDeMedios READ carpetaDeMedios CONSTANT)
     /// Lo que se escribio en el cuadro de busqueda.
     Q_PROPERTY(QString consulta READ consulta WRITE setConsulta NOTIFY consultaChanged)
     /// "" (todos), "imagen", "video", "audio", "documento".
@@ -163,9 +166,7 @@ class MediosViewModel : public QObject {
 
     /// Vuelve a recorrer el disco. Despues de traer o convertir algo.
     Q_INVOKABLE void refrescar();
-    /// La carpeta de medios, para abrirla o para decirle al operador donde
-    /// dejar los archivos.
-    Q_INVOKABLE QString carpetaDeMedios() const;
+    QString carpetaDeMedios() const;
     /// La ruta absoluta de una relativa, o "" si se sale de la carpeta del
     /// sistema. La vista NO arma rutas pegando texto: el unico lugar donde se
     /// resuelve una ruta es el que tiene el guardia (`resolverAdentro`).

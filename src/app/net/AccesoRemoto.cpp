@@ -4,7 +4,6 @@
 
 #include "evento/EventoWeb.hpp"
 
-#include "diag/Acoples.hpp"
 #include "net/AccesoRemoto.hpp"
 #include "sala/Direcciones.hpp"
 
@@ -300,8 +299,26 @@ QString AccesoRemoto::borrarApiKey() {
     return {};
 }
 
-QString AccesoRemoto::instruccionesDns(const QString& hostCrudo, const QString& destinoCrudo) const {
-    BA_ACOPLE("invocable", "AccesoRemoto::instruccionesDns");
+InstruccionesDns::InstruccionesDns(QObject* parent) : QObject(parent) { armar(); }
+
+void InstruccionesDns::setHost(const QString& h) {
+    if (h == host_) return;
+    host_ = h;
+    armar();
+}
+
+void InstruccionesDns::setDestino(const QString& d) {
+    if (d == destino_) return;
+    destino_ = d;
+    armar();
+}
+
+void InstruccionesDns::armar() {
+    texto_ = AccesoRemoto::instruccionesDns(host_, destino_);
+    emit cambio();
+}
+
+QString AccesoRemoto::instruccionesDns(const QString& hostCrudo, const QString& destinoCrudo) {
     const QString host = normalHost(hostCrudo);
     const QString destino = normalHost(destinoCrudo);
     const QString h = host.isEmpty() ? "sala.miorganismo.gob.ar" : host;

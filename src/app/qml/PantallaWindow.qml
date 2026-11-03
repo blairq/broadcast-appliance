@@ -30,13 +30,13 @@ Window {
     color: "black"
     visibility: Window.Hidden
 
-    /// El QScreen de este monitor, o null si (todavía) no está.
+    /// El QScreen de este monitor, o null si (todavía) no está: el modelo dice qué nombre
+    /// del sistema tiene cada monitor conectado (idsPorSistema).
     readonly property var pantalla: {
+        const ids = Studio.pantallasConectadas.idsPorSistema
         const ss = Qt.application.screens
         for (let i = 0; i < ss.length; ++i)
-            if (Studio.pantallasConectadas.idDePantalla(ss[i].name, ss[i].manufacturer, ss[i].model,
-                                                         ss[i].serialNumber) === w.monitorId)
-                return ss[i]
+            if (ids[ss[i].name] === w.monitorId) return ss[i]
         return null
     }
 
