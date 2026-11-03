@@ -252,6 +252,7 @@ Item {
             // Los analizadores de LSP sobre esta entrada (su interfaz, en una ventana aparte).
             Boton {
                 id: lspBtn
+                visible: !Theme.web // la ventana del analizador se abre en la máquina de la app
                 Layout.fillWidth: true
                 texto: "LSP ▾"
                 ayuda: qsTr("Mirarla con los analizadores de LSP: espectro, fase, osciloscopio, latencia, perfil")
@@ -612,7 +613,7 @@ Item {
             Item { Layout.fillWidth: true }
             // Los analizadores de LSP sobre la entrada elegida (clic en el nombre de una tira).
             Text {
-                visible: m.pestana === "consola"
+                visible: m.pestana === "consola" && !Theme.web
                 text: m.elegida === "" ? qsTr("Análisis LSP: elegí una entrada") : qsTr("Analizar «%1»:").arg(m.elegida)
                 color: Theme.textFaint
                 font { family: Theme.font; pixelSize: 11 }
@@ -620,7 +621,8 @@ Item {
                 Layout.maximumWidth: 280
             }
             Repeater {
-                model: m.pestana === "consola" && m.mz ? m.mz.analisisLsp : []
+                // En el tablero web no: la ventana del analizador se abre en la máquina de la app.
+                model: m.pestana === "consola" && m.mz && !Theme.web ? m.mz.analisisLsp : []
                 delegate: GlassButton {
                     required property var modelData
                     compact: true

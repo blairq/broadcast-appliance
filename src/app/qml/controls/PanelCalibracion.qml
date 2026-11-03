@@ -977,6 +977,9 @@ Item {
 
         // --- El asistente -----------------------------------------------------------
         BarraAsistente {
+            // En el tablero web todavía no: el asistente corre en la app y la web no le habla
+            // (pendiente: decidir cómo, docs/local/tablero-web-latencia.md).
+            visible: !Theme.web
             Layout.fillWidth: true
             contexto: qsTr("[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]")
             sugerencias: [

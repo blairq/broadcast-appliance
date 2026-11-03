@@ -126,6 +126,15 @@ class Raiz : public QObject {
         niveles[tira] = db;
     }
     int llamadasNivel = 0;
+    // Como Studio.mixer.setMuted: HACE algo y devuelve bool.
+    Q_INVOKABLE bool setMudo(const QString&, bool si) {
+        ++llamadasMudo;
+        mudo = si;
+        emit contadorCambio();
+        return true;
+    }
+    int llamadasMudo = 0;
+    bool mudo = false;
     QMap<QString, double> niveles;
     Q_INVOKABLE void restar(int k) {
         c -= k;
@@ -161,6 +170,7 @@ int main(int argc, char** argv) {
                        {"Studio", "nombre", true, ""},
                        {"Studio", "titulo", false, "herr_lectura"},
                        {"Studio", "setNivel", false, "herr_audio"},
+                       {"Studio", "setMudo", false, "herr_audio"},
                        {"Studio.lista", "quitarPrimera", false, ""}});
     bool hayAire = false;
     std::vector<std::string> autorizadas;
@@ -236,6 +246,7 @@ int main(int argc, char** argv) {
             }
             function hacer() { Studio.sumar(5); Studio.nombre = "desde la web"; Studio.lista.quitarPrimera() }
             function sumarUno() { Studio.sumar(1) }
+            function mudo(si) { Studio.setMudo("a", si) }
             function arrastrar() { for (let i = 0; i <= 60; ++i) { Studio.setNivel("a", -60 + i); Studio.setNivel("b", -i) } }
         })",
                  QUrl("qrc:/prueba.qml"));
@@ -330,6 +341,20 @@ int main(int argc, char** argv) {
         CHECK(raiz.niveles.value("a") == 0 && raiz.niveles.value("b") == -60, "el fader llega con su último valor");
         CHECK(raiz.llamadasNivel <= 4, "122 movimientos juntados en pocas llamadas (una por tira por lote)");
         CHECK(errores == 0, "sin «demasiadas órdenes»");
+    }
+
+    // --- Una acción que devuelve algo (setMuted → bool): se manda cada vez y no se repite sola.
+    {
+        QMetaObject::invokeMethod(vista.get(), "mudo", Q_ARG(QVariant, true));
+        bombear(pub, cli);
+        QMetaObject::invokeMethod(vista.get(), "mudo", Q_ARG(QVariant, false));
+        bombear(pub, cli);
+        QEventLoop espera;
+        QTimer::singleShot(1200, &espera, &QEventLoop::quit);
+        espera.exec();
+        raiz.sumar(1); // el objeto cambia: antes eso volvía a pedir setMudo(true)
+        bombear(pub, cli);
+        CHECK(!raiz.mudo && raiz.llamadasMudo == 2, "mute y unmute: dos llamadas, y no se repite sola");
     }
 
     // --- Pestaña escondida: no se manda nada; al volver, lo que cambió.

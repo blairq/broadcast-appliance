@@ -905,7 +905,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelMezclador</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelMezclador.qml" line="+462"/>
+        <location filename="../src/app/qml/controls/PanelMezclador.qml" line="+463"/>
         <source>Mostrar los faders de %1 (%n tira)</source>
         <translation>
             <numerusform>Mostrar los faders de %1 (%n tira)</numerusform>

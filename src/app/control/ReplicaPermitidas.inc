@@ -87,6 +87,12 @@ R"json([
   "mcp": "ptz_ir_posicion"
  },
  {
+  "o": "Studio.camaras",
+  "n": "usar",
+  "tipo": "llamar",
+  "mcp": null
+ },
+ {
   "o": "Studio.carruseles",
   "n": "actual",
   "tipo": "poner",
@@ -597,6 +603,12 @@ R"json([
   "mcp": "audio_matriz_equipo"
  },
  {
+  "o": "Studio.matriz",
+  "n": "usar",
+  "tipo": "llamar",
+  "mcp": null
+ },
+ {
   "o": "Studio.mezcla",
   "n": "aflUi",
   "tipo": "llamar",
@@ -637,6 +649,12 @@ R"json([
   "n": "setRetardoUi",
   "tipo": "llamar",
   "mcp": "audio_set"
+ },
+ {
+  "o": "Studio.mezclador",
+  "n": "usar",
+  "tipo": "llamar",
+  "mcp": null
  },
  {
   "o": "Studio.mezclador.calibracion",

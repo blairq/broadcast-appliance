@@ -79,10 +79,12 @@ class AvisoReplica : public QObject {
     AvisoReplica(ReplicaPublicador* p, QString id, std::vector<int> props, QObject* parent)
         : QObject(parent), p_(p), id_(std::move(id)), props_(std::move(props)) {}
    public slots:
-    void disparo() { p_->cambio(id_, props_); }
+    void disparo() {
+        if (p_) p_->cambio(id_, props_); // el publicador puede irse antes que los modelos
+    }
 
    private:
-    ReplicaPublicador* p_;
+    QPointer<ReplicaPublicador> p_;
     QString id_;
     std::vector<int> props_;
 };
@@ -108,7 +110,15 @@ ReplicaPublicador::ReplicaPublicador(QObject* raiz, const QString& nombreRaiz, Q
     lento_.start();
 }
 
-ReplicaPublicador::~ReplicaPublicador() = default;
+ReplicaPublicador::~ReplicaPublicador() {
+    // Al soltar las conexiones se destruye la «vista» de cada una (las suscripciones): eso avisa
+    // a los modelos, que avisan acá. Con los relojes ya destruidos, eso tiraba la app al cerrar
+    // (SIGSEGV en QTimer::start desde cambio()). Primero se deja de escuchar, después se suelta.
+    muriendo_ = true;
+    reloj_.stop();
+    lento_.stop();
+    cons_.clear();
+}
 
 std::vector<ReplicaPublicador::Permitida> ReplicaPublicador::permitidasDeLaApp() {
     static const char* const kTexto =
@@ -185,6 +195,15 @@ void ReplicaPublicador::negar(const QStringList& props) { aNegar_ += props; }
 
 void ReplicaPublicador::negarFunciones(const QStringList& nombres) {
     for (const QString& n : nombres) funcionesNegadas_.insert(n);
+}
+
+bool ReplicaPublicador::esAccion(const QString& n) {
+    static const QRegularExpression re(QStringLiteral(
+        "^(set|toggle|alternar|agregar|quitar|borrar|crear|mover|poner|ir|abrir|cerrar|iniciar|detener|arrancar|parar|"
+        "aplicar|medir|guardar|cargar|limpiar|reset|restablecer|take|tomar|armar|elegir|cambiar|renombrar|conectar|"
+        "desconectar|silenciar|reconocer|pedir|enviar|mandar|siguiente|anterior|go|hold|saltar|repetir|insertar|"
+        "descartar|confirmar|admit|reject|request|speaker)"));
+    return re.match(n).hasMatch();
 }
 
 bool ReplicaPublicador::perfilPermite(const json& perfil) {
@@ -349,7 +368,9 @@ json ReplicaPublicador::armarEsquema(const QString& id, Obj& ob) {
         if (funcionesNegadas_.contains(nombre) || nombre.startsWith(QLatin1Char('_'))) continue;
         // Una señal que nadie avisa como propiedad se puede emitir (Studio.notify(…)).
         const bool conValor = m.returnMetaType().id() != QMetaType::Void && m.returnMetaType().isValid();
-        vistos[nombre.toStdString()] = vistos[nombre.toStdString()] || conValor;
+        // Una acción que devuelve algo (setMuted → bool) va como acción: la réplica la manda cada
+        // vez y no la vuelve a pedir sola (si no, repetía el último mute para siempre).
+        vistos[nombre.toStdString()] = vistos[nombre.toStdString()] || (conValor && !esAccion(nombre));
         ob.metodos.insert(nombre);
     }
     for (const auto& [n, v] : vistos) metodos.push_back(json::array({n, v}));
@@ -393,6 +414,7 @@ void ReplicaPublicador::escuchar(const QString& id, Obj& ob) {
 }
 
 void ReplicaPublicador::cambio(const QString& id, const std::vector<int>& props) {
+    if (muriendo_) return;
     bool alguno = false;
     for (auto& [cid, c] : cons_) {
         if (!c.abiertos.count(id)) continue;
@@ -403,6 +425,7 @@ void ReplicaPublicador::cambio(const QString& id, const std::vector<int>& props)
 }
 
 void ReplicaPublicador::cambioFilas(const QString& id) {
+    if (muriendo_) return;
     bool alguno = false;
     for (auto& [cid, c] : cons_) {
         if (!c.abiertos.count(id)) continue;
@@ -413,6 +436,7 @@ void ReplicaPublicador::cambioFilas(const QString& id) {
 }
 
 void ReplicaPublicador::programar() {
+    if (muriendo_) return;
     if (!reloj_.isActive()) reloj_.start();
 }
 
@@ -525,20 +549,22 @@ void ReplicaPublicador::llamar(const std::string& cid, Con& c, const json& m) {
     if (elegido < 0) return mal("no hay una versión de esa función con esos argumentos");
     const QMetaMethod mm = mo->method(elegido);
     if (mm.parameterCount() > 10) return mal("demasiados argumentos");
-    const bool conValor = mm.returnMetaType().isValid() && mm.returnMetaType().id() != QMetaType::Void;
-    // Escribir y hacer, sí; mirar (lo que devuelve algo), también si es solo «ver».
-    if (!c.escribe && !conValor) return mal("este aparato solo puede mirar");
-    if (!tope(c, conValor)) return mal(conValor ? "demasiadas lecturas" : "demasiadas órdenes por segundo");
+    const bool devuelve = mm.returnMetaType().isValid() && mm.returnMetaType().id() != QMetaType::Void;
+    // Mirar es lo que devuelve algo y no es una acción (setMuted devuelve bool, pero HACE algo).
+    const bool lectura = devuelve && !esAccion(nombre);
+    // Escribir y hacer, sí; mirar, también si es solo «ver».
+    if (!c.escribe && !lectura) return mal("este aparato solo puede mirar");
+    if (!tope(c, lectura)) return mal(lectura ? "demasiadas lecturas" : "demasiadas órdenes por segundo");
     {
         bool confirmar = false;
-        const std::string e = permiso(c, ob.o, oid, nombre, false, conValor, m, confirmar);
+        const std::string e = permiso(c, ob.o, oid, nombre, false, lectura, m, confirmar);
         if (confirmar) return; // la persona confirma en su pantalla y vuelve con confirmado:true
         if (!e.empty()) return mal(e);
     }
     std::vector<QVariant> vals(args.size());
     void* argv[11] = {nullptr};
     QVariant ret;
-    if (conValor) {
+    if (devuelve) {
         ret = QVariant(mm.returnMetaType());
         argv[0] = ret.data();
     }
@@ -566,12 +592,12 @@ void ReplicaPublicador::llamar(const std::string& cid, Con& c, const json& m) {
         argv[k + 1] = vals[k].data();
     }
     QPointer<QObject> o = ob.o;
-    if (!conValor && g_.anotar && anotarAhora(c, oid.toStdString() + "." + nombre.toStdString()))
+    if (!lectura && g_.anotar && anotarAhora(c, oid.toStdString() + "." + nombre.toStdString()))
         g_.anotar(c.aparato, "tablero web: " + oid.toStdString() + "." + nombre.toStdString() + "(" + args.dump().substr(0, 200) + ")");
     QMetaObject::metacall(o.data(), QMetaObject::InvokeMetaMethod, elegido, argv);
     // Lo que devuelve (puede traer objetos: van con su esquema).
     if (cons_.find(cid) == cons_.end()) return;
-    QVariant r = conValor ? ret : QVariant();
+    QVariant r = devuelve ? ret : QVariant();
     if (r.metaType() == QMetaType::fromType<QVariant>()) r = *static_cast<const QVariant*>(r.constData());
     json v = valor(r, c, esquemas);
     encolar(c, {{"op", "resultado"}, {"id", id}, {"ok", true}, {"v", std::move(v)}}, esquemas);

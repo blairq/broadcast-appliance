@@ -173,7 +173,12 @@ def juntar():
         for a, camino in alias.items():
             texto = re.sub(r"\b" + re.escape(a) + r"\.", camino + ".", texto)
         rel = os.path.relpath(f, RAIZ)
-        for objeto in RE_SUSCRIPCION.findall(texto):
+        # «objetivo: m.mz» (un alias del archivo, con o sin el id delante).
+        objetivos = RE_SUSCRIPCION.findall(texto)
+        for nombre in re.findall(r"Suscripcion\s*\{[^}]*?objetivo:\s*(?:\w+\.)?(\w+)\s*[;}\n]", texto):
+            if nombre in alias:
+                objetivos.append(alias[nombre])
+        for objeto in objetivos:
             if objeto in NUNCA or any(objeto.startswith(n + ".") for n in NUNCA):
                 continue
             e = entradas.setdefault((objeto, "usar", "llamar"), {"o": objeto, "n": "usar", "tipo": "llamar", "mcp": None,

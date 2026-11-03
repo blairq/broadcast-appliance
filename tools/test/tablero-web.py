@@ -81,7 +81,19 @@ class Cdp:
             f.write(base64.b64decode(r["data"]))
         return ruta
 
+    def arrastrar(self, x0, y0, x1, y1, pasos=20):
+        self.llamar("Input.dispatchMouseEvent", {"type": "mousePressed", "x": x0, "y": y0, "button": "left", "clickCount": 1})
+        for i in range(1, pasos + 1):
+            x, y = x0 + (x1 - x0) * i / pasos, y0 + (y1 - y0) * i / pasos
+            self.llamar("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y, "button": "left", "buttons": 1})
+            time.sleep(0.02)
+        self.llamar("Input.dispatchMouseEvent", {"type": "mouseReleased", "x": x1, "y": y1, "button": "left", "clickCount": 1})
+
     def clic(self, x, y):
+        # Primero el mouse en otro lado: un globo de ayuda que quedó abierto se come el clic.
+        self.llamar("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": 2, "y": 2})
+        time.sleep(0.3)
+        self.llamar("Input.dispatchMouseEvent", {"type": "mouseMoved", "x": x, "y": y})
         for tipo in ("mousePressed", "mouseReleased"):
             self.llamar("Input.dispatchMouseEvent", {"type": tipo, "x": x, "y": y, "button": "left", "clickCount": 1})
 
@@ -195,6 +207,79 @@ def al_aire(m):
     return None
 
 
+def tira(m, nombre="Invitado 1"):
+    """La entrada del mezclador (mezclador_estado) cuyo nombre empieza así."""
+    for e in m.tool("mezclador_estado").get("entradas") or []:
+        if e.get("nombre", "").startswith(nombre):
+            return e
+    return {}
+
+
+def ubicar(cdp, texto=None, prop=None):
+    """Dónde está en la página (tablero web: Module.baBuscar/baBuscarProp) un control por su texto,
+    o los ítems que tienen esa propiedad («dbArrastre»: los faders). [{x, y, w, h}]."""
+    expr = f"baModulo.baBuscarProp({json.dumps(prop)})" if prop else f"baModulo.baBuscar({json.dumps(texto)})"
+    return json.loads(cdp.evaluar(expr) or "[]")
+
+
+def centro(r):
+    return r["x"] + r["w"] / 2, r["y"] + r["h"] / 2
+
+
+def mezclador_en_pestana(cdp, base, t, m, capturas, res, nombre="Voz del sistema"):
+    """El Mezclador entero en su pestaña (?vista=mezclador): fader, mute y escucha de una tira,
+    hechos con el mouse en la página y verificados por MCP (mezclador_estado)."""
+    cdp.llamar("Page.navigate", {"url": base + "/control/app/?vista=mezclador"})
+    t0 = time.time()
+    while time.time() - t0 < 60 and not cdp.evaluar("!!window.baTableroListo"):
+        time.sleep(0.25)
+    t.chequear(cdp.evaluar("!!window.baTableroListo"), f"mezclador: la pestaña carga en {time.time() - t0:.1f} s")
+    time.sleep(3)
+    cdp.captura(os.path.join(capturas, "mezclador-1.png"))
+    rotulos = ubicar(cdp, nombre)
+    if not rotulos:
+        t.chequear(False, f"mezclador: no encuentro la tira «{nombre}»")
+        return
+    rot = rotulos[0]
+    cerca = lambda xs: sorted((x for x in xs if x["y"] > rot["y"] and -20 < x["x"] - rot["x"] < 110),
+                              key=lambda x: abs(x["x"] - rot["x"]))
+    faders = cerca(ubicar(cdp, prop="dbArrastre"))
+    mutes, pfls = cerca(ubicar(cdp, "M")), cerca(ubicar(cdp, "PFL"))
+    if not (faders and mutes and pfls):
+        t.chequear(False, f"mezclador: controles de «{nombre}»: {len(faders)} fader, {len(mutes)} M, {len(pfls)} PFL")
+        return
+    f = faders[0]
+    antes = tira(m, nombre)
+    fx = f["x"] + f["w"] / 2
+    cdp.arrastrar(fx, f["y"] + f["h"] * 0.15, fx, f["y"] + f["h"] * 0.6)
+    time.sleep(1.5)
+    despues = tira(m, nombre)
+    t.chequear(despues.get("volumen_db", 0) < antes.get("volumen_db", 0) - 3,
+               f"mezclador: el fader de «{nombre}» se mueve en la app ({antes.get('volumen_db')} → {despues.get('volumen_db')} dB)")
+    cdp.clic(*centro(mutes[0]))
+    time.sleep(1.5)
+    t.chequear(tira(m, nombre).get("mute") is True, "mezclador: mute desde la pestaña")
+    m_on = cerca(ubicar(cdp, "M"))
+    t.chequear(bool(m_on) and m_on[0].get("on") is True, f"mezclador: la pestaña muestra el mute prendido ({m_on[:1]})")
+    cdp.clic(*centro(mutes[0]))
+    time.sleep(1.5)
+    t.chequear(tira(m, nombre).get("mute") is False, "mezclador: y se saca")
+    # La escucha (PFL): se prende, se verifica y se apaga enseguida (nada por los parlantes:
+    # la voz del sistema no está hablando).
+    cdp.clic(*centro(pfls[0]))
+    time.sleep(1.5)
+    t.chequear(tira(m, nombre).get("pfl") is True, "mezclador: escucha (PFL) desde la pestaña")
+    cdp.captura(os.path.join(capturas, "mezclador-2-cambios.png"))
+    cdp.clic(*centro(pfls[0]))
+    time.sleep(1.5)
+    t.chequear(tira(m, nombre).get("pfl") is False, "mezclador: y se apaga")
+    # De vuelta a 0 dB (doble clic en el fader).
+    for tipo in ("mousePressed", "mouseReleased", "mousePressed", "mouseReleased"):
+        cdp.llamar("Input.dispatchMouseEvent", {"type": tipo, "x": fx, "y": f["y"] + f["h"] * 0.6, "button": "left",
+                                                "clickCount": 2 if tipo.endswith("2") else (1 if "Pressed" in tipo else 1)})
+    res["mezclador"] = {"fader": [antes.get("volumen_db"), despues.get("volumen_db")]}
+
+
 def navegador(base, token, t, m, capturas, webrtc, mirar=60):
     perfil = tempfile.mkdtemp(prefix="ba-tablero-chrome-")
     puerto = 9300 + os.getpid() % 500
@@ -295,6 +380,7 @@ def navegador(base, token, t, m, capturas, webrtc, mirar=60):
             print(f"  latencia «{k}» (de la app a la pantalla): prom {x.get('prom')} ms, último {x.get('ultimo')}, máx {x.get('max')}, "
                   f"{x.get('w')}x{x.get('h')}, n={x.get('n')}")
         t.chequear("program" in res["medidas"], "navegador: el programa se ve (y se mide)")
+        mezclador_en_pestana(cdp, base, t, m, capturas, res)
         if webrtc:
             cdp.evaluar("baModulo.baPedirWebrtc()")
             u = None

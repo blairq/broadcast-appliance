@@ -148,6 +148,8 @@ class ReplicaPublicador : public QObject {
 
     /// ¿Ese perfil alcanza para el tablero? (["*"])
     static bool perfilPermite(const json& perfil);
+    /// ¿Ese nombre es de una función que HACE algo (aunque devuelva un valor: setMuted → bool)?
+    static bool esAccion(const QString& nombre);
     /// ¿Ese nombre de propiedad parece un secreto? (no se publica)
     static bool nombreSecreto(const QString& nombre);
     /// Lo que ve la web de un QVariant sin objetos (números, textos, listas, mapas, tamaños).
@@ -223,6 +225,7 @@ class ReplicaPublicador : public QObject {
     std::map<std::string, Con> cons_;
     QTimer reloj_;
     QTimer lento_;
+    bool muriendo_ = false; ///< en el destructor: nada vuelve a programar envíos
     QStringList refrescoLento_;
     int siguiente_ = 1;
 };

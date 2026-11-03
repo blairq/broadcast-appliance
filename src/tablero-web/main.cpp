@@ -22,7 +22,11 @@
 #include <QQmlContext>
 #include <QQuickStyle>
 #include <QQuickWindow>
+#include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
+#include <QQuickItem>
+#include <functional>
 
 #include "ClienteReplica.hpp"
 #include "Falsos.hpp"
@@ -94,6 +98,30 @@ void baCuadro(std::string clave, emscripten::val pixeles, int w, int h, double t
     emscripten::val(emscripten::typed_memory_view(static_cast<size_t>(img.sizeInBytes()), img.bits())).call<void>("set", pixeles);
     g_cliente->entregarCuadro(QString::fromStdString(clave), img, static_cast<qint64>(t), static_cast<quint64>(serial));
 }
+/// Para las pruebas de punta a punta (tools/test/tablero-web.py): dónde está en la página lo
+/// que muestra `texto` (propiedad text o texto), o los ítems que tienen la propiedad `prop`
+/// («dbArrastre»: los faders). JSON [{x, y, w, h}] en píxeles de la página. Solo lo visible.
+std::string buscarEn(const QString& texto, const QByteArray& prop) {
+    QJsonArray out;
+    std::function<void(QQuickItem*)> recorrer = [&](QQuickItem* it) {
+        if (!it || !it->isVisible()) return;
+        const bool coincide = !prop.isEmpty() ? it->metaObject()->indexOfProperty(prop.constData()) >= 0
+                                              : (it->property("text").toString() == texto || it->property("texto").toString() == texto);
+        if (coincide && it->width() > 0) {
+            const QRectF r = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
+            QJsonObject o{{"x", r.x()}, {"y", r.y()}, {"w", r.width()}, {"h", r.height()}};
+            // El estado de un botón que se prende (M, PFL…), para verificar lo que muestra.
+            if (it->metaObject()->indexOfProperty("on") >= 0) o.insert("on", it->property("on").toBool());
+            out.append(o);
+        }
+        for (QQuickItem* h : it->childItems()) recorrer(h);
+    };
+    for (QObject* o : g_motor->rootObjects())
+        if (auto* w = qobject_cast<QQuickWindow*>(o)) recorrer(w->contentItem());
+    return QJsonDocument(out).toJson(QJsonDocument::Compact).toStdString();
+}
+std::string baBuscar(std::string texto) { return buscarEn(QString::fromStdString(texto), {}); }
+std::string baBuscarProp(std::string prop) { return buscarEn({}, QByteArray::fromStdString(prop)); }
 void baPedirWebrtc() {
     if (g_cliente) g_cliente->pedirWebrtc();
 }
@@ -108,6 +136,8 @@ EMSCRIPTEN_BINDINGS(ba_tablero) {
     emscripten::function("baCuadro", &baCuadro);
     emscripten::function("baPantallaCompleta", &baPantallaCompleta);
     emscripten::function("baVisible", &baVisible);
+    emscripten::function("baBuscar", &baBuscar);
+    emscripten::function("baBuscarProp", &baBuscarProp);
 }
 #endif
 
