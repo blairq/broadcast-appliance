@@ -16,13 +16,21 @@
 //     cada orden de la agenda (PlanoControl::encolarConTurno), cada herramienta MCP del
 //     control. Siempre CON TOPE (tomarHasta): si la interfaz lo tiene, la orden espera en la
 //     agenda y la vuelta se saltea; el control nunca se queda esperando a la interfaz.
-//   - LA INTERFAZ (participarPorVuelta) lo toma la primera vez que entra al motor o a la
-//     configuración en un evento (un clic, un temporizador, un dibujo de QML) y lo tiene
-//     hasta que ese evento termina (soltarVuelta, lo llama el bucle de la interfaz: al
-//     volver de cada evento y antes de dormir). Así lo que lee de cfg_ por referencia no
-//     cambia debajo de sus pies. Cada vez que entra es una LLAMADA DIRECTA: se cuenta por
-//     lugar (directas(), `ba_motor_directas_total{lugar}`, una línea en el registro la
-//     primera vez de cada lugar) para que las próximas etapas sepan qué falta migrar.
+//   - LA INTERFAZ (participarPorVuelta) NUNCA lo tiene mientras hace algo suyo:
+//       · a un método del motor (o de AppRuntime) con su Guarda entra POR LLAMADA, como el
+//         dueño: lo toma al entrar y lo suelta al salir. AppRuntime::engine() no lo toma
+//         (cada método del motor tiene el suyo).
+//       · a lo que se lee POR REFERENCIA (AppRuntime::config(), gateway(), launcher()) entra
+//         por la vuelta: lo toma la primera vez y lo tiene hasta que ese evento termina
+//         (soltarVuelta, lo llama el bucle de la interfaz: al volver de cada evento y antes
+//         de dormir), así lo que lee de cfg_ no cambia debajo de sus pies. Y entre cada
+//         oyente de la foto (VentanillaMotor::escuchar): un oyente que lo tomó no se lo
+//         pasa al siguiente. Lo que lo tiene mucho se anota (la tenencia, abajo).
+//     Mientras tanto el dueño no la espera: la agenda reintenta y el reloj del motor mide
+//     igual lo que no necesita el turno (NivelesMotor::medir). Cada vez que entra es una
+//     LLAMADA DIRECTA: se cuenta por lugar, una vez por evento (directas(),
+//     `ba_motor_directas_total{lugar}`, una línea en el registro la primera vez de cada
+//     lugar) para que las próximas etapas sepan qué falta migrar.
 //   - La consola (sin interfaz) es el dueño y lo toma por cada llamada (participar).
 //
 // QUIÉN NO: el hilo de salidas del motor, el de los cuadros, los de GStreamer, el pool de la
@@ -59,11 +67,12 @@ class TurnoMotor {
     static bool participa();
     /// Las entradas de hilos que no participan van al registro como error (--test).
     static void estricto(bool si);
-    /// Suelta el turno de la vuelta, si este hilo lo tiene (fin de un evento de la interfaz).
+    /// Suelta el turno de la vuelta, si este hilo lo tiene (fin de un evento de la interfaz,
+    /// o entre dos oyentes de la foto: un punto donde nadie guarda referencias a cfg_).
     static void soltarVuelta();
 
-    /// Lo toma al construirse y lo suelta al irse, si el hilo participa por llamada; en el
-    /// hilo por vuelta, lo toma para el resto de la vuelta (y cuenta la directa en `donde`).
+    /// Lo toma al construirse y lo suelta al irse (también en el hilo por vuelta, donde
+    /// además cuenta la directa en `donde`).
     class Guarda {
        public:
         explicit Guarda(const TurnoMotor& t, std::source_location donde = std::source_location::current());
@@ -77,10 +86,20 @@ class TurnoMotor {
         const TurnoMotor* t_ = nullptr;
     };
 
-    /// La interfaz entra directo (AppRuntime::config()/engine() desde una vista): en el hilo
-    /// por vuelta lo toma para el resto de la vuelta y cuenta la directa en `donde` (el que
-    /// llamó). En los demás hilos no hace nada.
+    /// La interfaz entra directo a lo que se lee POR REFERENCIA (AppRuntime::config(),
+    /// gateway(), launcher() desde una vista): en el hilo por vuelta lo toma para el resto de
+    /// la vuelta y cuenta la directa en `donde` (el que llamó). En los demás hilos no hace
+    /// nada. Lo que dura, se anota (ver «Tenencia»).
     void entrarDirecto(std::source_location donde) const;
+    /// La interfaz entra directo a algo que toma el turno POR LLAMADA (AppRuntime::engine():
+    /// cada método del motor tiene su Guarda): solo se cuenta, una vez por lugar y evento.
+    void contarDirecta(std::source_location donde) const;
+
+    /// TENENCIA: cuánto tuvo la interfaz el turno por la vuelta. Desde kTenenciaLargaUs va a
+    /// `ba_motor_turno_interfaz_ms{lugar}`; desde kTenenciaAvisoUs, una línea en el registro
+    /// la primera vez de cada lugar (lo que frena la agenda: pasarlo a la foto o la ventanilla).
+    static constexpr std::int64_t kTenenciaLargaUs = 20000;
+    static constexpr std::int64_t kTenenciaAvisoUs = 250000;
 
     /// Lo toma (esperando lo que haga falta). Recursivo: el que lo tiene vuelve a entrar.
     void tomar(std::source_location donde = std::source_location::current()) const;
@@ -106,6 +125,7 @@ class TurnoMotor {
     void entrarPorVuelta(const std::source_location& donde) const;
     void anotarDirecta(const std::source_location& donde) const;
     void anotarSinParticipar(const std::source_location& donde) const;
+    void anotarTenencia(std::int64_t us) const;
 
     mutable std::recursive_timed_mutex mu_;
     mutable std::atomic<std::thread::id> dueno_{};
@@ -117,6 +137,9 @@ class TurnoMotor {
     mutable std::mutex directasMu_;
     mutable std::map<std::string, std::uint64_t> directas_;
     mutable std::map<std::string, std::uint64_t> sinParticipar_; ///< (con directasMu_)
+    mutable std::int64_t tenenciaMaxUs_ = 0;   ///< (con directasMu_)
+    mutable std::string tenenciaMaxLugar_;     ///< (con directasMu_)
+    mutable std::atomic<std::uint64_t> tenenciasLargas_{0};
 };
 
 } // namespace ba::app

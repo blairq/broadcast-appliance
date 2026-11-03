@@ -41,7 +41,7 @@ double mulToDb(float mul) { return mul <= 0.00001f ? -100.0 : 20.0 * std::log10(
 ScenesModel::ScenesModel(VentanillaMotor& ventanilla, QObject* parent)
     : QAbstractListModel(parent), v_(ventanilla), foto_(ventanilla.fotoCompartida()) {
     for (const auto& e : foto_->escenas) names_.push_back(e.nombre);
-    connect(&v_, &VentanillaMotor::cambio, this, &ScenesModel::alCambiar);
+    v_.escuchar(this, [this](unsigned partes) { alCambiar(partes); });
 }
 
 int ScenesModel::rowCount(const QModelIndex&) const { return static_cast<int>(names_.size()); }
@@ -119,7 +119,7 @@ void ScenesModel::alCambiar(unsigned partes) {
 
 SourcesModel::SourcesModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
     : QAbstractListModel(parent), rt_(rt), v_(ventanilla), foto_(ventanilla.fotoCompartida()) {
-    connect(&v_, &VentanillaMotor::cambio, this, &SourcesModel::alCambiar);
+    v_.escuchar(this, [this](unsigned partes) { alCambiar(partes); });
 }
 
 int SourcesModel::rowOf(const std::string& name) const {
@@ -412,7 +412,7 @@ MixerModel::MixerModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* par
     if (j.contains("compactos") && j["compactos"].is_array())
         for (const auto& g : j["compactos"])
             if (g.is_string()) compactos_.insert(g.get<std::string>());
-    connect(&v_, &VentanillaMotor::cambio, this, &MixerModel::alCambiar);
+    v_.escuchar(this, [this](unsigned partes) { alCambiar(partes); });
     // Los grupos se revisan con lo que cambia en las filas (no con los picos, que son a 30 Hz).
     connect(this, &QAbstractItemModel::modelReset, this, &MixerModel::revisarGrupos);
     connect(this, &QAbstractItemModel::dataChanged, this,

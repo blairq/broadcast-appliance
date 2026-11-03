@@ -78,7 +78,7 @@ QString etiquetaDe(const std::string& k) {
 PropertiesModel::PropertiesModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
     : QAbstractListModel(parent), rt_(rt), ventanilla_(ventanilla) {
     // La fuente desapareció o cambió de tipo (la borraron, se abrió otro evento): se relee.
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    ventanilla_.escuchar(this, [this](unsigned partes) {
         if ((partes & FotoMotor::Escenas) == 0 || source_.isEmpty()) return;
         if (ventanilla_.foto().tipoDe(source_.toStdString()) != tipo_) releer();
     });

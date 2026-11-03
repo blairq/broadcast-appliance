@@ -66,7 +66,8 @@ class Mezclador : public QObject {
     /// Lo mismo por salida, en el orden de `salidas`.
     Q_PROPERTY(QVariantList nivelesSalidas READ nivelesSalidas NOTIFY nivelesCambio)
     /// El loudness del programa de la salida que se muestra: {m, s, i, lra, tp, objetivo…}.
-    /// Llega con la foto (la parte Medidas), sin que nadie tenga que usar el mezclador.
+    /// Del canal de niveles (NivelesMotor::loudnessDe), a ~4 Hz mientras alguna vista lo
+    /// muestre, sin que nadie tenga que usar el mezclador.
     Q_PROPERTY(QVariantMap loudness READ loudness NOTIFY loudnessCambio)
     /// Si alguna vista lo está usando (el temporizador corre).
     Q_PROPERTY(bool activo READ activo NOTIFY activoCambio)
@@ -154,6 +155,9 @@ class Mezclador : public QObject {
     QString pestana_ = "consola";
     bool matrizAbierta_ = false;
     QTimer timer_;
+    /// El loudness, del canal de niveles a ~4 Hz y solo si alguien lo muestra (una vista
+    /// enlazada a `loudness`): ya no llega con la foto del motor.
+    QTimer timerLoudness_;
     UsoPorVistas usos_;
     QStringList entradas_;
     QVariantList salidas_;

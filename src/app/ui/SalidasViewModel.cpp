@@ -59,7 +59,7 @@ SalidasViewModel::SalidasViewModel(Partes p, QObject* parent) : QObject(parent),
                                                          "transmitiendo", "grabando", "archivo", "destinos", "programa",
                                                          "codificador"},
                                              this);
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &SalidasViewModel::alCambiar);
+    p_.ventanilla.escuchar(this, [this](unsigned partes) { alCambiar(partes); });
     // La máquina se pone justa (o se alivia): cambia el aviso de crear otra salida.
     connect(&p_.recursos, &RecursosViewModel::cambio, this, &SalidasViewModel::revisarNueva);
     // Lo que sale de la por omisión (sus pastillas) y los relojes de aire, al segundo.

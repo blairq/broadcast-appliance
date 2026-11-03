@@ -4,9 +4,19 @@
 // docs/arquitectura/05-motor-del-plano.md. El motor es del plano de control: la interfaz
 // no lo lee directo, lee ESTA foto, que arma su dueño (AppRuntime::publicarFoto, con el
 // turno, en el hilo de control) y le llega por la ventanilla (emision/VentanillaMotor.hpp).
-// Es un valor: se copia entera, no tiene punteros al motor y la interfaz la lee sin
-// candados ni turno (la que tiene la ventanilla no cambia hasta que la interfaz la cambia
-// en su hilo, al avisar).
+// Es un valor: no tiene punteros al motor y la interfaz la lee sin candados ni turno (la
+// que tiene la ventanilla no cambia hasta que la interfaz la cambia en su hilo, al avisar).
+//
+// COPIARLA ES BARATO: lo que crece con los invitados (las escenas y las fuentes, los
+// canales de la mezcla, la vista del video y las fuentes que miran las cámaras, los
+// retornos, los medios, las fuentes con audio de la sala) va en un `Compartido<T>`
+// (emision/Compartido.hpp): la foto nueva comparte con la anterior todo lo que no se
+// rearmó, y lo que se rearmó igual se queda con el valor de antes. Publicar en cada vuelta
+// del motor copia punteros, no las escenas. Se lee igual que el valor.
+//
+// LO QUE SE MUEVE SIEMPRE NO VA ACÁ: los niveles, el pico del programa y el loudness de
+// cada salida van por el canal de niveles (emision/NivelesMotor.hpp), que la vista lee a
+// su ritmo y solo si se ve.
 //
 // POR PARTES: cada parte se rearma cuando su dueño sabe que cambió (los avisos del runtime:
 // AppRuntime::Cambio) o en cada vuelta del reloj del motor (lo que se mueve solo: lo que
@@ -24,8 +34,8 @@
 //   Emision  los destinos, la grabación (y la repetición), la señal limpia, las ISO, el
 //            disco en apuros, el remux, lo que oye cada invitado.
 //   Ajustes  el lienzo, la transición global, el tema, los invitados, el servidor y la clave.
-//   Medidas  lo que se mueve siempre (los medios que suenan y cuánto les queda, la salud de
-//            cada destino, el loudness de cada salida): se lee cuando se lo necesita.
+//   Medidas  lo que se mueve en cada vuelta (los medios que suenan y cuánto les queda, la
+//            salud de cada destino). El loudness de cada salida, por el canal de niveles.
 //   Video    el área de la imagen: lo que muestra el grafo de video (lo arma video::VideoGrafos,
 //            que es del dueño: VideoGrafos::vista) y lo del motor que miran las cámaras y las
 //            entradas (cada fuente de video con su tamaño y sus ajustes, lo que está al aire).
@@ -35,9 +45,10 @@
 //            ensucia (cambiar el micrófono del operador).
 //   Equipo   lo que vigilan los chequeos del equipo (F4-07), los recursos y las alarmas:
 //            el reloj del estudio, la foto de las salidas del motor (sesiones de
-//            codificador, el colchón del disco, cada salida), el pico de cada entrada de
-//            audio y lo del motor que lee el MCP (el último error, el codificador de
-//            respaldo, cada salida como la ve status()); dos veces por segundo.
+//            codificador, el colchón del disco, cada salida) y lo del motor que lee el MCP
+//            (el último error, el codificador de respaldo, cada salida como la ve
+//            status()); dos veces por segundo. (El pico de cada entrada NO: cambia siempre
+//            y crece con los invitados; va por el canal de niveles, NivelesMotor::picoEntrada.)
 //   Sala     lo que leen la asamblea, la sala y la línea de tiempo: lo guardado de la sala
 //            (gateway.json: el puerto, el túnel, pinggy, el proxy, la atención automática),
 //            con qué aparece el operador ante el lobby, la carpeta de grabación, las
@@ -62,6 +73,8 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+
+#include "emision/Compartido.hpp"
 
 namespace ba::app {
 
@@ -119,9 +132,9 @@ struct FotoMotor {
         bool video = false, audio = false;
         bool operator==(const Tipo&) const = default;
     };
-    std::vector<Escena> escenas; ///< en el orden del operador
+    Compartido<std::vector<Escena>> escenas; ///< en el orden del operador
     /// Todas las fuentes que existen (en alguna escena o globales): {nombre, tipo}.
-    std::vector<std::pair<std::string, std::string>> fuentes;
+    Compartido<std::vector<std::pair<std::string, std::string>>> fuentes;
     std::vector<Tipo> tipos;
     /// {escena: {tipo, ms}}: con qué transición entra cada una (escenas::Conmutadores).
     nlohmann::json transicionesEntrada = nlohmann::json::object();
@@ -174,7 +187,7 @@ struct FotoMotor {
     nlohmann::json isos = nlohmann::json::array();       ///< [{fuente, archivo, mb, audioPropio, activa, pausada}]
     nlohmann::json apurosDisco = nlohmann::json::object(); ///< discoEstado
     nlohmann::json remux = nlohmann::json::object();     ///< remuxEstado
-    nlohmann::json retornos = nlohmann::json::object();  ///< {slot: "mix_minus" | "programa"}
+    Compartido<nlohmann::json> retornos = Compartido<nlohmann::json>::de(nlohmann::json::object()); ///< {slot: "mix_minus" | "programa"}
 
     // --- Ajustes -----------------------------------------------------------------------
     struct AjustesVideo {
@@ -193,19 +206,19 @@ struct FotoMotor {
     AjustesVideo ajustes;
 
     // --- Medidas -----------------------------------------------------------------------
-    nlohmann::json medios = nlohmann::json::array();   ///< [{fuente, estado, duracion_ms, tiempo_ms}]
+    Compartido<nlohmann::json> medios = Compartido<nlohmann::json>::de(nlohmann::json::array()); ///< [{fuente, estado, duracion_ms, tiempo_ms}]
     nlohmann::json salud = nlohmann::json::object();   ///< BroadcastEngine::saludSalidas
-    nlohmann::json loudness = nlohmann::json::object(); ///< {salida: LoudnessPrograma::json}
+    // (El loudness de cada salida: NivelesMotor::loudness, el canal de niveles.)
 
     // --- Video -------------------------------------------------------------------------
     /// VideoGrafos::vista: {entradas, info, grafos: {entrada: describir}, estudio, estados:
     /// {entrada: estadoEntrada}, red, diagnostico, programador, reloj, latencia, automixer,
     /// filtros_audio, eventos, escenas, nodos, legalizar, motores_superres}.
-    nlohmann::json video = nlohmann::json::object();
+    Compartido<nlohmann::json> video = Compartido<nlohmann::json>::de(nlohmann::json::object());
     /// Las fuentes que miran las cámaras y las entradas: {nombre: {tipo, ajustes, ancho,
     /// alto, escenas, global (una entrada de audio del equipo), modo_camara?, medio? (el
     /// estado si es un medio)}}.
-    nlohmann::json fuentesVideo = nlohmann::json::object();
+    Compartido<nlohmann::json> fuentesVideo = Compartido<nlohmann::json>::de(nlohmann::json::object());
     /// Las fuentes que se ven en el programa de alguna salida que sale (BroadcastEngine::
     /// fuenteAlAire: el interlock del PTZ). Al día con cada corte (se rearma con Salidas).
     std::vector<std::string> alAire;
@@ -227,7 +240,6 @@ struct FotoMotor {
     struct DelEquipo {
         std::string relojTipo, relojError; ///< BroadcastEngine::relojEstado
         nlohmann::json salidas = nlohmann::json::object(); ///< BroadcastEngine::fotoSalidas
-        nlohmann::json audio = nlohmann::json::array();    ///< [{fuente, pico_db, mudo}] (audioSources)
         /// {ultimo_error, respaldo_codificador, salidas: [{id, nombre, por_omision, escena,
         /// streaming, reconectando, recording, destinos, limpia, repeticion}]} (EngineStatus).
         nlohmann::json motor = nlohmann::json::object();
@@ -251,7 +263,7 @@ struct FotoMotor {
         /// Donde va la próxima grabación (la EFECTIVA: <evento>/Grabaciones con un evento
         /// abierto, si no la de la configuración; AppRuntime::carpetaGrabacion, en el dueño).
         std::string carpetaGrabacion;
-        std::vector<std::string> audio;           ///< las fuentes con audio (BroadcastEngine::audioSources)
+        Compartido<std::vector<std::string>> audio; ///< las fuentes con audio (BroadcastEngine::audioSources)
         // La fuente «Banca con la palabra».
         bool hayFuenteBanca = false;
         std::vector<std::string> escenaDeRanura; ///< [ranura - 1]: la primera escena que la muestra
@@ -278,7 +290,7 @@ struct FotoMotor {
         bool operator==(const CanalAudio&) const = default;
     };
     struct MezclaAudio {
-        std::vector<CanalAudio> canales; ///< las fuentes con audio, en el orden del motor
+        Compartido<std::vector<CanalAudio>> canales; ///< las fuentes con audio, en el orden del motor
         std::string porOmision;          ///< el id de la salida por omisión
         /// {salida: {grupo: VCA (multiplicador)}}: los grupos con dos o más fuentes.
         std::map<std::string, std::map<std::string, float>> grupos;
@@ -379,7 +391,7 @@ struct FotoMotor {
         mirar(Emision, a.destinos != b.destinos || a.grabacion != b.grabacion || a.limpia != b.limpia || a.isos != b.isos ||
                            a.apurosDisco != b.apurosDisco || a.remux != b.remux || a.retornos != b.retornos);
         mirar(Ajustes, a.ajustes != b.ajustes);
-        mirar(Medidas, a.medios != b.medios || a.salud != b.salud || a.loudness != b.loudness);
+        mirar(Medidas, a.medios != b.medios || a.salud != b.salud);
         mirar(Video, a.video != b.video || a.fuentesVideo != b.fuentesVideo || a.alAire != b.alAire ||
                          a.configImagen != b.configImagen);
         mirar(Configuracion, a.configuracion != b.configuracion);

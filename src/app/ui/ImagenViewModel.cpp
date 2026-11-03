@@ -62,7 +62,7 @@ ImagenViewModel::ImagenViewModel(Partes p, QObject* parent) : QObject(parent), p
         legalizador_ = l;
         emit legalizadorCambio();
     };
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, [revisarLegalizador](unsigned partes) {
+    p_.ventanilla.escuchar(this, [revisarLegalizador](unsigned partes) {
         if ((partes & FotoMotor::Video) != 0) revisarLegalizador();
     });
     revisarLegalizador();

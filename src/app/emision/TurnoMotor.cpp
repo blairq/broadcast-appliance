@@ -16,6 +16,8 @@
 #include <cstdio>
 #include <cstring>
 #include <set>
+#include <utility>
+#include <vector>
 
 namespace ba::app {
 
@@ -23,6 +25,12 @@ namespace {
 thread_local const char* t_participa = nullptr; ///< el nombre del hilo, si participa
 thread_local bool t_porVuelta = false;           ///< participa por vuelta (la interfaz)
 thread_local const TurnoMotor* t_vuelta = nullptr; ///< el turno que tiene por la vuelta
+thread_local std::int64_t t_vueltaDesdeUs = 0;      ///< desde cuándo lo tiene por la vuelta
+thread_local const char* t_vueltaLugar = nullptr;   ///< dónde lo tomó (function_name)
+thread_local const char* t_vueltaArchivo = nullptr;
+thread_local unsigned t_vueltaLinea = 0;
+/// Las directas ya contadas en este evento (archivo, línea): una vez por lugar y evento.
+thread_local std::vector<std::pair<const char*, unsigned>> t_contadas;
 
 std::int64_t ahoraUs() {
     return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch())
@@ -74,7 +82,13 @@ TurnoMotor::Guarda::Guarda(const TurnoMotor& t, std::source_location donde) {
         return;
     }
     if (t_porVuelta) {
-        t.entrarPorVuelta(donde);
+        // LA INTERFAZ, POR LLAMADA: un método del motor con su Guarda devuelve valores, así
+        // que el turno es suyo solo mientras dura el método (antes lo tenía hasta el final del
+        // evento: un evento de la interfaz de 10 s que llamaba una vez al motor frenaba 10 s
+        // el reloj del motor y la agenda). Se cuenta como directa (una vez por lugar y evento).
+        t.contarDirecta(donde);
+        t_ = &t;
+        t.tomar(donde);
         return;
     }
     t_ = &t;
@@ -95,21 +109,73 @@ void TurnoMotor::participarPorVuelta(const char* nombre) {
 bool TurnoMotor::participa() { return t_participa != nullptr; }
 
 void TurnoMotor::soltarVuelta() {
+    t_contadas.clear();
     if (t_vuelta == nullptr) return;
     const TurnoMotor* t = t_vuelta;
     t_vuelta = nullptr;
+    t->anotarTenencia(ahoraUs() - t_vueltaDesdeUs);
     t->soltar();
+}
+
+void TurnoMotor::anotarTenencia(std::int64_t us) const {
+    // Lo que la interfaz tuvo el turno por la vuelta: mientras tanto el reloj del motor
+    // midió sin él (lo demás lo salteó) y la agenda reintentó. Lo largo, al registro una
+    // vez por lugar: es lo que hay que pasar a la foto o a la ventanilla.
+    // El lugar como lo cuenta `lugar` («Clase::metodo»).
+    std::string donde = t_vueltaLugar != nullptr ? std::string(t_vueltaLugar) : std::string("?");
+    if (const auto p = donde.find('('); p != std::string::npos) donde.resize(p);
+    if (const auto e = donde.rfind(' '); e != std::string::npos) donde.erase(0, e + 1);
+    for (const char* ns : {"ba::app::", "ba::"})
+        if (donde.rfind(ns, 0) == 0) donde.erase(0, std::char_traits<char>::length(ns));
+    {
+        const std::lock_guard<std::mutex> g(directasMu_);
+        if (us > tenenciaMaxUs_) {
+            tenenciaMaxUs_ = us;
+            tenenciaMaxLugar_ = donde;
+        }
+    }
+    if (us < kTenenciaLargaUs) return;
+    ++tenenciasLargas_;
+    ba::diag::Metricas::proceso()
+        .histograma("ba_motor_turno_interfaz_ms",
+                    QT_TRANSLATE_NOOP("metricas", "Lo que la interfaz tuvo el turno del motor en un evento (solo lo largo), ms, por dónde lo tomó"),
+                    {{"lugar", donde}})
+        .observar(static_cast<double>(us) / 1000.0);
+    static std::mutex mu;
+    static std::set<std::string> vistos;
+    if (us >= kTenenciaAvisoUs && primeraVez(mu, vistos, donde))
+        ba::diag::registro().linea(
+            ba::diag::Nivel::Aviso, "motor", 0,
+            ba::i18n::llenar(ba::i18n::traducir("motor", "la interfaz tuvo el turno del motor %1 ms en un evento (lo tomó en %2, %3:%4): "
+                                                         "mientras tanto la agenda esperó; pasarlo a la foto o a la ventanilla"),
+                             {std::to_string(us / 1000), donde, std::string(t_vueltaArchivo != nullptr ? t_vueltaArchivo : "?"),
+                              std::to_string(t_vueltaLinea)}));
 }
 
 void TurnoMotor::entrarDirecto(std::source_location donde) const {
     if (t_participa != nullptr && t_porVuelta) entrarPorVuelta(donde);
 }
 
+void TurnoMotor::contarDirecta(std::source_location donde) const {
+    if (t_participa == nullptr || !t_porVuelta) return;
+    // Una vez por lugar y evento (un bucle de la interfaz que llama 120 veces al motor no
+    // llena las métricas).
+    const std::pair<const char*, unsigned> clave{donde.file_name(), static_cast<unsigned>(donde.line())};
+    for (const auto& c : t_contadas)
+        if (c.second == clave.second && (c.first == clave.first || std::strcmp(c.first, clave.first) == 0)) return;
+    t_contadas.push_back(clave);
+    anotarDirecta(donde);
+}
+
 void TurnoMotor::entrarPorVuelta(const std::source_location& donde) const {
     if (t_vuelta == this) return; // ya lo tiene esta vuelta
     tomar(donde);
     t_vuelta = this;
-    anotarDirecta(donde);
+    t_vueltaDesdeUs = ahoraUs();
+    t_vueltaLugar = donde.function_name();
+    t_vueltaArchivo = donde.file_name();
+    t_vueltaLinea = static_cast<unsigned>(donde.line());
+    contarDirecta(donde);
 }
 
 namespace {
@@ -237,11 +303,21 @@ nlohmann::json TurnoMotor::estado() const {
         const std::lock_guard<std::mutex> g(directasMu_);
         for (const auto& [k, n] : sinParticipar_) sin[k] = n;
     }
+    double tenenciaMaxMs = 0;
+    std::string tenenciaLugar;
+    {
+        const std::lock_guard<std::mutex> g(directasMu_);
+        tenenciaMaxMs = static_cast<double>(tenenciaMaxUs_) / 1000.0;
+        tenenciaLugar = tenenciaMaxLugar_;
+    }
     return {{"quien", q != nullptr ? q : ""},
             {"sin_participar", std::move(sin)},
             {"esperas", esperas_.load()},
             {"espera_max_ms", static_cast<double>(esperaMaxUs_.load()) / 1000.0},
-            {"directas", directas()}};
+            {"directas", directas()},
+            // Lo que la interfaz tuvo el turno por un evento (config()/gateway()/launcher()):
+            // lo más largo, dónde lo tomó y cuántas veces pasó de kTenenciaLargaUs.
+            {"interfaz", {{"max_ms", tenenciaMaxMs}, {"max_lugar", tenenciaLugar}, {"largas", tenenciasLargas_.load()}}}};
 }
 
 } // namespace ba::app

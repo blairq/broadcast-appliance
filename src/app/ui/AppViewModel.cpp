@@ -112,7 +112,7 @@ AppViewModel::AppViewModel(Partes p, QObject* parent) : QObject(parent), p_(std:
     connect(this, &AppViewModel::caidaChanged, this, &AppViewModel::publicarFoto);
     publicarFoto();
     // Lo que sale (el vivo, lo que se corta al cerrar): de la foto del motor, cuando cambia.
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    p_.ventanilla.escuchar(this, [this](unsigned partes) {
         if ((partes & FotoMotor::Estado) != 0) revisar();
     });
     vivoAntes_ = modoVivo();

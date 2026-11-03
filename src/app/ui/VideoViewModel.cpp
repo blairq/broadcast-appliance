@@ -46,7 +46,7 @@ const json& vacio() {
 
 VideoViewModel::VideoViewModel(VentanillaMotor& ventanilla, video::VideoGrafos& grafos, QObject* parent)
     : QObject(parent), ventanilla_(ventanilla), grafos_(grafos) {
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, &VideoViewModel::alCambiar);
+    ventanilla_.escuchar(this, [this](unsigned partes) { alCambiar(partes); });
     // Lo que avisa VideoGrafos desde el dueño llega encolado (vive en otro hilo).
     connect(&grafos_, &video::VideoGrafos::gstListo, this, &VideoViewModel::gstListo);
     connect(&grafos_, &video::VideoGrafos::medicion, this, &VideoViewModel::medicion);

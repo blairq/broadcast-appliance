@@ -67,7 +67,7 @@ EscenasViewModel::EscenasViewModel(Partes p, QObject* parent)
     connect(this, &EscenasViewModel::listaCambio, this, &EscenasViewModel::armarArbol);
     // Lo que se muestra sale de la foto del motor: se avisa cuando cambia. El AFV es de la
     // salida activa: cambia también cuando se elige otra.
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &EscenasViewModel::alCambiar);
+    p_.ventanilla.escuchar(this, [this](unsigned partes) { alCambiar(partes); });
     connect(&p_.salidas, &SalidasViewModel::activaElegida, this, &EscenasViewModel::afvCambio);
     listaAntes_ = firmaLista();
     afvAntes_ = afvFuentes();

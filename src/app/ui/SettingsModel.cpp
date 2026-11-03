@@ -328,7 +328,7 @@ SettingsModel::SettingsModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObjec
     // Otro formulario (el del MCP, el de la GUI) aplicó la configuración: este,
     // si no tiene cambios a medio hacer, muestra lo vigente: cuando llega la foto con la
     // configuración nueva (la propia vuelve con la respuesta).
-    connect(v_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    v_->escuchar(this, [this](unsigned partes) {
         if ((partes & FotoMotor::Configuracion) == 0) return;
         emit idiomaPendienteChanged();
         if (!aplicandoEnDueno_) traerDeAfuera();

@@ -65,7 +65,7 @@ ControlCamaras::ControlCamaras(AppRuntime& rt, VentanillaMotor& ventanilla, std:
     }
     // Las entradas, su tamaño y la configuración llegan con la foto del motor: se revisa
     // cuando cambian (la parte Video se rearma con la revisión de las entradas).
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    ventanilla_.escuchar(this, [this](unsigned partes) {
         if ((partes & (FotoMotor::Video | FotoMotor::Escenas | FotoMotor::Ajustes)) != 0) sincronizar();
         // Lo que está al aire se rearma con cada corte (Salidas) y con lo que sale (Emision).
         if ((partes & (FotoMotor::Salidas | FotoMotor::Escenas | FotoMotor::Emision)) != 0) revisarAlAire();

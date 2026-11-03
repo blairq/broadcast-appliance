@@ -459,6 +459,10 @@ class BroadcastEngine {
     /// DESDE CUALQUIER HILO: el canal de niveles (los vúmetros de cada entrada, bus y
     /// programa; emision/NivelesMotor.hpp). Vive lo que el BroadcastEngine.
     NivelesMotor& nivelesCanal() { return nivelesCanal_; }
+    /// Con el turno: lo que mide cada salida (el pico de su programa, su loudness), para
+    /// leerlo SIN el turno desde el reloj del motor (NivelesMotor::medir). Cada medidor
+    /// guarda las medidas compartidas de su salida: una salida borrada no lo deja colgado.
+    std::vector<NivelesMotor::Medidor> medidores();
     /// DESDE CUALQUIER HILO: el loudness del programa de la por omisión (tiene su candado).
     const audio::LoudnessPrograma& loudnessPrograma() const;
 

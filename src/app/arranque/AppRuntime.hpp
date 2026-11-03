@@ -371,9 +371,10 @@ class AppRuntime {
     void reiniciarSalaEnElFondo(std::function<void(const std::string& error)> listo);
     ~AppRuntime();
 
-    // Lo que es del dueño, a mano: desde la interfaz cuenta como LLAMADA DIRECTA (toma el
-    // turno por el resto del evento y se anota dónde, emision/TurnoMotor.hpp). Las vistas
-    // migradas no las usan: piden por la ventanilla y leen la foto.
+    // Lo que es del dueño, a mano: desde la interfaz cuenta como LLAMADA DIRECTA y se anota
+    // dónde (emision/TurnoMotor.hpp). La configuración (se lee por referencia) toma el turno
+    // por el resto del evento; el motor, por cada método. Las vistas migradas no las usan:
+    // piden por la ventanilla y leen la foto.
     AppConfig& config(std::source_location donde = std::source_location::current()) {
         engine_.turno().entrarDirecto(donde);
         return cfg_;
@@ -390,8 +391,10 @@ class AppRuntime {
         engine_.turno().entrarDirecto(donde);
         return launcher_;
     }
+    /// El motor NO toma el turno por la vuelta: cada método suyo tiene su Guarda (la
+    /// interfaz lo toma por llamada, TurnoMotor). Solo se cuenta la directa.
     BroadcastEngine& engine(std::source_location donde = std::source_location::current()) {
-        engine_.turno().entrarDirecto(donde);
+        engine_.turno().contarDirecta(donde);
         return engine_;
     }
     /// El latido del supervisor que mira el motor (la UI trabada no corta el aire).
@@ -524,7 +527,9 @@ class AppRuntime {
     std::unique_ptr<ServicioEmision> emision_;
     std::unique_ptr<AireDurable> aire_;
     std::unique_ptr<Invitados> invitados_;
-    unsigned ticsMotor_ = 0;
+    unsigned ticsMotor_ = 0;      ///< las vueltas del reloj del motor CON el turno
+    unsigned vueltasReloj_ = 0;   ///< todas (lo que mide sin el turno: NivelesMotor::medir)
+    std::atomic<std::uint64_t> vueltasSinTurno_{0}; ///< las que la interfaz tenía el turno (se midió igual)
     std::atomic<bool> hayAire_{false}; ///< para el latido de la interfaz (ticMotor lo pone)
     std::atomic<std::thread::id> dueno_{};  ///< el hilo que hizo start (ver esDueno)
     std::function<void(std::function<void()>)> encolarEnDueno_;

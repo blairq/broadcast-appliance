@@ -109,7 +109,7 @@ ControlViewModel::ControlViewModel(Partes p, QObject* parent) : QObject(parent),
     });
     // Lo que el área lee de la foto: las escenas (para elegir el contenido de una capa) y
     // el tema web.
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &ControlViewModel::alCambiarFoto);
+    p_.ventanilla.escuchar(this, [this](unsigned partes) { alCambiarFoto(partes); });
     temaWeb_ = temaWebMandado_ = p_.ventanilla.foto().temaWeb;
     alCambiarFoto(FotoMotor::Escenas);
     ConferenceClient& cli = p_.sala.client();

@@ -215,7 +215,7 @@ void CapasDsk::restaurar() {
 // ============================================================================
 
 Dsk::Dsk(CapasDsk& modelo, VentanillaMotor& ventanilla, QObject* parent) : QObject(parent), capas_(modelo), v_(ventanilla) {
-    connect(&v_, &VentanillaMotor::cambio, this, &Dsk::alCambiarFoto);
+    v_.escuchar(this, [this](unsigned partes) { alCambiarFoto(partes); });
     ultimaFoto_ = v_.foto().dsk;
     ultimaUi_ = capas(salidaUi_);
 }

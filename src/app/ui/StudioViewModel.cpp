@@ -857,7 +857,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     });
     // Lo que muestra la raíz (las pastillas, el lienzo, la escena del editor) sale de la foto
     // del motor: se refleja cuando llega una nueva (F3-03).
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, &StudioViewModel::alCambiarFoto);
+    ventanilla_.escuchar(this, [this](unsigned partes) { alCambiarFoto(partes); });
     // El retorno a los invitados: lo decide quién mira (sala/QuienMira), por los avisos de
     // la sala, la sesión remota, las pantallas y las salidas de la foto; al motor, solo al cambiar.
     {
@@ -881,7 +881,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         quienMira_->escuchar(static_cast<JsonListModel*>(conf->inside()), &JsonListModel::countChanged);
         quienMira_->escuchar(asamblea_->sesionRemota(), &asamblea::SesionRemota::cambio);
         quienMira_->escuchar(pantallas_.get(), &PantallasViewModel::cambio);
-        connect(&ventanilla_, &VentanillaMotor::cambio, quienMira_.get(), [q = quienMira_.get()](unsigned partes) {
+        ventanilla_.escuchar(quienMira_.get(), [q = quienMira_.get()](unsigned partes) {
             if (partes & FotoMotor::Salidas) q->revisar();
         });
         quienMira_->revisar();
@@ -1575,7 +1575,8 @@ void StudioViewModel::publicarSegundo() {
     if (!bus_) return;
     // Las mediciones de cada segundo (la salud de las salidas, el loudness) y el orador.
     emision_->muestrearSalud(*bus_);
-    bus_->publicar("audio/loudness", ventanilla_.foto().loudness.value(BroadcastEngine::kSalidaPorOmision, nlohmann::json::object()));
+    // (El loudness, del canal de niveles: ya no va en la foto del motor.)
+    bus_->publicar("audio/loudness", rt_.niveles().loudnessDe(BroadcastEngine::kSalidaPorOmision));
     if (asamblea_) bus_->publicar("oradores/al_aire", asamblea_->bancas().oradorParaZocalo());
 }
 

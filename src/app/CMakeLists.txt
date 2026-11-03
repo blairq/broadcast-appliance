@@ -674,7 +674,7 @@ endif()
     # Las pastillas del aire (ui/EstadoAireViewModel): el tiempo de una grabación que ya
     # andaba y los avisos por grupo, con una ventanilla sintética.
     add_executable(test_estado_aire tests/test_estado_aire.cpp ui/EstadoAireViewModel.cpp ui/EstadoAireViewModel.hpp
-                   emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp)
+                   emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp emision/TurnoMotor.cpp)
     target_include_directories(test_estado_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_estado_aire PRIVATE ba_core Qt6::Core)
     set_target_properties(test_estado_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1383,7 +1383,7 @@ endif()
     add_executable(test_reloj_niveles tests/test_reloj_niveles.cpp ui/RelojNiveles.cpp ui/RelojNiveles.hpp
                    emision/NivelesMotor.cpp)
     target_include_directories(test_reloj_niveles PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
-    target_link_libraries(test_reloj_niveles PRIVATE Qt6::Core)
+    target_link_libraries(test_reloj_niveles PRIVATE Qt6::Core nlohmann_json::nlohmann_json)
     set_target_properties(test_reloj_niveles PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_reloj_niveles COMMAND test_reloj_niveles)
     # Los oradores: la regla del reloj, el texto, la lectura de tiempos y la fila (lo que

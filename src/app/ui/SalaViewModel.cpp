@@ -83,7 +83,7 @@ SalaViewModel::SalaViewModel(Partes p, QObject* parent) : QObject(parent), p_(st
     // demás, la baja). Sigue a la foto del motor (escenas y salidas).
     capasRemotos_ = std::make_unique<sala::CapasRemotos>(cli);
     capasRemotos_->actualizar(p_.ventanilla.foto());
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    p_.ventanilla.escuchar(this, [this](unsigned partes) {
         if ((partes & (FotoMotor::Escenas | FotoMotor::Salidas)) != 0) capasRemotos_->actualizar(p_.ventanilla.foto());
     });
     accesoRemoto_->setDirecciones(direcciones_.get());

@@ -84,7 +84,7 @@ AccesoRemoto::AccesoRemoto(VentanillaMotor& ventanilla, ConferenceClient& cli, Q
     connect(&poll_, &QTimer::timeout, this, &AccesoRemoto::refrescar);
     estado_ = {{"disponible", false}, {"sala", false}, {"texto", tr("Sin consultar todavía.")}};
     // Se prendió o apagó un túnel (desde acá, Configuración o el MCP): la conexión cambió.
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    ventanilla_.escuchar(this, [this](unsigned partes) {
         if ((partes & FotoMotor::Sala) == 0) return;
         emit estadoChanged();
         emit credencialesChanged();

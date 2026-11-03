@@ -230,7 +230,7 @@ GuionViewModel::GuionViewModel(EventoAbierto& abierto, AppRuntime& rt, Ventanill
     connect(&vigia_, &QFileSystemWatcher::directoryChanged, &juntar_, qOverload<>(&QTimer::start));
     connect(&vigia_, &QFileSystemWatcher::fileChanged, &juntar_, qOverload<>(&QTimer::start));
     // Lo que viene de sus dueños, cuando avisan.
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned p) {
+    ventanilla_.escuchar(this, [this](unsigned p) {
         if ((p & (FotoMotor::Escenas | FotoMotor::Sala)) != 0) cambioOpciones();
     });
     if (graficos_ != nullptr) connect(graficos_, &graficos::Emisor::catalogoCambio, this, &GuionViewModel::cambioOpciones);

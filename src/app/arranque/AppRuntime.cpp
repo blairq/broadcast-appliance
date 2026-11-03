@@ -17,6 +17,8 @@
 
 #include <nlohmann/json.hpp>
 
+#include <QtGlobal>
+
 #include "GpuPerdida.hpp" // motor: la GPU perdida (F3-09)
 #include "Reloj.hpp"      // motor: iniciarGStreamer
 #include "ajustes/Ajustes.hpp"
@@ -32,6 +34,7 @@
 #include "arranque/SaludProceso.hpp"
 #include "arranque/ServicioEmision.hpp"
 #include "arranque/ServicioSalidas.hpp"
+#include "diag/Metricas.hpp"
 #include "diag/Registro.hpp"
 #include "emision/ChatOverlaySource.hpp"
 #include "emision/FuentePdf.hpp"
@@ -373,10 +376,26 @@ void AppRuntime::latirInterfaz() { salud_->latirInterfaz(started_, hayAire_.load
 void AppRuntime::ticMotor() {
     // El reloj del motor es del dueño (entre el arranque del plano y la mudanza, no hace nada).
     if (!esDueno()) return;
-    // Con el turno: si la interfaz lo tiene (una vista que todavía entra directo, trabada
-    // adentro), esta vuelta se saltea. El dueño no espera a la interfaz.
+    ++vueltasReloj_;
+    // LO QUE NO ESPERA A NADIE (PLAN-MOTOR-SIN-ESPERAS): el pico del programa de cada salida
+    // y su loudness, al canal de niveles, en CADA vuelta y SIN el turno (con los medidores
+    // que se guardaron la última vez que se lo tuvo). Si la interfaz tiene el turno, trabada
+    // en algo suyo, los vúmetros y el loudness no se quedan quietos.
+    const auto medirSinTurno = [this]() {
+        if (started_) engine_.nivelesCanal().medir(vueltasReloj_ % NivelesMotor::kLoudnessCadaVueltas == 0);
+    };
+    // El resto, con el turno: si la interfaz lo tiene (una vista que todavía entra directo,
+    // trabada adentro), esa parte se saltea esta vuelta. El dueño no espera a la interfaz.
     const TurnoMotor& turno = engine_.turno();
-    if (!turno.tomarHasta(TurnoMotor::participa() ? 5 : 0)) return;
+    if (!turno.tomarHasta(TurnoMotor::participa() ? 5 : 0)) {
+        ++vueltasSinTurno_;
+        ba::diag::Metricas::proceso()
+            .contador("ba_motor_vueltas_sin_turno_total",
+                      QT_TRANSLATE_NOOP("metricas", "Vueltas del reloj del motor que no tuvieron el turno (la interfaz lo tenía): se midió igual"))
+            .sumar();
+        medirSinTurno();
+        return;
+    }
     struct Soltar {
         const TurnoMotor& t;
         ~Soltar() { t.soltar(); }
@@ -397,21 +416,17 @@ void AppRuntime::ticMotor() {
         if (ba::motor::gpuPerdida()) aire_->rearmarPorGpu();
         servicioSalidas_->publicarSalidas(st);
         // Las entradas de audio que el sistema tardó en abrir (addGlobalAudio) se
-        // enganchan cuando llegan: una vez por segundo.
+        // enganchan cuando llegan: una vez por segundo. (En el motor nuevo no queda nada que
+        // adoptar: BroadcastEngine::adoptPendingAudio devuelve 0; el audio de cada entrada lo
+        // engancha el motor en su hilo, sin este reloj.)
         if (ticsMotor_ % 10 == 0) engine_.adoptPendingAudio();
-        // El pico del programa de cada salida, al canal de niveles (el vúmetro de arriba y el
-        // de la salida activa lo toman de ahí, sin el motor).
+        // Los medidores de cada salida (el pico del programa, el loudness), para medir sin el
+        // turno: el vúmetro de arriba y el de la salida activa los toman del canal de niveles.
         NivelesMotor& nv = engine_.nivelesCanal();
         nv.setPorOmision(engine_.idDeSalida(""));
-        float l = -100, r = -100;
-        engine_.programPeaksDb(l, r);
-        nv.sumarPrograma("", l, r);
-        for (const auto& s : st.salidas)
-            if (!s.porOmision) {
-                engine_.programPeaksDb(l, r, s.id);
-                nv.sumarPrograma(s.id, l, r);
-            }
+        nv.ponerMedidores(engine_.medidores());
     }
+    medirSinTurno();
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
     // La foto que lee la interfaz: lo que se mueve solo (lo que sale, las medidas) en cada
     // vuelta; lo de la emisión (grabación, ISO, limpia, disco) y del equipo (el reloj, las

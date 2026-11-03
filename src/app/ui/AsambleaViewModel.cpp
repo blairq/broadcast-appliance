@@ -286,7 +286,7 @@ void AsambleaViewModel::armarBancas() {
     };
     debate_ = std::make_unique<asamblea::Debate>(cuerpo_->cuerpo(), p_.rt.dataRoot(), gd);
     // La escena de cada tipo de debate va por su id: el nombre, al día con las escenas.
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    p_.ventanilla.escuchar(this, [this](unsigned partes) {
         if ((partes & FotoMotor::Escenas) != 0) debate_->seguirEscenas(escenas::TablaEscenas(p_.ventanilla.foto().idsDeEscenas()));
     });
     connect(debate_.get(), &asamblea::Debate::aviso, this, [this](const QString& t, const QString& n) { emit notify(t, n); });

@@ -13,9 +13,15 @@
 //      (FotoMotor::rearmar) y la publicación (queCambio) coinciden: después de rearmar se
 //      comparan TODAS las partes y nada cambió sin estar comparado.
 //   3. Los casos del hallazgo, uno por uno, avisan su parte.
+//   4. LA FOTO POR PARTES COMPARTIDAS (emision/Compartido.hpp; lo medido con 120
+//      invitados: el hilo de control copiaba la foto entera, con las escenas y la mezcla,
+//      cada ~100 ms): copiar la foto no copia lo que crece con los invitados; rearmar una
+//      parte no toca las otras; rearmarla igual se queda con el valor de antes; editar una
+//      compartida no cambia la publicada; y quien lee ve lo mismo que con valores.
 // ============================================================================
 #include "emision/FotoMotor.hpp"
 
+#include <chrono>
 #include <cstdio>
 #include <functional>
 #include <string>
@@ -62,7 +68,6 @@ std::vector<Campo> campos() {
         {"ajustes", F::Ajustes, [](F& f, int n) { f.ajustes.invitados = n + 1; }},
         {"medios", F::Medidas, [](F& f, int n) { f.medios = {n}; }},
         {"salud", F::Medidas, [](F& f, int n) { f.salud["n"] = n; }},
-        {"loudness", F::Medidas, [](F& f, int n) { f.loudness["n"] = n; }},
         {"video", F::Video, [](F& f, int n) { f.video["n"] = n; }},
         {"fuentesVideo", F::Video, [](F& f, int n) { f.fuentesVideo["n"] = n; }},
         {"alAire", F::Video, [](F& f, int n) { f.alAire = {std::to_string(n)}; }},
@@ -181,6 +186,113 @@ int main() {
         // si nada de Video cambió.
         CHECK(FotoMotor::queCambio(antes, antes, FotoMotor::Salidas | FotoMotor::Estado | FotoMotor::Medidas) == 0,
               "3: si nada cambió, nada se avisa (aunque se compare más)");
+    }
+
+    // 4. Por partes compartidas, con 120 invitados.
+    {
+        using F = FotoMotor;
+        using nlohmann::json;
+        constexpr int kInvitados = 120;
+        // La foto de trabajo del dueño, como la arma la publicación (PublicadorFoto::armarFoto).
+        F trabajo;
+        {
+            std::vector<F::Escena> escenas;
+            std::vector<std::pair<std::string, std::string>> fuentes;
+            std::vector<F::CanalAudio> canales;
+            std::vector<std::string> audio;
+            json video = json::object(), fuentesVideo = json::object(), retornos = json::object();
+            F::Escena grilla{"Grilla", "", false, {}, "esc-1"};
+            for (int i = 1; i <= kInvitados; ++i) {
+                const std::string n = "Invitado " + std::to_string(i);
+                grilla.fuentes.push_back(F::Fuente{n, "guest", true, {}, json{{"opacidad", 1}}, "guest:" + std::to_string(i)});
+                fuentes.emplace_back(n, "guest");
+                F::CanalAudio c;
+                c.nombre = n;
+                c.ajustes = {{"slot", i}};
+                c.volumen["principal"] = 1.0f;
+                canales.push_back(c);
+                audio.push_back(n);
+                video["estados"][n] = {{"sin_datos_s", 0.1}};
+                fuentesVideo[n] = {{"tipo", "guest"}, {"ajustes", {{"slot", i}}}};
+                retornos[std::to_string(i)] = "mix_minus";
+            }
+            escenas.push_back(grilla);
+            trabajo.escenas = std::move(escenas);
+            trabajo.fuentes = std::move(fuentes);
+            trabajo.mezcla.canales = std::move(canales);
+            trabajo.mezcla.porOmision = "principal";
+            trabajo.sala.audio = std::move(audio);
+            trabajo.video = std::move(video);
+            trabajo.fuentesVideo = std::move(fuentesVideo);
+            trabajo.retornos = std::move(retornos);
+        }
+        // Publicar: la foto nueva es una copia de la de trabajo.
+        const auto publicada = std::make_shared<const F>(trabajo);
+        CHECK(publicada->escenas.mismo(trabajo.escenas) && publicada->mezcla.canales.mismo(trabajo.mezcla.canales) &&
+                  publicada->video.mismo(trabajo.video) && publicada->fuentesVideo.mismo(trabajo.fuentesVideo) &&
+                  publicada->retornos.mismo(trabajo.retornos) && publicada->sala.audio.mismo(trabajo.sala.audio) &&
+                  publicada->fuentes.mismo(trabajo.fuentes),
+              "4: copiar la foto comparte lo que crece con los invitados (no lo copia)");
+        CHECK(publicada->escenas.usos() == 2 && publicada->mezcla.canales.usos() == 2,
+              "4: el mismo valor, en la publicada y en la de trabajo");
+        // La próxima vuelta del motor rearma lo que se mueve siempre (Salidas, Estado, Medidas)
+        // y, por ejemplo, la mezcla con un fader: las escenas y el video siguen compartidos.
+        trabajo.estado.cuadros = 1234;
+        {
+            std::vector<F::CanalAudio> canales = *trabajo.mezcla.canales;
+            canales[7].volumen["principal"] = 0.5f;
+            trabajo.mezcla.canales = std::move(canales);
+        }
+        const auto siguiente = std::make_shared<const F>(trabajo);
+        CHECK(!siguiente->mezcla.canales.mismo(publicada->mezcla.canales) && siguiente->escenas.mismo(publicada->escenas) &&
+                  siguiente->video.mismo(publicada->video) && siguiente->fuentesVideo.mismo(publicada->fuentesVideo),
+              "4: rearmar una parte (la mezcla) no copia las otras (escenas, video): siguen compartidas");
+        CHECK(F::partesDistintas(*publicada, *siguiente, F::Todas) == (F::Mezcla | F::Estado),
+              "4: y se ve distinta solo la parte que cambió");
+        CHECK(publicada->mezcla.volumen("Invitado 8") == 1.0f && siguiente->mezcla.volumen("Invitado 8") == 0.5f,
+              "4: la publicada no cambió (la nueva tiene su valor)");
+        // Rearmar IGUAL (lo de cada vuelta): se queda con el valor de antes, sin recorrerlo después.
+        trabajo.escenas = std::vector<F::Escena>(*publicada->escenas);
+        trabajo.video = json(*publicada->video);
+        CHECK(trabajo.escenas.mismo(publicada->escenas) && trabajo.video.mismo(publicada->video),
+              "4: rearmar una parte igual se queda con el valor compartido de antes");
+        // Editar en el lugar una compartida: se copia antes (la publicada no cambia).
+        trabajo.video["estados"]["Invitado 1"]["sin_datos_s"] = 9.0;
+        CHECK(!trabajo.video.mismo(publicada->video) &&
+                  publicada->video["estados"]["Invitado 1"].value("sin_datos_s", 0.0) == 0.1 &&
+                  trabajo.video["estados"]["Invitado 1"].value("sin_datos_s", 0.0) == 9.0,
+              "4: editar una parte compartida la copia antes: lo publicado no cambia nunca");
+        // Editar la que ya es solo suya: no se copia de nuevo.
+        const json* antes = &trabajo.video.get();
+        trabajo.video["nuevo"] = true;
+        CHECK(&trabajo.video.get() == antes, "4: editar la que ya es solo de la de trabajo no la copia otra vez");
+        // Quien lee ve lo mismo que con valores (el contrato de la vista, el MCP…).
+        const F& f = *siguiente;
+        int vistas = 0;
+        for (const F::Escena& e : f.escenas) vistas += static_cast<int>(e.fuentes.size());
+        const auto it = f.fuentesVideo.find("Invitado 3");
+        const std::vector<std::string>& audio = f.sala.audio;
+        const json copia = f.video;
+        CHECK(vistas == kInvitados && f.escenas.size() == 1 && f.escenas[0].nombre == "Grilla" &&
+                  f.escena("Grilla") != nullptr && f.fuentesDe("Grilla").size() == static_cast<std::size_t>(kInvitados) &&
+                  f.hayFuente("Invitado 120") && f.tipoDe("Invitado 2") == "guest" && it != f.fuentesVideo.end() &&
+                  (*it)["ajustes"].value("slot", 0) == 3 && audio.size() == static_cast<std::size_t>(kInvitados) &&
+                  f.retornos.value("5", std::string()) == "mix_minus" && copia.contains("estados") &&
+                  f.mezcla.canal("Invitado 120") != nullptr && f.mezcla.nombres().size() == static_cast<std::size_t>(kInvitados),
+              "4: quien lee la foto la lee igual que antes");
+        // Lo que cuesta publicar 1000 veces (como 100 s de vueltas del motor): copias de punteros.
+        const long usosAntes = trabajo.escenas.usos();
+        const auto t0 = std::chrono::steady_clock::now();
+        std::size_t total = 0;
+        for (int i = 0; i < 1000; ++i) {
+            trabajo.estado.cuadros = i;
+            const auto p = std::make_shared<const F>(trabajo);
+            total += p->escenas.size();
+        }
+        const double ms = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - t0).count();
+        std::printf("  medido: 1000 publicaciones con %d invitados: %.2f ms (%zu)\n", kInvitados, ms, total);
+        CHECK(trabajo.escenas.usos() == usosAntes && total == 1000,
+              "4: publicar 1000 veces no hizo ninguna copia de las escenas (el mismo valor, compartido)");
     }
 
     std::printf(fallas == 0 ? "test_foto_partes: OK\n" : "test_foto_partes: %d fallas\n", fallas);

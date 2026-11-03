@@ -22,7 +22,12 @@ void PublicadorFoto::anotarCambioAudio(const std::string& fuente, const char* qu
 
 void PublicadorFoto::armarMezcla(FotoMotor::MezclaAudio& m) {
     const BroadcastEngine& eng = rt_.engine_;
+    // Los canales de antes se guardan: si los nuevos son iguales, la foto sigue con esos (el
+    // mismo valor compartido: ni se copian ni se recorren al compararlos).
+    const Compartido<std::vector<FotoMotor::CanalAudio>> antes = m.canales;
     m = FotoMotor::MezclaAudio{};
+    m.canales = antes;
+    std::vector<FotoMotor::CanalAudio> canales;
     const std::vector<std::string> salidas = eng.salidaIds();
     m.porOmision = eng.idDeSalida("");
     std::map<std::string, std::uint64_t> altas;
@@ -49,8 +54,9 @@ void PublicadorFoto::armarMezcla(FotoMotor::MezclaAudio& m) {
         c.escucha = eng.sourceMonitoring(n);
         if (const auto it = altas.find(n); it != altas.end()) c.altas = it->second;
         ++porGrupo[c.grupo];
-        m.canales.push_back(std::move(c));
+        canales.push_back(std::move(c));
     }
+    m.canales = std::move(canales);
     // El VCA de los grupos que hay (dos o más fuentes con la misma clave), en cada salida.
     for (const std::string& s : salidas)
         for (const auto& [g, n] : porGrupo)

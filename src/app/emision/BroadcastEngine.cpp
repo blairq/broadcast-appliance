@@ -861,6 +861,24 @@ void BroadcastEngine::aplicarLoudness() { BA_TURNO; mezcla_->aplicarLoudness(); 
 int BroadcastEngine::pistasGrabacionMask() const { BA_TURNO; return mezcla_->pistasGrabacionMask(); }
 const audio::LoudnessPrograma& BroadcastEngine::loudnessPrograma() const { return medidasPrograma_->loudness; }
 
+std::vector<NivelesMotor::Medidor> BroadcastEngine::medidores() {
+    BA_TURNO;
+    std::vector<NivelesMotor::Medidor> out;
+    for (const auto& s : lasSalidas()) {
+        if (!s || !s->medidas) continue;
+        // Como VistasYMedicion::programPeaksDb, pero con las medidas compartidas (atómicas y
+        // el loudness con su candado): se leen sin el turno.
+        std::shared_ptr<MedidasSalida> m = s->medidas;
+        out.push_back({s->id,
+                       [m]() {
+                           const auto aDb = [](float lin) { return lin <= 0.00001f ? -100.0f : 20.0f * std::log10(lin); };
+                           return std::pair<float, float>{aDb(m->picoL.exchange(0.0f)), aDb(m->picoR.exchange(0.0f))};
+                       },
+                       [m]() { return m->loudness.json(); }});
+    }
+    return out;
+}
+
 // --- Los medios (MediosApp) ----------------------------------------------------------------
 std::vector<BroadcastEngine::MediaInfo> BroadcastEngine::mediaSources() const { BA_TURNO; return medios_->mediaSources(); }
 bool BroadcastEngine::playMedia(const std::string& name, const std::string& file, bool loop, float volume) { BA_TURNO; return medios_->playMedia(name, file, loop, volume); }

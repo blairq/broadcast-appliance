@@ -45,7 +45,7 @@ InputsViewModel::InputsViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, St
     // quien lo pida: el MCP (audio_input_add, video_input_add), un plugin, el
     // guion del evento o «Agregar como entrada» de Dispositivos. Las entradas (y su
     // tamaño, que llega cuando la cámara arranca) vienen con la foto del motor.
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    ventanilla_.escuchar(this, [this](unsigned partes) {
         if ((partes & (FotoMotor::Video | FotoMotor::Escenas)) != 0) revisarEntradas(partes);
     });
     // Las entradas de audio del equipo no son de ninguna escena: cuando cambian (un aviso
