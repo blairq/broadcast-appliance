@@ -19,7 +19,7 @@ EstadoAireViewModel::EstadoAireViewModel(Partes p, QObject* parent) : QObject(pa
     connect(&segundo_, &QTimer::timeout, this, &EstadoAireViewModel::alSegundo);
     estadisticas_.setSingleShot(true);
     connect(&estadisticas_, &QTimer::timeout, this, &EstadoAireViewModel::avisarEstadisticas);
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &EstadoAireViewModel::alCambiar);
+    p_.ventanilla.escuchar(this, [this](unsigned partes) { alCambiar(partes); });
     if (algoSale()) segundo_.start();
 }
 

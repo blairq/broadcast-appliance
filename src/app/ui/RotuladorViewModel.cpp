@@ -68,7 +68,7 @@ RotuladorViewModel::RotuladorViewModel(VentanillaMotor& ventanilla, graficos::Em
         if (!d_->sincro.isActive()) d_->sincro.start();
     };
     connect(this, &RotuladorViewModel::cambio, this, pronto);
-    connect(&ventanilla, &VentanillaMotor::cambio, this, [pronto](unsigned partes) {
+    ventanilla.escuchar(this, [pronto](unsigned partes) {
         if ((partes & (FotoMotor::Escenas | FotoMotor::Salidas)) != 0) pronto();
     });
     ConferenceClient& c = sala->client();

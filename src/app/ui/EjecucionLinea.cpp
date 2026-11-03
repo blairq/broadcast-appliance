@@ -62,7 +62,7 @@ EjecucionLinea::EjecucionLinea(ConduccionLinea& n, GuionViewModel& guion, AppRun
     : QObject(parent), n_(n), guion_(guion), rt_(rt), ventanilla_(ventanilla), sala_(sala), graficos_(graficos) {
     // Los medios que suenan llegan en la foto (parte Medidas): ahí se ve si terminó el de
     // una pieza que termina con su medio.
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned p) {
+    ventanilla_.escuchar(this, [this](unsigned p) {
         if ((p & FotoMotor::Medidas) != 0 && !mediosVigilados_.empty()) mirarMedios();
     });
 }

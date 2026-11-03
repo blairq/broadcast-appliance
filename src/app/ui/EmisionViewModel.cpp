@@ -86,7 +86,7 @@ EmisionViewModel::EmisionViewModel(Partes p, QObject* parent) : QObject(parent),
     apurosAntes_ = f.apurosDisco;
     remuxAntes_ = f.remux;
     retornosAntes_ = f.retornos;
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &EmisionViewModel::alCambiar);
+    p_.ventanilla.escuchar(this, [this](unsigned partes) { alCambiar(partes); });
     // El disco que queda: lo pide el modelo (lee el disco en el dueño), nadie lo sondea.
     connect(&discoReloj_, &QTimer::timeout, this, &EmisionViewModel::pedirDisco);
     discoReloj_.start(f.estado.graba ? 5000 : 30000);

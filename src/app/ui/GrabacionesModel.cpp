@@ -29,7 +29,7 @@ GrabacionesModel::GrabacionesModel(VentanillaMotor& ventanilla, QObject* parent)
     carpeta_ = ventanilla_.foto().sala.carpetaGrabacion;
     // Empezó o terminó una grabación: hay un archivo nuevo (o ya cerrado, con su tamaño). Se
     // abrió otro evento: otra carpeta.
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    ventanilla_.escuchar(this, [this](unsigned partes) {
         const FotoMotor& f = ventanilla_.foto();
         bool releer = false;
         if ((partes & FotoMotor::Estado) != 0 && f.estado.graba != grababa_) {

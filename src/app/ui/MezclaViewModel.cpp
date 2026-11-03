@@ -64,7 +64,7 @@ MezclaViewModel::MezclaViewModel(Partes p, QObject* parent) : QObject(parent), p
     matriz_ = std::make_unique<audio::Matriz>(rt.dataRoot(), &rt, &p_.ventanilla);
     connect(matriz_.get(), &audio::Matriz::cambio, this, &MezclaViewModel::pflChanged);
     connect(matriz_.get(), &audio::Matriz::aviso, this, [this](const QString& e) { emit notify(e, "error"); });
-    connect(&p_.ventanilla, &VentanillaMotor::cambio, this, &MezclaViewModel::alCambiarFoto);
+    p_.ventanilla.escuchar(this, [this](unsigned partes) { alCambiarFoto(partes); });
     // El Mezclador (la ventana propia): niveles de entradas y salidas, y su estado.
     mezclador_ = std::make_unique<audio::Mezclador>(rt, p_.ventanilla, matriz_.get());
     connect(mezclador_.get(), &audio::Mezclador::notify, this, &MezclaViewModel::notify);

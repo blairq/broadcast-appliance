@@ -38,9 +38,11 @@
 #include <functional>
 #include <memory>
 #include <mutex>
+#include <set>
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -100,6 +102,16 @@ class VentanillaMotor : public QObject {
         });
     }
 
+    /// ESCUCHAR la foto: `fn(partes)` en el hilo de la interfaz cada vez que llega una foto
+    /// (lo mismo que la señal `cambio`), mientras viva `quien`. Es lo que usan los view
+    /// models: entre un oyente y el siguiente se suelta el turno del motor que alguno haya
+    /// tomado entrando directo (TurnoMotor::soltarVuelta), así un oyente que tocó cfg_ no se
+    /// lo pasa a los que vienen después (con muchos invitados, la llegada de una foto con
+    /// todas las partes tardaba segundos y el turno quedaba tomado todo ese tiempo: la
+    /// agenda del dueño y su reloj, frenados). Los oyentes corren en el orden en que se
+    /// sumaron, antes que los conectados a `cambio`.
+    void escuchar(QObject* quien, std::function<void(unsigned partes)> fn);
+
     /// La foto que tiene la interfaz (ver arriba). Solo en el hilo de la interfaz.
     const FotoMotor& foto() const { return *vista_; }
     /// Una copia compartida de la misma (para guardarla en un modelo de lista).
@@ -144,6 +156,18 @@ class VentanillaMotor : public QObject {
     std::chrono::steady_clock::time_point publicadaEn_{}; ///< (con mu_)
     std::atomic<bool> avisoEnCamino_{false};
     std::atomic<std::uint64_t> pedidas_{0}, publicadas_{0}, recibidas_{0};
+    /// Los que escuchan (escuchar): solo el hilo de la interfaz.
+    struct Oyente {
+        QPointer<QObject> quien;
+        std::function<void(unsigned)> fn;
+    };
+    std::vector<Oyente> oyentes_;
+    /// La llegada más larga (ms): lo que tardaron los oyentes con una foto (para el diagnóstico).
+    std::atomic<std::int64_t> llegadaMaxMs_{0};
+    /// Desde cuánto un oyente es lento (va a `ba_ventanilla_oyente_ms{quien}`).
+    static constexpr std::int64_t kOyenteLentoMs = 20;
+    void anotarOyenteLento(const char* clase, unsigned partes, std::int64_t ms);
+    std::set<std::string> lentosAvisados_; ///< las clases que ya fueron al registro
 };
 
 } // namespace ba::app

@@ -29,7 +29,7 @@ EventoViewModel::EventoViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Co
 
     // Las escenas de la línea van por su id: al cambiar las escenas (un renombre, una que
     // se borra, la primera foto) el nombre que muestra cada pieza se pone al día.
-    connect(&ventanilla, &VentanillaMotor::cambio, this, [this, &ventanilla](unsigned p) {
+    ventanilla.escuchar(this, [this, &ventanilla](unsigned p) {
         if ((p & FotoMotor::Escenas) != 0) ab_->seguirEscenas(escenas::TablaEscenas(ventanilla.foto().idsDeEscenas()));
     });
     ventanilla_ = &ventanilla;

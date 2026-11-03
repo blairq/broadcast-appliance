@@ -126,7 +126,7 @@ Matriz::Matriz(fs::path dataRoot, AppRuntime* rt, VentanillaMotor* ventanilla, Q
     cargar();
     cargando_ = false;
     // Lo de cada fuente llega con la foto del motor (cambie por el camino que sea).
-    if (v_ != nullptr) connect(v_, &VentanillaMotor::cambio, this, &Matriz::alCambiarFoto);
+    if (v_ != nullptr) v_->escuchar(this, [this](unsigned partes) { alCambiarFoto(partes); });
     refrescar();
     connect(&timer_, &QTimer::timeout, this, [this]() { leerMedidores(); });
     // Un invitado que entra después: si tiene envíos, se le engancha la toma.
