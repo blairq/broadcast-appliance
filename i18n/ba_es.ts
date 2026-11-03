@@ -206,43 +206,43 @@
 <context>
     <name>CapacidadViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="+194"/>
+        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="+181"/>
         <source>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</numerusform>
+            <numerusform>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+43"/>
+        <location line="+83"/>
         <source>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</numerusform>
+            <numerusform>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+279"/>
+        <location line="+294"/>
         <source>Entrando: %n invitados de prueba</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Entrando: %n invitado de prueba</numerusform>
+            <numerusform>Entrando: %n invitados de prueba</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Se acomodan los %n…</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Se acomoda %n…</numerusform>
+            <numerusform>Se acomodan los %n…</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Midiendo con %n invitados</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Midiendo con %n invitado</numerusform>
+            <numerusform>Midiendo con %n invitados</numerusform>
         </translation>
     </message>
 </context>

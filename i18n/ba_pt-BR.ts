@@ -4679,120 +4679,125 @@ Isto o abre em outra janela, para ter as duas coisas ao mesmo tempo.</translatio
 <context>
     <name>CapacidadViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="+194"/>
+        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="+181"/>
         <source>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Teste de capacidade: entram convidados de teste em etapas até %n (cada etapa, no máximo 2 minutos).</numerusform>
+            <numerusform>Teste de capacidade: entram convidados de teste em etapas até %n (cada etapa, no máximo 2 minutos).</numerusform>
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+43"/>
+        <location line="+83"/>
         <source>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>O outro equipamento abriu vaga para %n: o teste vai até aí.</numerusform>
+            <numerusform>O outro equipamento abriu vagas para %n: o teste vai até aí.</numerusform>
         </translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-22"/>
         <source>Prueba de capacidad del otro equipo (%1): los invitados de prueba salen de esta máquina.</source>
-        <translation type="unfinished"></translation>
+        <translation>Teste de capacidade do outro equipamento (%1): os convidados de teste saem desta máquina.</translation>
     </message>
     <message>
-        <location line="+274"/>
+        <location line="+314"/>
+        <source>Preparando el video de prueba (solo la primera vez, unos minutos)…</source>
+        <translation>Preparando o vídeo de teste (só na primeira vez, alguns minutos)…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Abriendo la prueba…</source>
-        <translation type="unfinished"></translation>
+        <translation>Abrindo o teste…</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Entrando: %n invitados de prueba</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Entrando: %n convidado de teste</numerusform>
+            <numerusform>Entrando: %n convidados de teste</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Se acomodan los %n…</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Acomodando o %n…</numerusform>
+            <numerusform>Acomodando os %n…</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Midiendo con %n invitados</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Medindo com %n convidado</numerusform>
+            <numerusform>Medindo com %n convidados</numerusform>
         </translation>
     </message>
     <message>
         <location line="+135"/>
         <source>La conferencia no tiene una dirección para que entre el otro equipo.</source>
-        <translation type="unfinished"></translation>
+        <translation>A conferência não tem um endereço para o outro equipamento entrar.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Este equipo se deja probar: copiá el código en el otro equipo (pestaña Capacidad → Un sistema remoto).</source>
-        <translation type="unfinished"></translation>
+        <translation>Este equipamento aceita ser testado: copie o código no outro equipamento (aba Capacidade → Um sistema remoto).</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Terminó el tiempo para recibir la prueba.</source>
-        <translation type="unfinished"></translation>
+        <translation>Acabou o tempo para receber o teste.</translation>
     </message>
     <message>
         <location line="+83"/>
         <source>Midiendo la conexión…</source>
-        <translation type="unfinished"></translation>
+        <translation>Medindo a conexão…</translation>
     </message>
     <message>
         <location line="+48"/>
         <source>Prendiendo pinggy (la conferencia se reinicia)…</source>
-        <translation type="unfinished"></translation>
+        <translation>Ligando o pinggy (a conferência reinicia)…</translation>
     </message>
     <message>
         <location line="+40"/>
         <source>Midiendo por pinggy (ida y vuelta)…</source>
-        <translation type="unfinished"></translation>
+        <translation>Medindo pelo pinggy (ida e volta)…</translation>
     </message>
     <message>
         <location line="+99"/>
         <source>La conferencia cerró la prueba que venía del otro equipo (%1).</source>
-        <translation type="unfinished"></translation>
+        <translation>A conferência encerrou o teste que vinha do outro equipamento (%1).</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>Había una prueba de capacidad sin terminar (el programa se cerró en el medio): ya se limpió.</source>
-        <translation type="unfinished"></translation>
+        <translation>Havia um teste de capacidade inacabado (o programa fechou no meio): já foi limpo.</translation>
     </message>
     <message>
         <location line="+80"/>
         <location line="+1"/>
         <source>no se pudo escribir %1</source>
-        <translation type="unfinished">não foi possível gravar %1</translation>
+        <translation>não foi possível gravar %1</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Exportado: %1</source>
-        <translation type="unfinished">Exportado: %1</translation>
+        <translation>Exportado: %1</translation>
     </message>
     <message>
         <location line="+64"/>
         <source>Capacidad de esta máquina sin medir: Configuración → Sistema → Capacidad dice cuántos invitados aguanta.</source>
-        <translation type="unfinished"></translation>
+        <translation>Capacidade desta máquina não medida: Configurações → Sistema → Capacidade diz quantos convidados ela aguenta.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Capacidad: el %1 esta máquina aguantó %2 invitados con margen y el evento tiene lugar para %3.</source>
-        <translation type="unfinished"></translation>
+        <translation>Capacidade: em %1 esta máquina aguentou %2 convidados com folga e o evento tem vagas para %3.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Conexión: según la última medición entran %1 invitados con margen y el evento tiene lugar para %2.</source>
-        <translation type="unfinished"></translation>
+        <translation>Conexão: pela última medição entram %1 convidados com folga e o evento tem vagas para %2.</translation>
     </message>
 </context>
 <context>
@@ -11883,8 +11888,19 @@ Ligue-a pelo Log.</translation>
     <name>GeneradorHinchada</name>
     <message>
         <location filename="../src/app/sala/GeneradorCarga.cpp" line="+28"/>
+        <location line="+51"/>
         <source>el probador (hinchada) no viene en este programa</source>
-        <translation type="unfinished"></translation>
+        <translation>o testador (hinchada) não vem neste programa</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>hinchada no pudo grabar su video de prueba (código %1)</source>
+        <translation>o hinchada não conseguiu gravar seu vídeo de teste (código %1)</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>no arrancó hinchada</source>
+        <translation>o hinchada não iniciou</translation>
     </message>
 </context>
 <context>
@@ -18117,395 +18133,395 @@ Não são apagados do disco: se algum estava em uma cena, é tirado de lá e pro
         <location filename="../src/app/qml/controls/PanelCapacidad.qml" line="+29"/>
         <location line="+112"/>
         <source>Cancelar</source>
-        <translation type="unfinished">Cancelar</translation>
+        <translation>Cancelar</translation>
     </message>
     <message>
         <location line="-69"/>
         <location line="+188"/>
         <source>%1 invitados: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 convidados: %2</translation>
     </message>
     <message>
         <location line="-149"/>
         <source>¿Cuántos invitados aguanta? Entran invitados de prueba por escalones (10, 20, 40, 60, 80…, cada uno 2 minutos como mucho) hasta que la máquina se degrada: la CPU sostenida pasa del 85 %, queda poca memoria, la grilla baja de 25 cuadros por segundo, el audio se atrasa más de 50 ms o la interfaz se traba. Los de prueba no tocan el padrón ni la votación, y el evento abierto no se modifica.</source>
-        <translation type="unfinished"></translation>
+        <translation>Quantos convidados aguenta? Entram convidados de teste em etapas (10, 20, 40, 60, 80…, cada uma no máximo 2 minutos) até a máquina degradar: CPU sustentada acima de 85 %, pouca memória, grade abaixo de 25 quadros por segundo, áudio atrasado mais de 50 ms ou interface travando. Os de teste não entram na lista de membros nem na votação, e o evento aberto não é alterado.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Ahora no se puede probar: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Agora não é possível testar: %1</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Midiendo la conexión</source>
-        <translation type="unfinished"></translation>
+        <translation>Medindo a conexão</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Probando %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Testando %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Probando este equipo</source>
-        <translation type="unfinished"></translation>
+        <translation>Testando este equipamento</translation>
     </message>
     <message>
         <location line="+19"/>
         <source>Escalón %1 de %2 · %3 s</source>
-        <translation type="unfinished"></translation>
+        <translation>Etapa %1 de %2 · %3 s</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>%1/%2 con video</source>
-        <translation type="unfinished">%1/%2 com vídeo</translation>
+        <translation>%1/%2 com vídeo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>CPU %1 %</source>
-        <translation type="unfinished"></translation>
+        <translation>CPU %1 %</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>hinchada %1 %</source>
-        <translation type="unfinished"></translation>
+        <translation>hinchada %1 %</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>memoria libre %1 GB</source>
-        <translation type="unfinished"></translation>
+        <translation>memória livre %1 GB</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>grilla %1 cps</source>
-        <translation type="unfinished"></translation>
+        <translation>grade %1 qps</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>audio %1 ms</source>
-        <translation type="unfinished"></translation>
+        <translation>áudio %1 ms</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Este equipo</source>
-        <translation type="unfinished"></translation>
+        <translation>Este equipamento</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>¿Cuántos invitados aguanta esta máquina? El generador de prueba (hinchada) corre acá mismo: su CPU se mide aparte y se descuenta.</source>
-        <translation type="unfinished"></translation>
+        <translation>Quantos convidados esta máquina aguenta? O gerador de teste (hinchada) roda aqui mesmo: a CPU dele é medida à parte e descontada.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+116"/>
         <source>Hasta</source>
-        <translation type="unfinished"></translation>
+        <translation>Até</translation>
     </message>
     <message>
         <location line="-111"/>
         <source>invitados</source>
-        <translation type="unfinished"></translation>
+        <translation>convidados</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Probar este equipo…</source>
-        <translation type="unfinished"></translation>
+        <translation>Testar este equipamento…</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>¿Probar este equipo?</source>
-        <translation type="unfinished"></translation>
+        <translation>Testar este equipamento?</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Van a entrar hasta %1 invitados de prueba por escalones: la máquina se va a cargar durante unos minutos. No lo hagas con un evento en curso. Se puede cancelar en cualquier momento.</source>
-        <translation type="unfinished"></translation>
+        <translation>Vão entrar até %1 convidados de teste em etapas: a máquina vai ficar carregada por alguns minutos. Não faça isso com um evento em andamento. Dá para cancelar a qualquer momento.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+89"/>
         <source>Probar</source>
-        <translation type="unfinished">Testar</translation>
+        <translation>Testar</translation>
     </message>
     <message>
         <location line="-79"/>
         <source>El generador de prueba (hinchada) no viene en este programa: esta máquina se puede probar desde otro equipo (abajo, «Que otro equipo pruebe este»).</source>
-        <translation type="unfinished"></translation>
+        <translation>O gerador de teste (hinchada) não vem neste programa: esta máquina pode ser testada a partir de outro equipamento (abaixo, “Deixar outro equipamento testar este”).</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Resultado: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Resultado: %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Resultado</source>
-        <translation type="unfinished">Resultado</translation>
+        <translation>Resultado</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>CPU sin el generador (%)</source>
-        <translation type="unfinished"></translation>
+        <translation>CPU sem o gerador (%)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>CPU (%)</source>
-        <translation type="unfinished"></translation>
+        <translation>CPU (%)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Memoria disponible (GB)</source>
-        <translation type="unfinished"></translation>
+        <translation>Memória disponível (GB)</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Grilla (cuadros por segundo)</source>
-        <translation type="unfinished"></translation>
+        <translation>Grade (quadros por segundo)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Audio de los invitados (ms)</source>
-        <translation type="unfinished"></translation>
+        <translation>Áudio dos convidados (ms)</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>%1 invitados: bien (CPU %2 %, %3/%1 con video)</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 convidados: ok (CPU %2 %, %3/%1 com vídeo)</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Un sistema remoto</source>
-        <translation type="unfinished"></translation>
+        <translation>Um sistema remoto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Probar otro BroadcastAppliance desde acá: en el otro, «Que otro equipo pruebe este» muestra un código; pegalo acá. Los invitados de prueba salen de esta máquina y el otro informa su CPU y su memoria.</source>
-        <translation type="unfinished"></translation>
+        <translation>Testar outro BroadcastAppliance daqui: no outro, “Deixar outro equipamento testar este” mostra um código; cole-o aqui. Os convidados de teste saem desta máquina e o outro informa sua CPU e sua memória.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Código del otro equipo (BACAP1.…)</source>
-        <translation type="unfinished"></translation>
+        <translation>Código do outro equipamento (BACAP1.…)</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Probar el otro equipo…</source>
-        <translation type="unfinished"></translation>
+        <translation>Testar o outro equipamento…</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>¿Probar el otro equipo?</source>
-        <translation type="unfinished"></translation>
+        <translation>Testar o outro equipamento?</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Esta máquina va a generar hasta %1 invitados de prueba contra el otro equipo. Que el otro no tenga un evento en curso.</source>
-        <translation type="unfinished"></translation>
+        <translation>Esta máquina vai gerar até %1 convidados de teste contra o outro equipamento. O outro não deve ter um evento em andamento.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Que otro equipo pruebe este</source>
-        <translation type="unfinished"></translation>
+        <translation>Deixar outro equipamento testar este</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>invitados, durante</source>
-        <translation type="unfinished"></translation>
+        <translation>convidados, durante</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>minutos</source>
-        <translation type="unfinished">minutos</translation>
+        <translation>minutos</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Recibir una prueba…</source>
-        <translation type="unfinished"></translation>
+        <translation>Receber um teste…</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>¿Dejar que otro equipo pruebe este?</source>
-        <translation type="unfinished"></translation>
+        <translation>Deixar outro equipamento testar este?</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Se abre una credencial de prueba (vence sola) y entran hasta %1 invitados de prueba desde el otro equipo. La guardia corta si esta máquina se ahoga.</source>
-        <translation type="unfinished"></translation>
+        <translation>Abre-se uma credencial de teste (expira sozinha) e entram até %1 convidados de teste a partir do outro equipamento. O watchdog corta se esta máquina ficar sobrecarregada.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Recibir</source>
-        <translation type="unfinished"></translation>
+        <translation>Receber</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Abriendo…</source>
-        <translation type="unfinished"></translation>
+        <translation>Abrindo…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Recibiendo hasta las %1: %2 invitados de prueba adentro (%3 con video).</source>
-        <translation type="unfinished"></translation>
+        <translation>Recebendo até as %1: %2 convidados de teste dentro (%3 com vídeo).</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Código: •••••••• (%1)</source>
-        <translation type="unfinished"></translation>
+        <translation>Código: •••••••• (%1)</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Copiado ✓</source>
-        <translation type="unfinished">Copiado ✓</translation>
+        <translation>Copiado ✓</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Copiar el código (red local)</source>
-        <translation type="unfinished"></translation>
+        <translation>Copiar o código (rede local)</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Copiar el código (por internet)</source>
-        <translation type="unfinished"></translation>
+        <translation>Copiar o código (pela internet)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Ocultar</source>
-        <translation type="unfinished">Ocultar</translation>
+        <translation>Ocultar</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Mostrar</source>
-        <translation type="unfinished">Mostrar</translation>
+        <translation>Mostrar</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Dejar de recibir</source>
-        <translation type="unfinished"></translation>
+        <translation>Parar de receber</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Conexión a internet</source>
-        <translation type="unfinished"></translation>
+        <translation>Conexão com a internet</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Lo que cuenta es el camino de los invitados: pinggy y el TURN de la conferencia (y el túnel WireGuard, si está). Dice cuántos invitados entran con esta conexión: como mucho 4 en alta definición y el resto en baja.</source>
-        <translation type="unfinished"></translation>
+        <translation>O que conta é o caminho dos convidados: o pinggy e o TURN da conferência (e o túnel WireGuard, se houver). Diz quantos convidados entram com esta conexão: no máximo 4 em alta definição e o resto em baixa.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Pinggy: sin datos</source>
-        <translation type="unfinished"></translation>
+        <translation>Pinggy: sem dados</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>hay túnel WireGuard</source>
-        <translation type="unfinished"></translation>
+        <translation>há túnel WireGuard</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Medir la conexión</source>
-        <translation type="unfinished"></translation>
+        <translation>Medir a conexão</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Prender pinggy y medir…</source>
-        <translation type="unfinished"></translation>
+        <translation>Ligar o pinggy e medir…</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>¿Prender pinggy para medir?</source>
-        <translation type="unfinished"></translation>
+        <translation>Ligar o pinggy para medir?</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Prender pinggy reinicia la conferencia (unos segundos). Al terminar la medición se apaga solo.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ligar o pinggy reinicia a conferência (alguns segundos). Ao terminar a medição ele desliga sozinho.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Prender y medir</source>
-        <translation type="unfinished"></translation>
+        <translation>Ligar e medir</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Por pinggy</source>
-        <translation type="unfinished"></translation>
+        <translation>Pelo pinggy</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Por el túnel WireGuard</source>
-        <translation type="unfinished"></translation>
+        <translation>Pelo túnel WireGuard</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>%1 Mbps ida y vuelta, demora %2 ms (%3 ms cargado), pérdida %4 % → entran %5</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 Mbps ida e volta, latência %2 ms (%3 ms com carga), perda %4 % → entram %5</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>subida %1 Mbps, bajada %2 Mbps → entran %3</source>
-        <translation type="unfinished"></translation>
+        <translation>upload %1 Mbps, download %2 Mbps → entram %3</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Historial</source>
-        <translation type="unfinished"></translation>
+        <translation>Histórico</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cada prueba queda guardada con la fecha y la máquina. La revisión previa del evento muestra la última.</source>
-        <translation type="unfinished"></translation>
+        <translation>Cada teste fica salvo com a data e a máquina. A revisão prévia do evento mostra o último.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Exportar el último…</source>
-        <translation type="unfinished"></translation>
+        <translation>Exportar o último…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Exportar el historial (CSV)…</source>
-        <translation type="unfinished"></translation>
+        <translation>Exportar o histórico (CSV)…</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Todavía no hay pruebas guardadas.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ainda não há testes salvos.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>conexión</source>
-        <translation type="unfinished"></translation>
+        <translation>conexão</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>remoto</source>
-        <translation type="unfinished">remoto</translation>
+        <translation>remoto</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>este equipo</source>
-        <translation type="unfinished"></translation>
+        <translation>este equipamento</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Exportar el historial de capacidad</source>
-        <translation type="unfinished"></translation>
+        <translation>Exportar o histórico de capacidade</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Exportar el último resultado de capacidad</source>
-        <translation type="unfinished"></translation>
+        <translation>Exportar o último resultado de capacidade</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>CSV (*.csv)</source>
-        <translation type="unfinished">CSV (*.csv)</translation>
+        <translation>CSV (*.csv)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>JSON (*.json)</source>
-        <translation type="unfinished"></translation>
+        <translation>JSON (*.json)</translation>
     </message>
 </context>
 <context>
@@ -33607,7 +33623,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+135"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+136"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (não foi possível: %2)</translation>
     </message>
@@ -40081,27 +40097,27 @@ Escolha outra coisa em Saídas → Telas.</translation>
     <message>
         <location line="+1"/>
         <source>Video de los invitados: hilos por decodificador</source>
-        <translation type="unfinished"></translation>
+        <translation>Vídeo dos convidados: threads por decodificador</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cuántos hilos usa cada decodificador de video por software (VP8, VP9, AV1, o H.264 sin placa). Con muchos invitados, uno: el reparto está en que son muchos.</source>
-        <translation type="unfinished"></translation>
+        <translation>Quantas threads cada decodificador de vídeo por software usa (VP8, VP9, AV1, ou H.264 sem GPU). Com muitos convidados, uma: a divisão já vem de serem muitos.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Video de los invitados: hilos para decodificar</source>
-        <translation type="unfinished"></translation>
+        <translation>Vídeo dos convidados: threads para decodificar</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cuántos hilos comparten todos los invitados para decodificar su video (0: automático, los núcleos de un bloque de caché, entre 2 y 6). Lo demás de la conferencia usa 2 hilos aparte. −1: un hilo por cada cola, como venía libwebrtc (para comparar).</source>
-        <translation type="unfinished"></translation>
+        <translation>Quantas threads todos os convidados compartilham para decodificar o vídeo (0: automático, os núcleos de um bloco de cache, entre 2 e 6). O resto da conferência usa 2 threads à parte. −1: uma thread por fila, como vinha no libwebrtc (para comparar).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Video de los invitados: decodificar H.264 con la placa</source>
-        <translation type="unfinished"></translation>
+        <translation>Vídeo dos convidados: decodificar H.264 na GPU</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -40466,27 +40482,27 @@ Escolha outra coisa em Saídas → Telas.</translation>
     <message>
         <location line="+6"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
-        <translation type="unfinished"></translation>
+        <translation>Windows: o H.264 enviado pelos convidados é decodificado na GPU. Desligado (ou sem GPU), os convidados enviam e recebem em VP8 por software.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Video de los invitados: cómo se usa la placa para H.264</source>
-        <translation type="unfinished"></translation>
+        <translation>Vídeo dos convidados: como a GPU é usada para H.264</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Directo (D3D11)</source>
-        <translation type="unfinished"></translation>
+        <translation>Direto (D3D11)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Media Foundation</source>
-        <translation type="unfinished"></translation>
+        <translation>Media Foundation</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Windows: directo, el gateway le pasa cada cuadro a la placa sin intermediarios (menos procesador e hilos); Media Foundation, el decodificador de Windows (para comparar o si la placa da problemas).</source>
-        <translation type="unfinished"></translation>
+        <translation>Windows: direto, o gateway passa cada quadro à GPU sem intermediários (menos processador e threads); Media Foundation, o decodificador do Windows (para comparar ou se a GPU der problemas).</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -41532,7 +41548,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
     <message>
         <location line="+1"/>
         <source>Capacidad</source>
-        <translation type="unfinished">Capacidade</translation>
+        <translation>Capacidade</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -47576,388 +47592,398 @@ Dados (de %2): %3</translation>
     <message>
         <location filename="../src/app/net/ClienteCapacidad.cpp" line="+84"/>
         <source>la credencial del otro equipo no vale (venció o está mal copiada)</source>
-        <translation type="unfinished"></translation>
+        <translation>a credencial do outro equipamento não vale (expirou ou foi copiada errado)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>el otro equipo no tiene la prueba de capacidad (otra versión)</source>
-        <translation type="unfinished"></translation>
+        <translation>o outro equipamento não tem o teste de capacidade (outra versão)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>el otro equipo contestó %1</source>
-        <translation type="unfinished"></translation>
+        <translation>o outro equipamento respondeu %1</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>la dirección pública no contesta (¿el túnel está listo?)</source>
-        <translation type="unfinished"></translation>
+        <translation>o endereço público não responde (o túnel está pronto?)</translation>
     </message>
     <message>
         <location line="+39"/>
         <source>cancelada</source>
-        <translation type="unfinished"></translation>
+        <translation>cancelado</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>no bajó nada por el túnel</source>
-        <translation type="unfinished"></translation>
+        <translation>nada chegou pelo túnel</translation>
     </message>
     <message>
         <location filename="../src/app/sala/CapacidadReglas.cpp" line="+153"/>
         <source>la memoria disponible bajó a %1 MB (el corte es %2 MB)</source>
-        <translation type="unfinished"></translation>
+        <translation>a memória disponível caiu para %1 MB (o limite é %2 MB)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>la interfaz estuvo trabada %1 ms</source>
-        <translation type="unfinished">a interface ficou travada %1 ms</translation>
+        <translation>a interface ficou travada %1 ms</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>la CPU estuvo al %1 % o más durante %2 s seguidos</source>
-        <translation type="unfinished"></translation>
+        <translation>a CPU ficou em %1 % ou mais durante %2 s seguidos</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>la máquina que genera los invitados estuvo al %1 % o más durante %2 s seguidos</source>
-        <translation type="unfinished"></translation>
+        <translation>a máquina que gera os convidados ficou em %1 % ou mais durante %2 s seguidos</translation>
     </message>
     <message>
         <location line="+64"/>
         <source>la cortó la guardia</source>
-        <translation type="unfinished"></translation>
+        <translation>o watchdog interrompeu</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>CPU sostenida al %1 % (el tope es %2 %)</source>
-        <translation type="unfinished"></translation>
+        <translation>CPU sustentada em %1 % (o limite é %2 %)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>quedaron %1 MB de memoria disponible (hacen falta %2 MB)</source>
-        <translation type="unfinished"></translation>
+        <translation>restaram %1 MB de memória disponível (são necessários %2 MB)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>la grilla bajó a %1 cuadros por segundo (el mínimo es %2)</source>
-        <translation type="unfinished"></translation>
+        <translation>a grade caiu para %1 quadros por segundo (o mínimo é %2)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>el audio de los invitados llega con %1 ms (el tope es %2 ms)</source>
-        <translation type="unfinished"></translation>
+        <translation>o áudio dos convidados chega com %1 ms (o limite é %2 ms)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>entraron con video %1 de %2</source>
-        <translation type="unfinished"></translation>
+        <translation>entraram com vídeo %1 de %2</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>la interfaz se trabó (hasta %1 ms)</source>
-        <translation type="unfinished"></translation>
+        <translation>a interface travou (até %1 ms)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>la máquina que genera los invitados estuvo al %1 %: el resultado es un mínimo</source>
-        <translation type="unfinished"></translation>
+        <translation>a máquina que gera os convidados ficou em %1 %: o resultado é um mínimo</translation>
     </message>
     <message>
         <location line="+72"/>
         <source>la CPU</source>
-        <translation type="unfinished"></translation>
+        <translation>a CPU</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>la memoria</source>
-        <translation type="unfinished"></translation>
+        <translation>a memória</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>la grilla (cuadros por segundo)</source>
-        <translation type="unfinished"></translation>
+        <translation>a grade (quadros por segundo)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>la demora del audio</source>
-        <translation type="unfinished"></translation>
+        <translation>o atraso do áudio</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>la entrada de los invitados</source>
-        <translation type="unfinished"></translation>
+        <translation>a entrada dos convidados</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>la interfaz (se traba)</source>
-        <translation type="unfinished"></translation>
+        <translation>a interface (trava)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>la máquina que genera los invitados</source>
-        <translation type="unfinished"></translation>
+        <translation>a máquina que gera os convidados</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Ya con %1 invitados se degrada.</source>
-        <translation type="unfinished"></translation>
+        <translation>Já com %1 convidados degrada.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>La prueba no llegó a completar ningún escalón.</source>
-        <translation type="unfinished"></translation>
+        <translation>O teste não chegou a completar nenhuma etapa.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Aguanta al menos %1 invitados con margen (la prueba llegó hasta %2 sin degradarse).</source>
-        <translation type="unfinished"></translation>
+        <translation>Aguenta pelo menos %1 convidados com folga (o teste chegou a %2 sem degradar).</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Aguanta %1 invitados con margen (%2 como máximo antes de degradarse; con %3 se degradó).</source>
-        <translation type="unfinished"></translation>
+        <translation>Aguenta %1 convidados com folga (%2 no máximo antes de degradar; com %3 degradou).</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Aguanta al menos %1 invitados con margen (%2 probados; la prueba se cortó antes).</source>
-        <translation type="unfinished"></translation>
+        <translation>Aguenta pelo menos %1 convidados com folga (%2 testados; o teste foi interrompido antes).</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Lo que limita es %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>O que limita é %1.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Por la tendencia de la CPU llegaría a unos %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>Pela tendência da CPU chegaria a uns %1.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>El generador de prueba corrió en esta máquina y usó ~%1 % de la CPU: ya está descontado.</source>
-        <translation type="unfinished"></translation>
+        <translation>O gerador de teste rodou nesta máquina e usou ~%1 % da CPU: já está descontado.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="-1039"/>
+        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="-1079"/>
+        <source>no se pudo preparar el video de prueba de hinchada</source>
+        <translation>não foi possível preparar o vídeo de teste do hinchada</translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>el probador (hinchada) se cortó solo (código %1): ver consola.txt</source>
-        <translation type="unfinished"></translation>
+        <translation>o testador (hinchada) parou sozinho (código %1): veja consola.txt</translation>
     </message>
     <message>
         <location line="+43"/>
-        <location line="+587"/>
+        <location line="+616"/>
         <source>la conferencia no está andando</source>
-        <translation type="unfinished">a conferência não está rodando</translation>
+        <translation>a conferência não está rodando</translation>
     </message>
     <message>
-        <location line="-585"/>
+        <location line="-614"/>
         <source>hay algo al aire (transmisión, grabación o señal limpia): la prueba carga la máquina</source>
-        <translation type="unfinished"></translation>
+        <translation>há algo no ar (transmissão, gravação ou sinal limpo): o teste carrega a máquina</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>hay %1 invitados de verdad conectados: probá sin gente en la sala</source>
-        <translation type="unfinished"></translation>
+        <translation>há %1 convidados de verdade conectados: teste sem ninguém na sala</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location line="+55"/>
-        <location line="+514"/>
+        <location line="+61"/>
+        <location line="+537"/>
         <source>ya hay una prueba de capacidad en curso</source>
-        <translation type="unfinished"></translation>
+        <translation>já há um teste de capacidade em andamento</translation>
     </message>
     <message>
-        <location line="-559"/>
+        <location line="-588"/>
         <source>el probador (hinchada) no viene en este programa: probá desde otro equipo</source>
-        <translation type="unfinished"></translation>
+        <translation>o testador (hinchada) não vem neste programa: teste a partir de outro equipamento</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+53"/>
+        <location line="+59"/>
         <source>el tope va de 1 a %1 invitados</source>
-        <translation type="unfinished"></translation>
+        <translation>o limite vai de 1 a %1 convidados</translation>
     </message>
     <message>
-        <location line="-30"/>
+        <location line="-27"/>
         <source>la conferencia no tiene HTTPS: el probador no puede entrar</source>
-        <translation type="unfinished">a conferência não tem HTTPS: o testador não pode entrar</translation>
+        <translation>a conferência não tem HTTPS: o testador não consegue entrar</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+22"/>
         <source>el probador (hinchada) no viene en este programa: no se puede generar desde acá</source>
-        <translation type="unfinished"></translation>
+        <translation>o testador (hinchada) não vem neste programa: não dá para gerar daqui</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>ese no es un código de capacidad: copialo entero del otro equipo (empieza con BACAP1.)</source>
-        <translation type="unfinished"></translation>
+        <translation>isso não é um código de capacidade: copie-o inteiro do outro equipamento (começa com BACAP1.)</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+28"/>
         <source>el otro equipo no contestó</source>
-        <translation type="unfinished"></translation>
+        <translation>o outro equipamento não respondeu</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+53"/>
         <source>la conferencia no abrió la credencial de prueba</source>
-        <translation type="unfinished"></translation>
+        <translation>a conferência não abriu a credencial de teste</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>la conferencia se reinició en el medio de la prueba</source>
-        <translation type="unfinished"></translation>
+        <translation>a conferência reiniciou no meio do teste</translation>
     </message>
     <message>
         <location line="+26"/>
         <source>terminó la rampa</source>
-        <translation type="unfinished"></translation>
+        <translation>a rampa terminou</translation>
     </message>
     <message>
-        <location line="+96"/>
+        <location line="+97"/>
+        <source>hinchada tardó demasiado en preparar su video de prueba</source>
+        <translation>o hinchada demorou demais para preparar seu vídeo de teste</translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>no se pudo abrir la prueba a tiempo</source>
-        <translation type="unfinished"></translation>
+        <translation>não foi possível abrir o teste a tempo</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>el otro equipo dejó de contestar (¿terminó de recibir o se cortó la red?)</source>
-        <translation type="unfinished"></translation>
+        <translation>o outro equipamento parou de responder (terminou de receber ou a rede caiu?)</translation>
     </message>
     <message>
         <location line="+54"/>
         <source>la cortó la guardia: %1</source>
-        <translation type="unfinished">cortado pela guarda: %1</translation>
+        <translation>o watchdog interrompeu: %1</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>se degradó</source>
-        <translation type="unfinished"></translation>
+        <translation>degradou</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>llegó al tope sin degradarse</source>
-        <translation type="unfinished"></translation>
+        <translation>chegou ao limite sem degradar</translation>
     </message>
     <message>
-        <location line="+63"/>
+        <location line="+64"/>
         <source>La prueba no pudo hacerse: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Não foi possível fazer o teste: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>(Se cortó: %1)</source>
-        <translation type="unfinished"></translation>
+        <translation>(Interrompido: %1)</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>el cupo va de 1 a %1 invitados</source>
-        <translation type="unfinished"></translation>
+        <translation>as vagas vão de 1 a %1 convidados</translation>
     </message>
     <message>
         <location line="+103"/>
         <source>Se cortó la prueba que venía del otro equipo: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>O teste que vinha do outro equipamento foi interrompido: %1</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>terminó de recibir</source>
-        <translation type="unfinished"></translation>
+        <translation>terminou de receber</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>la conferencia sale por otro túnel (Cloudflare): no se prende pinggy encima</source>
-        <translation type="unfinished"></translation>
+        <translation>a conferência sai por outro túnel (Cloudflare): o pinggy não é ligado por cima</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>la medición por el túnel no terminó bien (ver Sala → Enlace)</source>
-        <translation type="unfinished"></translation>
+        <translation>a medição pelo túnel não terminou bem (veja Sala → Enlace)</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>pinggy está apagado: para medir el camino de los invitados, «Prender pinggy y medir»</source>
-        <translation type="unfinished"></translation>
+        <translation>o pinggy está desligado: para medir o caminho dos convidados, “Ligar o pinggy e medir”</translation>
     </message>
     <message>
         <location line="+4"/>
         <location filename="../src/app/ui/StudioCapacidad.cpp" line="+111"/>
         <source>no disponible</source>
-        <translation type="unfinished"></translation>
+        <translation>não disponível</translation>
     </message>
     <message>
         <location line="+29"/>
         <source>la medición por el túnel tardó demasiado</source>
-        <translation type="unfinished"></translation>
+        <translation>a medição pelo túnel demorou demais</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>pinggy no se conectó a tiempo</source>
-        <translation type="unfinished"></translation>
+        <translation>o pinggy não se conectou a tempo</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>esta versión de la conferencia no sabe medir por el túnel</source>
-        <translation type="unfinished"></translation>
+        <translation>esta versão da conferência não sabe medir pelo túnel</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>no se pudo medir por pinggy</source>
-        <translation type="unfinished"></translation>
+        <translation>não foi possível medir pelo pinggy</translation>
     </message>
     <message>
         <location line="+34"/>
         <source>Con esta conexión entran %1 invitados con margen (como mucho 4 en alta, el resto en baja).</source>
-        <translation type="unfinished"></translation>
+        <translation>Com esta conexão entram %1 convidados com folga (no máximo 4 em alta, o resto em baixa).</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>No se pudo medir la conexión: mirá las notas de cada camino.</source>
-        <translation type="unfinished"></translation>
+        <translation>Não foi possível medir a conexão: veja as notas de cada caminho.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Por pinggy: %1 Mbps ida y vuelta, %2 ms de demora.</source>
-        <translation type="unfinished"></translation>
+        <translation>Pelo pinggy: %1 Mbps ida e volta, %2 ms de latência.</translation>
     </message>
     <message>
         <location line="+18"/>
         <location line="+7"/>
         <source>cancelada a mano</source>
-        <translation type="unfinished"></translation>
+        <translation>cancelado manualmente</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>la cerró la conferencia (%1)</source>
-        <translation type="unfinished">fechado pela conferência (%1)</translation>
+        <translation>a conferência encerrou (%1)</translation>
     </message>
     <message>
         <location line="+80"/>
         <source>elegí dónde guardarlo</source>
-        <translation type="unfinished"></translation>
+        <translation>escolha onde salvar</translation>
     </message>
     <message>
         <location filename="../src/app/ui/StudioCapacidad.cpp" line="-16"/>
         <source>hay una prueba de sala corriendo</source>
-        <translation type="unfinished"></translation>
+        <translation>há um teste de sala rodando</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>se está midiendo el enlace</source>
-        <translation type="unfinished"></translation>
+        <translation>o enlace está sendo medido</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>no hay cómo prender pinggy (Configuración → Pinggy)</source>
-        <translation type="unfinished"></translation>
+        <translation>não há como ligar o pinggy (Configurações → Pinggy)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>pinggy no arrancó</source>
-        <translation type="unfinished"></translation>
+        <translation>o pinggy não iniciou</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>hay una prueba de capacidad corriendo</source>
-        <translation type="unfinished"></translation>
+        <translation>há um teste de capacidade rodando</translation>
     </message>
 </context>
 <context>
@@ -51497,27 +51523,27 @@ Dados (de %2): %3</translation>
     <message>
         <location line="+64"/>
         <source>el motor todavía no arrancó</source>
-        <translation type="unfinished"></translation>
+        <translation>o motor ainda não iniciou</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>ya hay una medición en curso</source>
-        <translation type="unfinished">já há uma medição em andamento</translation>
+        <translation>já há uma medição em andamento</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>no hay ninguna grilla de personas andando</source>
-        <translation type="unfinished"></translation>
+        <translation>não há nenhuma grade de pessoas rodando</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>la entrada de la grilla no lee el canal tal cual</source>
-        <translation type="unfinished"></translation>
+        <translation>a entrada da grade não lê o canal tal como está</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>la entrada de la grilla no está armada</source>
-        <translation type="unfinished"></translation>
+        <translation>a entrada da grade não está montada</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -54990,7 +55016,7 @@ Dados (de %2): %3</translation>
     <message>
         <location line="+26"/>
         <source>turn: MODO PRUEBA (--turn-prueba): el TURN arranca sin pinggy, solo en la red local</source>
-        <translation type="unfinished"></translation>
+        <translation>turn: MODO TESTE (--turn-prueba): o TURN inicia sem pinggy, só na rede local</translation>
     </message>
     <message>
         <location line="+261"/>
@@ -66304,17 +66330,17 @@ Com este repertório monta-se um gráfico SEM escrever código: é o que convém
     <message>
         <location line="+8"/>
         <source>Medir los cuadros por segundo de cada cara de la grilla</source>
-        <translation type="unfinished"></translation>
+        <translation>Medir os quadros por segundo de cada rosto da grade</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Mide `segundos` (de fábrica 10, de 2 a 120) cuántos cuadros NUEVOS muestra cada celda de cada grilla de personas, desde los píxeles: `entrada` es el mosaico apenas lo lee la app (lo que pintó el gateway y llegó) y `programa`, la misma celda en el programa (si la grilla está al aire; `programa_rect` [x, y, w, h] en fracciones del lienzo dice dónde está, de fábrica el lienzo entero). Por celda: cps, intervalo_ms (p50/p95/max entre un cuadro nuevo y el anterior), huecos (intervalos de más de 1,5 períodos de su capa) y por_debajo (menos del 90 % de lo que manda su capa: baja 15 cps, alta 30). Del mosaico: cps, llegada_ms y perdidos (cuadros que el gateway publicó y la app no leyó). `resumen`: cps_p50, cps_p5, por_debajo_pct.</source>
-        <translation type="unfinished"></translation>
+        <translation>Mede por `segundos` (padrão 10, de 2 a 120) quantos quadros NOVOS cada célula de cada grade de pessoas mostra, a partir dos pixels: `entrada` é o mosaico assim que o app o lê (o que o gateway pintou e chegou) e `programa`, a mesma célula no programa (se a grade estiver no ar; `programa_rect` [x, y, w, h] em frações do canvas diz onde ela está, padrão o canvas inteiro). Por célula: cps, intervalo_ms (p50/p95/max entre um quadro novo e o anterior), huecos (intervalos de mais de 1,5 período da sua camada) e por_debajo (menos de 90 % do que sua camada envia: baixa 15 qps, alta 30). Do mosaico: cps, llegada_ms e perdidos (quadros que o gateway publicou e o app não leu). `resumen`: cps_p50, cps_p5, por_debajo_pct.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>dónde está la grilla en el programa, en fracciones del lienzo</source>
-        <translation type="unfinished"></translation>
+        <translation>onde a grade está no programa, em frações do canvas</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -77804,12 +77830,12 @@ Os arquivos: app.log (Processo A), gateway.log (Processo B), graficos.log, launc
     <message>
         <location line="+55"/>
         <source>El gateway por dentro (para medir)</source>
-        <translation type="unfinished"></translation>
+        <translation>O gateway por dentro (para medir)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.</source>
-        <translation type="unfinished"></translation>
+        <translation>O servidor da conferência (gateway) por dentro, para medir a carga: `uso` (CPU, threads, memória, anéis, retorno), `fronteras` (cada passagem entre threads: passagens/s, despertares/s, passagens por despertar, kB/s, trabalho por passagem em µs, espera na fila em µs, em janelas de 1 s) e o TURN (alocações, conexões, bytes). Usado por tools/carga/medir-sala.py.</translation>
     </message>
     <message>
         <location line="+70"/>
@@ -80432,117 +80458,117 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     <message>
         <location filename="../src/app/mcp/McpCapacidadTools.cpp" line="+36"/>
         <source>Arrancar una prueba de capacidad (cuántos invitados aguanta)</source>
-        <translation type="unfinished"></translation>
+        <translation>Iniciar um teste de capacidade (quantos convidados aguenta)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Prueba cuántos invitados aguanta un sistema. `prueba`: «este_equipo» (invitados de prueba generados acá contra esta misma conferencia, por escalones 10, 20, 40, 60, 80… hasta `tope` o hasta que se degrade), «remoto» (lo mismo contra OTRO BroadcastAppliance que está recibiendo: `codigo` es el que muestra el otro, empieza con BACAP1.) o «internet» (la conexión: el túnel WireGuard si está y el camino de los invitados por pinggy; con `prender_pinggy` lo prende si está apagado y lo apaga al terminar). Seguila con capacidad_estado.</source>
-        <translation type="unfinished"></translation>
+        <translation>Testa quantos convidados um sistema aguenta. `prueba`: “este_equipo” (convidados de teste gerados aqui contra esta mesma conferência, em etapas 10, 20, 40, 60, 80… até `tope` ou até degradar), “remoto” (o mesmo contra OUTRO BroadcastAppliance que está recebendo: `codigo` é o que o outro mostra, começa com BACAP1.) ou “internet” (a conexão: o túnel WireGuard, se houver, e o caminho dos convidados pelo pinggy; com `prender_pinggy` ele é ligado se estiver desligado e desligado ao terminar). Acompanhe com capacidad_estado.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Nunca corre sola: confirmalo con el operador (`confirmar: true`). No arranca con algo al aire, con invitados de verdad conectados ni con otra prueba corriendo (`riesgo` en capacidad_estado). Cada escalón dura 2 minutos como mucho; un escalón está «degradado» si la CPU sostenida pasa del 85 % (sin la parte de hinchada si corre acá), queda poca memoria disponible, la grilla baja de 25 cuadros por segundo, el audio de los invitados llega con más de 50 ms, no entran con video o la interfaz se traba; la guardia corta antes de que la máquina se ahogue. Los de prueba quedan fuera del padrón, la votación y el quórum y el evento abierto no se toca (si el cupo no alcanza se sube y vuelve). El resultado va al historial de la máquina (capacidad_ultimo). Prender pinggy reinicia la conferencia: solo sin nadie conectado.</source>
-        <translation type="unfinished"></translation>
+        <translation>Nunca roda sozinho: confirme com o operador (`confirmar: true`). Não inicia com algo no ar, com convidados de verdade conectados nem com outro teste rodando (`riesgo` em capacidad_estado). Cada etapa dura no máximo 2 minutos; uma etapa está “degradada” se a CPU sustentada passa de 85 % (sem a parte do hinchada se rodar aqui), sobra pouca memória disponível, a grade cai abaixo de 25 quadros por segundo, o áudio dos convidados chega com mais de 50 ms, eles não entram com vídeo ou a interface trava; o watchdog corta antes que a máquina fique sobrecarregada. Os de teste ficam fora da lista de membros, da votação e do quórum, e o evento aberto não é alterado (se as vagas não bastarem, elas sobem e voltam). O resultado vai para o histórico da máquina (capacidad_ultimo). Ligar o pinggy reinicia a conferência: só sem ninguém conectado.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>hasta cuántos invitados sube la rampa</source>
-        <translation type="unfinished"></translation>
+        <translation>até quantos convidados a rampa sobe</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>remoto: el código que muestra el otro equipo (BACAP1.…)</source>
-        <translation type="unfinished"></translation>
+        <translation>remoto: o código que o outro equipamento mostra (BACAP1.…)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>internet: prender pinggy para medir si está apagado</source>
-        <translation type="unfinished"></translation>
+        <translation>internet: ligar o pinggy para medir se estiver desligado</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>el operador confirmó que se puede cargar la máquina ahora</source>
-        <translation type="unfinished"></translation>
+        <translation>o operador confirmou que a máquina pode ser carregada agora</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Confirmalo con el operador antes (confirmar: true): la prueba carga la máquina.</source>
-        <translation type="unfinished"></translation>
+        <translation>Confirme com o operador antes (confirmar: true): o teste carrega a máquina.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>`prueba` es este_equipo, remoto o internet</source>
-        <translation type="unfinished"></translation>
+        <translation>`prueba` é este_equipo, remoto ou internet</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Prueba de capacidad arrancada. Seguila con capacidad_estado.</source>
-        <translation type="unfinished"></translation>
+        <translation>Teste de capacidade iniciado. Acompanhe com capacidad_estado.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Dejar que otro equipo pruebe la capacidad de este</source>
-        <translation type="unfinished"></translation>
+        <translation>Deixar outro equipamento testar a capacidade deste</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Con `on`, este equipo se deja probar desde otro BroadcastAppliance: abre una credencial de prueba que vence sola, sube el cupo a `cupo` y muestra el CÓDIGO para pegar en el otro (capacidad_estado → recibir.codigo; trae la dirección, la credencial y la huella del certificado: pasalo solo al operador). Mientras dura, le informa al otro su CPU, memoria, grilla y audio, y la guardia corta si la máquina se ahoga. Con `on: false` termina (echa a los de prueba y devuelve el cupo). Confirmalo con el operador.</source>
-        <translation type="unfinished"></translation>
+        <translation>Com `on`, este equipamento aceita ser testado a partir de outro BroadcastAppliance: abre uma credencial de teste que expira sozinha, sobe as vagas para `cupo` e mostra o CÓDIGO para colar no outro (capacidad_estado → recibir.codigo; traz o endereço, a credencial e a impressão digital do certificado: passe-o só ao operador). Enquanto dura, informa ao outro sua CPU, memória, grade e áudio, e o watchdog corta se a máquina ficar sobrecarregada. Com `on: false` termina (tira os de teste e devolve as vagas). Confirme com o operador.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Este equipo dejó de recibir la prueba.</source>
-        <translation type="unfinished"></translation>
+        <translation>Este equipamento parou de receber o teste.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Recibiendo: el código aparece en unos segundos en capacidad_estado (recibir.codigo).</source>
-        <translation type="unfinished"></translation>
+        <translation>Recebendo: o código aparece em alguns segundos em capacidad_estado (recibir.codigo).</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Cómo va la prueba de capacidad</source>
-        <translation type="unfinished"></translation>
+        <translation>Como está o teste de capacidade</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>El estado de la prueba de capacidad: `estado` (libre, local, remoto, recibiendo, internet), `riesgo` (por qué no se puede arrancar ahora), `progreso` (el escalón y la fase), `vivo` (CPU, memoria, grilla, audio, cuántos entraron), `pasos` (cada escalón juzgado), `recibir` (con el código, si este equipo está recibiendo), pinggy, y el resumen del último resultado y de la última conexión.</source>
-        <translation type="unfinished"></translation>
+        <translation>O estado do teste de capacidade: `estado` (libre, local, remoto, recibiendo, internet), `riesgo` (por que não dá para iniciar agora), `progreso` (a etapa e a fase), `vivo` (CPU, memória, grade, áudio, quantos entraram), `pasos` (cada etapa avaliada), `recibir` (com o código, se este equipamento estiver recebendo), pinggy, e o resumo do último resultado e da última conexão.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Cancelar la prueba de capacidad</source>
-        <translation type="unfinished"></translation>
+        <translation>Cancelar o teste de capacidade</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Corta lo que esté corriendo de la prueba de capacidad y limpia: corta hinchada, revoca la credencial (el gateway echa a los de prueba), devuelve el cupo y, si la medición de internet prendió pinggy, lo apaga. Lo medido hasta ahí queda en el historial.</source>
-        <translation type="unfinished"></translation>
+        <translation>Interrompe o que estiver rodando do teste de capacidade e limpa: para o hinchada, revoga a credencial (o gateway tira os de teste), devolve as vagas e, se a medição de internet ligou o pinggy, desliga-o. O que foi medido até ali fica no histórico.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>No hay una prueba de capacidad en curso.</source>
-        <translation type="unfinished"></translation>
+        <translation>Não há um teste de capacidade em andamento.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Prueba de capacidad cancelada.</source>
-        <translation type="unfinished"></translation>
+        <translation>Teste de capacidade cancelado.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>El último resultado de capacidad</source>
-        <translation type="unfinished"></translation>
+        <translation>O último resultado de capacidade</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>El último resultado guardado, entero: `que` «capacidad» (de fábrica: el de ESTA máquina con cada escalón, lo que limitó y la frase para el operador), «remoto» (el último de otro equipo) o «internet» (la conexión: cada camino con lo medido y cuántos invitados entran). `historial`: la lista de las pruebas guardadas (fecha, máquina, resultado).</source>
-        <translation type="unfinished"></translation>
+        <translation>O último resultado salvo, inteiro: `que` “capacidad” (padrão: o DESTA máquina com cada etapa, o que limitou e a frase para o operador), “remoto” (o último de outro equipamento) ou “internet” (a conexão: cada caminho com o que foi medido e quantos convidados entram). `historial`: a lista dos testes salvos (data, máquina, resultado).</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>Todavía no hay un resultado de ese tipo (capacidad_arrancar).</source>
-        <translation type="unfinished"></translation>
+        <translation>Ainda não há um resultado desse tipo (capacidad_arrancar).</translation>
     </message>
 </context>
 <context>
@@ -82979,31 +83005,31 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <location line="+2"/>
         <source>capacidad cuantos invitados aguanta la maquina cuantos usuarios soporta prueba de carga rampa hinchada cpu memoria ancho de banda conexion a internet otro equipo remoto</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>capacidade quantos convidados aguenta a máquina quantos usuários suporta teste de carga estresse rampa hinchada cpu memória largura de banda conexão internet outro equipamento remoto</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>dejar que otro equipo me pruebe recibir prueba de capacidad codigo credencial remoto</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>deixar outro equipamento me testar receber teste de capacidade código credencial remoto</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>como va la prueba de capacidad escalon invitados cpu memoria grilla audio</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>como está andamento teste de capacidade etapa convidados cpu memória grade áudio</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>cancelar cortar parar prueba de capacidad limpiar</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>cancelar interromper parar teste de capacidade limpar</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>resultado de la prueba de capacidad cuantos aguanta historial ultima medicion de la conexion</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>resultado do teste de capacidade quantos aguenta histórico última medição da conexão</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -83835,7 +83861,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <location line="+3"/>
         <source>gateway servidor de la conferencia por dentro hilos fronteras colas pases despertadas cambios de contexto medir carga rendimiento turn pinggy cpu del gateway</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>gateway servidor da conferência por dentro threads fronteiras filas passagens despertares trocas de contexto medir carga desempenho turn pinggy cpu do gateway</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -85335,7 +85361,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <location line="+2"/>
         <source>medir cuadros por segundo fps de cada cara fluido entrecortado se traba lento ritmo celdas</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>medir quadros por segundo fps de cada rosto fluido travando picotado lento ritmo células</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -91031,7 +91057,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     <message>
         <location line="+20"/>
         <source>el certificado de %1 no es el esperado (otra huella)</source>
-        <translation type="unfinished"></translation>
+        <translation>o certificado de %1 não é o esperado (outra impressão digital)</translation>
     </message>
     <message>
         <location line="+150"/>
