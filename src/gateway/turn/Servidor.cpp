@@ -1245,6 +1245,9 @@ bool Servidor::start(std::string* err) {
             s.bucles.push_back(propios_.back().get());
         }
     }
+    // La entrega en memoria supone que el fragmento i corre en el hilo i del conmutador: sin
+    // eso (hilos propios, otra cantidad), por el kernel.
+    if (s.memoria != nullptr && (cfg_.bucles.empty() || int(cfg_.bucles.size()) != s.memoria->hilos())) s.memoria = nullptr;
     if (s.memoria != nullptr) s.memoria->ponerIpRelay(s.ipRelay);
     for (size_t i = 0; i < s.bucles.size(); ++i) s.frags.push_back(std::make_unique<Fragmento>(s, int(i), s.bucles[i]));
     s.corriendo = true;
@@ -1276,6 +1279,7 @@ void Servidor::stop() {
     }
     if (comun) {
         comun->corriendo = false;
+        if (comun->memoria != nullptr) comun->memoria->ponerIpRelay(0); // los sockets de WebRTC dejan de buscar relays
         Fragmento* cero = comun->frags.empty() ? nullptr : comun->frags[0].get();
         if (cero != nullptr)
             cero->bucle->enHiloEsperando([&comun, cero] {
