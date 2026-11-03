@@ -20,14 +20,13 @@ BuscadorCatalogo::BuscadorCatalogo(QObject* parent) : QSortFilterProxyModel(pare
     connect(&rebote_, &QTimer::timeout, this, &BuscadorCatalogo::filtrarYa);
     // Lo que se ve cambió (filtró, o el catálogo sumó o sacó algo): la cuenta y la fila
     // de la elegida también.
-    const auto visto = [this]() {
-        emit resultadoCambio();
-        emit elegidoCambio();
-    };
-    connect(this, &QAbstractItemModel::rowsInserted, this, visto);
-    connect(this, &QAbstractItemModel::rowsRemoved, this, visto);
-    connect(this, &QAbstractItemModel::modelReset, this, visto);
-    connect(this, &QAbstractItemModel::layoutChanged, this, visto);
+    juntar_.setSingleShot(true);
+    juntar_.setInterval(60);
+    connect(&juntar_, &QTimer::timeout, this, &BuscadorCatalogo::alDiaYa);
+    connect(this, &QAbstractItemModel::rowsInserted, this, &BuscadorCatalogo::pedirAlDia);
+    connect(this, &QAbstractItemModel::rowsRemoved, this, &BuscadorCatalogo::pedirAlDia);
+    connect(this, &QAbstractItemModel::modelReset, this, &BuscadorCatalogo::pedirAlDia);
+    connect(this, &QAbstractItemModel::layoutChanged, this, &BuscadorCatalogo::pedirAlDia);
 }
 
 void BuscadorCatalogo::setFuente(QObject* f) {
@@ -48,18 +47,25 @@ void BuscadorCatalogo::setFuente(QObject* f) {
     if (m != nullptr) {
         // El catálogo cambió (una escena nueva, una distribución renombrada): los grupos
         // y sus cuentas, y la elegida (la vista previa se enlaza a `actual`).
-        const auto cambio = [this]() {
-            recontar();
-            emit elegidoCambio();
-        };
-        connect(m, &QAbstractItemModel::rowsInserted, this, cambio);
-        connect(m, &QAbstractItemModel::rowsRemoved, this, cambio);
-        connect(m, &QAbstractItemModel::modelReset, this, cambio);
-        connect(m, &QAbstractItemModel::dataChanged, this, cambio);
-        connect(m, &QAbstractItemModel::rowsMoved, this, cambio);
+        connect(m, &QAbstractItemModel::rowsInserted, this, &BuscadorCatalogo::pedirAlDia);
+        connect(m, &QAbstractItemModel::rowsRemoved, this, &BuscadorCatalogo::pedirAlDia);
+        connect(m, &QAbstractItemModel::modelReset, this, &BuscadorCatalogo::pedirAlDia);
+        connect(m, &QAbstractItemModel::dataChanged, this, &BuscadorCatalogo::pedirAlDia);
+        connect(m, &QAbstractItemModel::rowsMoved, this, &BuscadorCatalogo::pedirAlDia);
     }
     recontar();
     emit fuenteCambio();
+    emit resultadoCambio();
+    emit elegidoCambio();
+}
+
+void BuscadorCatalogo::pedirAlDia() {
+    if (!juntar_.isActive()) juntar_.start();
+}
+
+void BuscadorCatalogo::alDiaYa() {
+    juntar_.stop();
+    recontar();
     emit resultadoCambio();
     emit elegidoCambio();
 }
@@ -173,10 +179,9 @@ void BuscadorCatalogo::recontar() {
     QVariantList grupos;
     for (const auto& [g, tc] : gs)
         grupos << QVariantMap{{"grupo", g}, {"titulo", tc.first}, {"cuenta", tc.second}};
-    if (total == total_ && grupos == grupos_) return;
+    // Quien llama avisa (resultadoCambio), una vez.
     total_ = total;
-    grupos_ = grupos;
-    emit resultadoCambio();
+    grupos_ = std::move(grupos);
 }
 
 void BuscadorCatalogo::setElegido(const QString& id) {

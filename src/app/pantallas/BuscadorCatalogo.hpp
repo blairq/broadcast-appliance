@@ -85,6 +85,9 @@ class BuscadorCatalogo : public QSortFilterProxyModel {
     Q_INVOKABLE void mover(int delta);
     /// Aplica ya lo escrito, sin esperar el rebote (Enter, y las pruebas).
     Q_INVOKABLE void filtrarYa();
+    /// Lo que el catálogo cambió y todavía no se contó (se junta: ver juntar_), ya. Para las
+    /// pruebas.
+    void alDiaYa();
 
     /// Las palabras de una búsqueda, ya planas (sin tildes ni mayúsculas).
     static QStringList palabras(const QString& texto);
@@ -114,6 +117,10 @@ class BuscadorCatalogo : public QSortFilterProxyModel {
     void recontar();
 
     QTimer rebote_;
+    /// Los cambios del catálogo (200 invitados entrando: una fila por vez) se cuentan y se
+    /// avisan juntos, una vez por ráfaga: contar es recorrer todo y la vista rearma los tipos.
+    QTimer juntar_;
+    void pedirAlDia();
     QString texto_, textoAplicado_, grupo_, donde_ = QStringLiteral("todo"), elegido_;
     QStringList excluir_, palabras_;
     int total_ = 0;

@@ -56,6 +56,11 @@ QVariantMap ListaObjetos::fila(int i) const {
     return i >= 0 && i < rowCount() ? filas_[static_cast<std::size_t>(i)].datos : QVariantMap{};
 }
 
+const QVariantMap& ListaObjetos::datosDe(int i) const {
+    static const QVariantMap vacio;
+    return i >= 0 && i < rowCount() ? filas_[static_cast<std::size_t>(i)].datos : vacio;
+}
+
 int ListaObjetos::indiceDe(const QString& clave) const {
     for (std::size_t i = 0; i < filas_.size(); ++i)
         if (filas_[i].id == clave) return static_cast<int>(i);

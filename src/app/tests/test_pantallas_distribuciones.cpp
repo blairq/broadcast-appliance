@@ -349,6 +349,7 @@ int main(int argc, char** argv) {
         int avisos = 0;
         QObject::connect(&b, &BuscadorCatalogo::elegidoCambio, [&avisos]() { ++avisos; });
         CHECK(d.renombrar(sala, "Remotos"));
+        b.alDiaYa(); // los cambios del catálogo se juntan (60 ms): acá, ya
         CHECK(avisos > 0 && b.actual().value("titulo").toString() == "Remotos");
         // En una ventana de una distribución el selector no ofrece distribuciones…
         b.setGrupo("");

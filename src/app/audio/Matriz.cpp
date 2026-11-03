@@ -444,7 +444,7 @@ void Matriz::rearmarUltimas() {
     QVariantMap u;
     const int n = filasModelo_ != nullptr ? filasModelo_->rowCount() : 0;
     for (int i = 0; i < n; ++i) {
-        const QVariantMap c = filasModelo_->fila(i).value(QStringLiteral("cruces")).toMap();
+        const QVariantMap c = filasModelo_->datosDe(i).value(QStringLiteral("cruces")).toMap();
         for (auto it = c.cbegin(); it != c.cend(); ++it)
             if (it.value().toMap().value(QStringLiteral("activo")).toBool()) u[it.key()] = i;
     }

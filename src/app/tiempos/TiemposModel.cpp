@@ -251,6 +251,8 @@ void TiemposModel::evento(qint64 t, const std::string& tipo, const std::string& 
     auto it = eventos_.end();
     while (it != eventos_.begin() && std::prev(it)->value("t", qint64{0}) > t) --it;
     eventos_.insert(it, json{{"t", t}, {"tipo", tipo}, {"texto", texto}, {"entrada", entrada}});
+    eventosSucio_ = true;
+    ++anotados_;
     while (!eventos_.empty() && (eventos_.size() > 500 || t - eventos_.front().value("t", qint64{0}) > kHistoriaLargaS * 1000))
         eventos_.pop_front();
 }
@@ -277,7 +279,7 @@ void TiemposModel::detectar(qint64 t) {
         previo_ = std::move(ahora);
         return;
     }
-    const size_t antes = eventos_.size();
+    const std::uint64_t antes = anotados_;
     // Los primeros segundos todo se acomoda (entradas que dan un cuadro y paran, la latencia
     // del estudio que sube): es el punto de partida, no son eventos.
     if (arranque_ == 0) arranque_ = t;
@@ -329,7 +331,12 @@ void TiemposModel::detectar(qint64 t) {
                                                {std::to_string(static_cast<int>(std::lround(latAntes))),
                                                 std::to_string(static_cast<int>(std::lround(lat)))}));
     previo_ = std::move(ahora);
-    if (eventos_.size() != antes) emit eventosCambio();
+    if (anotados_ != antes) avisarEventos(); // también si entró uno y salió el más viejo
+}
+
+void TiemposModel::avisarEventos() {
+    eventosSucio_ = true;
+    emit eventosCambio();
 }
 
 json TiemposModel::eventosJson(int segundos) const {
@@ -340,7 +347,16 @@ json TiemposModel::eventosJson(int segundos) const {
     return out;
 }
 
-QVariantList TiemposModel::eventos() const { return aVariant(eventosJson(kHistoriaLargaS)).toList(); }
+QVariantList TiemposModel::eventos() const {
+    // Armado una vez por cambio: la QML recorre la lista (for…of, filter) y cada acceso a un
+    // elemento de una lista de una propiedad vuelve a leer la propiedad entera (en la PC con
+    // 200 invitados, convertir el JSON en cada acceso trabó la interfaz 2,6 s).
+    if (eventosSucio_) {
+        eventosCache_ = aVariant(eventosJson(kHistoriaLargaS)).toList();
+        eventosSucio_ = false;
+    }
+    return eventosCache_;
+}
 
 json TiemposModel::agregarEvento(qint64 t, const std::string& texto, const std::string& quien) {
     const qint64 ahoraMs = QDateTime::currentMSecsSinceEpoch();
@@ -350,7 +366,7 @@ json TiemposModel::agregarEvento(qint64 t, const std::string& texto, const std::
     auto it = eventos_.begin();
     while (it != eventos_.end() && it->value("t", qint64{0}) <= t) ++it;
     eventos_.insert(it, e);
-    emit eventosCambio();
+    avisarEventos();
     return e;
 }
 
@@ -359,7 +375,7 @@ void TiemposModel::borrarEventoUi(double t, const QString& texto) {
         if (it->value("tipo", std::string()) == "nota" && it->value("t", qint64{0}) == static_cast<qint64>(t) &&
             it->value("texto", std::string()) == texto.toStdString()) {
             eventos_.erase(it);
-            emit eventosCambio();
+            avisarEventos();
             return;
         }
 }

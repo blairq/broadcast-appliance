@@ -16,6 +16,7 @@
 #include <QTimer>
 #include <QVariantMap>
 
+#include <cstdint>
 #include <deque>
 #include <filesystem>
 #include <functional>
@@ -174,6 +175,10 @@ class TiemposModel : public QObject {
     QTimer reloj1s_;
     std::map<std::string, std::deque<Muestra>> larga_;
     std::deque<nlohmann::json> eventos_;
+    mutable QVariantList eventosCache_; ///< eventos(), armada una vez por cambio
+    mutable bool eventosSucio_ = true;
+    std::uint64_t anotados_ = 0; ///< cuántos se anotaron (evento()): avisar aunque el tope saque uno
+    void avisarEventos();
     nlohmann::json previo_; ///< lo de la foto anterior que importa para los eventos
     nlohmann::json firmes_ = nlohmann::json::object(); ///< cambios que todavía no se sostuvieron (ver detectar)
     static constexpr qint64 kFirmeMs = 5000;

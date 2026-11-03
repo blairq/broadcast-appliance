@@ -546,6 +546,7 @@ int main(int argc, char** argv) {
         auto* elegidoAvisa = contar(&b, &BuscadorCatalogo::elegidoCambio);
         escenas.removeAll("Escena 0009");
         c.refrescar();
+        b.alDiaYa(); // los cambios del catálogo se juntan (60 ms): acá, ya
         CHECK(elegidoAvisa->count() > 0 && b.actual().isEmpty());
         // Una nueva que coincide aparece sola en lo filtrado (el catálogo agrega en su lugar).
         b.setTexto("invitado 9999");
@@ -554,6 +555,17 @@ int main(int argc, char** argv) {
         videos << QVariantMap{{"clave", "guest:9999"}, {"titulo", "Invitado 9999"}};
         c.refrescar();
         CHECK(b.cantidad() == 1);
+        // 200 invitados que entran de a uno: una sola cuenta (y un solo aviso) por ráfaga.
+        auto* resultadoRafaga = contar(&b, &BuscadorCatalogo::resultadoCambio);
+        for (int i = 0; i < 200; ++i) {
+            videos << QVariantMap{{"clave", QString("guest:r%1").arg(i)}, {"titulo", QString("Ráfaga %1").arg(i)}};
+            c.refrescar();
+        }
+        CHECK(resultadoRafaga->count() == 0);
+        QElapsedTimer espera;
+        espera.start();
+        while (resultadoRafaga->count() == 0 && espera.elapsed() < 2000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        CHECK(resultadoRafaga->count() == 1);
         // Las mismas reglas que usa catalogo_listar con `buscar` (MCP).
         CHECK(BuscadorCatalogo::coincide(BuscadorCatalogo::palabras("Cámara  RECINTO"),
                                          BuscadorCatalogo::textoDeBusqueda("Cámara del recinto", "Escena", "escena:x")));

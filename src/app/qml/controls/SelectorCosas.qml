@@ -79,7 +79,9 @@ Popup {
 
     BuscadorCatalogo {
         id: buscador
-        fuente: Studio.catalogo
+        // Solo mientras el selector está abierto: cerrado no mira el catálogo (hay uno por
+        // página que lo usa y el catálogo cambia con cada invitado que entra).
+        fuente: sel.visible ? Studio.catalogo : null
         texto: busqueda.text
         // Otra elegida (al abrir, con lo que ya muestra; con las flechas): que se vea en la
         // lista. Solo cuando cambia CUÁL: si el catálogo cambia, no se le mueve la lista a

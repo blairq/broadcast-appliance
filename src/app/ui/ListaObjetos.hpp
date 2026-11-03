@@ -61,6 +61,8 @@ class ListaObjetos : public ListaConClave<FilaObjeto> {
     bool ponerEn(int i, const QVariantMap& fila);
     /// El objeto de la fila (vacío si no hay), para una acción (elegir la de un índice).
     Q_INVOKABLE QVariantMap fila(int i) const;
+    /// Lo mismo para el C++ del dueño (sin copiar ni pasar por el gancho de la vista).
+    const QVariantMap& datosDe(int i) const;
     /// En qué fila está esa clave (-1 si no está), para una acción (ir a la elegida).
     Q_INVOKABLE int indiceDe(const QString& clave) const;
 
