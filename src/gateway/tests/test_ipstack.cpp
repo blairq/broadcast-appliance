@@ -21,13 +21,18 @@
 //   6. F5: con un SumideroRtc enchufado, lo que llega a los puertos de WebRTC se entrega
 //      en memoria (una llamada por tanda) y vuelve por enviarDesdeRtc, sin sockets locales;
 //      lwIP corre en el hilo de WireGuard (WgDevice::cederBucle).
-// Solo POSIX (el test se relanza a si mismo como proceso hijo).
+// El test se relanza a si mismo como proceso hijo (ba::platform::Process, en los tres
+// sistemas). En Windows el eco del medidor (python3) no se lanza: ese caso da SKIP.
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <fstream>
+#include <iterator>
 #include <string>
 #include <thread>
 #include <vector>
@@ -37,8 +42,16 @@
 #include "net/WgCrypto.hpp"
 #include "net/WgDevice.hpp"
 #include "platform/Paths.hpp"
+#include "platform/Process.hpp"
 
-#ifndef _WIN32
+#ifdef _WIN32
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <winsock2.h>
+#include <ws2tcpip.h>
+#include <process.h>
+#else
 #include <arpa/inet.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -50,6 +63,20 @@
 using namespace ba::gateway::net;
 
 namespace {
+
+#ifdef _WIN32
+using Sock = SOCKET;
+using Largo = int;
+void cerrar(Sock s) { closesocket(s); }
+int pidPropio() { return _getpid(); }
+constexpr int kCortarAmbos = SD_BOTH;
+#else
+using Sock = int;
+using Largo = ssize_t;
+void cerrar(Sock s) { close(s); }
+int pidPropio() { return getpid(); }
+constexpr int kCortarAmbos = SHUT_RDWR;
+#endif
 
 int g_failures = 0;
 #define CHECK(cond, msg)                                                                                     \
@@ -66,14 +93,19 @@ constexpr uint32_t kGatewayIp = 0x0A630002; // 10.99.0.2
 constexpr uint32_t kRemoteIp = 0x0A630003;  // 10.99.0.3
 constexpr size_t kBigBytes = 4 * 1024 * 1024;
 
-#ifndef _WIN32
-
 /// Servicio TCP local: si la peticion empieza con "GRANDE", cuenta bytes hasta
 /// el cierre y contesta "RECIBIDOS <n> <suma>"; si no, devuelve lo que recibio.
-void tcpService(int listenFd, std::atomic<bool>& stop) {
+void tcpService(Sock listenFd, std::atomic<bool>& stop) {
     while (!stop) {
-        const int c = accept(listenFd, nullptr, nullptr);
+        const Sock c = accept(listenFd, nullptr, nullptr);
+#ifdef _WIN32
+        if (c == INVALID_SOCKET) {
+            if (stop) break;
+            continue;
+        }
+#else
         if (c < 0) continue;
+#endif
         std::thread([c]() {
             std::string head;
             char buf[65536];
@@ -81,35 +113,67 @@ void tcpService(int listenFd, std::atomic<bool>& stop) {
             uint64_t sum = 0;
             bool big = false;
             for (;;) {
-                const ssize_t n = recv(c, buf, sizeof(buf), 0);
+                const Largo n = recv(c, buf, static_cast<int>(sizeof(buf)), 0);
                 if (n <= 0) break;
-                if (head.size() < 256) head.append(buf, static_cast<size_t>(std::min<ssize_t>(n, 256)));
+                if (head.size() < 256) head.append(buf, static_cast<size_t>(std::min<Largo>(n, 256)));
                 if (!big && head.find("GRANDE") != std::string::npos) big = true;
                 total += static_cast<size_t>(n);
-                for (ssize_t i = 0; i < n; ++i)
+                for (Largo i = 0; i < n; ++i)
                     sum += static_cast<uint8_t>(buf[i]);
                 if (!big && head.find("\r\n\r\n") != std::string::npos) break;
             }
             const std::string reply =
                 big ? "RECIBIDOS " + std::to_string(total) + " " + std::to_string(sum) : "ECO:" + head;
-            send(c, reply.data(), reply.size(), 0);
-            close(c);
+            send(c, reply.data(), static_cast<int>(reply.size()), 0);
+            cerrar(c);
         }).detach();
     }
 }
 
-void udpService(int fd, std::atomic<bool>& stop) {
+void udpService(Sock fd, std::atomic<bool>& stop) {
     char buf[2048];
+#ifdef _WIN32
+    const DWORD tv = 200; // Windows: milisegundos en un DWORD
+#else
+    const timeval tv{0, 200000};
+#endif
+    setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, reinterpret_cast<const char*>(&tv), sizeof(tv));
     while (!stop) {
         sockaddr_in from{};
         socklen_t fl = sizeof(from);
-        timeval tv{0, 200000};
-        setsockopt(fd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
-        const ssize_t n = recvfrom(fd, buf, sizeof(buf), 0, reinterpret_cast<sockaddr*>(&from), &fl);
+        const Largo n = recvfrom(fd, buf, static_cast<int>(sizeof(buf)), 0, reinterpret_cast<sockaddr*>(&from), &fl);
         if (n <= 0) continue;
         const std::string r = "eco:" + std::string(buf, static_cast<size_t>(n));
-        sendto(fd, r.data(), r.size(), 0, reinterpret_cast<sockaddr*>(&from), fl);
+        sendto(fd, r.data(), static_cast<int>(r.size()), 0, reinterpret_cast<sockaddr*>(&from), fl);
     }
+}
+
+/// Se relanza a si mismo con `args` y espera (hasta 120 s); muestra lo que escribio el hijo.
+/// El codigo de salida, o -1.
+int relanzar(const std::string& self, const std::vector<std::string>& args) {
+    namespace fs = std::filesystem;
+    const fs::path salida = fs::temp_directory_path() / ("test_ipstack-" + std::to_string(pidPropio()) + "-" + args[0].substr(2) + ".txt");
+    std::error_code ec;
+    fs::remove(salida, ec);
+    ba::platform::ProcessOptions o;
+    o.exe = self;
+    o.args = args;
+    o.outputFile = salida;
+    ba::platform::Process p;
+    std::string err;
+    if (!ba::platform::Process::spawn(o, p, &err)) {
+        std::printf("FALLO: no se pudo relanzar el test: %s\n", err.c_str());
+        return -1;
+    }
+    auto rc = p.wait(120000);
+    if (!rc) p.kill();
+    {
+        std::ifstream f(salida, std::ios::binary);
+        const std::string texto((std::istreambuf_iterator<char>(f)), std::istreambuf_iterator<char>());
+        std::printf("%s", texto.c_str());
+    }
+    fs::remove(salida, ec);
+    return rc ? *rc : -1;
 }
 
 int remote(int argc, char** argv) {
@@ -283,15 +347,16 @@ int probe(int argc, char** argv) {
     return g_failures == 0 ? 0 : 1;
 }
 
-#endif
-
 } // namespace
 
 int main(int argc, char** argv) {
 #ifdef _WIN32
-    std::printf("SKIP: test de dos procesos solo en POSIX\n");
-    return 77;
-#else
+    WSADATA wsa{};
+    if (WSAStartup(MAKEWORD(2, 2), &wsa) != 0) {
+        std::printf("FALLO: WSAStartup\n");
+        return 1;
+    }
+#endif
     if (argc > 1 && std::string(argv[1]) == "--remote") return remote(argc, argv);
     if (argc > 1 && std::string(argv[1]) == "--probe") return probe(argc, argv);
     if (argc > 1 && std::string(argv[1]) == "--remote-memoria") return remoteMemoria(argc, argv);
@@ -302,9 +367,9 @@ int main(int argc, char** argv) {
 
     // Servicios locales del "gateway".
     std::atomic<bool> stop{false};
-    const int lt = socket(AF_INET, SOCK_STREAM, 0);
+    const Sock lt = socket(AF_INET, SOCK_STREAM, 0);
     int one = 1;
-    setsockopt(lt, SOL_SOCKET, SO_REUSEADDR, &one, sizeof(one));
+    setsockopt(lt, SOL_SOCKET, SO_REUSEADDR, reinterpret_cast<const char*>(&one), sizeof(one));
     sockaddr_in a{};
     a.sin_family = AF_INET;
     a.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
@@ -315,15 +380,15 @@ int main(int argc, char** argv) {
     const uint16_t tcpPort = ntohs(a.sin_port);
     // El servicio UDP en X y el eco del medidor en X+1 (el reenvio es un rango): se
     // busca un X cuyo siguiente este libre.
-    const int lu = socket(AF_INET, SOCK_DGRAM, 0);
+    const Sock lu = socket(AF_INET, SOCK_DGRAM, 0);
     uint16_t udpPort = 0;
     for (int intento = 0; intento < 50 && udpPort == 0; ++intento) {
-        const auto x = static_cast<uint16_t>(42000 + (getpid() * 7 + intento * 131) % 20000);
-        const int prueba = socket(AF_INET, SOCK_DGRAM, 0);
+        const auto x = static_cast<uint16_t>(42000 + (pidPropio() * 7 + intento * 131) % 20000);
+        const Sock prueba = socket(AF_INET, SOCK_DGRAM, 0);
         sockaddr_in b = a;
         b.sin_port = htons(static_cast<uint16_t>(x + 1));
         const bool siguienteLibre = bind(prueba, reinterpret_cast<sockaddr*>(&b), sizeof(b)) == 0;
-        close(prueba);
+        cerrar(prueba);
         a.sin_port = htons(x);
         if (siguienteLibre && bind(lu, reinterpret_cast<sockaddr*>(&a), sizeof(a)) == 0) udpPort = x;
     }
@@ -347,14 +412,16 @@ int main(int argc, char** argv) {
     IpStack ip(wg, sc, [](const std::string& l) { std::printf("   %s\n", l.c_str()); });
     ip.forwardTcp(80, tcpPort, true);
     // El eco del medidor del enlace (el del VPS) en X+1, si hay python3 y el puerto quedo libre.
+    // En Windows no hay python3 en el PATH de la PC de pruebas: ese caso da SKIP.
     uint16_t ecoPort = 0;
+#ifndef _WIN32
     pid_t eco = -1;
     if (std::system("python3 -c \"import sys\" >/dev/null 2>&1") == 0) {
-        const int prueba = socket(AF_INET, SOCK_DGRAM, 0);
+        const Sock prueba = socket(AF_INET, SOCK_DGRAM, 0);
         sockaddr_in b = a;
         b.sin_port = htons(static_cast<uint16_t>(udpPort + 1));
         const bool libre = bind(prueba, reinterpret_cast<sockaddr*>(&b), sizeof(b)) == 0;
-        close(prueba);
+        cerrar(prueba);
         if (libre) {
             ecoPort = static_cast<uint16_t>(udpPort + 1);
             eco = fork();
@@ -366,27 +433,18 @@ int main(int argc, char** argv) {
             }
         }
     }
+#endif
     ip.forwardUdpRange(udpPort, ecoPort != 0 ? ecoPort : udpPort);
     CHECK(wg.start(), "WireGuard del gateway");
     CHECK(ip.start(), "pila IP del gateway");
 
-    // Antes del fork: /proc/self/exe no existe en macOS.
     const std::string self = ba::platform::executablePath().string();
-    const pid_t pid = fork();
-    if (pid == 0) {
-        const std::string port = std::to_string(wg.localPort());
-        const std::string rp = toBase64(rPriv);
-        const std::string gp = toBase64(gPub);
-        const std::string up = std::to_string(udpPort);
-        const std::string ep = std::to_string(ecoPort);
-        execl(self.c_str(), argv[0], "--remote", port.c_str(), rp.c_str(), gp.c_str(), up.c_str(), ep.c_str(),
-              static_cast<char*>(nullptr));
-        _exit(127);
-    }
-    int status = 0;
-    waitpid(pid, &status, 0);
-    const int rc = WIFEXITED(status) ? WEXITSTATUS(status) : -1;
-    CHECK(rc == 0, "el proceso remoto paso todos sus casos");
+    const std::string port = std::to_string(wg.localPort());
+    const std::string rp = toBase64(rPriv);
+    const std::string gp = toBase64(gPub);
+    const std::string up = std::to_string(udpPort);
+    const std::string ep = std::to_string(ecoPort);
+    CHECK(relanzar(self, {"--remote", port, rp, gp, up, ep}) == 0, "el proceso remoto paso todos sus casos");
     const auto st = ip.stats();
     CHECK(st.packetsIn > 100 && st.packetsOut > 100, "trafico real por la pila del gateway");
     CHECK(!st.enMemoria && st.aRtc == 0, "sin sumidero: por el kernel (el respaldo)");
@@ -394,34 +452,25 @@ int main(int argc, char** argv) {
     // 6) F5: con el sumidero enchufado, lo que llega a los puertos de WebRTC va en memoria.
     auto ecoMem = std::make_shared<EcoMemoria>(ip);
     ip.setSumidero(ecoMem);
-    const pid_t pid2 = fork();
-    if (pid2 == 0) {
-        const std::string port = std::to_string(wg.localPort());
-        const std::string rp = toBase64(rPriv);
-        const std::string gp = toBase64(gPub);
-        const std::string up = std::to_string(udpPort);
-        execl(self.c_str(), argv[0], "--remote-memoria", port.c_str(), rp.c_str(), gp.c_str(), up.c_str(),
-              static_cast<char*>(nullptr));
-        _exit(127);
-    }
-    waitpid(pid2, &status, 0);
-    CHECK(WIFEXITED(status) && WEXITSTATUS(status) == 0, "el remoto paso la entrega en memoria");
+    CHECK(relanzar(self, {"--remote-memoria", port, rp, gp, up}) == 0, "el remoto paso la entrega en memoria");
     const auto st2 = ip.stats();
     CHECK(st2.enMemoria, "la pila dice que entrega en memoria");
     CHECK(ecoMem->datagramas.load() >= 21 && st2.aRtc >= 21 && st2.desdeRtc >= 21, "ida y vuelta en memoria, contadas");
     CHECK(ecoMem->tandas.load() <= ecoMem->datagramas.load(), "una llamada al sumidero por tanda, no más");
     ip.setSumidero(nullptr);
 
+#ifndef _WIN32
     if (eco > 0) {
         kill(eco, SIGTERM);
         waitpid(eco, nullptr, 0);
     }
+#endif
     stop = true;
-    shutdown(lt, SHUT_RDWR);
-    close(lt);
+    shutdown(lt, kCortarAmbos);
+    cerrar(lt);
     ts.join();
     us.join();
-    close(lu);
+    cerrar(lu);
     ip.stop();
     wg.stop();
     if (g_failures == 0) {
@@ -430,5 +479,4 @@ int main(int argc, char** argv) {
     }
     std::printf("test_ipstack: %d fallo(s)\n", g_failures);
     return 1;
-#endif
 }
