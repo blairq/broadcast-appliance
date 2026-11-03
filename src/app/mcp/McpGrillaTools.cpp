@@ -46,7 +46,13 @@ void McpService::registerGrillaTools() {
         ba::i18n::traducir("mcp", "alta_max (de fábrica 4; 1 a 64): tope duro, nunca más personas que esto en alta a la vez, "
         "sean cuantos sean los invitados. Si piden más, por prioridad: el orador (o los oradores), el presentador, el "
         "siguiente (precarga), los fijados y el resto por tamaño; el que ya estaba en alta no lo pierde por uno nuevo del "
-        "mismo grupo. Con varias grillas manda el alta_max más chico. grilla_personas_estado lo dice en cada grilla.");
+        "mismo grupo. Con varias grillas manda el alta_max más chico. grilla_personas_estado lo dice en cada grilla.") + " " +
+        ba::i18n::traducir("mcp", "La forma de las celdas: la proporción del video (16:9) siempre cuenta. Con proporcion=llenar "
+        "la celda puede recortar el video hasta recorte_max % por lado (de fábrica 25: celdas entre 4:3 y 21:9; 0 a 40); "
+        "con una proporción fija, la celda exacta con bandas. celda_min_ancho y celda_min_alto (de fábrica 96×54, px en "
+        "un lienzo de 1080 de lado corto, se escalan al lienzo): ninguna celda más chica; si no entran todos, el resto "
+        "va al «+N». grilla_personas_estado dice en cada grilla «disposicion»: columnas, filas, la celda en px, su "
+        "proporción efectiva, la del video, la mínima y la máxima, el mínimo escalado y cuántas celdas caben.");
     {
         Tool t;
         t.name = "grilla_personas_estado";

@@ -35,6 +35,7 @@
 #include <QPointer>
 
 #include <algorithm>
+#include <cmath>
 #include <optional>
 
 namespace ba::app::escenas {
@@ -480,6 +481,24 @@ void ControlGrillas::recalcular() {
                {"orador", res[i].orador},
                {"siguiente", res[i].siguiente},
                {"orador_a_mano", !manual_.destacado(c.fuente).empty()}};
+        // Cómo quedó la grilla: columnas × filas, la celda en px del lienzo y su proporción
+        // (con «llenar», entre la mínima y la máxima de la forma), el mínimo y cuántas caben.
+        {
+            const grilla::Forma f = grilla::formaDe(c);
+            const auto redondo = [](double v) { return std::round(v * 1000.0) / 1000.0; };
+            const grilla::Resultado& rr = res[i];
+            x["disposicion"] = {
+                {"columnas", rr.columnas},
+                {"filas", rr.filas},
+                {"celda", {{"ancho", rr.celdaAncho}, {"alto", rr.celdaAlto}}},
+                {"proporcion", rr.celdaAlto > 0 ? redondo(static_cast<double>(rr.celdaAncho) / rr.celdaAlto) : 0.0},
+                {"proporcion_video", redondo(f.video)},
+                {"proporcion_min", redondo(f.minAspecto)},
+                {"proporcion_max", redondo(f.maxAspecto)},
+                {"minimo", {{"ancho", f.minAncho}, {"alto", f.minAlto}}},
+                {"caben", rr.caben},
+                {"lienzo", {{"ancho", c.ancho}, {"alto", c.alto}}}};
+        }
         if (c.canal == 0)
             x["aviso"] = ba::i18n::llenar(ba::i18n::traducir("escenas", "sin canal: hay más de %1 grillas"),
                                           {std::to_string(grilla::kMaxGrillas)});
