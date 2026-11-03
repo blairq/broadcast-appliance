@@ -46,6 +46,7 @@
 #include "rtc/Conmutador.hpp"
 #include "turn/Ice.hpp"
 #include "turn/Servidor.hpp"
+#include "net/NetUtil.hpp"
 
 using json = nlohmann::json;
 namespace gw = ba::gateway;
@@ -187,6 +188,10 @@ struct Invitado : public webrtc::PeerConnectionObserver {
     }
     size_t pasados = 0;
     void pasarIce() {
+        // Antes del answer los candidatos se pierden («can't be added without any remote
+        // session description»): con política relay, sin los candidatos de B el navegador
+        // nunca pide permiso en el TURN y nada de lo que B le manda al relay pasa.
+        if (!pc || pc->remote_description() == nullptr) return;
         std::vector<std::string> pend;
         {
             std::lock_guard<std::mutex> l(m);
@@ -232,7 +237,11 @@ int main() {
     tc.direccionRelay = "127.0.0.1";
     tc.bindRelay = "0.0.0.0";
     tc.secreto = gw::turn::secretoAleatorio();
-    tc.peersPermitidos = {"127.0.0.1"};
+    // Como en main.cpp: las IP de la máquina y 127.0.0.1. El hub junta candidatos en todas
+    // sus redes; los sockets de la LAN también le hablan al relay y el TURN tiene que
+    // dejarlos (sus permisos son por IP de origen).
+    tc.peersPermitidos = gw::net::localIPv4s();
+    tc.peersPermitidos.push_back("127.0.0.1");
     tc.rtcMin = kMin;
     tc.rtcMax = kMax;
     tc.bucles = hub.buclesRed();
@@ -334,11 +343,21 @@ int main() {
               8000),
           "a todas les llega el audio (un reloj para todas las fábricas)");
 
+    // Que corra un poco el medio por el relay (el micrófono de los dos, 50 paquetes/s cada uno).
+    esperar(
+        [&] {
+            const json e = turn.estado(), m = hub.capasEstado()["memoria"];
+            return e.value("paquetesEnMemoriaHacia", uint64_t(0)) > 150 && e.value("paquetesEnMemoriaDesde", uint64_t(0)) > 10 &&
+                   m.value("directos", uint64_t(0)) + m.value("encolados", uint64_t(0)) + m.value("cruzados", uint64_t(0)) > 150;
+        },
+        6000);
     const json te = turn.estado();
     std::printf("TURN: %s\n", te.dump().c_str());
     CHECK(te.value("asignaciones", 0) >= 2, "las dos asignaciones de los que entran por relay");
-    CHECK(te.value("paquetesEnMemoriaHacia", uint64_t(0)) > 50, "#3: el TURN entrega en memoria a la red de WebRTC");
-    CHECK(te.value("paquetesEnMemoriaDesde", uint64_t(0)) > 50, "#14: la red de WebRTC le entrega en memoria al TURN");
+    // Hacia B va el micrófono de los dos (50 paquetes/s cada uno); de B al navegador solo
+    // ICE, DTLS y RTCP (el hub no manda audio en esta prueba).
+    CHECK(te.value("paquetesEnMemoriaHacia", uint64_t(0)) > 40, "#3: el TURN entrega en memoria a la red de WebRTC");
+    CHECK(te.value("paquetesEnMemoriaDesde", uint64_t(0)) > 10, "#14: la red de WebRTC le entrega en memoria al TURN");
     const json me = hub.capasEstado()["memoria"];
     std::printf("conmutador: %s\n", me.dump().c_str());
     CHECK(me.value("directos", uint64_t(0)) + me.value("encolados", uint64_t(0)) + me.value("cruzados", uint64_t(0)) > 100,
