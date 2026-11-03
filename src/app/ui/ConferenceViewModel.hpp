@@ -74,6 +74,10 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(bool locked READ locked NOTIFY salaChanged)
     Q_PROPERTY(int maxGuests READ maxGuests NOTIFY salaChanged)
     Q_PROPERTY(int slotsFree READ slotsFree NOTIFY salaChanged)
+    /// La entrada escalonada (room.entradaPorSegundo): cuántos aprobados esperan su turno
+    /// para pasar a la sala (siguen en `waiting` con el rol `entrando`) y a qué ritmo pasan.
+    Q_PROPERTY(int entrando READ entrando NOTIFY salaChanged)
+    Q_PROPERTY(int entradaPorSegundo READ entradaPorSegundo NOTIFY salaChanged)
     /// Todos los conectados a la sala: lobby, programa y fila de oradores. Es lo
     /// que se pierde si la app se cierra (guardias de cierre y de actualizacion).
     Q_PROPERTY(int peopleConnected READ peopleConnected NOTIFY participantesChanged)
@@ -140,6 +144,8 @@ class ConferenceViewModel : public QObject {
     bool locked() const;
     int maxGuests() const;
     int slotsFree() const;
+    int entrando() const;
+    int entradaPorSegundo() const;
     int peopleConnected() const;
     QStringList slotNames() const;
     QObject* lugares() const;

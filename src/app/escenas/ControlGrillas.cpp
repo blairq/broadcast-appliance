@@ -168,7 +168,7 @@ ControlGrillas::ControlGrillas(Partes p, QObject* parent) : QObject(parent), p_(
     });
     if (p_.sesion) connect(p_.sesion, &asamblea::SesionRemota::cambio, this, pedir);
     // Lo que se ve en el programa cambió (un corte, una capa DSK, una fuente).
-    connect(&p_.motor, &VentanillaMotor::cambio, this, [pedir](unsigned partes) {
+    p_.motor.escuchar(this, [pedir](unsigned partes) {
         if ((partes & (FotoMotor::Escenas | FotoMotor::Salidas | FotoMotor::Superficies | FotoMotor::Video)) != 0) pedir();
     });
     reloj_.setInterval(500);

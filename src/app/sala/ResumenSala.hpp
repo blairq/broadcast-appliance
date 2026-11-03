@@ -50,7 +50,7 @@ namespace ba::app::sala {
 
 /// Lo que puede cambiar de una foto a otra (cada oyente mira las suyas).
 enum Parte : unsigned {
-    Sala = 1u << 0,          ///< room, pin, guestUrl, lobby, locked, maxGuests, slotsFree
+    Sala = 1u << 0,          ///< room, pin, guestUrl, lobby, locked, maxGuests, slotsFree, entrando, entradaPorSegundo
     Gente = 1u << 1,         ///< quién está y cómo (todo de cada participante salvo la red y el uso) y la fila
     Espera = 1u << 2,        ///< la lista del lobby
     Adentro = 1u << 3,       ///< la lista de los de adentro

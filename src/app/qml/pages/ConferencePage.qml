@@ -230,8 +230,13 @@ Rectangle {
                     }
                     RowLayout {
                         Layout.fillWidth: true
-                        Text { text: conf.waiting.count === 0 ? qsTr("Nadie esperando") : qsTr("%n esperando", "", conf.waiting.count)
-                               color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true }
+                        // Los aprobados que esperan su turno (entrada escalonada) siguen en el
+                        // lobby con el rol `entrando`: se cuentan aparte, con el ritmo.
+                        Text {
+                            readonly property int esperan: Math.max(0, conf.waiting.count - conf.entrando)
+                            text: (esperan === 0 && conf.entrando === 0 ? qsTr("Nadie esperando") : qsTr("%n esperando", "", esperan))
+                                  + (conf.entrando > 0 ? " · " + qsTr("%n entrando (%1 por segundo)", "", conf.entrando).arg(conf.entradaPorSegundo) : "")
+                            color: Theme.textDim; font.pixelSize: 12; Layout.fillWidth: true; elide: Text.ElideRight }
                         GlassButton { visible: conf.waiting.count > 1; text: qsTr("Admitir a todos"); compact: true; onClicked: conf.admitAll() }
                         // QR de ingreso: se despliega con las dos opciones.
                         GlassButton {
@@ -263,6 +268,7 @@ Rectangle {
                             required property string info
                             required property string contact
                             required property bool prueba
+                            required property bool entrando
                             width: ListView.view.width
                             height: waitCol.implicitHeight + 20
                             radius: 14
@@ -345,6 +351,7 @@ Rectangle {
                                             Layout.fillWidth: true
                                             Text { text: name; color: Theme.text; font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight; Layout.fillWidth: true }
                                             StatusPill { visible: prueba; text: qsTr("prueba"); dot: Theme.amber }
+                                            StatusPill { visible: entrando; text: qsTr("entrando…"); dot: Theme.ok; pulse: true }
                                         }
                                         Text { text: (connected ? qsTr("espera hace %1") : qsTr("desconectado · %1")).arg(page.since(joinedMs)); color: Theme.textFaint; font.pixelSize: 11 }
                                     }

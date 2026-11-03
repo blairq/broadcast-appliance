@@ -17,7 +17,7 @@ namespace ba::app::sala {
 
 
 const QStringList& clavesEspera() {
-    static const QStringList k{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact", "prueba"};
+    static const QStringList k{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact", "prueba", "entrando"};
     return k;
 }
 const QStringList& clavesAdentro() {
@@ -184,7 +184,7 @@ std::shared_ptr<const ResumenSala> ResumenSala::construir(const QJsonObject& s, 
 
     r->firmaSala = {s.value("room").toString(),      s.value("pin").toString(),     s.value("guestUrl").toString(),
                     s.value("lobby").toBool(true),   s.value("locked").toBool(),    maxG,
-                    s.value("slotsFree").toInt()};
+                    s.value("slotsFree").toInt(),    s.value("entrando").toInt(),   s.value("entradaPorSegundo").toInt()};
     r->speakerCfg = s.value("speakers").toObject().toVariantMap();
     r->speakerCfg["defaultTexto"] = tiempo(r->speakerCfg.value("defaultSec").toInt() * 1000.0);
     r->speakerMode = s.value("speakers").toObject().value("enabled").toBool();

@@ -89,7 +89,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
             [this](const QJsonObject& m) { onChatMsg(m, true); });
     control_ = std::make_unique<sala::ControlSala>(rt_, ventanilla_, *client_);
     // Las fuentes, con qué aparece el operador y la atención automática vienen de la foto.
-    connect(&ventanilla_, &VentanillaMotor::cambio, this, [this](unsigned partes) {
+    ventanilla_.escuchar(this, [this](unsigned partes) {
         if ((partes & (FotoMotor::Sala | FotoMotor::Escenas)) != 0) emit operatorChanged();
         if ((partes & FotoMotor::Sala) != 0) emit autoIntakeChanged();
     });
@@ -192,6 +192,8 @@ bool ConferenceViewModel::lobby() const { return client_->snapshot().value("lobb
 bool ConferenceViewModel::locked() const { return client_->snapshot().value("locked").toBool(); }
 int ConferenceViewModel::maxGuests() const { return client_->snapshot().value("maxGuests").toInt(); }
 int ConferenceViewModel::slotsFree() const { return client_->snapshot().value("slotsFree").toInt(); }
+int ConferenceViewModel::entrando() const { return client_->snapshot().value("entrando").toInt(); }
+int ConferenceViewModel::entradaPorSegundo() const { return client_->snapshot().value("entradaPorSegundo").toInt(); }
 int ConferenceViewModel::peopleConnected() const { return client_->resumen().conectados; }
 QObject* ConferenceViewModel::waiting() const { return waiting_.get(); }
 QObject* ConferenceViewModel::inside() const { return inside_.get(); }
