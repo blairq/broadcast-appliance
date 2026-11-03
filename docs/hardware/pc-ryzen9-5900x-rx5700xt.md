@@ -1,8 +1,11 @@
 # PC Ryzen 9 5900X + Radeon RX 5700 XT (Windows 11)
 
-La PC de pruebas de Windows (`192.168.1.177`, `ssh windows`). Medida dos veces el **2026-11-02**:
+La PC de pruebas de Windows (`192.168.1.177`, `ssh windows`). Medida tres veces el **2026-11-02**:
 
-- **A la tarde (la vigente)**: campaña completa con el paquete de master `b792325d`
+- **A la noche (la vigente)**: el gateway reescrito (hilos F1-F5, placa D3D11, colas
+  compartidas, 4 en alta, tope 512), 10 y 40 contra la campaña de la tarde y la escalera hasta
+  que se rompe: «Después del rewrite de hilos» abajo.
+- **A la tarde**: campaña completa con el paquete de master `b792325d`
   (H.264 por la placa en el gateway), por cada camino de entrada (directo, TURN por UDP, por
   TCP y mezclado, y pinggy), códecs, ráfaga, grabar y transmitir, resistencia, 60 y 80
   invitados y los núcleos con ETW. Crudas en
@@ -41,6 +44,123 @@ La app corre en la PC y **hinchada genera los invitados desde la Mac por la LAN*
 - La red de la prueba: la Mac está por **Wi-Fi 5** (802.11ac, 5 GHz/80 MHz, 866 Mbps de enlace,
   -41 dBm) y la PC por cable a 1 Gbps; ping ~5 ms. Internet de la casa (para pinggy):
   195 Mbps de bajada y 42,8 Mbps de subida (`networkQuality`, RTT base 73 ms).
+
+## Después del rewrite de hilos (2026-11-02 noche, paquete 3824d1f5)
+
+El paquete de `3824d1f5` (igual a master salvo un merge): el gateway con F1-F5 de
+[PLAN-GATEWAY-FRAGMENTOS](../planes/PLAN-GATEWAY-FRAGMENTOS.md) (TURN y red en el mismo hilo,
+capas R/T/D, colas compartidas de libwebrtc, decodificar con D3D11 en la placa, afinidad), como
+mucho 4 en alta en la grilla y tope de 512 invitados. Arrancado con `--test --gw-arg=--turn-prueba`
+(TURN sin pinggy), evento «prueba linea L0», hinchada `--modo grabado --hablan 1 --decodificar
+todo` desde la Mac, `--remoto-cada 5` (muestreo liviano), 45-50 s de régimen; cada corrida, 2 min
+como mucho. Crudas en `~/Proyectos/mediciones-carga/2026-11-02-nw/` (fuera del repo).
+
+### 10 y 40: antes y después
+
+| | ba-app | gateway CPU | gateway hilos | gateway cambios/s | motor de video de la placa |
+|---|---|---|---|---|---|
+| 10 directo, tarde (MFT) | 172 % | 405 % | 353 | 18,0k | — |
+| 10 directo, D3D11 (antes de las colas) | — | 117 % | — | — | — |
+| **10 directo, ahora** | **87 %** | **82 %** | **147** | **11,4k** | 31 % |
+| 40 directo, tarde | 112 % | 220 % | 647 | 45,3k | 4-7 % |
+| **40 directo, ahora** | **109 %** | **138 %** | **204** | **29,2k** | 46 % |
+| 40 TURN mezcla 10 %, tarde | 111 % | 231 % | 647 | 46,7k | — |
+| **40 TURN mezcla 10 %, ahora** | **120 %** | **162 %** | **205** | **28,1k** | 47 % |
+
+- Grilla con 40: mosaico 30 cps sin perdidos, las 39-40 miniaturas en baja a 15,0 cps y 2-3 en
+  alta a 29,5-30. Con 10: 4 en alta a 29 cps y 6 en baja a 15. Edad del audio 14,7-14,8 ms
+  (antes 12,7-13,2), sin demoras propias; faltantes del retorno 0 en régimen.
+- Lo que recibe el invitado: 28,8-29,4 cps de retorno, 0 congelamientos, 0 % de pérdida, RTT
+  5-6 ms, 720p los 40. Salida de la PC 70 Mbps con 40.
+- **Quién hace los cambios de contexto ahora** (40): `ba-rtc-work-#` ×3 13,3-13,6k/s,
+  `(sin nombre)` ×149 5,2-5,7k (antes ×322, 9,9k), `ba-colas-rtc/#` 2,4-2,6k, `ba-colas-dec/#`
+  ×6 2,4-2,8k, `ba-rtc-net-#` ×2 1,1-1,4k. `AudioEncoder`, `EncoderQueue`, `DecodingQueue` e
+  `IncomingVideoStream` ya no existen como hilos. CPU: `ba-rtc-net` 38-54 %, `ba-rtc-work`
+  20-26 %, `ba-colas-dec` 19-23 %, `webrtc-playout` 13 %, `grillas` 9 %. El TURN ya no tiene hilo:
+  `turn.desde_webrtc` 11k pases/s y 11 % de un núcleo.
+- **`uso.codecsVideo.entrega.celdas_placa` = 0**: las celdas de la grilla se achican todas por
+  CPU (`celdas_cpu`), aunque `h264.achica_en_placa` diga sí; `enteros_placa` = todos. La
+  decodificación sí es de la placa (53-54 decodificadores D3D11, motor de video al 46 %). La
+  frontera #8 (`video.decodificado`) sigue en 2,9 ms por cuadro (tiempo de pared, con esperas).
+- La interfaz: 10-11 demoras de 50-80 ms por corrida, ninguna de más de 1 s. El aviso de
+  binding loop de `SalaParticipantes.qml:99` (`GrillaAdaptable`, `disp`) sale 2 veces por corrida
+  (cuando entra y cuando se va la gente) y no se nota en la pantalla.
+
+### Hasta que se rompe (TURN mezcla 10 %)
+
+Con afinidad y prioridades de fábrica hasta 120 (60-120); después, por decisión del usuario,
+`gateway.afinidad`, `procesador.mediosJuntos` y `procesador.prioridad` apagados y los procesos
+en clase Normal («sin afinidad»: 80, 100, 120). Ojo: la tarea programada que arranca la app en
+la sesión del usuario la lanzaba en **BelowNormal** (el launcher y el gateway heredaban eso;
+ba-app subía sola a AboveNormal); las «sin afinidad» se lanzaron con `start /NORMAL`.
+
+| Invitados | entran | ba-app | gateway | grilla en la app (baja p50 / p5, mosaico) | audio | `webrtc-playout` por pase | interfaz: trabas > 2 s (máx.) | «llega tarde» | invitado | Mac generadora |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 40 | 40 | 120 % | 162 % | 15,0 / 15,0, 30 | 14,7 ms | 1,4 ms | 0 | 0 | 0 congel., 720p | 29 % |
+| 60 | 60 | 176 % | 229 % | 15,1 / 15,0, 30 | 12,5 ms | 2,1 ms | 1 (3,4 s) | 0 | 0 congel., 720p | 38 % |
+| 80 | 80 | 235 % | 317 % | 15,0 / 15,0, 30 | 11,4 ms | 3,1 ms | 3 (**8,0 s**, al irse) | 120 (al entrar) | 6 congel., 720p | 52 % |
+| 80 sin afinidad | 80 | 190 % | 313 % | 15,0 / 15,0, 30 | 11,6 ms | 2,7 ms | 3 (**6,3 s**, al irse) | 212 (al entrar y 30 s después) | 0 congel., 720p | 56 % |
+| 100 sin afinidad | 100 | 289 % | 421 % | 15,0 / 14,9, 30 | 11,9 ms | 4,1 ms | 6 (**14,0 s** al entrar, 13,8 s al irse) | 42 (al entrar) | 219 congel., 91 de 100 bajados a 360p/180p | 75-95 % |
+| 120 | 120 | 328 % | 490 % | 11,7 / 10,3, 30 (2 perdidos) | — | 7,1 ms | 8 (**25,9 s**) | 801, cada ~30 s | 4453 congel., 1,8 % pérdida | 80-92 % |
+| 120 sin afinidad | 120 | 323 % | 540 % | 15,0 / 7,0, 29 (7 perdidos) | — | **9,0 ms** | 6 (**24,9 s**) | 645 | 896 congel., 2 % pérdida, 109 de 120 bajados | 80-91 % |
+
+(Memoria de la PC sin problema en ninguna: 16-20 GB disponibles, 20-29 GB comprometidos de 38;
+la máquina entera a 25-45 %. Con 120 la edad del audio da números negativos: los relojes de las
+dos máquinas se desfasaron; no se usa.)
+
+**Qué se rompe primero: la interfaz de ba-app.** Ya con 80 se traba 6-8 s seguidos cuando se va
+la gente de golpe (y 2,6-3,2 s cuando entra); con 100, 14 s al entrar y al irse, aunque en régimen
+la grilla, el audio y el retorno siguen bien. Lo que corre la interfaz en esas trabas es casi
+siempre `ba::app::ConferenceClient, evento 43` (los avisos de la conferencia encolados de a
+cientos) y, con 120, también `ba::app::VentanillaMotor, evento 43`. Pilas: `Logs/dumps/A-20261102-22*-traba-*.dmp`
+en la PC (quedan para `tools/caidas/analizar.py --pc`).
+
+**Lo segundo, con 120: el hilo `webrtc-playout` del gateway llega al núcleo entero.** Saca el
+audio de todos cada 10 ms (frontera #10) y crece más que lineal: 1,4 ms por pase con 40, 2,1
+con 60, 2,7-3,1 con 80, 4,1 con 100 y **7,1-9,0 ms de 10 con 120** (ETW: 100 % de un núcleo).
+Con eso aparecen las ráfagas de «mezcla programa/retornos: lo de Invitado N (audio) llega
+tarde (16 bloques); no entra» cada ~30 s, la grilla baja (celdas a 7-12 cps, cuadros del
+mosaico perdidos) y los retornos de los invitados se degradan. Entran los 120 igual.
+
+**El techo útil en esta PC es ~80 invitados** (con la interfaz trabándose al entrar/irse de
+golpe); 100 aguanta en régimen pero con trabas de 14 s; 120 no. La Mac que genera la carga
+llega al 75-95 % desde 100: los congelamientos y la bajada de resolución del lado del invitado
+con 100-120 son en parte de la Mac (hinchada decodificando 100-120 retornos), pero las trabas, el
+audio tarde y la grilla son de la PC. No se subió de 120.
+
+**Afinidad sí o no** (cada caso, una corrida): con 80, sin afinidad baja ba-app de 235 a 190 % y
+saca los 6 congelamientos; con 120 no cambia nada de fondo (trabas de 25 s y playout saturado en
+las dos). Dónde corre: con afinidad, con 120, el CCD del gateway (lógicos 12-23) a 65-74 % y el
+otro (2-11) a 2-23 %; sin afinidad Windows llena el CCD0 (0-11 a 43-75 %) y deja el CCD1 a 17-42 %.
+Los «dos núcleos a full» del Administrador de tareas son `webrtc-playout` y `control`/`interfaz`
+de ba-app rotando en los lógicos 0-5, más las interrupciones de la placa de red en el 1 (DPC 7-11 %,
+ISR 3-5 %).
+
+**Hilos por núcleo con 120 sin afinidad (ETW 20 s, limpio)**: `ba-gateway/webrtc-playout` 100 %,
+`ba-rtc-net-#` 183 % (repartido), `ba-rtc-work-#` 93 %, `ba-app/control` 80 %, `ba-colas-dec/#`
+63 %, `ba-app/interfaz` 63 %, gateway sin nombre 54 %, `anillos-video` 32 %, `anillos-audio` 28 %.
+En una corrida anterior el **SearchIndexer** de Windows se llevaba ~1,3 núcleos (4-9 % en casi
+todos): se marcaron como «no indexar» los ~500 mil archivos de `C:\ba-pruebas` y en la siguiente ya
+no apareció.
+
+### Capturas
+
+La Sala nueva («En la conferencia») con 40 y con 120 (118/120 lugares, la grilla se desplaza; una
+celda todavía sin video):
+
+![Sala con 40](img/pc177-sala-nueva-40.jpg)
+
+![Sala con 120](img/pc177-sala-nueva-120.jpg)
+
+### Problemas vistos
+
+- `medir-sala.py` a veces da «estable a los 0,06 s» (o negativo) y arranca el régimen durante la
+  entrada (con `--remoto-cada 5`): los faltantes del retorno de la entrada (691 con 40) caen en
+  el régimen. Herramienta de medición, no producto.
+- `app_bucle_ui` del resumen arrastra el peor bucle de la corrida anterior (25,2 s en todas las de
+  después de 120): mirar las trabas en `registro.txt`.
+- Un bucle de espera con «ninja» o «clang» en la línea de comandos hace que el chequeo de
+  «máquina quieta» de medir-sala diga «hay compilaciones».
 
 ## Campaña de la tarde (master b792325d)
 

@@ -20,6 +20,10 @@ Campaña del 2026-11-02 en la .177 con H.264 por la placa (master `b792325d`, ve
 la campaña»): con 40 el gateway gasta 220 % directo y 231-242 % por TURN, con **647 hilos** y
 **45-47 mil cambios de contexto/s**; con 10 en 720p, 405 %.
 
+**Después de F1-F5 (2026-11-02 noche, .177, paquete `3824d1f5`)**: con 40 el gateway baja a
+138 % directo y 162 % por TURN mezcla, con **204 hilos** y **28-29 mil cambios/s**; con 10 en
+720p, 82 %. Detalle en «Lo que dijo la campaña» → «Después del rewrite».
+
 **Lo que todavía no medimos (antes de la campaña): el camino de producción.** Los invitados entran por los
 puertos TCP y UDP que abre pinggy, que llegan al TURN propio (`127.0.0.1:3478`,
 [TURN.md](../funciones/TURN.md)). hinchada entra directo a WebRTC por UDP y se saltea el
@@ -203,6 +207,47 @@ Conclusiones para el rewrite:
     casi llenos» del Administrador de tareas eran de la medición (`WmiPrvSE` en los núcleos
     lógicos 12-13 con el muestreo viejo por WMI). Para F4: dejar los núcleos 0-1 libres de hilos
     calientes del gateway (son los de la placa de red) antes de fijar afinidad.
+
+### Después del rewrite (2026-11-02 noche, .177)
+
+Paquete `3824d1f5` (F1-F5, D3D11, colas compartidas, 4 en alta, tope 512), mismas condiciones
+que la campaña (hinchada desde la Mac, grabado, habla 1, decodificar todo; 45-50 s de régimen).
+Crudas en `~/Proyectos/mediciones-carga/2026-11-02-nw/`; ficha completa (escalera, ETW,
+capturas) en [pc-ryzen9-5900x-rx5700xt.md](../hardware/pc-ryzen9-5900x-rx5700xt.md) «Después del
+rewrite de hilos».
+
+| | 10 directo antes | 10 directo después | 40 directo antes | 40 directo después | 40 TURN mezcla antes | 40 TURN mezcla después |
+|---|---|---|---|---|---|---|
+| CPU del gateway p50 | 405 % (MFT; 117 % con D3D11) | **82 %** | 220 % | **138 %** | 231 % | **162 %** |
+| Hilos del gateway (máx.) | 353 | **147** | 647 | **204** | 647 | **205** |
+| Cambios de contexto/s | 18,0 mil | **11,4 mil** | 45,3 mil | **29,2 mil** | 46,7 mil | **28,1 mil** |
+| ba-app | 172 % | 87 % | 112 % | 109 % | 111 % | 120 % |
+| Grilla (mosaico / celda) | 30 / 27,0 | 30 / 29,0 alta, 15 baja | 30 / 15,0 | 30 / 15,0 | 30 / 15,0 | 30 / 15,0 |
+| Edad del audio | 13,2 ms | 14,7 ms | 12,7 ms | 14,8 ms | 13,2 ms | 14,7 ms |
+| El invitado recibe | 30,0 cps | 28,8 cps | 30,0 cps | 28,8 cps, 0 congel. | 30,0 cps | 29,4 cps, 0 congel. |
+
+1. **Los cambios de contexto bajaron un 37-40 % y los hilos un 70 %**, pero los que quedan ya no
+   son de las colas por invitado: `ba-rtc-work-#` (×3) hace 13,3-13,6 mil/s (casi la mitad),
+   `(sin nombre)` (×149, antes ×322) 5,2-5,7 mil, `ba-colas-rtc` 2,4-2,6 mil, `ba-colas-dec` 2,4-2,8
+   mil. El siguiente paso sobre cambios de contexto es `ba-rtc-work` (lo que libwebrtc postea al
+   hilo de trabajo por paquete/por cuadro).
+2. **La celda en la placa no se usa**: `uso.codecsVideo.entrega.celdas_placa` = 0 y `celdas_cpu`
+   = todas, aunque `h264.achica_en_placa` diga sí. Se decodifica en la placa (D3D11, motor de video
+   al 46 % con 40) pero el achique sigue por CPU; #8 sigue en 2,9 ms por cuadro (pared).
+3. **El techo útil de la .177 es ~80 invitados**; lo primero que se rompe es **la interfaz de
+   ba-app** (trabas de 6-8 s cuando 80 se van de golpe; 14 s al entrar y al irse con 100),
+   corriendo `ConferenceClient, evento 43`. No es del gateway.
+4. **Lo segundo, con 120: `webrtc-playout` (#10) satura** — 1,4 ms por pase con 40, 2,1 con 60,
+   2,7-3,1 con 80, 4,1 con 100 y 7,1-9,0 ms de 10 con 120 (ETW: 100 % de un núcleo). Crece más
+   que lineal. Con eso: «lo de Invitado N (audio) llega tarde» en ráfagas cada ~30 s, la grilla en
+   7-12 cps y los retornos degradados. La conclusión 7 de la campaña («el audio de todos en un
+   hilo aguanta») vale hasta ~100: para más hace falta partir #10 (H con dos o más hilos, o
+   mezclar por grupos).
+5. **Afinidad (F4)**: sin ella, 80 mejora un poco (ba-app 235 → 190 %, 6 → 0 congelamientos) y
+   120 queda igual de roto; con afinidad, con 120, el CCD del gateway quedaba a 65-74 % y el otro
+   casi libre. Por decisión del usuario quedó apagada de fábrica (`gateway.afinidad` y
+   `procesador.mediosJuntos`), y para medir también `procesador.prioridad`. La tarea programada de
+   las pruebas en la .177 lanzaba la app en BelowNormal: medir con `start /NORMAL`.
 
 ## Etapas
 
