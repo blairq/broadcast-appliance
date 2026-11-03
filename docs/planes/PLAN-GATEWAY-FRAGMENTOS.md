@@ -798,6 +798,7 @@ vuelta: GW SendTo ─► IpStack::enviarDesdeRtc (cola, despierta si estaba vac�
 
 | | Qué | Por qué |
 |---|---|---|
+| C18 | **Franjas al ir entrando gente** (visto por el usuario en la .177, 2026-11-03): una división parte la pantalla al medio horizontalmente y aparecen muchas franjas de video de 1-2 cm de ancho y 10 cm de alto | el algoritmo de disposición tiene que **mantener la relación de aspecto** de las imágenes (16:9) y tener un **mínimo de ancho y de alto** por celda; si no entran, desplazar/«+N», nunca aplastar |
 | C13 | Tope de 32 conexiones por IP (`room.maxConexionesPorIp`) | con mucha gente detrás de un NAT quedan afuera; que dependa del cupo |
 | C14 | «En la conferencia» con 40 se ve como rayas vacías | desplazarse o pasar a lista; `docs/hardware/img/pc177-sala-40.jpg` |
 | C15 | Cuelgue al cambiar de evento tras el primer arranque | GStreamer trabado en `gst_pad_stop_task`; volcado en la .177 |
