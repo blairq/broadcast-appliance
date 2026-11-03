@@ -101,8 +101,13 @@ void MultiviewViewModel::guardar() {
     emit cambio();
 }
 
+QVariantMap MultiviewViewModel::porId() const {
+    QVariantMap out;
+    for (const QVariant& v : vistas_) out.insert(v.toMap().value("id").toString(), v);
+    return out;
+}
+
 QVariantMap MultiviewViewModel::de(const QString& id) const {
-    BA_ACOPLE("invocable", "MultiviewViewModel::de");
     const int i = indice(id.isEmpty() ? actual_ : id);
     return i >= 0 ? vistas_[i].toMap() : QVariantMap{};
 }

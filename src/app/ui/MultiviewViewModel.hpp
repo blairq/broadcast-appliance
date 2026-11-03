@@ -37,6 +37,8 @@ class MultiviewViewModel : public QObject {
     Q_PROPERTY(QString actual READ actual WRITE setActual NOTIFY cambio)
     /// La de la pestaña elegida.
     Q_PROPERTY(QVariantMap elegida READ elegida NOTIFY cambio)
+    /// {id: multivista}: la vista se enlaza a una por su id (`porId[id] || elegida`).
+    Q_PROPERTY(QVariantMap porId READ porId NOTIFY cambio)
     /// Los ids de las que tienen una ventana abierta.
     Q_PROPERTY(QStringList conVentana READ conVentana NOTIFY ventanasCambio)
    public:
@@ -53,8 +55,9 @@ class MultiviewViewModel : public QObject {
     QVariantMap elegida() const { return de(actual_); }
     QStringList conVentana() const;
 
-    /// La de `id` ("" = la elegida); vacío si no hay.
-    Q_INVOKABLE QVariantMap de(const QString& id) const;
+    QVariantMap porId() const;
+    /// La de `id` ("" = la elegida); vacío si no hay. Para el C++ (la vista lee `porId`).
+    QVariantMap de(const QString& id) const;
     /// Cambia lo que venga en `cambios` (lo demás queda) y lo guarda: la elegida / la de `id`.
     Q_INVOKABLE void cambiar(const QVariantMap& cambios);
     Q_INVOKABLE void cambiarDe(const QString& id, const QVariantMap& cambios);

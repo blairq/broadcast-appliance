@@ -19,8 +19,7 @@ Item {
     property string multiview: ""
     readonly property bool esMultiview: multiview !== ""
     readonly property var mv: !esMultiview ? ({})
-                              : (Studio.multivistas.lista, multiview !== "*" && Studio.multivistas.de(multiview).id !== undefined
-                                 ? Studio.multivistas.de(multiview) : Studio.multivistas.elegida)
+                              : (multiview !== "*" && Studio.multivistas.porId[multiview]) || Studio.multivistas.elegida
     readonly property var clavesVivas: esMultiview ? (mv.fuentes || []) : (claves || [])
     /// Una sola fuente suele ir a un proyector o un televisor de la sala: sin
     /// marcas de operador. Con varias es un multiview de control.

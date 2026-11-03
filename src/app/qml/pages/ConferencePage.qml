@@ -526,6 +526,7 @@ Rectangle {
                                 required property var fromName
                                 required property var fromId
                                 required property var to
+                                required property var toName
                                 required property var text
                                 required property var voz
                                 required property var mine
@@ -544,7 +545,7 @@ Rectangle {
                                         anchors { left: parent.left; top: parent.top; margins: 7; leftMargin: 11 }
                                         width: Math.min(implicitWidth, chatList.width * 0.8 - 22)
                                         // 🎙: lo DIJO hablando (la atención hablada lo pasó a texto).
-                                        Text { text: (msg.voz === true ? "🎙 " : "") + (msg.mio ? qsTr("Vos") : msg.fromName) + (msg.to === "all" ? "" : msg.to === "host" ? " → " + qsTr("operador") : " → " + conf.nameOf(msg.to))
+                                        Text { text: (msg.voz === true ? "🎙 " : "") + (msg.mio ? qsTr("Vos") : msg.fromName) + (msg.to === "all" ? "" : msg.to === "host" ? " → " + qsTr("operador") : " → " + (msg.toName || msg.to))
                                                color: Theme.textFaint; font.pixelSize: 10 }
                                         Text { text: msg.text; color: Theme.text; font.pixelSize: 13; wrapMode: Text.Wrap
                                                width: Math.min(implicitWidth, chatList.width * 0.8 - 22) }
@@ -559,7 +560,7 @@ Rectangle {
                                 Layout.fillWidth: true
                                 placeholderText: page.hiloChat === ""
                                                  ? qsTr("Escribí a toda la conferencia…")
-                                                 : qsTr("En privado a %1…").arg(conf.nameOf(page.hiloChat))
+                                                 : qsTr("En privado a %1…").arg(conf.nombres[page.hiloChat] || page.hiloChat)
                                 onAccepted: send()
                                 function send() {
                                     if (text.trim() === "") return

@@ -19,7 +19,7 @@ Item {
         // («multiview» solo, el de antes por MCP: la elegida en la página.)
         readonly property bool esMultiview: Studio.dashboard.backgroundLayout.startsWith("multiview")
         readonly property var mv: (Studio.multivistas.lista, !esMultiview ? ({})
-                                   : Studio.dashboard.backgroundLayout.startsWith("multiview:") ? Studio.multivistas.de(Studio.dashboard.backgroundLayout.slice(10))
+                                   : Studio.dashboard.backgroundLayout.startsWith("multiview:") ? (Studio.multivistas.porId[Studio.dashboard.backgroundLayout.slice(10)] || ({}))
                                    : Studio.multivistas.elegida)
         readonly property bool mvValida: esMultiview && mv.id !== undefined
         Rectangle { anchors.fill: parent; color: "black"; visible: bgLayer.mvValida }

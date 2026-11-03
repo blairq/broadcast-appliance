@@ -42,9 +42,7 @@ DEUDA_QML = {
     "qml/controls/PanelMezclador.qml": 1,
     "qml/controls/PanelSuperres.qml": 1,
     "qml/controls/SelectorHerramientas.qml": 1,
-    "qml/controls/VistaVideo.qml": 1,
-    "qml/pages/ConferencePage.qml": 2,
-    "qml/pages/DashboardPage.qml": 6,
+    "qml/pages/DashboardPage.qml": 5,
     "qml/pages/FacebookPage.qml": 1,
     "qml/pages/PantallasPage.qml": 1,
     "qml/pages/PersonasPage.qml": 2,
@@ -157,7 +155,8 @@ DEUDA_CPP = {
 # Se baja SOLO cuando desaparece el camino entero (la Q_INVOKABLE dejó de serlo porque la vista
 # ahora lee una propiedad): 2026-11-03, GuionViewModel::enlaceDeCue (→ enlacesPrompter),
 # RielConfig::paginaDeId/idDePagina/tituloDePagina (→ paginaPorId/idPorPagina/tituloPorPagina) y
-# PrompterViewModel::avisoParaOrador (→ avisoPuesto).
+# PrompterViewModel::avisoParaOrador (→ avisoPuesto), ConferenceViewModel::nameOf (→ el rol toName
+# del chat y `nombres`) y MultiviewViewModel::de (→ porId; además `elegida` pasaba por ahí).
 GANCHOS = {
     "app/asamblea/InformesResultado.hpp": 1,
     "app/control/Botonera.cpp": 2,
@@ -165,7 +164,7 @@ GANCHOS = {
     "app/net/AccesoRemoto.cpp": 1,
     "app/net/HttpsClient.cpp": 3,
     "app/pantallas/Monitores.cpp": 1,
-    "app/ui/ConferenceViewModel.cpp": 2,
+    "app/ui/ConferenceViewModel.cpp": 1,
     "app/ui/CorridaViewModel.cpp": 1,
     "app/ui/CuentasViewModel.cpp": 1,
     "app/ui/DashboardModel.cpp": 1,
@@ -174,7 +173,6 @@ GANCHOS = {
     "app/ui/ListModels.cpp": 1,
     "app/ui/ListaObjetos.cpp": 1,
     "app/ui/MediosViewModel.cpp": 2,
-    "app/ui/MultiviewViewModel.cpp": 1,
     "app/ui/PantallasViewModel.cpp": 1,
     "app/ui/PersonasViewModel.cpp": 2,
     "app/ui/SettingsModel.cpp": 3,

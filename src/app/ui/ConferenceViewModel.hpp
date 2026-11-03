@@ -90,6 +90,8 @@ class ConferenceViewModel : public QObject {
     Q_PROPERTY(QObject* lugares READ lugares CONSTANT)
     /// Destinos del chat: [{label, value}] ("all" + cada participante).
     Q_PROPERTY(QVariantList chatTargets READ chatTargets NOTIFY participantesChanged)
+    /// {id: nombre} de la gente de la sala (y de quien se atiende sin estar): para la vista.
+    Q_PROPERTY(QVariantMap nombres READ nombres NOTIFY participantesChanged)
     /// Los hilos privados abiertos: [{uid, nombre}]. El chat de la sala no
     /// esta aca: ese es el de siempre y va primero. (Los mensajes de un hilo: el
     /// modelo `chat` filtrado con ui/ChatHilo.)
@@ -279,7 +281,8 @@ class ConferenceViewModel : public QObject {
     /// Copia el archivo a <datos>/Media y lo agrega a la escena actual.
     Q_INVOKABLE void takeShare(const QString& id);
     /// Nombre de un participante por id (para el chat).
-    Q_INVOKABLE QString nameOf(const QString& id) const;
+    QString nameOf(const QString& id) const;
+    QVariantMap nombres() const;
     /// Los mensajes de UN hilo. `uid` vacio = el de la sala (lo que ve todo el
     /// mundo); con `uid`, la conversacion privada con esa persona.
     ///

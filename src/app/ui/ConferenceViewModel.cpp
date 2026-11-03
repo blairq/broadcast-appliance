@@ -77,7 +77,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
       inside_(std::make_unique<JsonListModel>(sala::clavesAdentro())),
       shares_(std::make_unique<JsonListModel>(sala::clavesArchivos())),
       chat_(std::make_unique<JsonListModel>(
-          QStringList{"uid", "fromId", "fromName", "to", "text", "atMs", "mine", "voz"})),
+          QStringList{"uid", "fromId", "fromName", "to", "toName", "text", "atMs", "mine", "voz"})),
       speakers_(std::make_unique<JsonListModel>(sala::clavesOradores())) {
     lugares_ = std::make_unique<JsonListModel>(sala::clavesLugares());
     // La foto de cada orador (las tarjetas): la pone el lector al armar la fila (seguro entre hilos).
@@ -467,7 +467,9 @@ void ConferenceViewModel::onChatMsg(const QJsonObject& msg, bool live) {
     const qint64 seq = msg.value("seq").toInteger();
     if (seq <= lastSeq_) return; // ya estaba (llega por snapshot y por evento)
     lastSeq_ = seq;
-    const QJsonObject m = mensajeDelChat(msg);
+    QJsonObject m = mensajeDelChat(msg);
+    // A quién va, con su nombre de ahora (la vista no busca en la sala por cada mensaje).
+    if (const QString to = m.value("to").toString(); to != "all" && to != "host") m.insert("toName", nameOf(to));
     const bool mine = m.value("mine").toBool();
     chat_->append(m);
     emit chatCambio();
@@ -508,6 +510,7 @@ void ConferenceViewModel::agregarDichoAlAtendido(const QString& id, const QStrin
     m.insert("fromId", "host");
     m.insert("fromName", "Operador");
     m.insert("to", id);
+    m.insert("toName", nameOf(id));
     m.insert("text", t);
     m.insert("voz", true);
     m.insert("mine", true);
@@ -516,8 +519,15 @@ void ConferenceViewModel::agregarDichoAlAtendido(const QString& id, const QStrin
     emit chatCambio();
 }
 
+QVariantMap ConferenceViewModel::nombres() const {
+    QVariantMap out;
+    for (auto it = nombresDeAfuera_.begin(); it != nombresDeAfuera_.end(); ++it) out.insert(it.key(), it.value());
+    for (const QJsonValue& v : client_->snapshot().value("participants").toArray())
+        out.insert(v.toObject().value("id").toString(), v.toObject().value("name").toString());
+    return out;
+}
+
 QString ConferenceViewModel::nameOf(const QString& id) const {
-    BA_ACOPLE("invocable", "ConferenceViewModel::nameOf");
     for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
         if (v.toObject().value("id").toString() == id) return v.toObject().value("name").toString();
     }

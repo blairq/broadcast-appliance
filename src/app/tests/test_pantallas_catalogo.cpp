@@ -562,6 +562,51 @@ int main(int argc, char** argv) {
         CHECK(BuscadorCatalogo::coincide(BuscadorCatalogo::palabras("   "), "lo que sea"));
     }
 
+    // ===================== 8. Solo las distribuciones; ráfagas juntadas =========
+    {
+        int pedidasEscenas = 0;
+        QStringList escenas{"Atril", "Plano general"};
+        QVariantList dists{QVariantMap{{"id", "a"}, {"nombre", "Una"}, {"piezas", QVariantList{}}}};
+        QVariantList videos;
+        CatalogoVisible::Fuentes f = fuentes();
+        f.escenas = [&]() {
+            ++pedidasEscenas;
+            return escenas;
+        };
+        f.distribuciones = [&dists]() { return dists; };
+        f.videos = [&videos]() { return videos; };
+        CatalogoVisible c(f);
+        const int antesEscenas = pedidasEscenas;
+        auto* cambio = contar(&c, &CatalogoVisible::cambio);
+        // Una distribución nueva y otra renombrada: solo sus filas, sin pedirle nada a las demás fuentes.
+        dists = {QVariantMap{{"id", "a"}, {"nombre", "Una (bis)"}, {"piezas", QVariantList{}}},
+                 QVariantMap{{"id", "b"}, {"nombre", "Dos"}, {"piezas", QVariantList{}}}};
+        c.refrescarDistribuciones();
+        CHECK(pedidasEscenas == antesEscenas);
+        CHECK(cambio->count() == 1);
+        CHECK(c.existe("distribucion:b") && c.buscar("distribucion:a")->titulo == "Una (bis)");
+        CHECK(c.porId().value("distribucion:b").toMap().value("titulo").toString() == "Dos");
+        // En el mismo lugar que si se rearmara todo (después de las páginas, antes de lo de la TV).
+        std::vector<QString> ids, idsTodo;
+        for (const auto& x : c.cosas()) ids.push_back(x.id);
+        c.refrescar();
+        for (const auto& x : c.cosas()) idsTodo.push_back(x.id);
+        CHECK(ids == idsTodo);
+        c.refrescarDistribuciones(); // nada cambió: nada avisa
+        CHECK(cambio->count() == 1);
+        // Una ráfaga de invitados: una sola pasada.
+        const int antes = pedidasEscenas;
+        for (int i = 0; i < 50; ++i) {
+            videos << QVariantMap{{"clave", QString("guest:%1").arg(i)}, {"titulo", QString("Invitado %1").arg(i)}};
+            c.pedirRefresco();
+        }
+        CHECK(pedidasEscenas == antes && !c.existe("video:guest:0"));
+        QElapsedTimer t;
+        t.start();
+        while (!c.existe("video:guest:49") && t.elapsed() < 2000) QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        CHECK(c.existe("video:guest:49") && pedidasEscenas == antes + 1);
+    }
+
     if (g_fallas == 0) std::printf("test_pantallas_catalogo: OK\n");
     return g_fallas == 0 ? 0 : 1;
 }
