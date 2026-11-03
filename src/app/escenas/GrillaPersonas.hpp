@@ -118,6 +118,18 @@
 // NOMBRES («nombres»: nombre, o nombre y cargo/banca): cada celda lleva el id de su rótulo
 // (idRotulo); lo dibuja la app (ControlGrillas) y lo pinta el gateway con el estilo de la
 // grilla (nombre_color, nombre_fondo, nombre_tamano, nombre_lugar).
+//
+// LA FORMA DE LAS CELDAS (C18, 2026-11-03): con «proporcion» = llenar, la disposición
+// elegía las columnas que dejaban la celda de más área SIN mirar la forma, y con 22 o 43
+// personas salía 11×2 o 11×4 de franjas verticales (~110×170 en 1280×720) con el video
+// recortado al medio. Ahora la proporción del video (16:9) SIEMPRE cuenta (ver Forma):
+// con «llenar» la celda puede alejarse de ella hasta «recorte_max» % por lado (de fábrica
+// 25: entre 4:3 y 21:9) y entre las disposiciones que cumplen se elige la de más área de
+// video a la vista (el área de la celda por la raíz de la fracción del cuadro que se ve:
+// recortar suma, pero menos que agrandar); con una proporción fija, como siempre (la celda
+// exacta, con bandas). Además ninguna celda baja de «celda_min_ancho» × «celda_min_alto»
+// (px a 1080, de fábrica 96×54, escalados al lado corto del lienzo): si no entran todos
+// así, el resto va al «+N» (capacidad), nunca se achica más.
 // ============================================================================
 #pragma once
 
@@ -170,6 +182,14 @@ constexpr int kAltaMaxDefecto = 4;
 /// Una celda de la franja (destacar) o de la grilla con hueco no baja de esto de alto: si
 /// no entran todos así, el resto va al «+N».
 constexpr int kMinCelda = 40;
+/// La proporción del video de cada persona (la de las cámaras y del gateway).
+constexpr double kAspectoVideo = 16.0 / 9.0;
+/// «Llenar»: cuánto del video se puede recortar por lado, de fábrica y como mucho (%).
+constexpr int kRecorteMaxDefecto = 25;
+constexpr int kRecorteMaxTope = 40;
+/// La celda más chica, de fábrica (px en un lienzo de 1080 de lado corto).
+constexpr int kCeldaMinAncho = 96;
+constexpr int kCeldaMinAlto = 54;
 /// Agrandar «encima»: la celda del orador crece a esto de su lugar (centrada, sin salirse del
 /// lienzo y dibujada encima de las vecinas); las demás quedan exactamente como siempre.
 constexpr double kResaltarOrador = 1.06;
@@ -210,7 +230,10 @@ struct Config {
     int ancho = 1280, alto = 720;
     int separacion = 8;
     int margen = 0;
-    double aspecto = 16.0 / 9.0; ///< de cada celda; 0 = llenar el lugar (el gateway recorta)
+    double aspecto = 16.0 / 9.0; ///< de cada celda; 0 = llenar el lugar (el gateway recorta, con tope: recorteMax)
+    int recorteMax = kRecorteMaxDefecto; ///< llenar: % que se puede recortar del video por lado (0..kRecorteMaxTope)
+    int celdaMinAncho = kCeldaMinAncho;  ///< px a 1080 (se escala al lado corto del lienzo)
+    int celdaMinAlto = kCeldaMinAlto;
     int transicionMs = 400;
     std::string fondo = "#00000000";         ///< "#AARRGGBB" (transparente de fábrica)
     std::string colorResaltar = "#FFFFC107"; ///< el borde de quien habla
@@ -315,6 +338,12 @@ struct Resultado {
     /// Los que ya llegaron y esperan el próximo reacomodo de su grupo (ver «LAS ENTRADAS SE
     /// JUNTAN»): no están en `personas` ni en `mas`.
     int entrando = 0;
+    /// La disposición de la grilla (sin orador grande): columnas × filas y la celda en px
+    /// (0 = no hay celdas o hay un lugar grande; la celda es la de la franja).
+    int columnas = 0, filas = 0;
+    int celdaAncho = 0, celdaAlto = 0;
+    /// Cuántas celdas entran como mucho con la celda mínima (con la del «+N»).
+    int caben = 0;
 };
 
 /// Quién es el orador de una grilla, con su tiempo mínimo en pantalla. Pura: la prueba
@@ -403,9 +432,34 @@ bool acepta(const Config& c, const Persona& p);
 /// ¿`a` va antes que `b` con este orden?
 bool antes(Orden o, const Persona& a, const Persona& b);
 
-/// Los `n` rectángulos de una grilla (en orden de lectura; la última fila, centrada):
-/// la cantidad de columnas que deja las celdas más grandes. `cols` (opcional) la dice.
+/// La forma que puede tomar una celda (ver «LA FORMA DE LAS CELDAS»): su proporción entre
+/// minAspecto y maxAspecto (iguales = fija, con bandas) y un tamaño mínimo en px del lienzo.
+struct Forma {
+    double video = kAspectoVideo; ///< la proporción del video (para medir cuánto se recorta)
+    double minAspecto = kAspectoVideo, maxAspecto = kAspectoVideo;
+    int minAncho = 0, minAlto = 0;
+    /// Proporción fija (aspecto > 0) o «llenar» (0) con el recorte de fábrica; sin mínimo.
+    static Forma de(double aspecto, int recorteMax = kRecorteMaxDefecto);
+};
+/// La forma de las celdas de una grilla: su proporción, el recorte y el mínimo escalado al lienzo.
+Forma formaDe(const Config& c);
+
+/// Cómo quedó una disposición.
+struct InfoGrilla {
+    int columnas = 0, filas = 0;
+    int ancho = 0, alto = 0; ///< de cada celda
+};
+
+/// Los `n` rectángulos de una grilla (en orden de lectura; la última fila, centrada): entre
+/// las disposiciones cuyas celdas respetan la forma y el mínimo, la de más video a la vista
+/// (a igualdad, la de menos columnas). Vacío si `n` no entran con el mínimo (salvo n = 1,
+/// que siempre entra). `info` (opcional) dice columnas, filas y tamaño de la celda.
+std::vector<Rect> disponer(int n, int ancho, int alto, int separacion, int margen, const Forma& forma,
+                           InfoGrilla* info = nullptr);
+/// Lo de siempre: proporción fija o «llenar» (0) con el recorte de fábrica, sin mínimo.
 std::vector<Rect> disponer(int n, int ancho, int alto, int separacion, int margen, double aspecto, int* cols = nullptr);
+/// Cuántas celdas entran como mucho (hasta `tope`) en la grilla con su forma y su mínimo.
+int capacidad(const Config& c, int tope = kMaxCeldas);
 
 /// El reparto con memoria (los lugares estables): una instancia vive lo que vive el control.
 class Repartidor {

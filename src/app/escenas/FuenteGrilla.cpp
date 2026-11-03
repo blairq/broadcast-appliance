@@ -102,6 +102,21 @@ void registrarTipo() {
                             {{"16:9", "16:9"}, {"4:3", "4:3"}, {"1:1", traducir("escenas", "Cuadrada")}, {"3:4", traducir("escenas", "3:4 (retrato)")},
                              {"9:16", traducir("escenas", "9:16 (celular)")},
                              {"llenar", traducir("escenas", "Llenar el lugar")}}));
+        if (a.value("proporcion", std::string("16:9")) == "llenar") {
+            P rec{"recorte_max", traducir("escenas", "Recorte máximo"), "int", 0, kRecorteMaxTope, 5, "%"};
+            rec.ayuda = traducir("escenas", "Cuánto del video se puede recortar por lado para llenar el lugar (25 %: celdas entre 4:3 "
+                        "y 21:9). Más allá de eso la celda queda con bandas: nunca franjas finas con la cara cortada.");
+            out.push_back(rec);
+        }
+        {
+            P mw{"celda_min_ancho", traducir("escenas", "Celda mínima: ancho"), "int", 16, 960, 2, "px"};
+            mw.ayuda = traducir("escenas", "Ninguna celda baja de este tamaño (medido en un lienzo de 1080 de lado corto; se escala "
+                       "al lienzo). Si no entran todos así, los que sobran van al cuadro «+N».");
+            out.push_back(mw);
+            P mh{"celda_min_alto", traducir("escenas", "Celda mínima: alto"), "int", 9, 540, 2, "px"};
+            mh.ayuda = mw.ayuda;
+            out.push_back(mh);
+        }
         out.push_back({"separacion", traducir("escenas", "Separación"), "int", 0, 200, 1, "px"});
         out.push_back({"margen", traducir("escenas", "Margen"), "int", 0, 500, 1, "px"});
 
