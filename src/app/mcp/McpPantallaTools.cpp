@@ -24,6 +24,7 @@
 #include "i18n/I18n.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "pantallas/BuscadorCatalogo.hpp"
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Distribuciones.hpp"
 #include "ui/EscritorioViewModel.hpp"
@@ -614,28 +615,51 @@ void McpService::registerPantallaTools() {
             "la red: el programa, el preview, cada escena, cada multiview, los paneles (padron, preguntas, "
             "votacion, Mezclador, PTZ de cada camara), las tarjetas del tablero, las paginas y lo de fondo "
             "del tablero. Cada cosa con su `id` estable.");
+        // Las distribuciones de pantallas también son cosas (y con muchas escenas e invitados
+        // la lista es larga): se busca como en el selector de la página Pantallas.
         t.details = QT_TRANSLATE_NOOP("mcp", "`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window "
                     "con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no "
                     "viaja). Los ids son estables: «escena:<nombre>», «multiview:<id>», «pagina:<id>», "
                     "«tarjeta:<tipo>», «ptz:<entrada>», «programa», «preview», «fondo», «web:<tipo>» (solo "
-                    "TV: un cartel, un QR, la hora...).");
+                    "TV: un cartel, un QR, la hora...)."
+                    " «distribucion:<id>» es una distribucion de pantallas guardada "
+                    "(pantallas_distribuciones_listar), entera en un monitor o una ventana; no va a una TV ni "
+                    "adentro de otra distribucion. `buscar` filtra por palabras (sin tildes, todas, en "
+                    "cualquier orden) en el titulo, el tipo y el id, igual que el buscador de la pagina "
+                    "Pantallas; `tipo` deja un tipo solo (escena, video, distribucion, pagina, panel, "
+                    "tarjeta, multiview, programa, fondo, web, registro).");
         t.inputSchema = {{"type", "object"},
                          {"properties",
                           {{"donde",
                             {{"type", "string"},
                              {"enum", {"todo", "monitor", "red"}},
-                             {"description", QT_TRANSLATE_NOOP("mcp", "filtrar: lo que va a un monitor, lo que va a una TV, o todo")}}}}}};
+                             {"description", QT_TRANSLATE_NOOP("mcp", "filtrar: lo que va a un monitor, lo que va a una TV, o todo")}}},
+                           {"buscar",
+                            {{"type", "string"},
+                             {"description", QT_TRANSLATE_NOOP("mcp", "palabras a buscar en el titulo, el tipo y el id (vacio = todo)")}}},
+                           {"tipo",
+                            {{"type", "string"},
+                             {"description", QT_TRANSLATE_NOOP("mcp", "un tipo solo: escena, video, distribucion, pagina, panel, tarjeta, multiview...")}}}}}};
+        t.examples = {R"({"donde": "monitor", "tipo": "distribucion"})", R"({"donde": "monitor", "buscar": "remotos sala"})"};
         t.run = [cat](const json& a, Done done) {
             const std::string donde = a.value("donde", std::string("todo"));
+            const QStringList palabras = BuscadorCatalogo::palabras(QString::fromStdString(a.value("buscar", std::string())));
+            const QString tipo = QString::fromStdString(a.value("tipo", std::string())).trimmed();
             json cs = json::array();
             for (const CatalogoVisible::Cosa& c : cat->cosas()) {
                 const bool local = !c.dibujo.isEmpty(), red = !c.redTipo.isEmpty();
                 if ((donde == "monitor" && !local) || (donde == "red" && !red)) continue;
+                if (!tipo.isEmpty() && c.grupo != tipo) continue;
+                const QString grupoTitulo = CatalogoVisible::tituloDeGrupo(c.grupo);
+                if (!BuscadorCatalogo::coincide(palabras, BuscadorCatalogo::textoDeBusqueda(c.titulo, grupoTitulo, c.id)))
+                    continue;
                 json j{{"id", c.id.toStdString()},
-                       {"grupo", CatalogoVisible::tituloDeGrupo(c.grupo).toStdString()},
+                       {"tipo", c.grupo.toStdString()},
+                       {"grupo", grupoTitulo.toStdString()},
                        {"titulo", c.titulo.toStdString()},
                        {"monitor", local}};
                 if (red) j["red"] = c.redTipo.toStdString();
+                if (c.grupo == "distribucion") j["resumen"] = c.dibujo.value("resumen").toString().toStdString();
                 cs.push_back(j);
             }
             done(ToolResult().data(json{{"cosas", cs}}));

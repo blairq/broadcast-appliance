@@ -27,6 +27,32 @@ Panel {
     property string elegida: ""
     readonly property var actual: sec.elegida !== "" ? (sec.d.porId[sec.elegida] || null) : null
 
+    // --- Qué muestra una ventana: el selector con búsqueda y vista previa ---------------
+    // Una ventana de una distribución no puede mostrar otra distribución (el modelo
+    // tampoco lo acepta), así que el selector no las ofrece.
+    property int paraVentana: -1   ///< -1 = una ventana nueva
+    property var paraCosas: []
+    function elegirPara(indice, cosas) {
+        sec.paraVentana = indice
+        sec.paraCosas = Array.from(cosas)
+        selector.abrir(cosas.length > 0 ? cosas[0] : "")
+    }
+    SelectorCosas {
+        id: selector
+        titulo: sec.paraVentana < 0 ? qsTr("Qué muestra la ventana nueva") : qsTr("Qué muestra la ventana %1").arg(sec.paraVentana + 1)
+        donde: "monitor"
+        excluir: ["distribucion"]
+        textoAceptar: sec.paraVentana < 0 ? qsTr("Agregar") : qsTr("Poner")
+        textoOtra: sec.paraVentana >= 0 ? qsTr("Sumar") : ""
+        otraHabilitada: sec.paraCosas.indexOf(selector.buscador.elegido) < 0
+        onElegida: (itemId, otra) => {
+            if (sec.paraVentana < 0)
+                sec.d.agregarVentana(sec.elegida, { cosas: [itemId], x: 0.25, y: 0.25, ancho: 0.5, alto: 0.5 })
+            else
+                sec.d.setVentana(sec.elegida, sec.paraVentana, { cosas: otra ? sec.paraCosas.concat([itemId]) : [itemId] })
+        }
+    }
+
     // Cuántas hay y en cuántos monitores está puesta la aplicada, arriba a la derecha del título.
     Text {
         parent: sec
@@ -308,15 +334,14 @@ Panel {
                             color: Theme.text
                             onEditingFinished: if (text !== vf.modelData.nombre) sec.d.setVentana(sec.elegida, vf.index, { nombre: text })
                         }
-                        ComboBox {
+                        // Qué muestra: el selector con búsqueda y vista previa.
+                        GlassButton {
                             width: 220
-                            model: Studio.catalogo.locales
-                            textRole: "etiqueta"
-                            valueRole: "itemId"
-                            Component.onCompleted: currentIndex = Math.max(0, indexOfValue(vf.modelData.cosas[0]))
-                            onActivated: sec.d.setVentana(sec.elegida, vf.index, { cosas: [currentValue] })
-                            ToolTip.visible: hovered && vf.modelData.cosas.length > 1
-                            ToolTip.text: vf.modelData.queMuestra
+                            compact: true; icon: "⌕"
+                            text: vf.modelData.queMuestra
+                            onClicked: sec.elegirPara(vf.index, vf.modelData.cosas)
+                            ToolTip.visible: hovered
+                            ToolTip.text: qsTr("Qué muestra: %1").arg(vf.modelData.queMuestra)
                         }
                         ComboBox {
                             width: 150
@@ -351,17 +376,10 @@ Panel {
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 6
-                ComboBox {
-                    id: nuevaCosa
-                    Layout.preferredWidth: 280
-                    model: Studio.catalogo.locales
-                    textRole: "etiqueta"
-                    valueRole: "itemId"
-                }
                 GlassButton {
-                    compact: true; text: qsTr("Agregar ventana"); icon: "+"
-                    enabled: nuevaCosa.currentValue !== undefined && nuevaCosa.currentValue !== ""
-                    onClicked: sec.d.agregarVentana(sec.elegida, { cosas: [nuevaCosa.currentValue], x: 0.25, y: 0.25, ancho: 0.5, alto: 0.5 })
+                    compact: true; text: qsTr("Agregar ventana…"); icon: "+"
+                    onClicked: sec.elegirPara(-1, [])
+                    ToolTip.visible: hovered; ToolTip.text: qsTr("Elegir qué muestra la ventana nueva")
                 }
                 Item { Layout.fillWidth: true }
                 Text {

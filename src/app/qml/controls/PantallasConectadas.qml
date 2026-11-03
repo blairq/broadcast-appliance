@@ -7,7 +7,10 @@
 // monitor en la lista.
 //
 // Por monitor se elige UNA cosa del catálogo, o varias que van en grilla, y si
-// va a pantalla completa. Se recuerda por monitor (Studio.pantallasConectadas):
+// va a pantalla completa. Se elige en un modal con búsqueda y vista previa
+// (SelectorCosas): con muchas escenas, invitados y distribuciones, una lista
+// desplegable ya no alcanzaba. Una distribución guardada también se puede poner:
+// el monitor la muestra entera. Se recuerda por monitor (Studio.pantallasConectadas):
 // uno que no está queda «esperando» y su contenido no se manda a otro.
 import QtQuick
 import QtQuick.Controls
@@ -19,6 +22,29 @@ Panel {
     title: qsTr("Pantallas conectadas")
     readonly property var m: Studio.pantallasConectadas
     property string elegido: ""
+
+    // --- Elegir qué va en un monitor (un solo selector para todos) -----------------------
+    property string paraMonitor: ""
+    property var paraCosas: []
+    property bool paraCompleta: true
+    function elegirPara(monitorId, cosas, completa) {
+        sec.elegido = monitorId
+        sec.paraMonitor = monitorId
+        sec.paraCosas = Array.from(cosas)
+        sec.paraCompleta = completa
+        selector.abrir(cosas.length > 0 ? cosas[0] : "")
+    }
+    SelectorCosas {
+        id: selector
+        titulo: qsTr("Qué muestra este monitor")
+        donde: "monitor"
+        textoAceptar: qsTr("Poner")
+        textoOtra: sec.paraCosas.length > 0 ? qsTr("Sumar") : ""
+        otraHabilitada: sec.paraCosas.indexOf(selector.buscador.elegido) < 0
+        onElegida: (itemId, otra) => sec.m.asignar(sec.paraMonitor,
+                                                   otra ? sec.paraCosas.concat([itemId]) : [itemId],
+                                                   sec.paraCompleta)
+    }
 
     // Lo que dice cada monitor, arriba a la derecha del título.
     Text {
@@ -151,26 +177,16 @@ Panel {
                     }
                     Row {
                         spacing: 6
-                        ComboBox {
-                            id: que
-                            width: Math.min(320, fila.width - 400)
-                            model: Studio.catalogo.locales
-                            textRole: "etiqueta"
-                            valueRole: "itemId"
-                            // Arranca en lo que muestra (la primera cosa), si hay.
-                            Component.onCompleted: if (fila.cosas.length > 0) currentIndex = Math.max(0, indexOfValue(fila.cosas[0]))
-                        }
+                        // Qué mostrar: el selector con búsqueda y vista previa (escenas,
+                        // videos, páginas, paneles, distribuciones…). «Poner» deja solo eso;
+                        // «Sumar» lo agrega a lo que ya muestra (van en grilla).
                         GlassButton {
-                            compact: true; text: qsTr("Poner"); active: true
-                            enabled: que.currentValue !== undefined && que.currentValue !== ""
-                            onClicked: sec.m.asignar(fila.monitorId, [que.currentValue], fila.pantallaCompleta)
-                            ToolTip.visible: hovered; ToolTip.text: qsTr("Que este monitor muestre solo esto")
-                        }
-                        GlassButton {
-                            compact: true; text: qsTr("Sumar"); icon: "+"
-                            enabled: fila.cosas.length > 0 && que.currentValue !== undefined && fila.cosas.indexOf(que.currentValue) < 0
-                            onClicked: sec.m.asignar(fila.monitorId, Array.from(fila.cosas).concat([que.currentValue]), fila.pantallaCompleta)
-                            ToolTip.visible: hovered; ToolTip.text: qsTr("Agregarlo a lo que ya muestra: van en grilla")
+                            compact: true; active: true
+                            text: fila.cosas.length > 0 ? qsTr("Cambiar qué muestra…") : qsTr("Elegir qué mostrar…")
+                            icon: "⌕"
+                            onClicked: sec.elegirPara(fila.monitorId, fila.cosas, fila.pantallaCompleta)
+                            ToolTip.visible: hovered
+                            ToolTip.text: qsTr("Buscar entre las escenas, los videos, las páginas, las distribuciones… y verlo antes de ponerlo")
                         }
                         Text { anchors.verticalCenter: parent.verticalCenter; text: qsTr("Pantalla completa"); color: Theme.textDim; font.pixelSize: 11 }
                         Toggle {

@@ -23,6 +23,15 @@ constexpr int kMaxCosas = 9;
 /// Como mucho tantas ventanas en una distribución: más ya no es una distribución.
 constexpr int kMaxVentanas = 32;
 
+/// Sin las distribuciones: una distribución nunca muestra otra (ni a sí misma), aunque
+/// venga así de un archivo editado a mano o de una ventana suelta que muestra una.
+QStringList sinDistribuciones(const QStringList& cosas) {
+    QStringList out;
+    for (const QString& c : cosas)
+        if (!c.startsWith(QStringLiteral("distribucion:"))) out << c;
+    return out;
+}
+
 bool disposicionValida(const QString& d) { return d == "grid" || d == "focus" || d == "pip" || d == "row"; }
 
 double recortar(double v, double lo, double hi) { return std::clamp(v, lo, hi); }
@@ -398,6 +407,57 @@ QVariantMap DistribucionesModel::mapaDe(const Distribucion& d) const {
             {"cantidad", n},        {"resumen", resumen},   {"aplicada", d.id == aplicada_}};
 }
 
+QVariantList DistribucionesModel::paraCatalogo() const {
+    const std::vector<MonitorVisto> hay = monitoresVistos();
+    QVariantList out;
+    for (const Distribucion& d : filas_) {
+        // Dónde cae cada ventana ahora (en píxeles del escritorio) y el rectángulo de los
+        // monitores que usa: la distribución se dibuja entera dentro de ese rectángulo.
+        std::vector<QRect> donde;
+        QRect area;
+        for (const VentanaDistribucion& v : d.ventanas) {
+            const int i = monitorPara(v, hay);
+            if (i < 0) {
+                donde.emplace_back();
+                continue;
+            }
+            const QRect mon = hay[static_cast<std::size_t>(i)].geometria;
+            area = area.united(mon);
+            donde.push_back(v.pantallaCompleta ? mon : geometriaEn(v, mon));
+        }
+        const bool hayArea = area.width() > 0 && area.height() > 0;
+        QVariantList piezas;
+        for (std::size_t k = 0; k < d.ventanas.size(); ++k) {
+            const VentanaDistribucion& v = d.ventanas[k];
+            const QStringList cosas = sinDistribuciones(v.cosas); // nunca otra distribución
+            if (cosas.isEmpty()) continue;
+            const QRect& g = donde[k];
+            const QRectF r = hayArea && g.isValid()
+                                 ? QRectF((g.x() - area.x()) / static_cast<double>(area.width()),
+                                          (g.y() - area.y()) / static_cast<double>(area.height()),
+                                          g.width() / static_cast<double>(area.width()),
+                                          g.height() / static_cast<double>(area.height()))
+                                 : (v.pantallaCompleta ? QRectF(0, 0, 1, 1) : v.relativa);
+            QStringList titulos;
+            for (const QString& c : cosas) titulos << (catalogo_ != nullptr ? catalogo_->tituloDe(c) : c);
+            piezas << QVariantMap{{"nombre", v.nombre},
+                                  {"titulo", v.nombre.isEmpty() ? titulos.join(QStringLiteral(" + ")) : v.nombre},
+                                  {"cosas", cosas},
+                                  {"disposicion", v.disposicion},
+                                  {"x", r.x()},
+                                  {"y", r.y()},
+                                  {"ancho", r.width()},
+                                  {"alto", r.height()}};
+        }
+        out << QVariantMap{{"id", d.id},
+                           {"nombre", d.nombre},
+                           {"resumen", mapaDe(d).value("resumen")},
+                           {"proporcion", hayArea ? static_cast<double>(area.width()) / area.height() : 16.0 / 9.0},
+                           {"piezas", piezas}};
+    }
+    return out;
+}
+
 QVariantMap DistribucionesModel::porId() const {
     QVariantMap out;
     for (const Distribucion& d : filas_) out.insert(d.id, mapaDe(d));
@@ -432,6 +492,10 @@ QString DistribucionesModel::validarCosas(QStringList& cosas) const {
                 return QCoreApplication::translate("pantallas", "No hay nada que se llame «%1» en lo que se puede mostrar (catalogo_listar).").arg(t);
             if (cosa->dibujo.isEmpty())
                 return QCoreApplication::translate("pantallas", "«%1» no se puede mostrar en una ventana (solo en una TV de la red).").arg(cosa->titulo);
+            // Una distribución adentro de otra: se mostraría a sí misma (o a otra que la
+            // muestra), sin fin.
+            if (cosa->grupo == "distribucion")
+                return QCoreApplication::translate("pantallas", "«%1» es una distribución: una ventana de una distribución no puede mostrar otra.").arg(cosa->titulo);
             t = catalogo_->claveDe(t);
         }
         if (!limpias.contains(t)) limpias << t;
@@ -729,7 +793,7 @@ std::vector<Lienzo> DistribucionesModel::resolver(const Distribucion& d, QString
         bool falta = false;
         const int i = monitorPara(v, hay, &falta);
         Pieza p;
-        for (const QString& c : v.cosas) p.cosas << (catalogo_ != nullptr ? catalogo_->claveDe(c) : c);
+        for (const QString& c : sinDistribuciones(v.cosas)) p.cosas << (catalogo_ != nullptr ? catalogo_->claveDe(c) : c);
         // Lo que ya no existe (una escena borrada) no se dibuja: se avisa.
         if (catalogo_ != nullptr) {
             QStringList quedan;
@@ -868,7 +932,8 @@ Distribucion DistribucionesModel::foto() const {
     // Las ventanas sueltas.
     for (const FilaVentana& f : ventanas_->ventanas()) {
         VentanaDistribucion v;
-        v.cosas = f.cosas;
+        v.cosas = sinDistribuciones(f.cosas);
+        if (v.cosas.isEmpty()) continue; // una ventana suelta que muestra una distribución
         v.disposicion = disposicionValida(f.distribucion) ? f.distribucion : QStringLiteral("grid");
         v.pantallaCompleta = f.pantallaCompleta;
         // Su monitor: el que dice, si está; si no, donde cae su centro; si no, el primero.

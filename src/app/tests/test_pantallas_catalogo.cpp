@@ -15,13 +15,18 @@
 //   6. Las ventanas sueltas (pantallas/Ventanas): las mismas cosas del catálogo
 //      y los mismos ids de monitor; se recuerdan; lo que había en ui.json (las
 //      ventanas de video viejas) se migra sin perderse.
+//   7. La búsqueda del selector (pantallas/BuscadorCatalogo, el modal de Pantallas):
+//      con miles de cosas, filtra en el modelo por palabras sin tildes, por tipo y
+//      por dónde va (monitor o TV), cuenta por grupo, y lo elegido sigue al catálogo.
 
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QTemporaryDir>
 
 #include <cstdio>
 #include <deque>
 
+#include "pantallas/BuscadorCatalogo.hpp"
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Monitores.hpp"
 #include "pantallas/Ventanas.hpp"
@@ -34,6 +39,7 @@
 
 using ::ba::app::errorDe;
 
+using ba::app::BuscadorCatalogo;
 using ba::app::CatalogoVisible;
 using ba::app::VentanasModel;
 using ba::app::MonitoresModel;
@@ -434,6 +440,126 @@ int main(int argc, char** argv) {
         c.refrescar();
         CHECK(c.existe("escena:esc-00000001") && c.buscar("escena:esc-00000001")->titulo == "Atril grande");
         CHECK(c.claveDe("escena:Ninguna") == "escena:Ninguna");
+    }
+
+    // ===================== 7. La búsqueda del selector ========================
+    {
+        // Muchísimas: 3000 escenas, 500 invitados y 200 distribuciones.
+        QStringList escenas;
+        for (int i = 0; i < 3000; ++i) escenas << QString("Escena %1").arg(i, 4, 10, QChar('0'));
+        escenas << "Cámara del recinto";
+        QVariantList videos;
+        for (int i = 0; i < 500; ++i) videos << QVariantMap{{"clave", QString("guest:%1").arg(i)}, {"titulo", QString("Invitado %1").arg(i)}};
+        QVariantList dists;
+        for (int i = 0; i < 200; ++i)
+            dists << QVariantMap{{"id", QString("d%1").arg(i)}, {"nombre", QString("Distribución %1").arg(i)}, {"piezas", QVariantList{}}};
+        CatalogoVisible::Fuentes f = fuentes();
+        f.escenas = [&escenas]() { return escenas; };
+        f.videos = [&videos]() { return videos; };
+        f.distribuciones = [&dists]() { return dists; };
+        CatalogoVisible c(f);
+        CHECK(c.existe("distribucion:d7") && c.buscar("distribucion:d7")->grupo == "distribucion");
+        CHECK(!c.buscar("distribucion:d7")->dibujo.isEmpty() && c.buscar("distribucion:d7")->redTipo.isEmpty());
+
+        BuscadorCatalogo b;
+        auto* resultado = contar(&b, &BuscadorCatalogo::resultadoCambio);
+        b.setFuente(&c);
+        CHECK(b.cantidad() == c.rowCount() && b.total() == c.rowCount());
+        // A un monitor no va lo que es solo de la TV.
+        b.setDonde("monitor");
+        CHECK(b.total() < c.rowCount() && b.cantidad() == b.total());
+        for (int r = 0; r < b.rowCount(); ++r)
+            CHECK(!b.data(b.index(r, 0), CatalogoVisible::IdRole).toString().startsWith("web:"));
+        // Lo escrito se aplica con un rebote (no en cada tecla)…
+        const int antes = resultado->count();
+        b.setTexto("camara recinto");
+        CHECK(resultado->count() == antes && b.cantidad() == b.total());
+        // …o ya, con Enter. Sin tildes ni mayúsculas, todas las palabras, en cualquier orden.
+        QElapsedTimer reloj;
+        reloj.start();
+        b.filtrarYa();
+        std::printf("buscar entre %d cosas: %lld ms\n", c.rowCount(), static_cast<long long>(reloj.elapsed()));
+        CHECK(b.cantidad() == 1);
+        CHECK(b.data(b.index(0, 0), CatalogoVisible::TituloRole).toString() == "Cámara del recinto");
+        b.setTexto("RECINTO cámara");
+        b.filtrarYa();
+        CHECK(b.cantidad() == 1);
+        // Por el nombre del grupo también («distribucion» trae las 200).
+        b.setTexto("distribucion");
+        b.filtrarYa();
+        CHECK(b.cantidad() == 200);
+        b.setTexto("distribucion 12");
+        b.filtrarYa();
+        CHECK(b.cantidad() == 12); // 12, 112, 120..129
+        // Los grupos con lo que coincide en cada uno (para los botones de tipo).
+        b.setTexto("invitado 4");
+        b.filtrarYa();
+        int enVideo = -1, enEscena = -1;
+        for (const QVariant& g : b.grupos()) {
+            const QVariantMap m = g.toMap();
+            if (m.value("grupo") == "video") enVideo = m.value("cuenta").toInt();
+            if (m.value("grupo") == "escena") enEscena = m.value("cuenta").toInt();
+        }
+        CHECK(enVideo == 176 && enEscena == 0); // de 0 a 499, los que tienen un 4
+        // Filtrar por tipo.
+        b.setTexto("");
+        b.filtrarYa();
+        b.setGrupo("escena");
+        CHECK(b.cantidad() == 3001);
+        b.setGrupo("distribucion");
+        CHECK(b.cantidad() == 200);
+        // Para una TV: ninguna distribución (no viajan) y sí los carteles.
+        b.setGrupo("");
+        b.setDonde("red");
+        bool hayDist = false, hayCartel = false;
+        for (int r = 0; r < b.rowCount(); ++r) {
+            const QString id = b.data(b.index(r, 0), CatalogoVisible::IdRole).toString();
+            hayDist = hayDist || id.startsWith("distribucion:");
+            hayCartel = hayCartel || id == "web:mensaje";
+        }
+        CHECK(!hayDist && hayCartel);
+        // Excluir un grupo (la ventana de una distribución no ofrece distribuciones).
+        b.setDonde("monitor");
+        b.setExcluir({"distribucion"});
+        CHECK(b.total() == b.cantidad());
+        for (const QVariant& g : b.grupos()) CHECK(g.toMap().value("grupo") != "distribucion");
+        b.setExcluir({});
+
+        // Lo elegido: por fila, con las flechas, y sigue al catálogo.
+        b.setTexto("escena 000");
+        b.filtrarYa();
+        CHECK(b.cantidad() == 12); // 0000..0009, 1000 y 2000
+        b.mover(1); // sin elegida: la primera
+        CHECK(b.elegido() == "escena:Escena 0000" && b.filaElegida() == 0);
+        b.mover(1);
+        b.mover(1);
+        CHECK(b.elegido() == "escena:Escena 0002" && b.filaElegida() == 2);
+        b.mover(-5);
+        CHECK(b.filaElegida() == 0);
+        b.elegirFila(9);
+        CHECK(b.elegido() == "escena:Escena 0009" && b.actual().value("titulo").toString() == "Escena 0009");
+        // Si lo escrito la deja afuera, sigue elegida pero sin fila.
+        b.setTexto("invitado");
+        b.filtrarYa();
+        CHECK(b.elegido() == "escena:Escena 0009" && b.filaElegida() == -1 && !b.actual().isEmpty());
+        // Si se borra del catálogo, la vista previa se entera (queda vacía).
+        auto* elegidoAvisa = contar(&b, &BuscadorCatalogo::elegidoCambio);
+        escenas.removeAll("Escena 0009");
+        c.refrescar();
+        CHECK(elegidoAvisa->count() > 0 && b.actual().isEmpty());
+        // Una nueva que coincide aparece sola en lo filtrado (el catálogo agrega en su lugar).
+        b.setTexto("invitado 9999");
+        b.filtrarYa();
+        CHECK(b.cantidad() == 0);
+        videos << QVariantMap{{"clave", "guest:9999"}, {"titulo", "Invitado 9999"}};
+        c.refrescar();
+        CHECK(b.cantidad() == 1);
+        // Las mismas reglas que usa catalogo_listar con `buscar` (MCP).
+        CHECK(BuscadorCatalogo::coincide(BuscadorCatalogo::palabras("Cámara  RECINTO"),
+                                         BuscadorCatalogo::textoDeBusqueda("Cámara del recinto", "Escena", "escena:x")));
+        CHECK(!BuscadorCatalogo::coincide(BuscadorCatalogo::palabras("camara sala"),
+                                          BuscadorCatalogo::textoDeBusqueda("Cámara del recinto", "Escena", "escena:x")));
+        CHECK(BuscadorCatalogo::coincide(BuscadorCatalogo::palabras("   "), "lo que sea"));
     }
 
     if (g_fallas == 0) std::printf("test_pantallas_catalogo: OK\n");

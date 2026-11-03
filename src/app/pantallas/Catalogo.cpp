@@ -56,6 +56,7 @@ QString CatalogoVisible::tituloDeGrupo(const QString& g) {
     if (g == "fondo") return QCoreApplication::translate("pantallas", "Tablero");
     if (g == "web") return QCoreApplication::translate("pantallas", "Para la TV");
     if (g == "registro") return QCoreApplication::translate("pantallas", "Registro de personas");
+    if (g == "distribucion") return QCoreApplication::translate("pantallas", "Distribución");
     return g;
 }
 
@@ -211,6 +212,23 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
             out.push_back({"pagina:" + id, "pagina", p.value("titulo").toString(), p.value("icon").toString(),
                            QVariantMap{{"modo", "pagina"}, {"pagina", p.value("page").toInt()}, {"idPagina", id}},
                            redDePagina(id), {}, ""});
+        }
+
+    // 7b) Las distribuciones de pantallas guardadas: una entera, en un monitor o en una
+    //     ventana (sus ventanas como rectángulos). No viajan a una TV.
+    if (fuentes_.distribuciones)
+        for (const QVariant& v : fuentes_.distribuciones()) {
+            const QVariantMap m = v.toMap();
+            const QString id = m.value("id").toString();
+            if (id.isEmpty()) continue;
+            const QString nombre = m.value("nombre").toString();
+            out.push_back({"distribucion:" + id, "distribucion", nombre.isEmpty() ? id : nombre, "⊞",
+                           QVariantMap{{"modo", "distribucion"},
+                                       {"id", id},
+                                       {"resumen", m.value("resumen")},
+                                       {"proporcion", m.value("proporcion")},
+                                       {"piezas", m.value("piezas")}},
+                           "", {}, ""});
         }
 
     // 8) Lo que solo existe en la TV (un cartel, un QR, la hora…): los

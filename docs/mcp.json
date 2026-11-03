@@ -24051,7 +24051,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 389
+        "linea": 390
       },
       "roles": [
         "asistente"
@@ -24078,7 +24078,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 360
+        "linea": 361
       },
       "roles": [
         "asistente"
@@ -24100,6 +24100,14 @@
               "red"
             ],
             "description": "filtrar: lo que va a un monitor, lo que va a una TV, o todo"
+          },
+          "buscar": {
+            "type": "string",
+            "description": "palabras a buscar en el titulo, el tipo y el id (vacio = todo)"
+          },
+          "tipo": {
+            "type": "string",
+            "description": "un tipo solo: escena, video, distribucion, pagina, panel, tarjeta, multiview..."
           }
         }
       },
@@ -24114,7 +24122,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 608
+        "linea": 609
       },
       "roles": [
         "asistente"
@@ -24159,7 +24167,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 688
+        "linea": 712
       },
       "roles": [
         "asistente"
@@ -24185,7 +24193,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 647
+        "linea": 671
       },
       "roles": [
         "asistente"
@@ -24219,7 +24227,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 734
+        "linea": 758
       },
       "roles": [
         "asistente"
@@ -24256,7 +24264,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 339
+        "linea": 340
       },
       "roles": [
         "asistente"
@@ -24282,7 +24290,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 110
+        "linea": 111
       },
       "roles": [
         "asistente"
@@ -24355,7 +24363,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 230
+        "linea": 231
       },
       "roles": [
         "asistente"
@@ -24381,7 +24389,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 64
+        "linea": 65
       },
       "roles": [
         "asistente"
@@ -24459,7 +24467,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 124
+        "linea": 125
       },
       "roles": [
         "asistente"
@@ -24492,7 +24500,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 296
+        "linea": 297
       },
       "roles": [
         "asistente"
@@ -24525,7 +24533,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 483
+        "linea": 484
       },
       "roles": [
         "asistente"
@@ -24563,7 +24571,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 314
+        "linea": 315
       },
       "roles": [
         "asistente"
@@ -24597,7 +24605,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 958
+        "linea": 982
       },
       "roles": [
         "asistente"
@@ -24631,7 +24639,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 1024
+        "linea": 1048
       },
       "roles": [
         "asistente"
@@ -24665,7 +24673,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 990
+        "linea": 1014
       },
       "roles": [
         "asistente"
@@ -24691,7 +24699,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 1044
+        "linea": 1068
       },
       "roles": [
         "asistente"
@@ -24827,7 +24835,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 826
+        "linea": 850
       },
       "roles": [
         "asistente"
@@ -25088,7 +25096,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 897
+        "linea": 921
       },
       "roles": [
         "asistente"
@@ -25114,7 +25122,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 800
+        "linea": 824
       },
       "roles": [
         "asistente"
@@ -25140,7 +25148,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 514
+        "linea": 515
       },
       "roles": [
         "asistente"
@@ -25183,7 +25191,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPantallaTools.cpp",
-        "linea": 549
+        "linea": 550
       },
       "roles": [
         "asistente"

@@ -7681,15 +7681,46 @@ Turn it on from the Log.</translation>
         <source>Distribuciones</source>
         <translation>Layouts</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Qué muestra la ventana nueva</source>
+        <translation>What the new window shows</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Qué muestra la ventana %1</source>
+        <translation>What window %1 shows</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Agregar</source>
+        <translation>Add</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Poner</source>
+        <translation>Set</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sumar</source>
+        <translation>Add</translation>
+    </message>
     <message numerus="yes">
-        <location line="+9" />
+        <location line="+14" />
         <source>%n guardada(s)</source>
-        <translation><numerusform>%n saved</numerusform><numerusform>%n saved</numerusform></translation>
+        <translation>
+            <numerusform>%n saved</numerusform>
+            <numerusform>%n saved</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <location line="+1" />
         <source>puesta en %n monitor(es)</source>
-        <translation><numerusform>on %n monitor</numerusform><numerusform>on %n monitors</numerusform></translation>
+        <translation>
+            <numerusform>on %n monitor</numerusform>
+            <numerusform>on %n monitors</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+19" />
@@ -7763,7 +7794,12 @@ Turn it on from the Log.</translation>
         <translation>Name</translation>
     </message>
     <message>
-        <location line="+20" />
+        <location line="+12" />
+        <source>Qué muestra: %1</source>
+        <translation>Shows: %1</translation>
+    </message>
+    <message>
+        <location line="+7" />
         <source>⚠ no está</source>
         <translation>⚠ missing</translation>
     </message>
@@ -7783,12 +7819,17 @@ Turn it on from the Log.</translation>
         <translation>Remove</translation>
     </message>
     <message>
-        <location line="+18" />
-        <source>Agregar ventana</source>
-        <translation>Add window</translation>
+        <location line="+11" />
+        <source>Agregar ventana…</source>
+        <translation>Add window…</translation>
     </message>
     <message>
-        <location line="+6" />
+        <location line="+2" />
+        <source>Elegir qué muestra la ventana nueva</source>
+        <translation>Choose what the new window shows</translation>
+    </message>
+    <message>
+        <location line="+4" />
         <source>Arrastrá los rectángulos; la esquina los agranda. Aplicada, se ve en el acto.</source>
         <translation>Drag the rectangles; the corner resizes them. Once applied, changes show instantly.</translation>
     </message>
@@ -9091,7 +9132,7 @@ Turn it on from the Log.</translation>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+135" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+145" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>There's no monitor “%1”: give its number, name or id.</translation>
     </message>
@@ -9099,6 +9140,14 @@ Turn it on from the Log.</translation>
         <location line="+2" />
         <source>El monitor «%1» no está conectado.</source>
         <translation>Monitor “%1” is not connected.</translation>
+    </message>
+</context>
+<context>
+    <name>EsquemaDistribucion</name>
+    <message>
+        <location filename="../src/app/qml/controls/EsquemaDistribucion.qml" line="+55" />
+        <source>Sin ventanas</source>
+        <translation>No windows</translation>
     </message>
 </context>
 <context>
@@ -25447,12 +25496,17 @@ Add images from the Files tab.</translation>
 <context>
     <name>PantallasConectadas</name>
     <message>
-        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+19" />
+        <location filename="../src/app/qml/controls/PantallasConectadas.qml" line="+22" />
         <source>Pantallas conectadas</source>
         <translation>Connected screens</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Qué muestra este monitor</source>
+        <translation>What this monitor shows</translation>
+    </message>
     <message numerus="yes">
-        <location line="+8" />
+        <location line="+14" />
         <source>%n monitor</source>
         <translation>
             <numerusform>%n monitor</numerusform>
@@ -25498,27 +25552,32 @@ Add images from the Files tab.</translation>
         <translation>Shows nothing</translation>
     </message>
     <message>
-        <location line="+16" />
+        <location line="+11" />
+        <source>Cambiar qué muestra…</source>
+        <translation>Change what it shows…</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Elegir qué mostrar…</source>
+        <translation>Choose what to show…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Buscar entre las escenas, los videos, las páginas, las distribuciones… y verlo antes de ponerlo</source>
+        <translation>Search the scenes, videos, pages, layouts… and preview it before setting it</translation>
+    </message>
+    <message>
+        <location line="-148" />
         <source>Poner</source>
         <translation>Set</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Que este monitor muestre solo esto</source>
-        <translation>Make this monitor show only this</translation>
-    </message>
-    <message>
-        <location line="+3" />
+        <location line="+1" />
         <source>Sumar</source>
         <translation>Add</translation>
     </message>
     <message>
-        <location line="+3" />
-        <source>Agregarlo a lo que ya muestra: van en grilla</source>
-        <translation>Add it to what it already shows: they go in a grid</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+149" />
         <source>Pantalla completa</source>
         <translation>Full screen</translation>
     </message>
@@ -25541,7 +25600,7 @@ Add images from the Files tab.</translation>
 <context>
     <name>PantallasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+66" />
+        <location filename="../src/app/qml/pages/PantallasPage.qml" line="+68" />
         <source>mostrando</source>
         <translation>showing</translation>
     </message>
@@ -25585,8 +25644,18 @@ Add images from the Files tab.</translation>
         <source>Pantallas de red</source>
         <translation>Network screens</translation>
     </message>
+    <message>
+        <location line="+17" />
+        <source>Monitores</source>
+        <translation>Monitors</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Distribuciones</source>
+        <translation>Layouts</translation>
+    </message>
     <message numerus="yes">
-        <location line="+24" />
+        <location line="+20" />
         <source>%n mostrando</source>
         <translation>
             <numerusform>%n showing</numerusform>
@@ -25755,7 +25824,27 @@ Add images from the Files tab.</translation>
         <translation>Show the carousel</translation>
     </message>
     <message>
-        <location line="+68" />
+        <location line="+17" />
+        <source>Elegir qué mostrar…</source>
+        <translation>Choose what to show…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Buscar qué mostrar en la TV y verlo antes</source>
+        <translation>Search what to show on the TV and preview it</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Qué mostrar en la TV</source>
+        <translation>What to show on the TV</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Elegir</source>
+        <translation>Choose</translation>
+    </message>
+    <message>
+        <location line="+48" />
         <source>Escribirlo a mano (abajo)</source>
         <translation>Type it in (below)</translation>
     </message>
@@ -27216,6 +27305,29 @@ Front, side, with and without glasses: that's how they get recognized on the day
         <location line="+229" />
         <source>No hay canal libre para mandarles la escena «%1» a los remotos (las pantallas usan los 4)</source>
         <translation>No free channel to send the “%1” scene to remote participants (the screens are using all 4)</translation>
+    </message>
+</context>
+<context>
+    <name>PreviewCosa</name>
+    <message>
+        <location filename="../src/app/qml/controls/PreviewCosa.qml" line="+85" />
+        <source>Elegí algo de la lista para verlo acá.</source>
+        <translation>Pick something from the list to see it here.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Armando la vista previa…</source>
+        <translation>Building the preview…</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Solo para una TV de la red: se ve cuando se la manda.</source>
+        <translation>Only for a network TV: it shows when it's sent.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Sin vista previa.</source>
+        <translation>No preview.</translation>
     </message>
 </context>
 <context>
@@ -31544,6 +31656,54 @@ For the base scene the others come from.</translation>
         <location line="+2" />
         <source>«%1» no tiene PTZ: prendé el digital o configurá su motor</source>
         <translation>“%1” has no PTZ: turn on digital or set up its motor</translation>
+    </message>
+</context>
+<context>
+    <name>SelectorCosas</name>
+    <message>
+        <location filename="../src/app/qml/controls/SelectorCosas.qml" line="+31" />
+        <source>Qué mostrar</source>
+        <translation>What to show</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Elegir</source>
+        <translation>Choose</translation>
+    </message>
+    <message>
+        <location line="+66" />
+        <source>%1 de %2</source>
+        <translation>%1 of %2</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Buscar: escena, invitado, página, distribución…</source>
+        <translation>Search: scene, guest, page, layout…</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Todo</source>
+        <translation>All</translation>
+    </message>
+    <message>
+        <location line="+69" />
+        <source>No hay nada para mostrar acá todavía.</source>
+        <translation>There's nothing to show here yet.</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Nada coincide con la búsqueda.</source>
+        <translation>Nothing matches the search.</translation>
+    </message>
+    <message>
+        <location line="+38" />
+        <source>Lo elegido ya no existe: elegí otra cosa.</source>
+        <translation>The chosen item no longer exists: pick something else.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Cancelar</source>
+        <translation>Cancel</translation>
     </message>
 </context>
 <context>
@@ -37365,7 +37525,7 @@ Close this and use “Build a carousel”.</translation>
 <context>
     <name>VistaCatalogo</name>
     <message>
-        <location filename="../src/app/qml/controls/VistaCatalogo.qml" line="+105" />
+        <location filename="../src/app/qml/controls/VistaCatalogo.qml" line="+119" />
         <source>%1
 Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>%1
@@ -44103,7 +44263,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+173" />
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+174" />
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>startup: the splash screen is showing</translation>
     </message>
@@ -44153,7 +44313,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>startup: the app model, %1 ms</translation>
     </message>
     <message>
-        <location line="+42" />
+        <location line="+43" />
         <source>Abriendo la interfaz…</source>
         <translation>Opening the interface…</translation>
     </message>
@@ -60451,7 +60611,7 @@ WHAT YOU NEED TO KNOW WHEN TURNING IT ON: the approval safeguard (`mcp.approval`
         <location line="+1" />
         <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="-485" />
         <location filename="../src/app/mcp/McpFacebookTools.cpp" line="+165" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+437" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+438" />
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270" />
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740" />
         <location filename="../src/app/mcp/McpService.cpp" line="-551" />
@@ -61879,7 +62039,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
     <message>
         <location line="+1" />
         <location line="+146" />
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+705" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+728" />
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+132" />
         <source>Borrada.</source>
         <translation>Deleted.</translation>
@@ -69441,7 +69601,7 @@ If something with that name already exists at the destination, it is numbered in
         <translation>Suggestions in the operator bar (id %1). Whatever they send (or whether they ignore it) reaches your chat.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-977" />
+        <location filename="../src/app/mcp/McpPantallaTools.cpp" line="-1000" />
         <source>Pantallas externas</source>
         <translation>External screens</translation>
     </message>
@@ -69767,7 +69927,22 @@ Durations: a QR needs at least 15 seconds for someone to take out their phone an
         <translation>What can be shown</translation>
     </message>
     <message>
-        <location line="+39" />
+        <location line="+10" />
+        <source>`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no viaja). Los ids son estables: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (solo TV: un cartel, un QR, la hora...). «distribucion:&lt;id&gt;» es una distribucion de pantallas guardada (pantallas_distribuciones_listar), entera en un monitor o una ventana; no va a una TV ni adentro de otra distribucion. `buscar` filtra por palabras (sin tildes, todas, en cualquier orden) en el titulo, el tipo y el id, igual que el buscador de la pagina Pantallas; `tipo` deja un tipo solo (escena, video, distribucion, pagina, panel, tarjeta, multiview, programa, fondo, web, registro).</source>
+        <translation>`monitor`: true if it can be drawn on this machine (monitor_asignar, ui_panel_window with `cosa`). `red`: the pantalla_mostrar type that takes it to a TV (empty if it doesn't travel). The ids are stable: “escena:&lt;nombre&gt;”, “multiview:&lt;id&gt;”, “pagina:&lt;id&gt;”, “tarjeta:&lt;tipo&gt;”, “ptz:&lt;entrada&gt;”, “programa”, “preview”, “fondo”, “web:&lt;tipo&gt;” (TV only: a sign, a QR, the time...). “distribucion:&lt;id&gt;” is a saved screen layout (pantallas_distribuciones_listar), whole on a monitor or a window; it doesn't go to a TV nor inside another layout. `buscar` filters by words (without accents, all of them, in any order) in the title, the type and the id, the same as the search in the Pantallas page; `tipo` keeps a single type (escena, video, distribucion, pagina, panel, tarjeta, multiview, programa, fondo, web, registro).</translation>
+    </message>
+    <message>
+        <location line="+19" />
+        <source>palabras a buscar en el titulo, el tipo y el id (vacio = todo)</source>
+        <translation>words to search in the title, the type and the id (empty = all)</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>un tipo solo: escena, video, distribucion, pagina, panel, tarjeta, multiview...</source>
+        <translation>a single type: escena, video, distribucion, pagina, panel, tarjeta, multiview...</translation>
+    </message>
+    <message>
+        <location line="+30" />
         <source>Qué monitores hay y qué muestra cada uno</source>
         <translation>Which monitors there are and what each one shows</translation>
     </message>
@@ -69933,7 +70108,7 @@ Templates: mosaico-2x1, mosaico-2x2, una-por-monitor, programa-previo-multiview 
         <translation>Closed: %1.</translation>
     </message>
     <message>
-        <location line="-536" />
+        <location line="-559" />
         <source>Las superficies web que estan ABIERTAS y latiendo ahora mismo (la pantalla de un televisor, un carrusel, el teleprompter). Cada una dice que esta mostrando con sus propias palabras.</source>
         <translation>The web surfaces that are OPEN and sending heartbeats right now (a TV screen, a carousel, the teleprompter). Each one says what it is showing in its own words.</translation>
     </message>
@@ -70009,17 +70184,12 @@ If the surface is not alive nothing happens and the count comes back as 0: that 
         <translation>Everything that can go on a monitor of this machine, in a floating window or on a TV on the network: the program, the preview, each scene, each multiview, the panels (roll, questions, vote, Mixer, PTZ of each camera), the dashboard cards, the pages and the dashboard background. Each one with its stable `id`.</translation>
     </message>
     <message>
-        <location line="+4" />
-        <source>`monitor`: true si se puede dibujar en esta maquina (monitor_asignar, ui_panel_window con `cosa`). `red`: el tipo de pantalla_mostrar que lo lleva a una TV (vacio si no viaja). Los ids son estables: «escena:&lt;nombre&gt;», «multiview:&lt;id&gt;», «pagina:&lt;id&gt;», «tarjeta:&lt;tipo&gt;», «ptz:&lt;entrada&gt;», «programa», «preview», «fondo», «web:&lt;tipo&gt;» (solo TV: un cartel, un QR, la hora...).</source>
-        <translation>`monitor`: true if it can be drawn on this machine (monitor_asignar, ui_panel_window with `cosa`). `red`: the pantalla_mostrar type that takes it to a TV (empty if it doesn't travel). The ids are stable: “escena:&lt;nombre&gt;”, “multiview:&lt;id&gt;”, “pagina:&lt;id&gt;”, “tarjeta:&lt;tipo&gt;”, “ptz:&lt;entrada&gt;”, “programa”, “preview”, “fondo”, “web:&lt;tipo&gt;” (TV only: a sign, a QR, the time...).</translation>
-    </message>
-    <message>
-        <location line="+10" />
+        <location line="+22" />
         <source>filtrar: lo que va a un monitor, lo que va a una TV, o todo</source>
         <translation>filter: what goes to a monitor, what goes to a TV, or everything</translation>
     </message>
     <message>
-        <location line="+25" />
+        <location line="+40" />
         <source>Los monitores de ESTA maquina en su orden fisico (de izquierda a derecha y de arriba abajo), con su id estable, resolucion, si es el principal, y que muestra cada uno (Salidas, Pantallas, Pantallas conectadas). Tambien los recordados que no estan conectados: esos se esperan y su contenido no va a otro monitor.</source>
         <translation>The monitors of THIS machine in their physical order (left to right and top to bottom), with their stable id, resolution, whether it is the main one, and what each one shows (Outputs, Screens, Connected screens). Also the remembered ones that are not connected: those are waited for and their content does not go to another monitor.</translation>
     </message>
@@ -89239,6 +89409,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>People check-in</translation>
     </message>
     <message>
+        <location line="+1" />
+        <source>Distribución</source>
+        <translation>Layout</translation>
+    </message>
+    <message>
         <location line="+58" />
         <source>Programa (lo que sale al aire)</source>
         <translation>Program (what goes on air)</translation>
@@ -89254,7 +89429,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>Dashboard background</translation>
     </message>
     <message>
-        <location line="+165" />
+        <location line="+182" />
         <source>%1 (ya no existe)</source>
         <translation>%1 (no longer exists)</translation>
     </message>
@@ -89292,7 +89467,7 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>I don't know that monitor.</translation>
     </message>
     <message>
-        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+110" />
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="+119" />
         <source>«%1» no es una disposición: grid, focus, pip o row.</source>
         <translation>“%1” is not a layout: grid, focus, pip or row.</translation>
     </message>
@@ -89314,10 +89489,13 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
     <message numerus="yes">
         <location line="+245" />
         <source>%n ventana(s)</source>
-        <translation><numerusform>%n window</numerusform><numerusform>%n windows</numerusform></translation>
+        <translation>
+            <numerusform>%n window</numerusform>
+            <numerusform>%n windows</numerusform>
+        </translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+65" />
         <source>Mosaico 2×1</source>
         <translation>Tile 2×1</translation>
     </message>
@@ -89368,6 +89546,11 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <translation>“%1” cannot be shown in a window (only on a network TV).</translation>
     </message>
     <message>
+        <location line="+4" />
+        <source>«%1» es una distribución: una ventana de una distribución no puede mostrar otra.</source>
+        <translation>“%1” is a layout: a window of a layout can't show another one.</translation>
+    </message>
+    <message>
         <location line="+5" />
         <source>Cada ventana tiene que mostrar algo: `cosas` con ids de catalogo_listar.</source>
         <translation>Each window has to show something: `cosas` with ids from catalogo_listar.</translation>
@@ -89403,19 +89586,19 @@ PROPOSE, DON'T APPLY: show the person what changes and apply only if they confir
         <location line="+11" />
         <location line="+14" />
         <location line="+134" />
-        <location line="+91" />
+        <location line="+92" />
         <source>No hay una distribución «%1».</source>
         <translation>There is no screen layout “%1”.</translation>
     </message>
     <message>
-        <location line="-386" />
+        <location line="-387" />
         <location line="+21" />
-        <location line="+370" />
+        <location line="+371" />
         <source>Ya hay una distribución que se llama «%1».</source>
         <translation>There is already a screen layout called “%1”.</translation>
     </message>
     <message>
-        <location line="-375" />
+        <location line="-376" />
         <source>%1 (copia)</source>
         <translation>%1 (copy)</translation>
     </message>

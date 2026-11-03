@@ -1,8 +1,8 @@
 // Una cosa del catálogo (Studio.catalogo), dibujada: un panel, una tarjeta del
-// tablero, una página entera, el programa, una escena, una multivista o lo de
-// fondo del tablero. Es lo que va adentro de una ventana suelta (VentanaSuelta)
-// y de cada celda de un monitor (PantallaWindow): UNA sola manera de dibujar
-// cada cosa, sea donde sea.
+// tablero, una página entera, el programa, una escena, una multivista, lo de
+// fondo del tablero o una distribución de pantallas guardada (VistaDistribucion).
+// Es lo que va adentro de una ventana suelta (VentanaSuelta) y de cada celda de
+// un monitor (PantallaWindow): UNA sola manera de dibujar cada cosa, sea donde sea.
 //
 // Como con las ventanas de siempre, no se saca nada de la ventana principal:
 // es OTRA VISTA de lo mismo. Todo lee su estado de los `Studio.*`, así que las
@@ -38,7 +38,21 @@ Item {
         sourceComponent: v.modo === "video" || v.modo === "multiview" ? cmpVideo
                        : v.modo === "panel" ? cmpPanel
                        : v.modo === "pagina" ? cmpPagina
+                       : v.modo === "distribucion" ? cmpDistribucion
                        : cmpFalta
+    }
+
+    // Una distribución de pantallas entera (sus ventanas, cada una en vivo). Por URL y
+    // no como tipo: VistaDistribucion usa VistaCosas, que usa esta vista.
+    Component {
+        id: cmpDistribucion
+        Loader {
+            source: Qt.resolvedUrl("VistaDistribucion.qml")
+            onLoaded: {
+                item.principal = Qt.binding(() => v.principal)
+                item.dibujo = Qt.binding(() => v.dibujo)
+            }
+        }
     }
 
     Component {

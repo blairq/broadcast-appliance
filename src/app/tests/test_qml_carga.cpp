@@ -9,6 +9,7 @@
 // TerminalView) reemplazados por unos de mentira: las propiedades de Studio se
 // resuelven al ejecutar, así que para compilar alcanza con que exista.
 #include "ui/ChatHilo.hpp"
+#include "pantallas/BuscadorCatalogo.hpp"
 #include "ui/FiltroCatalogo.hpp"
 #include "ui/FotosPersonas.hpp"
 #include "ui/ListaObjetos.hpp"
@@ -144,6 +145,7 @@ int main(int argc, char** argv) {
     qmlRegisterType<ScopeFalso>("BA", 1, 0, "Scope");
     qmlRegisterType<ba::app::ListaObjetos>("BA", 1, 0, "ListaConClave");
     qmlRegisterType<ba::app::FiltroCatalogo>("BA", 1, 0, "FiltroCatalogo");
+    qmlRegisterType<ba::app::BuscadorCatalogo>("BA", 1, 0, "BuscadorCatalogo");
     qmlRegisterType<ba::app::ChatHilo>("BA", 1, 0, "ChatHilo");
     qmlRegisterSingletonType(QUrl::fromLocalFile(dir + "/Theme.qml"), "BA", 1, 0, "Theme");
 
