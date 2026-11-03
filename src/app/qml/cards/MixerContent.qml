@@ -76,7 +76,7 @@ Item {
         z: 10
         compact: true
         text: qsTr("Audio ›")
-        onClicked: ApplicationWindow.window.showPage(Studio.riel.paginaDeId("audio"))
+        onClicked: ApplicationWindow.window.showPage((Studio.riel.paginaPorId["audio"] ?? -1))
         ToolTip.visible: hovered; ToolTip.delay: 400
         ToolTip.text: qsTr("La pestaña Audio: el rack y los filtros de cada entrada, la matriz y las salidas.")
     }

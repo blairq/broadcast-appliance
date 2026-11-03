@@ -26,6 +26,14 @@ Opciones: --ba-mcp RUTA (el puente; de fábrica el del paquete de macOS en dist/
 (300), --pausa-s (lo que se queda en cada página, 2,5), --espera-sala-s (lo que espera a que
 entren, 180), --vueltas-sala (cuántas veces recorre con la sala llena, 2).
 
+POR TANDAS CON CARGA DE AFUERA (las corridas con carga duran como mucho 2 minutos): --paginas
+a,b,c recorre solo esas (con sus secciones y paneles) y --sala-externa N, en vez de arrancar la
+prueba de sala, espera (hasta --espera-sala-s) a que haya N personas con medios en la sala
+(room_status) —la carga la pone otro, p. ej. tools/carga/medir-sala.py con hinchada desde otra
+máquina— y recorre una vez con la sala así. Por ejemplo, en la Mac con la app en la PC:
+  medir-sala.py --remoto windows --participantes 200 --cupo --rafaga --regimen 60 … &
+  recorrer-ui.py --sala-externa 180 --paginas dashboard,sala,escenas --salida …/tanda-1
+
 Sale en --salida: informe.json (lo de diag_acoples, más `pasos`: en qué paso apareció cada
 lugar), resumen.md (la tabla, para pegar) y pasos.jsonl (cada paso con lo nuevo).
 """
@@ -212,6 +220,9 @@ def main() -> int:
     ap.add_argument("--minutos", type=int, default=10, help="lo que dura la prueba de sala")
     ap.add_argument("--espera-sala-s", type=float, default=180)
     ap.add_argument("--vueltas-sala", type=int, default=2)
+    ap.add_argument("--paginas", default="", help="solo estas páginas (separadas por coma)")
+    ap.add_argument("--sala-externa", type=int, default=0,
+                    help="esperar N personas con medios (la carga la pone otro) y recorrer con la sala así")
     a = ap.parse_args()
 
     salida = pathlib.Path(a.salida).expanduser()
@@ -240,11 +251,31 @@ def main() -> int:
             print("la app no tiene diag_acoples: abrila con --test", file=sys.stderr)
             return 2
         paginas = herramientas["ui_show_page"]["inputSchema"]["properties"]["page"]["enum"]
+        if a.paginas:
+            pedidas = [p.strip() for p in a.paginas.split(",") if p.strip()]
+            faltan = [p for p in pedidas if p not in paginas]
+            if faltan:
+                print(f"no hay esas páginas: {faltan} (hay: {paginas})", file=sys.stderr)
+                return 2
+            paginas = pedidas
+        if a.sala_externa > 0:
+            # La carga la pone otro: esperar a que estén (sin sabotaje mientras tanto).
+            mcp.llamar("diag_acoples", {"demora_ms": 0, "reiniciar": True})
+            fin = time.time() + a.espera_sala_s
+            con = 0
+            while time.time() < fin:
+                ps = mcp.llamar("room_status", {}).get("participants", [])
+                con = sum(1 for x in ps if x.get("mediaUp"))
+                print(f"  con medios: {con}/{a.sala_externa}", flush=True)
+                if con >= a.sala_externa:
+                    break
+                time.sleep(3)
+            print(f"== sala externa con {con} personas con medios", flush=True)
         mcp.llamar("diag_acoples", {"demora_ms": a.demora_ms, "reiniciar": True})
         rec = Recorrido(mcp, a, salida)
         rec.anotar("inicio")
 
-        rec.todo("vacía", paginas)
+        rec.todo("sala" if a.sala_externa > 0 else "vacía", paginas)
 
         if a.invitados > 0:
             print(f"== prueba de sala: {a.invitados} invitados por {a.minutos} min", flush=True)

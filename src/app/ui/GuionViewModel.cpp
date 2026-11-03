@@ -253,6 +253,17 @@ void GuionViewModel::setCarruseles(CarruselViewModel* c) {
 void GuionViewModel::cambioOpciones() {
     opcionesSucias_ = true;
     emit opcionesChanged();
+    // Los enlaces de los teleprompters dependen del puerto de la sala y de la lista: se
+    // rearman acá (pocos) y avisan solo si cambiaron.
+    QVariantMap e{{QString(), enlaceDeCue("teleprompter", {})}};
+    for (const auto& p : prompters_.lista()) {
+        const QString id = QString::fromStdString(p.value("id", std::string()));
+        e[id] = enlaceDeCue("teleprompter", {{"prompter", id}});
+    }
+    if (e != enlaces_) {
+        enlaces_ = std::move(e);
+        emit enlacesPrompterChanged();
+    }
 }
 
 void GuionViewModel::leerCarpetas() {
@@ -718,7 +729,6 @@ QVariantList GuionViewModel::opcionesDeCampo(const QString& tipo, const QString&
 }
 
 QString GuionViewModel::enlaceDeCue(const QString& tipo, const QVariantMap& datos) const {
-    BA_ACOPLE("invocable", "GuionViewModel::enlaceDeCue");
     // El servidor de la sala, en esta máquina (la pantalla del orador solo lee: sin clave).
     // Cada teleprompter tiene su página: el principal en /prompter/, los demás en /prompter/<id>/.
     if (tipo == "teleprompter") {
@@ -728,15 +738,6 @@ QString GuionViewModel::enlaceDeCue(const QString& tipo, const QVariantMap& dato
         return "http://127.0.0.1:" + QString::number(ventanilla_.foto().sala.puerto) + "/prompter/" + carpeta;
     }
     return {};
-}
-
-QVariantMap GuionViewModel::enlacesPrompter() const {
-    QVariantMap m{{QString(), enlaceDeCue("teleprompter", {})}};
-    for (const auto& p : prompters_.lista()) {
-        const QString id = QString::fromStdString(p.value("id", std::string()));
-        m[id] = enlaceDeCue("teleprompter", {{"prompter", id}});
-    }
-    return m;
 }
 
 QString GuionViewModel::pedidoDeEscenario(const QString& id, const QString& notas, const QString& plantilla) const {

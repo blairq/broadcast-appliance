@@ -88,7 +88,7 @@ Rectangle {
                         StatusPill { text: fila.ausente ? qsTr("AUSENTE") : qsTr("AUDIO"); dot: fila.ausente ? Theme.live : Theme.ok }
                         GlassButton {
                             compact: true; text: qsTr("Procesamiento →")
-                            onClicked: ApplicationWindow.window.showPage(Studio.riel.paginaDeId("audio"))
+                            onClicked: ApplicationWindow.window.showPage((Studio.riel.paginaPorId["audio"] ?? -1))
                             ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Sus módulos (ecualizador, compresor…) en la página Audio")
                         }
                         GlassButton {

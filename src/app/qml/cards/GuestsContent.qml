@@ -113,7 +113,7 @@ Item {
                     MenuSeparator {}
                     MenuItem {
                         text: qsTr("Configurar pinggy…")
-                        onTriggered: { Studio.seccionConfig = "Pinggy"; ApplicationWindow.window.showPage(Studio.riel.paginaDeId("configuracion")) }
+                        onTriggered: { Studio.seccionConfig = "Pinggy"; ApplicationWindow.window.showPage((Studio.riel.paginaPorId["configuracion"] ?? -1)) }
                     }
                 }
             }

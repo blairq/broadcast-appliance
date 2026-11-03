@@ -67,8 +67,9 @@ class GuionViewModel : public QObject {
     /// "carrusel/lamina:<carrusel>"; los parámetros de cada gráfico: "parametros:<gráfico>".
     Q_PROPERTY(QVariantMap opciones READ opciones NOTIFY opcionesChanged)
     /// La página de cada teleprompter del evento en esta máquina, para ver si un cue anda:
-    /// {"<id>": url}; "" es el principal (y el de un id que no está).
-    Q_PROPERTY(QVariantMap enlacesPrompter READ enlacesPrompter NOTIFY opcionesChanged)
+    /// {"<id>": url}; "" es el principal (y el de un id que no está). Avisa solo cuando cambia
+    /// (el puerto de la sala o la lista de teleprompters), no con cada foto ni cada invitado.
+    Q_PROPERTY(QVariantMap enlacesPrompter READ enlacesPrompter NOTIFY enlacesPrompterChanged)
 
    public:
     GuionViewModel(EventoAbierto& abierto, AppRuntime& rt, VentanillaMotor& ventanilla, ConferenceViewModel* sala,
@@ -86,7 +87,7 @@ class GuionViewModel : public QObject {
     QVariantList idiomas() const;
     QVariantList escenarios() const { return escenarios_; }
     QVariantMap opciones() const;
-    QVariantMap enlacesPrompter() const;
+    QVariantMap enlacesPrompter() const { return enlaces_; }
 
     void setCarruseles(CarruselViewModel* c);
     /// Lo que la revisión mira del aparato (disco, destino, entradas, pantallas):
@@ -138,7 +139,8 @@ class GuionViewModel : public QObject {
     /// Las opciones de un campo (de `opciones`): [{valor, texto}]. Vacía = se escribe.
     QVariantList opcionesDeCampo(const QString& tipo, const QString& campo, const QVariantMap& datos = {}) const;
     /// La vista web para ver si un cue anda (el teleprompter), en esta máquina; "" si no tiene.
-    Q_INVOKABLE QString enlaceDeCue(const QString& tipo, const QVariantMap& datos = {}) const;
+    /// Para el C++ (la vista lee `enlacesPrompter`, que avisa).
+    QString enlaceDeCue(const QString& tipo, const QVariantMap& datos = {}) const;
     /// Los teleprompters del evento con su nombre (de la caché de prompters.json).
     const sala::ListaPrompters& listaPrompters() const { return prompters_; }
     /// El pedido para el asistente: preparar un evento de ese tipo siguiendo su guía.
@@ -159,6 +161,7 @@ class GuionViewModel : public QObject {
     void reparosChanged();
     void chequeoChanged();
     void opcionesChanged();
+    void enlacesPrompterChanged();
     /// Se guardó el abierto (la lista y la web se ponen al día).
     void guardado();
     void notify(const QString& texto, const QString& tipo);
@@ -187,6 +190,7 @@ class GuionViewModel : public QObject {
     std::map<QString, QString> textos_;         ///< el texto de cada discurso
     sala::ListaPrompters prompters_;
     mutable QVariantMap opciones_;
+    QVariantMap enlaces_; ///< enlacesPrompter, rearmado al cambiar la sala o los prompters
     mutable bool opcionesSucias_ = true;
     QThreadPool fondo_;
     int genCarpetas_ = 0;

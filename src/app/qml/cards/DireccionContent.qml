@@ -302,7 +302,10 @@ Item {
             }
             // Un cue con vista web (el teleprompter): abrirla para ver si carga y avanza.
             GlassButton {
-                readonly property string url: parent.enMarcha && tarjeta.corridaVm.actual.tipo ? tarjeta.guionVm.enlaceDeCue(tarjeta.corridaVm.actual.tipo, tarjeta.corridaVm.actual.datos || ({})) : ""
+                // Del modelo (avisa al cambiar la sala o los prompters), no una función por vuelta.
+                readonly property string url: parent.enMarcha && tarjeta.corridaVm.actual.tipo === "teleprompter"
+                                              ? (tarjeta.guionVm.enlacesPrompter[(tarjeta.corridaVm.actual.datos || {}).prompter || ""]
+                                                 || tarjeta.guionVm.enlacesPrompter[""] || "") : ""
                 visible: url !== ""
                 compact: true
                 text: qsTr("Ver el teleprompter ↗")

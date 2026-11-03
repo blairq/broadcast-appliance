@@ -535,7 +535,7 @@ Rectangle {
                                 visible: Studio.carruseles.carruseles.length === 0
                                 height: visible ? implicitHeight : 0
                                 text: qsTr("No hay carruseles: armar uno en Medios → Carruseles…")
-                                onTriggered: ApplicationWindow.window.page = Studio.riel.paginaDeId("medios")
+                                onTriggered: ApplicationWindow.window.page = (Studio.riel.paginaPorId["medios"] ?? -1)
                             }
                             ItemsDeMenu {
                                 menu: carruselMenu

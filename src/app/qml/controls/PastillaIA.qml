@@ -20,7 +20,7 @@ StatusPill {
 
     function ir(prob) {
         if (prob.seccion) Studio.seccionConfig = prob.seccion
-        ApplicationWindow.window.showPage(Studio.riel.paginaDeId(prob.pagina))
+        ApplicationWindow.window.showPage((Studio.riel.paginaPorId[prob.pagina] ?? -1))
     }
 
     MouseArea {

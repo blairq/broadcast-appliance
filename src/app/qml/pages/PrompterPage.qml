@@ -452,7 +452,7 @@ Rectangle {
                                         { k: "Se escucha bajo", t: qsTr("Se escucha bajo") }, { k: "Mirá a cámara", t: qsTr("Mirá a cámara") }]
                                 delegate: GlassButton {
                                     required property var modelData
-                                    readonly property bool puesto: page.est.aviso === page.p.avisoParaOrador(modelData.k)
+                                    readonly property bool puesto: page.p.avisoPuesto === modelData.k
                                     compact: true
                                     text: modelData.t
                                     active: puesto

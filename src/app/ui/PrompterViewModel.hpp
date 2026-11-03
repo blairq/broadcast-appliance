@@ -121,6 +121,9 @@ class PrompterViewModel : public QObject {
     Q_PROPERTY(int controles READ controles NOTIFY estadoCambio)
     /// La clave del control (para dictarla si el QR va sin ella).
     Q_PROPERTY(QString clave READ clave NOTIFY estadoCambio)
+    /// El aviso rápido que está puesto, por su clave en español («Redondeá»; al orador le llegó
+    /// en el idioma del evento), o el texto tal cual si se escribió a mano; vacío si ninguno.
+    Q_PROPERTY(QString avisoPuesto READ avisoPuesto NOTIFY estadoCambio)
 
    public:
     PrompterViewModel(EventoViewModel* evento, ConferenceViewModel* sala, QObject* parent = nullptr);
@@ -200,8 +203,9 @@ class PrompterViewModel : public QObject {
     Q_INVOKABLE void irA(double fraccion);
     /// Salta al principio del párrafo `n` (0 = el primero).
     Q_INVOKABLE void irAParrafo(int n);
-    /// Cómo le llega al orador un aviso (en el idioma del evento): para marcar cuál está puesto.
-    Q_INVOKABLE QString avisoParaOrador(const QString& clave) const;
+    /// Cómo le llega al orador un aviso (en el idioma del evento).
+    QString avisoParaOrador(const QString& clave) const;
+    QString avisoPuesto() const;
     /// Le escribe un aviso al orador ("Redondeá"); vacío lo saca.
     Q_INVOKABLE void avisar(const QString& texto);
     /// Para en seco donde esté, sin mover la posición.

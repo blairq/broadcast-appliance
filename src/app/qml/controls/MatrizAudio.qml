@@ -592,10 +592,11 @@ Item {
                     Layout.fillWidth: true
                     model: Studio.salidas.lista
                     textRole: "nombre"
+                    // De la propiedad de la lista (avisa al cambiar), no fila por fila.
                     currentIndex: {
-                        const l = Studio.salidas.lista
-                        for (let i = 0; i < l.count; ++i) {
-                            const f = l.fila(i)
+                        const l = Studio.salidas.lista.lista
+                        for (let i = 0; i < l.length; ++i) {
+                            const f = l[i]
                             if (busPop.bus.salida ? f.id === busPop.bus.salida : !!f.porOmision) return i
                         }
                         return -1

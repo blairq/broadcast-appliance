@@ -1331,7 +1331,7 @@ Rectangle {
 
     // «Sincronía y red» vive en la vista única de Latencias (pestaña Sincronía): un solo lugar.
     function irASincronia() {
-        const p = Studio.riel.paginaDeId("latencias")
+        const p = (Studio.riel.paginaPorId["latencias"] ?? -1)
         if (p >= 0 && page.Window.window) page.Window.window.page = p
         Studio.mostrarSeccion("latencias", "sincronia")
     }

@@ -30,7 +30,7 @@ Rectangle {
 
     Component.onCompleted: page.en.refrescar()
 
-    function irA(id) { ApplicationWindow.window.showPage(Studio.riel.paginaDeId(id)) }
+    function irA(id) { ApplicationWindow.window.showPage((Studio.riel.paginaPorId[id] ?? -1)) }
     function verQr(url, nombre, remoto) {
         Studio.mostrarQr(url, nombre, remoto ? qsTr("Desde cualquier lugar (por el túnel).") : qsTr("Desde la red local de la sala."),
                          remoto ? "azul" : "verde")

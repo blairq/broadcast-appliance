@@ -14,5 +14,5 @@ Text {
     font { pixelSize: 11; underline: hover.hovered }
     wrapMode: Text.WordWrap
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
-    TapHandler { onTapped: ApplicationWindow.window.showPage(Studio.riel.paginaDeId("equipos")) }
+    TapHandler { onTapped: ApplicationWindow.window.showPage((Studio.riel.paginaPorId["equipos"] ?? -1)) }
 }

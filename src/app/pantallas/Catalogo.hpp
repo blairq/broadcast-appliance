@@ -44,6 +44,7 @@
 
 #include <QSortFilterProxyModel>
 #include <QStringList>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -136,8 +137,14 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
     int cantidad() const { return rowCount(); }
     QVariantMap porId() const;
 
-    /// Vuelve a pedirle todo a las fuentes y actualiza las filas en su lugar.
+    /// Vuelve a pedirle todo a las fuentes y actualiza las filas en su lugar (ya).
     void refrescar();
+    /// Lo mismo, juntando una ráfaga de avisos en una sola pasada (a los 50 ms): para lo que
+    /// cambia seguido (las claves y los rótulos de los invitados).
+    void pedirRefresco();
+    /// Solo las distribuciones (lo único que cambia al crear, editar, mover o borrar una):
+    /// las demás filas ni se miran.
+    void refrescarDistribuciones();
 
     /// La cosa de ese id, como mapa (los mismos nombres que los roles), o vacío.
     Q_INVOKABLE QVariantMap item(const QString& id) const;
@@ -162,10 +169,15 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
 
    private:
     std::vector<Cosa> armar() const;
+    std::vector<Cosa> armarDistribuciones() const;
+    void avisar(); ///< cambió algo: `porId` se rearma en la próxima lectura y se avisa
 
     Fuentes fuentes_;
     QSortFilterProxyModel* locales_ = nullptr;
     QSortFilterProxyModel* deRed_ = nullptr;
+    QTimer juntar_;
+    mutable QVariantMap porId_;
+    mutable bool porIdSucio_ = true;
 };
 
 } // namespace ba::app

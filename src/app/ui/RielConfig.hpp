@@ -28,6 +28,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVariantList>
+#include <QVariantMap>
 
 namespace ba::app {
 
@@ -55,6 +56,12 @@ class RielConfig : public QObject {
     Q_PROPERTY(QVariantList paginas READ paginas NOTIFY cambio)
     /// Cuántas están escondidas (para poder decirlo sin contar a mano).
     Q_PROPERTY(int escondidas READ escondidas NOTIFY cambio)
+    /// {id: índice de página} y {índice: id}: el catálogo de páginas no cambia mientras corre
+    /// la app. La vista lee estos mapas (`paginaPorId["audio"] ?? -1`), no una función.
+    Q_PROPERTY(QVariantMap paginaPorId READ paginaPorId CONSTANT)
+    Q_PROPERTY(QVariantMap idPorPagina READ idPorPagina CONSTANT)
+    /// {índice: título corto} (traducido).
+    Q_PROPERTY(QVariantMap tituloPorPagina READ tituloPorPagina NOTIFY cambio)
 
    public:
     explicit RielConfig(std::filesystem::path archivo, QObject* parent = nullptr);
@@ -75,13 +82,17 @@ class RielConfig : public QObject {
     QVariantList grupos() const;
     QVariantList paginas() const;
     int escondidas() const;
+    QVariantMap paginaPorId() const;
+    QVariantMap idPorPagina() const;
+    QVariantMap tituloPorPagina() const;
 
+    /// Para el C++ (el MCP): la vista usa los mapas de arriba.
     /// El índice de página de un id ("guion"), o -1 si no existe.
-    Q_INVOKABLE int paginaDeId(const QString& id) const;
+    int paginaDeId(const QString& id) const;
     /// El id de una página por su índice, o vacío.
-    Q_INVOKABLE QString idDePagina(int pagina) const;
+    QString idDePagina(int pagina) const;
     /// El título corto de una página por su índice, o vacío.
-    Q_INVOKABLE QString tituloDePagina(int pagina) const;
+    QString tituloDePagina(int pagina) const;
     /// Todos los ids, en el orden del catálogo. Es lo que ofrece el MCP.
     static QStringList idsDePaginas();
     /// Todas las páginas, también el asistente: [{page, id, icon, titulo}]. Es

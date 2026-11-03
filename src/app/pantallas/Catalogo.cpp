@@ -62,6 +62,9 @@ QString CatalogoVisible::tituloDeGrupo(const QString& g) {
 
 CatalogoVisible::CatalogoVisible(Fuentes fuentes, QObject* parent)
     : ListaConClave(parent), fuentes_(std::move(fuentes)) {
+    juntar_.setSingleShot(true);
+    juntar_.setInterval(50);
+    connect(&juntar_, &QTimer::timeout, this, &CatalogoVisible::refrescar);
     // Primero las filas: los filtros de abajo las leen al engancharse.
     filas_ = armar();
     // Dos vistas filtradas del MISMO modelo (no dos listas): los selectores de
@@ -216,20 +219,7 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
 
     // 7b) Las distribuciones de pantallas guardadas: una entera, en un monitor o en una
     //     ventana (sus ventanas como rectángulos). No viajan a una TV.
-    if (fuentes_.distribuciones)
-        for (const QVariant& v : fuentes_.distribuciones()) {
-            const QVariantMap m = v.toMap();
-            const QString id = m.value("id").toString();
-            if (id.isEmpty()) continue;
-            const QString nombre = m.value("nombre").toString();
-            out.push_back({"distribucion:" + id, "distribucion", nombre.isEmpty() ? id : nombre, "⊞",
-                           QVariantMap{{"modo", "distribucion"},
-                                       {"id", id},
-                                       {"resumen", m.value("resumen")},
-                                       {"proporcion", m.value("proporcion")},
-                                       {"piezas", m.value("piezas")}},
-                           "", {}, ""});
-        }
+    for (Cosa& c : armarDistribuciones()) out.push_back(std::move(c));
 
     // 8) Lo que solo existe en la TV (un cartel, un QR, la hora…): los
     //    contenidos del cast que ninguna cosa de arriba ya representa. Así un
@@ -261,8 +251,52 @@ std::vector<CatalogoVisible::Cosa> CatalogoVisible::armar() const {
     return out;
 }
 
+std::vector<CatalogoVisible::Cosa> CatalogoVisible::armarDistribuciones() const {
+    std::vector<Cosa> out;
+    if (!fuentes_.distribuciones) return out;
+    for (const QVariant& v : fuentes_.distribuciones()) {
+        const QVariantMap m = v.toMap();
+        const QString id = m.value("id").toString();
+        if (id.isEmpty()) continue;
+        const QString nombre = m.value("nombre").toString();
+        out.push_back({"distribucion:" + id, "distribucion", nombre.isEmpty() ? id : nombre, "⊞",
+                       QVariantMap{{"modo", "distribucion"},
+                                   {"id", id},
+                                   {"resumen", m.value("resumen")},
+                                   {"proporcion", m.value("proporcion")},
+                                   {"piezas", m.value("piezas")}},
+                       "", {}, ""});
+    }
+    return out;
+}
+
 void CatalogoVisible::refrescar() {
-    if (aplicar(armar())) emit cambio();
+    juntar_.stop();
+    if (aplicar(armar())) avisar();
+}
+
+void CatalogoVisible::pedirRefresco() {
+    // Una ráfaga (200 invitados entrando: claves y rótulos de a uno) se junta en una sola
+    // pasada: rearmar todo es pedirle todo a las fuentes, y cada aviso despierta a `porId`.
+    if (!juntar_.isActive()) juntar_.start();
+}
+
+void CatalogoVisible::refrescarDistribuciones() {
+    // Solo las filas «distribucion:»: las demás fuentes no cambiaron. Van donde las pone
+    // armar() (después de las páginas, antes de lo de la TV).
+    std::vector<Cosa> nuevas;
+    nuevas.reserve(filas_.size());
+    std::size_t donde = std::string::npos;
+    for (const Cosa& c : filas_) {
+        if (c.grupo == "distribucion") continue;
+        if (donde == std::string::npos && (c.grupo == "web" || c.grupo == "registro")) donde = nuevas.size();
+        nuevas.push_back(c);
+    }
+    if (donde == std::string::npos) donde = nuevas.size();
+    std::vector<Cosa> ds = armarDistribuciones();
+    nuevas.insert(nuevas.begin() + static_cast<std::ptrdiff_t>(donde), std::make_move_iterator(ds.begin()),
+                  std::make_move_iterator(ds.end()));
+    if (aplicar(std::move(nuevas))) avisar();
 }
 
 const CatalogoVisible::Cosa* CatalogoVisible::buscar(const QString& id) const {
@@ -295,10 +329,20 @@ QVariantMap CatalogoVisible::item(const QString& id) const {
     return c == nullptr ? QVariantMap{} : comoMapa(*this, static_cast<int>(c - filas_.data()));
 }
 
+void CatalogoVisible::avisar() {
+    porIdSucio_ = true;
+    emit cambio();
+}
+
 QVariantMap CatalogoVisible::porId() const {
+    // Se lee en cada binding que mira una cosa (cada ventana, cada monitor): se arma una vez
+    // por cambio, no una vez por lectura.
+    if (!porIdSucio_) return porId_;
     QVariantMap out;
     for (int i = 0; i < rowCount(); ++i) out.insert(filas_[static_cast<std::size_t>(i)].id, comoMapa(*this, i));
-    return out;
+    porId_ = std::move(out);
+    porIdSucio_ = false;
+    return porId_;
 }
 
 QString CatalogoVisible::tituloDe(const QString& id) const {

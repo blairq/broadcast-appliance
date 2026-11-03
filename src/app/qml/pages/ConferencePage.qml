@@ -900,7 +900,7 @@ Rectangle {
                             }
                             GlassButton {
                                 compact: true; text: qsTr("Cambiar…")
-                                onClicked: { Studio.seccionConfig = "Voz del sistema"; ApplicationWindow.window.showPage(Studio.riel.paginaDeId("configuracion")) }
+                                onClicked: { Studio.seccionConfig = "Voz del sistema"; ApplicationWindow.window.showPage((Studio.riel.paginaPorId["configuracion"] ?? -1)) }
                             }
                         }
                     }

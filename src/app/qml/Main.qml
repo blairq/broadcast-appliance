@@ -91,7 +91,7 @@ ApplicationWindow {
     // Modo en vivo: las páginas protegidas piden escribir CONFIRMAR (con un motivo) para entrar.
     property int paginaPermitida: 0
     onPageChanged: {
-        const id = Studio.riel.idDePagina(page)
+        const id = (Studio.riel.idPorPagina[page] ?? "")
         if (Studio.app.paginasBloqueadas.indexOf(id) >= 0) {
             desbloqueo.pagina = page
             desbloqueo.idPagina = id
@@ -117,7 +117,7 @@ ApplicationWindow {
             Text {
                 Layout.fillWidth: true; wrapMode: Text.WordWrap
                 text: qsTr("«%1» tiene cosas que pueden cortar el aire. Para entrar escribí %2 y por qué (queda en el registro).")
-                      .arg(Studio.riel.tituloDePagina(desbloqueo.pagina)).arg(desbloqueo.palabra)
+                      .arg((Studio.riel.tituloPorPagina[desbloqueo.pagina] ?? "")).arg(desbloqueo.palabra)
                 color: Theme.text; font.pixelSize: 13
             }
             TextField { id: confirmarF; Layout.fillWidth: true; placeholderText: desbloqueo.palabra; color: Theme.text }
@@ -346,7 +346,7 @@ ApplicationWindow {
     /// Lo dictado va derecho al asistente si se lo está mirando: su página en la
     /// principal, o su ventana propia activa (agent/Voz: vistaAsistente).
     property bool ventanaAsistenteActiva: false
-    readonly property bool vistaAsistente: win.page === Studio.riel.paginaDeId("asistente") || ventanaAsistenteActiva
+    readonly property bool vistaAsistente: win.page === (Studio.riel.paginaPorId["asistente"] ?? -1) || ventanaAsistenteActiva
     onVistaAsistenteChanged: if (Studio.voz) Studio.voz.vistaAsistente = vistaAsistente
 
     /// Saca la cosa `itemId` del catálogo a su ventana. Si ya está afuera, la trae
@@ -363,7 +363,7 @@ ApplicationWindow {
     /// Cierra su ventana propia (vuelve a estar solo en la principal).
     function traer(itemId) { Studio.ventanas.cerrarCosa(itemId) }
     // Los nombres de siempre (los llaman las tarjetas, las páginas y el MCP).
-    function sacarAVentana(i, titulo) { sacar("pagina:" + Studio.riel.idDePagina(i)) }
+    function sacarAVentana(i, titulo) { sacar("pagina:" + (Studio.riel.idPorPagina[i] ?? "")) }
     function paginaAfuera(id) { return afuera("pagina:" + id) }
     function traerPagina(id) { traer("pagina:" + id) }
     function sacarPanel(id, titulo) { sacar(id) }
@@ -421,11 +421,11 @@ ApplicationWindow {
     Connections {
         target: Studio.agent
         function onMostrarseAlReanudar() {
-            const p = Studio.riel.paginaDeId("asistente")
+            const p = (Studio.riel.paginaPorId["asistente"] ?? -1)
             if (p >= 0) win.showPage(p)
         }
         function onPideVerse() {
-            const p = Studio.riel.paginaDeId("asistente")
+            const p = (Studio.riel.paginaPorId["asistente"] ?? -1)
             if (p >= 0) win.showPage(p)
         }
     }

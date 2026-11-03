@@ -84,8 +84,10 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
     connect(multivistas_.get(), &MultiviewViewModel::cambio, catalogo_.get(), refrescar);
     if (p_.tablero) connect(p_.tablero, &DashboardModel::backgroundChanged, catalogo_.get(), refrescar);
     connect(&p_.imagen.camaras(), &ptz::ControlCamaras::cambio, catalogo_.get(), refrescar);
-    connect(&p_.cuadros, &FrameService::keysChanged, catalogo_.get(), refrescar);
-    connect(&p_.cuadros, &FrameService::rotulosCambio, catalogo_.get(), refrescar); // los nombres de los invitados
+    // Las claves y los rótulos de los invitados cambian de a ráfagas (la sala llenándose):
+    // una sola pasada por ráfaga.
+    connect(&p_.cuadros, &FrameService::keysChanged, catalogo_.get(), &CatalogoVisible::pedirRefresco);
+    connect(&p_.cuadros, &FrameService::rotulosCambio, catalogo_.get(), &CatalogoVisible::pedirRefresco); // los nombres de los invitados
     monitores_ = std::make_unique<MonitoresModel>(rt.dataRoot() / "Config" / "monitores.json", catalogo_.get());
     monitores_->conectarAlSistema();
     // Las ventanas sueltas (pantallas/Ventanas.hpp): las mismas cosas del
@@ -110,7 +112,9 @@ EscritorioViewModel::EscritorioViewModel(Partes p, QObject* parent) : QObject(pa
     // los monitores) cambia lo que se puede mostrar. El catálogo solo avisa si de verdad
     // cambió algo, así que el ida y vuelta (el catálogo también le avisa a las
     // distribuciones) se corta en la segunda vuelta.
-    connect(distribuciones_.get(), &DistribucionesModel::cambio, catalogo_.get(), refrescar);
+    // Solo sus filas (no se rearma el catálogo entero); arrastrar en el editor ya avisa una
+    // sola vez, al soltar (moverEnDibujo).
+    connect(distribuciones_.get(), &DistribucionesModel::cambio, catalogo_.get(), &CatalogoVisible::refrescarDistribuciones);
     catalogo_->refrescar();
     // La marcada «al abrir el evento», cuando el catálogo ya tiene las escenas (Studio lo
     // refresca al terminar de armarse): en la primera vuelta del bucle de eventos.

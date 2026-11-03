@@ -531,13 +531,22 @@ namespace {
 // Los avisos rápidos al orador (los botones de PrompterPage): la clave es el texto en español y
 // al orador le llega en el idioma del evento. Un aviso escrito a mano no está en el catálogo y
 // sale tal cual.
-[[maybe_unused]] const char* const kAvisosRapidos[] = {
+const char* const kAvisosRapidos[] = {
     QT_TRANSLATE_NOOP("prompter", "Redondeá"), QT_TRANSLATE_NOOP("prompter", "Más despacio"),
     QT_TRANSLATE_NOOP("prompter", "Se escucha bajo"), QT_TRANSLATE_NOOP("prompter", "Mirá a cámara")};
 } // namespace
 
+QString PrompterViewModel::avisoPuesto() const {
+    const QString puesto = d_->estado.value("aviso").toString();
+    if (puesto.isEmpty()) return {};
+    for (const char* k : kAvisosRapidos) {
+        const QString clave = QString::fromUtf8(k);
+        if (avisoParaOrador(clave) == puesto) return clave;
+    }
+    return puesto;
+}
+
 QString PrompterViewModel::avisoParaOrador(const QString& clave) const {
-    BA_ACOPLE("invocable", "PrompterViewModel::avisoParaOrador");
     const QByteArray c = clave.toUtf8();
     return QString::fromStdString(ba::i18n::traducirEvento("prompter", c.constData()));
 }

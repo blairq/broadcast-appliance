@@ -108,7 +108,7 @@ Rectangle {
                             ToolTip.text: page.enVentana ? qsTr("Vuelve el asistente a la ventana principal")
                                                          : qsTr("Abre el asistente en su propia ventana (para otro monitor)")
                             onClicked: page.enVentana ? Window.window.close()
-                                                      : page.principal.sacarAVentana(Studio.riel.paginaDeId("asistente"), qsTr("Asistente"))
+                                                      : page.principal.sacarAVentana((Studio.riel.paginaPorId["asistente"] ?? -1), qsTr("Asistente"))
                         }
                     }
                     // --- Nivel 2: la sesión y la terminal ---

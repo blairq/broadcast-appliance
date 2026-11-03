@@ -80,21 +80,40 @@ void BitacoraEvento::revisarConfigEnElFondo() {
     const auto dir = evento_->carpetaEvento();
     if (dir.empty()) return;
     revisandoEnElFondo_ = true;
-    // Recorrer Config/ (y leer y resumir lo que cambió) tardaba ~50 ms en la interfaz.
-    fondo_.start([this, dir]() {
-        nlohmann::json f;
+    // Recorrer Config/ (y leer y resumir lo que cambió) tardaba ~50 ms en la interfaz; y
+    // leer la foto anterior (ultima.json) y guardar la nueva también es disco: todo en el
+    // fondo. A la interfaz vuelven solo las líneas para la bitácora.
+    fondo_.start([this, dir, previa = fotoUltima_]() {
+        nlohmann::json f, cambios = nlohmann::json::array();
         try {
             const std::lock_guard<std::mutex> l(fotosMu_);
             f = fotos_->foto(QDateTime::currentMSecsSinceEpoch());
         } catch (const std::exception&) {
         }
+        if (!f.is_null()) {
+            const auto ultima = dir / "config" / "ultima.json";
+            const nlohmann::json antes = previa.is_null() ? evento::FotosConfig::cargar(ultima) : previa;
+            const auto vacio = nlohmann::json::object();
+            if (antes.is_null() || antes.value("archivos", vacio) != f.value("archivos", vacio)) {
+                if (!antes.is_null()) {
+                    const std::lock_guard<std::mutex> l(fotosMu_);
+                    cambios = fotos_->comparar(antes, f);
+                }
+                evento::FotosConfig::guardar(ultima, f);
+            }
+        }
         QMetaObject::invokeMethod(
             this,
-            [this, dir, f = std::move(f)]() {
+            [this, dir, f = std::move(f), cambios = std::move(cambios)]() {
                 revisandoEnElFondo_ = false;
                 // Si mientras tanto cambió el evento, la foto del nuevo ya se sacó al abrirlo.
                 if (f.is_null() || !evento_ || evento_->carpetaEvento() != dir) return;
-                aplicarFoto(f, dir, {}, {});
+                fotoUltima_ = f;
+                if (!bitacora_) return;
+                const auto ahoraMs = QDateTime::currentMSecsSinceEpoch();
+                for (const auto& c : cambios)
+                    bitacora_->anotar("config", c.value("archivo", std::string()),
+                                      c.value("archivo", std::string()) + " " + c.value("que", std::string()), c, ahoraMs);
             },
             Qt::QueuedConnection);
     });

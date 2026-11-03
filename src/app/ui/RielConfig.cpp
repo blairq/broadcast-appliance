@@ -244,8 +244,28 @@ QVariantList RielConfig::grupos() const {
     return out;
 }
 
+QVariantMap RielConfig::paginaPorId() const {
+    QVariantMap out;
+    for (const Grupo& g : catalogo())
+        for (const Item& i : g.items) out.insert(QString::fromUtf8(i.id), i.page);
+    return out;
+}
+
+QVariantMap RielConfig::idPorPagina() const {
+    QVariantMap out;
+    for (const Grupo& g : catalogo())
+        for (const Item& i : g.items) out.insert(QString::number(i.page), QString::fromUtf8(i.id));
+    return out;
+}
+
+QVariantMap RielConfig::tituloPorPagina() const {
+    QVariantMap out;
+    for (const Grupo& g : catalogo())
+        for (const Item& i : g.items) out.insert(QString::number(i.page), titulo(i.tip));
+    return out;
+}
+
 int RielConfig::paginaDeId(const QString& id) const {
-    BA_ACOPLE("invocable", "RielConfig::paginaDeId");
     for (const Grupo& g : catalogo())
         for (const Item& i : g.items)
             if (id == QString::fromUtf8(i.id)) return i.page;
@@ -253,7 +273,6 @@ int RielConfig::paginaDeId(const QString& id) const {
 }
 
 QString RielConfig::idDePagina(int pagina) const {
-    BA_ACOPLE("invocable", "RielConfig::idDePagina");
     for (const Grupo& g : catalogo())
         for (const Item& i : g.items)
             if (i.page == pagina) return QString::fromUtf8(i.id);
@@ -261,7 +280,6 @@ QString RielConfig::idDePagina(int pagina) const {
 }
 
 QString RielConfig::tituloDePagina(int pagina) const {
-    BA_ACOPLE("invocable", "RielConfig::tituloDePagina");
     for (const Grupo& g : catalogo())
         for (const Item& i : g.items)
             if (i.page == pagina) return titulo(i.tip);

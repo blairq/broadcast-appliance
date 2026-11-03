@@ -62,7 +62,7 @@ Item {
                 width: conduccionScroll.availableWidth
                 // El informe de tiempos es de la página del evento.
                 onPedirInforme: ApplicationWindow.window && ApplicationWindow.window.showPage
-                                ? ApplicationWindow.window.showPage(Studio.riel.paginaDeId("guion")) : undefined
+                                ? ApplicationWindow.window.showPage((Studio.riel.paginaPorId["guion"] ?? -1)) : undefined
             }
         }
         LineaEscaleta {

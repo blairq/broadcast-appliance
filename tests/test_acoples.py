@@ -30,20 +30,17 @@ import acoples  # noqa: E402
 
 # Bindings que llaman a una Q_INVOKABLE no-void, por .qml (relativo a src/app/). SOLO PUEDE BAJAR.
 DEUDA_QML = {
-    "qml/Main.qml": 2,
     "qml/PantallaWindow.qml": 1,
-    "qml/cards/DireccionContent.qml": 2,
+    "qml/cards/DireccionContent.qml": 1,
     "qml/cards/GuestsContent.qml": 1,
     "qml/cards/MixerContent.qml": 1,
     "qml/cards/SpeakersContent.qml": 1,
     "qml/controls/EditorDisparador.qml": 1,
     "qml/controls/EditorFiltroAudio.qml": 1,
-    "qml/controls/MatrizAudio.qml": 1,
     "qml/controls/PanelArchivos.qml": 1,
     "qml/controls/PanelInformes.qml": 1,
     "qml/controls/PanelMezclador.qml": 1,
     "qml/controls/PanelSuperres.qml": 1,
-    "qml/controls/RielNavegacion.qml": 1,
     "qml/controls/SelectorHerramientas.qml": 1,
     "qml/controls/VistaVideo.qml": 1,
     "qml/pages/ConferencePage.qml": 2,
@@ -51,7 +48,6 @@ DEUDA_QML = {
     "qml/pages/FacebookPage.qml": 1,
     "qml/pages/PantallasPage.qml": 1,
     "qml/pages/PersonasPage.qml": 2,
-    "qml/pages/PrompterPage.qml": 1,
     "qml/pages/SettingsPage.qml": 6,
     "qml/pages/TwitchPage.qml": 1,
     "qml/pages/YouTubePage.qml": 1,
@@ -158,6 +154,10 @@ DEUDA_CPP = {
 
 # Los BA_ACOPLE por archivo (relativo a src/). NO PUEDEN BAJAR: sacar uno deja un camino sin
 # sabotaje (la parte dinámica no lo ve). Sumar uno no hace falta anotarlo, pero conviene.
+# Se baja SOLO cuando desaparece el camino entero (la Q_INVOKABLE dejó de serlo porque la vista
+# ahora lee una propiedad): 2026-11-03, GuionViewModel::enlaceDeCue (→ enlacesPrompter),
+# RielConfig::paginaDeId/idDePagina/tituloDePagina (→ paginaPorId/idPorPagina/tituloPorPagina) y
+# PrompterViewModel::avisoParaOrador (→ avisoPuesto).
 GANCHOS = {
     "app/asamblea/InformesResultado.hpp": 1,
     "app/control/Botonera.cpp": 2,
@@ -170,7 +170,6 @@ GANCHOS = {
     "app/ui/CuentasViewModel.cpp": 1,
     "app/ui/DashboardModel.cpp": 1,
     "app/ui/ExtensionesModel.cpp": 4,
-    "app/ui/GuionViewModel.cpp": 1,
     "app/ui/JsonListModel.cpp": 1,
     "app/ui/ListModels.cpp": 1,
     "app/ui/ListaObjetos.cpp": 1,
@@ -178,8 +177,6 @@ GANCHOS = {
     "app/ui/MultiviewViewModel.cpp": 1,
     "app/ui/PantallasViewModel.cpp": 1,
     "app/ui/PersonasViewModel.cpp": 2,
-    "app/ui/PrompterViewModel.cpp": 1,
-    "app/ui/RielConfig.cpp": 3,
     "app/ui/SettingsModel.cpp": 3,
     "app/ui/VideoViewModel.cpp": 1,
     "app/ui/Vumetro.cpp": 1,
