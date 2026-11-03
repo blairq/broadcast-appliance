@@ -5399,7 +5399,11 @@ Recorrer la tira no cambia lo que se ve.</source>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n входит (%1 в секунду)</numerusform><numerusform>%n входят (%1 в секунду)</numerusform><numerusform>%n входят (%1 в секунду)</numerusform></translation>
+        <translation>
+            <numerusform>%n входит (%1 в секунду)</numerusform>
+            <numerusform>%n входят (%1 в секунду)</numerusform>
+            <numerusform>%n входят (%1 в секунду)</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -6551,9 +6555,101 @@ El PIN anterior deja de servir para entrar.</source>
     </message>
 </context>
 <context>
+    <name>CuentasPlataforma</name>
+    <message>
+        <location filename="../src/app/qml/controls/CuentasPlataforma.qml" line="+33" />
+        <source>Cuentas</source>
+        <translation>Аккаунты</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>La principal es la de esta página; todas se pueden elegir como destino de cualquier salida.</source>
+        <translation>Основной аккаунт — тот, что использует эта страница; любой можно выбрать как назначение для любого выхода.</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Nombre de otra cuenta</source>
+        <translation>Название другого аккаунта</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>+ Cuenta</source>
+        <translation>+ Аккаунт</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Suma otra cuenta de esta plataforma (usa la misma app); después conectala</source>
+        <translation>Добавляет ещё один аккаунт этой платформы (то же приложение); затем подключите его</translation>
+    </message>
+    <message>
+        <location line="+31" />
+        <source>principal</source>
+        <translation>основной</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+6" />
+        <source>Reautorizar</source>
+        <translation>Авторизовать заново</translation>
+    </message>
+    <message>
+        <location line="-6" />
+        <source>Conectar</source>
+        <translation>Подключить</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <location line="+10" />
+        <location line="+11" />
+        <source>Cancelar</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <location line="-16" />
+        <location line="+5" />
+        <source>Desconectar</source>
+        <translation>Отключить</translation>
+    </message>
+    <message>
+        <location line="-2" />
+        <source>¿Desconectar «%1»?</source>
+        <translation>Отключить «%1»?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se revoca el acceso en la plataforma y se borra el token guardado. Los destinos que la usan siguen con su clave.</source>
+        <translation>Доступ на платформе отзывается, сохранённый токен удаляется. Назначения, которые его используют, сохраняют свой ключ.</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>¿Quitar «%1»?</source>
+        <translation>Удалить «%1»?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se revoca su acceso, se borra su token y sale de la lista.</source>
+        <translation>Доступ отзывается, токен удаляется, аккаунт убирается из списка.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Quitar</source>
+        <translation>Удалить</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Quitar esta cuenta</source>
+        <translation>Удалить этот аккаунт</translation>
+    </message>
+</context>
+<context>
     <name>CuentasViewModel</name>
     <message>
-        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+130" />
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+136" />
         <location line="+6" />
         <source>El escáner de red no está disponible.</source>
         <translation>Сетевой сканер недоступен.</translation>
@@ -7299,6 +7395,94 @@ Se prende desde el Registro.</source>
         <location line="+0" />
         <source>El PIN no va en el QR: pasalo aparte.</source>
         <translation>PIN не входит в QR: передайте его отдельно.</translation>
+    </message>
+</context>
+<context>
+    <name>DialogoVivo</name>
+    <message>
+        <location filename="../src/app/qml/controls/DialogoVivo.qml" line="+50" />
+        <source>Vivo de una cuenta</source>
+        <translation>Трансляция аккаунта</translation>
+    </message>
+    <message>
+        <location line="+40" />
+        <source>Esta cuenta no tiene vivos programados: creá uno nuevo.</source>
+        <translation>У этого аккаунта нет запланированных трансляций: создайте новую.</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>(sin título)</source>
+        <translation>(без названия)</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Título</source>
+        <translation>Название</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>p. ej. «Sesión ordinaria — audio original»</source>
+        <translation>напр. «Очередное заседание — оригинальный звук»</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Privacidad</source>
+        <translation>Доступ</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Privado</source>
+        <translation>Закрытый</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>No listado</source>
+        <translation>По ссылке</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Público</source>
+        <translation>Открытый</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Inicio</source>
+        <translation>Начало</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>ISO 8601 (vacío = ahora), p. ej. 2026-11-04T18:00:00-03:00</source>
+        <translation>ISO 8601 (пусто = сейчас), напр. 2026-11-04T18:00:00-03:00</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Elegir uno existente</source>
+        <translation>Выбрать существующую</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Crear uno nuevo…</source>
+        <translation>Создать новую…</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cambiar el título…</source>
+        <translation>Изменить название…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Cancelar</source>
+        <translation>Отмена</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Crear y asignar</source>
+        <translation>Создать и назначить</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Asignar</source>
+        <translation>Назначить</translation>
     </message>
 </context>
 <context>
@@ -11209,7 +11393,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>FacebookClient</name>
     <message>
-        <location filename="../src/app/facebook/FacebookClient.cpp" line="+97" />
+        <location filename="../src/app/facebook/FacebookClient.cpp" line="+109" />
         <source>No se pudo guardar en %1</source>
         <translation>Не удалось сохранить в %1</translation>
     </message>
@@ -11406,13 +11590,13 @@ Se prende desde el Registro.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+183" />
+        <location line="+191" />
         <location line="+52" />
         <source>Terminar</source>
         <translation>Завершить</translation>
     </message>
     <message>
-        <location line="-227" />
+        <location line="-235" />
         <source>¿Borrar «%1» de Facebook?</source>
         <translation>Удалить «%1» из Facebook?</translation>
     </message>
@@ -11438,21 +11622,21 @@ Se prende desde el Registro.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+226" />
+        <location line="+234" />
         <location line="+29" />
         <source>Borrar</source>
         <translation>Удалить</translation>
     </message>
     <message>
-        <location line="-254" />
+        <location line="-262" />
         <location line="+38" />
-        <location line="+89" />
+        <location line="+97" />
         <location line="+6" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-112" />
+        <location line="-120" />
         <source>Página:</source>
         <translation>Страница:</translation>
     </message>
@@ -11483,7 +11667,7 @@ Se prende desde el Registro.</source>
         <translation>Доступ в Facebook отзывается, сохранённый токен удаляется.</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+26" />
         <source>La API de Facebook permite transmitir y administrar videos en PÁGINAS (no en el perfil personal). Para usarla, creá una app de Meta propia (queda en modo desarrollo: solo vos la usás) — unos 5 minutos:</source>
         <translation>API Facebook позволяет транслировать и управлять видео на СТРАНИЦАХ (не в личном профиле). Чтобы им пользоваться, создайте собственное приложение Meta (оно остаётся в режиме разработки: пользуетесь только вы) — около 5 минут:</translation>
     </message>
@@ -30774,7 +30958,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>Нет сохранённого способа подключения: настройте его в Настройки → Удалённый доступ.</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>ждёт в зале ожидания</translation>
     </message>
@@ -30802,7 +30986,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
 <context>
     <name>SalidasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/SalidasPage.qml" line="+61" />
+        <location filename="../src/app/qml/pages/SalidasPage.qml" line="+62" />
         <source>Pasarlos a «%1»</source>
         <translation>Перенести их в «%1»</translation>
     </message>
@@ -30832,12 +31016,12 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
     </message>
     <message>
         <location line="+13" />
-        <location line="+230" />
+        <location line="+254" />
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-228" />
+        <location line="-252" />
         <source>Borrar</source>
         <translation>Удалить</translation>
     </message>
@@ -30887,7 +31071,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>Используемый кодировщик: %1</translation>
     </message>
     <message>
-        <location line="+48" />
+        <location line="+47" />
         <source>por omisión</source>
         <translation>по умолчанию</translation>
     </message>
@@ -30978,12 +31162,12 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>Видеокодировщик этого выхода: действует со следующего запуска на нём (трансляции, назначения или записи)</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+6" />
         <source>Destinos</source>
         <translation>Назначения</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+11" />
         <source>Ninguno además de la transmisión principal.</source>
         <translation>Нет, кроме основной трансляции.</translation>
     </message>
@@ -30993,12 +31177,17 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>Пока нет: добавьте назначение, чтобы этот выход транслировал.</translation>
     </message>
     <message>
-        <location line="+12" />
+        <location line="+27" />
         <source>%1 · respaldo</source>
         <translation>%1 · резерв</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+2" />
+        <source>%1 kbps</source>
+        <translation>%1 кбит/с</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <location line="+6" />
         <source>Cortar</source>
         <translation>Остановить</translation>
@@ -31019,9 +31208,24 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>Остальные назначения продолжат работу.</translation>
     </message>
     <message>
-        <location line="+11" />
-        <source>+ Destino…</source>
-        <translation>+ Назначение…</translation>
+        <location line="+10" />
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>+ Vivo de una cuenta…</source>
+        <translation>+ Трансляция аккаунта…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>YouTube, Twitch o Facebook: elegí la cuenta y el vivo (o creá uno)</source>
+        <translation>YouTube, Twitch или Facebook: выберите аккаунт и трансляцию (или создайте новую)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>+ RTMP/SRT…</source>
+        <translation>+ RTMP/SRT…</translation>
     </message>
     <message>
         <location line="+4" />
@@ -33807,7 +34011,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Автоматический титр не вышел: %1</translation>
     </message>
     <message>
-        <location line="+273" />
+        <location line="+274" />
         <source>no contestó</source>
         <translation>не ответил</translation>
     </message>
@@ -35356,7 +35560,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>TwitchClient</name>
     <message>
-        <location filename="../src/app/twitch/TwitchClient.cpp" line="+84" />
+        <location filename="../src/app/twitch/TwitchClient.cpp" line="+95" />
         <source>El Client ID de Twitch son unos 30 caracteres (lo muestra la consola de desarrolladores al administrar la app).</source>
         <translation>Client ID Twitch — около 30 символов (его показывает консоль разработчика при управлении приложением).</translation>
     </message>
@@ -35498,7 +35702,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
     <message>
         <location line="+2" />
-        <location line="+96" />
+        <location line="+104" />
         <location line="+7" />
         <location line="+47" />
         <location line="+69" />
@@ -38381,7 +38585,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>YouTubeClient</name>
     <message>
-        <location filename="../src/app/youtube/YouTubeClient.cpp" line="+123" />
+        <location filename="../src/app/youtube/YouTubeClient.cpp" line="+133" />
         <source>Ese cliente es de tipo "Aplicacion web": crea uno de tipo "App de escritorio".</source>
         <translation>Этот клиент типа "Веб-приложение": создайте клиент типа "Приложение для ПК".</translation>
     </message>
@@ -38431,7 +38635,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>YouTube пока не получает видео: начните трансляцию из приложения и подождите несколько секунд.</translation>
     </message>
     <message>
-        <location line="+99" />
+        <location line="+105" />
         <location line="+326" />
         <source>Sin conexión con YouTube: %1</source>
         <translation>Нет связи с YouTube: %1</translation>
@@ -38452,7 +38656,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Нет связи с Google: %1</translation>
     </message>
     <message>
-        <location line="-234" />
+        <location line="-240" />
         <source>El cliente OAuth debe ser de tipo "App de escritorio".</source>
         <translation>Клиент OAuth должен быть типа "Приложение для ПК".</translation>
     </message>
@@ -38468,19 +38672,19 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+3" />
-        <location line="+369" />
+        <location line="+375" />
         <source>No existe ese video (o no es de este canal).</source>
         <translation>Такого видео нет (или оно не с этого канала).</translation>
     </message>
     <message>
-        <location line="-368" />
-        <location line="+549" />
+        <location line="-374" />
+        <location line="+555" />
         <location line="+68" />
         <source>No existe ese evento en vivo.</source>
         <translation>Такой прямой трансляции нет.</translation>
     </message>
     <message>
-        <location line="-616" />
+        <location line="-622" />
         <source>Llegaste al limite de subidas de YouTube por hoy.</source>
         <translation>Вы достигли дневного лимита загрузок YouTube.</translation>
     </message>
@@ -38501,7 +38705,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Учётная запись YouTube не подключена.</translation>
     </message>
     <message>
-        <location line="+106" />
+        <location line="+112" />
         <source>Falta configurar el cliente OAuth (ID y secreto de Google Cloud).</source>
         <translation>Нужно настроить клиент OAuth (ID и секрет из Google Cloud).</translation>
     </message>
@@ -38585,30 +38789,30 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <name>YouTubePage</name>
     <message>
         <location filename="../src/app/qml/pages/YouTubePage.qml" line="+18" />
-        <location line="+516" />
+        <location line="+524" />
         <location line="+19" />
         <location line="+22" />
         <source>Público</source>
         <translation>Открытый доступ</translation>
     </message>
     <message>
-        <location line="-557" />
-        <location line="+516" />
+        <location line="-565" />
+        <location line="+524" />
         <location line="+19" />
         <location line="+22" />
         <source>No listado</source>
         <translation>Доступ по ссылке</translation>
     </message>
     <message>
-        <location line="-557" />
-        <location line="+516" />
+        <location line="-565" />
+        <location line="+524" />
         <location line="+19" />
         <location line="+22" />
         <source>Privado</source>
         <translation>Ограниченный доступ</translation>
     </message>
     <message>
-        <location line="-556" />
+        <location line="-564" />
         <source>Creado</source>
         <translation>Создано</translation>
     </message>
@@ -38654,12 +38858,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+16" />
-        <location line="+365" />
+        <location line="+373" />
         <source>Actualizar</source>
         <translation>Обновить</translation>
     </message>
     <message>
-        <location line="-364" />
+        <location line="-372" />
         <source>YouTube Studio</source>
         <translation>YouTube Studio</translation>
     </message>
@@ -38681,7 +38885,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+145" />
+        <location line="+153" />
         <location line="+6" />
         <location line="+105" />
         <location line="+86" />
@@ -44298,7 +44502,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-885" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-886" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -50758,7 +50962,7 @@ Datos (de %2): %3</source>
         <translation>повтор</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+540" />
+        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+564" />
         <location filename="../src/app/emision/VigiaDisco.cpp" line="-45" />
         <source>grabación</source>
         <translation>запись</translation>
@@ -55853,7 +56057,7 @@ Datos (de %2): %3</source>
 <context>
     <name>grabacion</name>
     <message>
-        <location filename="../src/app/arranque/ServicioEmision.cpp" line="-409" />
+        <location filename="../src/app/arranque/ServicioEmision.cpp" line="-432" />
         <source>la grabación no arrancó: %1</source>
         <translation>запись не запустилась: %1</translation>
     </message>
@@ -56090,7 +56294,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+919" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+920" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>
@@ -60103,7 +60307,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>Заставка поверх всего, что выходит («Перерыв», «Скоро вернёмся», «Минута молчания»…), с `texto`, необязательной `imagen` (путь) и `ms` наплыва (600). Не зависит от сцен. Включение в эфире запрашивает подтверждение, если его запрашивает что-то автоматическое; выключение — нет. Переживает падение приложения. У каждого выхода своя заставка (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1327" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1328" />
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>Сторожевой процесс перезапускает приложение, если пропадает пульс. Пульс идёт от интерфейса И от потока, следящего за кадрами движка: если интерфейс завис, а движок работает, эфир НЕ прерывается. Если интерфейс завис дольше `espera_ui_s` (от 10 до 3600, по умолчанию 60) и включено `matar_si_ui_trabada_sin_aire` (по умолчанию true), перезапуск происходит, только если нет ни трансляции, ни записи. Зависший интерфейс ПРИ эфире — это тревога, которая уходит без интерфейса: в веб-управление и уведомителям из `notificar` («todos» по умолчанию или список id из notificador_listar; [] = никому). Без аргументов показывает настройку (с состоянием: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -63284,7 +63488,7 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+2" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2316" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2317" />
         <source>La herramienta fallo: %1</source>
         <translation>Инструмент не сработал: %1</translation>
     </message>
@@ -66895,7 +67099,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+718" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+719" />
         <source>Escenas</source>
         <translation>Сцены</translation>
     </message>
@@ -74083,7 +74287,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>На камерах ожидания никого не видно.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4150" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4151" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>ВНИМАНИЕ: ПЕРЕЗАПУСКАЕТ ДВИЖОК. На несколько секунд обрывается ВСЁ, что выходит (программа, зал, экраны, то, что видят гости), и камеры открываются заново. Во время трансляции или записи не применяется. Не используйте это, чтобы починить камеру: сначала скажите оператору и попросите подтвердить.</translation>
     </message>
@@ -74163,7 +74367,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>Встретьте сами человека, ожидающего в зале ожидания (id %1, записался как «%2»). Напишите ему в чат через `chat_send`, указав его получателем, представьтесь одной строкой и спросите, по одному вопросу за раз и по-русски: имя и фамилию в точности так, как они должны быть на экране, его должность или тему выступления, как его представить в эфире, и телефон или почту для связи на случай обрыва. Читайте его ответы через `invitados_chat_leer`. По мере получения заполняйте его профиль через `participant_profile`. Когда всё будет, ПРЕЖДЕ чем обращаться ко мне, сообщите ему через `chat_send`, что всё готово: что-нибудь вроде «Готово, у меня всё есть. Передаю в производство и сообщу, как только подтвердят». С той стороны ничего не видно из того, что происходит здесь, и ждать в тишине перед камерой, не зная, смотрит ли кто-нибудь, — это ощущение, что про тебя забыли. Только после этого покажите мне всё вместе через `operator_ask` (варианты: «Пропустить» и «Пока нет»), передав `photoOf` с его именем, чтобы на карточке было его фото. Если я отвечу «Пропустить», допустите его через `participant_admit` И сообщите в чате, что он входит; если нет — оставьте ждать и вежливо скажите, что пока нет. Отвечайте ему ВСЕГДА, чем бы ни кончилось: молчание — худший ответ. Пока это длится, меня больше ни о чём не спрашивайте: действуйте самостоятельно.</translation>
     </message>
     <message>
-        <location line="+177" />
+        <location line="+178" />
         <source>«tapado»</source>
         <translation>«скрыто»</translation>
     </message>
@@ -80633,6 +80837,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+7" />
+        <location filename="../src/app/mcp/McpVivosTools.cpp" line="+306" />
         <source>Id o nombre de la salida (salidas_listar).</source>
         <translation>Id или имя выхода (salidas_listar).</translation>
     </message>
@@ -80958,6 +81163,131 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+24" />
         <source>Todavía no hay un resultado de ese tipo (capacidad_arrancar).</source>
         <translation>Результата такого типа пока нет (capacidad_arrancar).</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mcp/McpVivosTools.cpp" line="-270" />
+        <source>La plataforma.</source>
+        <translation>Платформа.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>El id de la cuenta (cuentas_listar); sin ella, la principal.</source>
+        <translation>Id аккаунта (cuentas_listar); без него — основной.</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Las cuentas de cada plataforma</source>
+        <translation>Аккаунты каждой платформы</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Las cuentas de YouTube, Twitch y Facebook del aparato (puede haber varias por plataforma; la «principal» es la de la página de la plataforma), con su `estado`: conectada, sin_conectar, conectando, vencida (hay que reautorizarla con cuenta_conectar), sin_permiso (reautorizar) o sin_app (falta la app de la plataforma: account_setup_guide). Nunca devuelve secretos. `plataforma` filtra.</source>
+        <translation>Аккаунты YouTube, Twitch и Facebook устройства (на платформе их может быть несколько; «principal» — аккаунт страницы платформы) с их `estado`: conectada, sin_conectar, conectando, vencida (авторизовать заново через cuenta_conectar), sin_permiso (авторизовать заново) или sin_app (нет приложения платформы: account_setup_guide). Секреты не возвращаются. `plataforma` фильтрует.</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Agregar una cuenta de una plataforma</source>
+        <translation>Добавить аккаунт платформы</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Suma otra cuenta de YouTube, Twitch o Facebook (otro canal, otra Página) con el `nombre` que verá el operador. Usa la misma app de la plataforma que la principal. Con `conectar: true` abre ya el navegador para que la PERSONA elija esa cuenta y autorice (después, cuentas_listar dice si quedó conectada). Devuelve su `id`.</source>
+        <translation>Добавляет ещё один аккаунт YouTube, Twitch или Facebook (другой канал, другую Страницу) с именем `nombre`, которое увидит оператор. Использует то же приложение платформы, что и основной. С `conectar: true` сразу открывает браузер, чтобы ЧЕЛОВЕК выбрал этот аккаунт и авторизовал его (затем cuentas_listar покажет, подключён ли он). Возвращает его `id`.</translation>
+    </message>
+    <message>
+        <location line="+24" />
+        <source>Cambiar el nombre de una cuenta</source>
+        <translation>Переименовать аккаунт</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Cambia el nombre con el que el operador ve una cuenta (no toca nada en la plataforma).</source>
+        <translation>Меняет имя, под которым оператор видит аккаунт (на платформе ничего не меняется).</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Quitar una cuenta</source>
+        <translation>Удалить аккаунт</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Revoca el acceso de esa cuenta, borra su token y la saca de la lista. La principal no se quita (se desconecta con &lt;plataforma&gt;_logout). Si algún destino de este evento la usa, no se quita: quitá o reasigná ese destino antes. Preguntale al operador.</source>
+        <translation>Отзывает доступ этого аккаунта, удаляет его токен и убирает из списка. Основной не удаляется (отключается через &lt;plataforma&gt;_logout). Если его использует какое-либо назначение этого события, он не удаляется: сначала удалите или переназначьте это назначение. Спросите оператора.</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Conectar o reautorizar una cuenta</source>
+        <translation>Подключить или заново авторизовать аккаунт</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Abre el navegador de esta máquina para que la PERSONA elija esa cuenta y la autorice (también para reautorizar una vencida o sin permiso). En Twitch se abre twitch.tv/activate con el código ya cargado. Con `wait: true` espera a que termine (máx. 5 min); si no, vuelve enseguida y cuentas_listar dice cuándo quedó conectada.</source>
+        <translation>Открывает браузер этой машины, чтобы ЧЕЛОВЕК выбрал этот аккаунт и авторизовал его (также для повторной авторизации истёкшего или без разрешения). В Twitch открывается twitch.tv/activate с уже введённым кодом. С `wait: true` ждёт завершения (до 5 мин); иначе возвращается сразу, а cuentas_listar покажет, когда аккаунт подключится.</translation>
+    </message>
+    <message>
+        <location line="+28" />
+        <source>Se abrió el navegador: la persona elige la cuenta y acepta. Después, cuentas_listar.</source>
+        <translation>Браузер открыт: человек выбирает аккаунт и подтверждает. Затем cuentas_listar.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Los vivos de una cuenta</source>
+        <translation>Трансляции аккаунта</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Los vivos programados o activos de una cuenta (YouTube: liveBroadcasts; Facebook: los live_videos de la Página que todavía reciben señal): id, titulo, estado, privacidad, inicio, url. En Twitch el vivo es el canal (uno solo, id vacío). El `id` es el que pide salida_destino_asignar.</source>
+        <translation>Запланированные или активные трансляции аккаунта (YouTube: liveBroadcasts; Facebook: live_videos Страницы, которые ещё принимают сигнал): id, titulo, estado, privacidad, inicio, url. В Twitch трансляция — это канал (одна, пустой id). `id` — то, что нужно salida_destino_asignar.</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Crear un vivo en una cuenta</source>
+        <translation>Создать трансляцию в аккаунте</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Crea un vivo en la cuenta (YouTube: liveBroadcast + su stream, privado si no se dice; Facebook: un live_video en prueba, o público con privacidad «public»; Twitch: le pone el título al canal). No transmite nada. Con `salida` además lo asigna como destino de esa salida (como salida_destino_asignar).</source>
+        <translation>Создаёт трансляцию в аккаунте (YouTube: liveBroadcast и его поток, закрытая, если не указано иное; Facebook: тестовый live_video или открытый при доступе «public»; Twitch: задаёт название канала). Ничего не транслирует. С `salida` также назначает её назначением этого выхода (как salida_destino_asignar).</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>ISO 8601 (por omisión, ahora).</source>
+        <translation>ISO 8601 (по умолчанию — сейчас).</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Id o nombre de la salida a la que asignarlo.</source>
+        <translation>Id или имя выхода, которому её назначить.</translation>
+    </message>
+    <message>
+        <location line="+29" />
+        <source>El vivo se creó pero no se pudo asignar: %1</source>
+        <translation>Трансляция создана, но не назначена: %1</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Asignar un vivo o un destino a una salida</source>
+        <translation>Назначить трансляцию или назначение выходу</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Un destino más de la salida (`salida`; sin ella, la de quien llama o la por omisión): el vivo `vivo` (vivos_listar) de la cuenta `cuenta` de `plataforma` (en Twitch, sin `vivo`: el canal), o uno genérico con `url` (rtmp://, rtmps://, srt://, rist://) y `clave` (va cifrada). Pide la ingesta a la plataforma (en YouTube enlaza un stream si el vivo no tiene) y queda guardado como los demás destinos (vuelve tras un corte de luz). No lo arranca: stream_start con `destino` (su id). Si otro destino (de esta u otra salida) ya manda a ese vivo, no se asigna y el error dice cuál. Con `id` reemplaza a ese destino.</source>
+        <translation>Ещё одно назначение выхода (`salida`; без него — выход вызывающего или по умолчанию): трансляция `vivo` (vivos_listar) аккаунта `cuenta` платформы `plataforma` (в Twitch без `vivo` — канал) или универсальное с `url` (rtmp://, rtmps://, srt://, rist://) и `clave` (хранится зашифрованным). Запрашивает у платформы точку приёма (в YouTube привязывает поток, если у трансляции его нет) и сохраняется как остальные назначения (возвращается после отключения питания). Не запускает его: stream_start с `destino` (его id). Если другое назначение (этого или другого выхода) уже отправляет в эту трансляцию, назначение не выполняется, а ошибка говорит, какое именно. С `id` заменяет это назначение.</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>El destino a reemplazar (stream_destinos).</source>
+        <translation>Назначение, которое нужно заменить (stream_destinos).</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>Estado de cada destino</source>
+        <translation>Состояние каждого назначения</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Cada destino (de todas las salidas, o de `salida`) con su plataforma, cuenta y vivo, su `estado` (detenido, conectando, en_vivo, reintentando), el bitrate que sale (`kbps`), la salud que informa la plataforma (`salud`: en YouTube estado_stream y salud good/ok/bad; espectadores en Twitch y Facebook) y `choque` si manda al mismo vivo que otro.</source>
+        <translation>Каждое назначение (всех выходов или `salida`) с платформой, аккаунтом и трансляцией, его `estado` (detenido, conectando, en_vivo, reintentando), исходящий битрейт (`kbps`), состояние, о котором сообщает платформа (`salud`: в YouTube estado_stream и salud good/ok/bad; зрители в Twitch и Facebook), и `choque`, если оно отправляет в ту же трансляцию, что и другое.</translation>
     </message>
 </context>
 <context>
@@ -81969,6 +82299,60 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>renombrar salida color de la salida nombre de la salida tope de salidas cambiar salida</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>переименовать выход цвет выхода название выхода лимит выходов изменить выход</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>cuentas varias cuentas canales paginas youtube twitch facebook conectada vencida otra cuenta segundo canal</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>аккаунты несколько аккаунтов каналы страницы youtube twitch facebook подключён истёк другой аккаунт второй канал</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>agregar cuenta otra cuenta segundo canal otro canal de youtube otra pagina de facebook sumar cuenta</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>добавить аккаунт другой аккаунт второй канал ещё канал youtube ещё страница facebook</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>renombrar cuenta nombre de la cuenta cambiar nombre canal</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>переименовать аккаунт имя аккаунта сменить имя канал</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>quitar cuenta borrar cuenta sacar canal revocar acceso olvidar cuenta</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>удалить аккаунт убрать канал отозвать доступ забыть аккаунт</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>conectar cuenta reautorizar vencida autorizar permiso login otra cuenta iniciar sesion</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>подключить аккаунт авторизовать заново истёк разрешение вход другой аккаунт войти</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>vivos transmisiones programadas eventos en vivo de la cuenta liveBroadcasts directos programados</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>трансляции запланированные эфиры прямые эфиры аккаунта liveBroadcasts</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>crear vivo nueva transmision programar directo evento en vivo en otra cuenta</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>создать трансляцию новый эфир запланировать прямой эфир в другом аккаунте</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>asignar destino a la salida elegir vivo cuenta para la salida mandar salida a youtube twitch facebook rtmp srt</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>назначить назначение выходу выбрать трансляцию аккаунт для выхода отправить выход на youtube twitch facebook rtmp srt</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>estado destinos salud del vivo bitrate en vivo conectando reintentando por salida streamStatus healthStatus</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>состояние назначений здоровье трансляции битрейт в эфире подключение повтор по выходам streamStatus healthStatus</translation>
     </message>
     <message>
         <location line="+2" />
@@ -92942,14 +93326,14 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location filename="../src/app/arranque/ServicioEmision.cpp" line="-97" />
         <location line="+128" />
         <location line="+124" />
-        <location line="+83" />
+        <location line="+106" />
         <location filename="../src/app/emision/SalidasConfig.cpp" line="+123" />
         <location line="+9" />
         <source>no hay una salida «%1»</source>
         <translation>нет выхода «%1»</translation>
     </message>
     <message>
-        <location line="-198" />
+        <location line="-221" />
         <source>para otra salida, pasá el servidor y la clave (o usá un destino guardado con esa salida)</source>
         <translation>для другого выхода передайте сервер и ключ (или используйте назначение, сохранённое для этого выхода)</translation>
     </message>
@@ -92979,7 +93363,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>`url`: rtmp://, rtmps://, srt:// или rist://</translation>
     </message>
     <message>
-        <location line="+27" />
+        <location line="+30" />
         <source>`modo` y `latencia_ms` son solo para srt://</source>
         <translation>`modo` и `latencia_ms` — только для srt://</translation>
     </message>
@@ -92994,7 +93378,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>`latencia_ms`: от 20 до 8000</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+38" />
         <location line="+16" />
         <source>Repetición: %1</source>
         <translation>Повтор: %1</translation>
@@ -94572,6 +94956,266 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+39" />
         <source>superresolución de «%1»: %2</source>
         <translation>сверхразрешение «%1»: %2</translation>
+    </message>
+</context>
+<context>
+    <name>vivos</name>
+    <message>
+        <location filename="../src/app/ui/VivosViewModel.cpp" line="+56" />
+        <source>recibe la señal</source>
+        <translation>получает сигнал</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>todavía sin señal</source>
+        <translation>сигнала пока нет</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>error en la ingesta</source>
+        <translation>ошибка приёма</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>salud excelente</source>
+        <translation>отличное состояние</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>salud buena</source>
+        <translation>хорошее состояние</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>salud mala: revisá el bitrate y la red</source>
+        <translation>плохое состояние: проверьте битрейт и сеть</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>sin datos de salud</source>
+        <translation>нет данных о состоянии</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>al aire en la plataforma</source>
+        <translation>в эфире на платформе</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>en prueba</source>
+        <translation>в тесте</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>el canal no está en vivo</source>
+        <translation>канал не в эфире</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>%1 mirando</source>
+        <translation>%1 смотрят</translation>
+    </message>
+    <message>
+        <location line="+174" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+157" />
+        <location line="+227" />
+        <source>No hay una plataforma «%1» (youtube, twitch o facebook).</source>
+        <translation>Нет платформы «%1» (youtube, twitch или facebook).</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La usa el destino «%1»: quitalo antes (o asignale otra cuenta).</source>
+        <translation>Его использует назначение «%1»: сначала удалите его (или назначьте ему другой аккаунт).</translation>
+    </message>
+    <message>
+        <location line="+32" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+3" />
+        <source>No hay una cuenta «%1» de %2 (cuentas_listar las lista).</source>
+        <translation>Нет аккаунта «%1» платформы %2 (cuentas_listar показывает список).</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+4" />
+        <source>Falta la app de %1: seguí account_setup_guide.</source>
+        <translation>Нет приложения %1: следуйте account_setup_guide.</translation>
+    </message>
+    <message>
+        <location line="+30" />
+        <source>Cuenta conectada: %1</source>
+        <translation>Аккаунт подключён: %1</translation>
+    </message>
+    <message>
+        <location line="+78" />
+        <source>Vivo creado: %1</source>
+        <translation>Трансляция создана: %1</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>A ese vivo ya le transmite la página de YouTube (la transmisión principal): cortala antes o elegí otro vivo.</source>
+        <translation>Страница YouTube уже вещает в эту трансляцию (основное вещание): сначала остановите его или выберите другую трансляцию.</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>Destino asignado: arrancalo desde la tarjeta de la salida.</source>
+        <translation>Назначение добавлено: запустите его с карточки выхода.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/vivos/PlataformasVivo.cpp" line="+150" />
+        <source>Ese vivo ya no existe en YouTube.</source>
+        <translation>Этой трансляции больше нет на YouTube.</translation>
+    </message>
+    <message>
+        <location line="+213" />
+        <source>Facebook no da la ingesta de ese vivo (¿ya terminó?).</source>
+        <translation>Facebook не даёт точку приёма для этой трансляции (она уже закончилась?).</translation>
+    </message>
+    <message>
+        <location filename="../src/app/vivos/Vivos.cpp" line="-311" />
+        <source>falta la app de la plataforma</source>
+        <translation>нет приложения платформы</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>esperando la autorización en el navegador</source>
+        <translation>ожидание авторизации в браузере</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>conectada</source>
+        <translation>подключён</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>conectada sin el permiso necesario: reautorizala</source>
+        <translation>подключён без нужного разрешения: авторизуйте заново</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>vencida: volvé a autorizarla</source>
+        <translation>истёк: авторизуйте заново</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>sin conectar</source>
+        <translation>не подключён</translation>
+    </message>
+    <message>
+        <location line="+37" />
+        <source>Principal</source>
+        <translation>Основной</translation>
+    </message>
+    <message>
+        <location line="+42" />
+        <source>Cuenta %1</source>
+        <translation>Аккаунт %1</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+11" />
+        <location line="+10" />
+        <source>No se pudo guardar la lista de cuentas.</source>
+        <translation>Не удалось сохранить список аккаунтов.</translation>
+    </message>
+    <message>
+        <location line="-14" />
+        <location line="+12" />
+        <source>No hay una cuenta «%1» de %2.</source>
+        <translation>Нет аккаунта «%1» платформы %2.</translation>
+    </message>
+    <message>
+        <location line="-11" />
+        <source>Falta el nombre.</source>
+        <translation>Не указано имя.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>La cuenta principal no se quita: desconectala (o conectá otra en su lugar).</source>
+        <translation>Основной аккаунт не удаляется: отключите его (или подключите другой вместо него).</translation>
+    </message>
+    <message>
+        <location line="+115" />
+        <source>Ese vivo ya es el destino «%1» de esta misma salida («%2»): no hace falta otro.</source>
+        <translation>Эта трансляция уже назначение «%1» этого же выхода («%2»): второе не нужно.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Ese vivo ya lo usa el destino «%1» de la salida «%2». Dos salidas al mismo vivo se pisan (la plataforma recibe dos señales en la misma clave): elegí otro vivo, creá uno nuevo o quitá ese destino primero.</source>
+        <translation>Эту трансляцию уже использует назначение «%1» выхода «%2». Два выхода в одну трансляцию мешают друг другу (платформа получает два сигнала на один ключ): выберите другую трансляцию, создайте новую или сначала удалите это назначение.</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>conectando</source>
+        <translation>подключение</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>en vivo</source>
+        <translation>в эфире</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>cortado, reintentando</source>
+        <translation>оборвалось, повтор</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>detenido</source>
+        <translation>остановлено</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Falta la plataforma (youtube, twitch, facebook) o la URL (rtmp://, srt://…).</source>
+        <translation>Не указана платформа (youtube, twitch, facebook) или URL (rtmp://, srt://…).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Falta la salida.</source>
+        <translation>Не указан выход.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Falta el vivo de %1: elegí uno de la lista (vivos_listar) o creá uno nuevo.</source>
+        <translation>Не указана трансляция %1: выберите из списка (vivos_listar) или создайте новую.</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>No hay una plataforma «%1».</source>
+        <translation>Нет платформы «%1».</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>`url`: rtmp://, rtmps://, srt:// o rist://</source>
+        <translation>`url`: rtmp://, rtmps://, srt:// или rist://</translation>
+    </message>
+    <message>
+        <location line="+39" />
+        <source>La cuenta «%1» de %2 está vencida: volvé a autorizarla (cuenta_conectar).</source>
+        <translation>Аккаунт «%1» платформы %2 истёк: авторизуйте заново (cuenta_conectar).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La cuenta «%1» de %2 no está conectada (cuenta_conectar).</source>
+        <translation>Аккаунт «%1» платформы %2 не подключён (cuenta_conectar).</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>No hay una salida «%1».</source>
+        <translation>Нет выхода «%1».</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>La plataforma no dio la ingesta.</source>
+        <translation>Платформа не дала точку приёма.</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>La plataforma no dio la dirección o la clave de ingesta.</source>
+        <translation>Платформа не дала адрес или ключ приёма.</translation>
+    </message>
+    <message>
+        <location line="+31" />
+        <source>Manda al mismo vivo que otro destino (salidas: %1): se pisan.</source>
+        <translation>Отправляет в ту же трансляцию, что и другое назначение (выходы: %1): они мешают друг другу.</translation>
     </message>
 </context>
 <context>

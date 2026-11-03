@@ -5339,7 +5339,9 @@ Recorrer la tira no cambia lo que se ve.</source>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n 人正在进入（每秒 %1 人）</numerusform></translation>
+        <translation>
+            <numerusform>%n 人正在进入（每秒 %1 人）</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -6483,9 +6485,101 @@ El PIN anterior deja de servir para entrar.</source>
     </message>
 </context>
 <context>
+    <name>CuentasPlataforma</name>
+    <message>
+        <location filename="../src/app/qml/controls/CuentasPlataforma.qml" line="+33" />
+        <source>Cuentas</source>
+        <translation>账号</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>La principal es la de esta página; todas se pueden elegir como destino de cualquier salida.</source>
+        <translation>主账号是本页面使用的账号；任何账号都可以选作任一输出的目标。</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Nombre de otra cuenta</source>
+        <translation>另一个账号的名称</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>+ Cuenta</source>
+        <translation>+ 账号</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Suma otra cuenta de esta plataforma (usa la misma app); después conectala</source>
+        <translation>添加此平台的另一个账号（使用同一个应用），然后再连接它</translation>
+    </message>
+    <message>
+        <location line="+31" />
+        <source>principal</source>
+        <translation>主账号</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+6" />
+        <source>Reautorizar</source>
+        <translation>重新授权</translation>
+    </message>
+    <message>
+        <location line="-6" />
+        <source>Conectar</source>
+        <translation>连接</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <location line="+10" />
+        <location line="+11" />
+        <source>Cancelar</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="-16" />
+        <location line="+5" />
+        <source>Desconectar</source>
+        <translation>断开</translation>
+    </message>
+    <message>
+        <location line="-2" />
+        <source>¿Desconectar «%1»?</source>
+        <translation>断开“%1”？</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se revoca el acceso en la plataforma y se borra el token guardado. Los destinos que la usan siguen con su clave.</source>
+        <translation>将在平台上撤销访问权限并删除已保存的令牌。使用它的目标仍保留各自的密钥。</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>¿Quitar «%1»?</source>
+        <translation>移除“%1”？</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se revoca su acceso, se borra su token y sale de la lista.</source>
+        <translation>将撤销其访问权限、删除其令牌并从列表中移除。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Quitar</source>
+        <translation>移除</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Quitar esta cuenta</source>
+        <translation>移除此账号</translation>
+    </message>
+</context>
+<context>
     <name>CuentasViewModel</name>
     <message>
-        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+130" />
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+136" />
         <location line="+6" />
         <source>El escáner de red no está disponible.</source>
         <translation>网络扫描器不可用。</translation>
@@ -7231,6 +7325,94 @@ Se prende desde el Registro.</source>
         <location line="+0" />
         <source>El PIN no va en el QR: pasalo aparte.</source>
         <translation>二维码中不含 PIN：请另行告知。</translation>
+    </message>
+</context>
+<context>
+    <name>DialogoVivo</name>
+    <message>
+        <location filename="../src/app/qml/controls/DialogoVivo.qml" line="+50" />
+        <source>Vivo de una cuenta</source>
+        <translation>账号的直播</translation>
+    </message>
+    <message>
+        <location line="+40" />
+        <source>Esta cuenta no tiene vivos programados: creá uno nuevo.</source>
+        <translation>此账号没有已安排的直播：请新建一个。</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>(sin título)</source>
+        <translation>（无标题）</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Título</source>
+        <translation>标题</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>p. ej. «Sesión ordinaria — audio original»</source>
+        <translation>例如“例会 — 原始音频”</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Privacidad</source>
+        <translation>隐私</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Privado</source>
+        <translation>私享</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>No listado</source>
+        <translation>不公开列出</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Público</source>
+        <translation>公开</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Inicio</source>
+        <translation>开始时间</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>ISO 8601 (vacío = ahora), p. ej. 2026-11-04T18:00:00-03:00</source>
+        <translation>ISO 8601（留空 = 现在），例如 2026-11-04T18:00:00-03:00</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Elegir uno existente</source>
+        <translation>选择已有的</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Crear uno nuevo…</source>
+        <translation>新建…</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cambiar el título…</source>
+        <translation>修改标题…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Cancelar</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Crear y asignar</source>
+        <translation>创建并分配</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Asignar</source>
+        <translation>分配</translation>
     </message>
 </context>
 <context>
@@ -11111,7 +11293,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>FacebookClient</name>
     <message>
-        <location filename="../src/app/facebook/FacebookClient.cpp" line="+97" />
+        <location filename="../src/app/facebook/FacebookClient.cpp" line="+109" />
         <source>No se pudo guardar en %1</source>
         <translation>无法保存到 %1</translation>
     </message>
@@ -11308,13 +11490,13 @@ Se prende desde el Registro.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+183" />
+        <location line="+191" />
         <location line="+52" />
         <source>Terminar</source>
         <translation>结束</translation>
     </message>
     <message>
-        <location line="-227" />
+        <location line="-235" />
         <source>¿Borrar «%1» de Facebook?</source>
         <translation>从 Facebook 删除「%1」？</translation>
     </message>
@@ -11340,21 +11522,21 @@ Se prende desde el Registro.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+226" />
+        <location line="+234" />
         <location line="+29" />
         <source>Borrar</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location line="-254" />
+        <location line="-262" />
         <location line="+38" />
-        <location line="+89" />
+        <location line="+97" />
         <location line="+6" />
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-112" />
+        <location line="-120" />
         <source>Página:</source>
         <translation>公共主页：</translation>
     </message>
@@ -11385,7 +11567,7 @@ Se prende desde el Registro.</source>
         <translation>将在 Facebook 上撤销访问权限并删除已保存的 token。</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+26" />
         <source>La API de Facebook permite transmitir y administrar videos en PÁGINAS (no en el perfil personal). Para usarla, creá una app de Meta propia (queda en modo desarrollo: solo vos la usás) — unos 5 minutos:</source>
         <translation>Facebook API 支持在公共主页（而非个人主页）上直播和管理视频。要使用它，请创建自己的 Meta 应用（保持开发模式：仅限您自己使用）— 约需 5 分钟：</translation>
     </message>
@@ -30510,7 +30692,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>没有已保存的连接方式：请在 设置 → 远程访问 中设置。</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>在等候室等候</translation>
     </message>
@@ -30538,7 +30720,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
 <context>
     <name>SalidasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/SalidasPage.qml" line="+61" />
+        <location filename="../src/app/qml/pages/SalidasPage.qml" line="+62" />
         <source>Pasarlos a «%1»</source>
         <translation>转到「%1」</translation>
     </message>
@@ -30566,12 +30748,12 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
     </message>
     <message>
         <location line="+13" />
-        <location line="+230" />
+        <location line="+254" />
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-228" />
+        <location line="-252" />
         <source>Borrar</source>
         <translation>删除</translation>
     </message>
@@ -30621,7 +30803,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>使用中的编码器：%1</translation>
     </message>
     <message>
-        <location line="+48" />
+        <location line="+47" />
         <source>por omisión</source>
         <translation>默认</translation>
     </message>
@@ -30712,12 +30894,12 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>此输出的视频编码器：从该输出下一次启动的内容（推流、目标或录制）起生效</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+6" />
         <source>Destinos</source>
         <translation>目标</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+11" />
         <source>Ninguno además de la transmisión principal.</source>
         <translation>除主推流外没有其他目标。</translation>
     </message>
@@ -30727,12 +30909,17 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>尚无目标：添加一个，此输出才能推流。</translation>
     </message>
     <message>
-        <location line="+12" />
+        <location line="+27" />
         <source>%1 · respaldo</source>
         <translation>%1 · 备用</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+2" />
+        <source>%1 kbps</source>
+        <translation>%1 kbps</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <location line="+6" />
         <source>Cortar</source>
         <translation>停止</translation>
@@ -30753,9 +30940,24 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>其他目标继续推流。</translation>
     </message>
     <message>
-        <location line="+11" />
-        <source>+ Destino…</source>
-        <translation>+ 目标…</translation>
+        <location line="+10" />
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>+ Vivo de una cuenta…</source>
+        <translation>+ 账号直播…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>YouTube, Twitch o Facebook: elegí la cuenta y el vivo (o creá uno)</source>
+        <translation>YouTube、Twitch 或 Facebook：选择账号和直播（或新建一个）</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>+ RTMP/SRT…</source>
+        <translation>+ RTMP/SRT…</translation>
     </message>
     <message>
         <location line="+4" />
@@ -33517,7 +33719,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>自动字幕条未能播出：%1</translation>
     </message>
     <message>
-        <location line="+273" />
+        <location line="+274" />
         <source>no contestó</source>
         <translation>无响应</translation>
     </message>
@@ -35050,7 +35252,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>TwitchClient</name>
     <message>
-        <location filename="../src/app/twitch/TwitchClient.cpp" line="+84" />
+        <location filename="../src/app/twitch/TwitchClient.cpp" line="+95" />
         <source>El Client ID de Twitch son unos 30 caracteres (lo muestra la consola de desarrolladores al administrar la app).</source>
         <translation>Twitch Client ID 约为 30 个字符（在开发者控制台管理应用时可见）。</translation>
     </message>
@@ -35190,7 +35392,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
     <message>
         <location line="+2" />
-        <location line="+96" />
+        <location line="+104" />
         <location line="+7" />
         <location line="+47" />
         <location line="+69" />
@@ -38063,7 +38265,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>YouTubeClient</name>
     <message>
-        <location filename="../src/app/youtube/YouTubeClient.cpp" line="+123" />
+        <location filename="../src/app/youtube/YouTubeClient.cpp" line="+133" />
         <source>Ese cliente es de tipo "Aplicacion web": crea uno de tipo "App de escritorio".</source>
         <translation>该客户端类型为 "Web 应用"：请创建一个类型为 "桌面应用" 的客户端。</translation>
     </message>
@@ -38113,7 +38315,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>YouTube 尚未收到视频：请从应用开始推流并等待几秒钟。</translation>
     </message>
     <message>
-        <location line="+99" />
+        <location line="+105" />
         <location line="+326" />
         <source>Sin conexión con YouTube: %1</source>
         <translation>无法连接 YouTube：%1</translation>
@@ -38134,7 +38336,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>无法连接 Google：%1</translation>
     </message>
     <message>
-        <location line="-234" />
+        <location line="-240" />
         <source>El cliente OAuth debe ser de tipo "App de escritorio".</source>
         <translation>OAuth 客户端类型必须为 "桌面应用"。</translation>
     </message>
@@ -38150,19 +38352,19 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+3" />
-        <location line="+369" />
+        <location line="+375" />
         <source>No existe ese video (o no es de este canal).</source>
         <translation>该视频不存在（或不属于此频道）。</translation>
     </message>
     <message>
-        <location line="-368" />
-        <location line="+549" />
+        <location line="-374" />
+        <location line="+555" />
         <location line="+68" />
         <source>No existe ese evento en vivo.</source>
         <translation>该直播活动不存在。</translation>
     </message>
     <message>
-        <location line="-616" />
+        <location line="-622" />
         <source>Llegaste al limite de subidas de YouTube por hoy.</source>
         <translation>今天已达到 YouTube 的上传上限。</translation>
     </message>
@@ -38183,7 +38385,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>未连接 YouTube 账户。</translation>
     </message>
     <message>
-        <location line="+106" />
+        <location line="+112" />
         <source>Falta configurar el cliente OAuth (ID y secreto de Google Cloud).</source>
         <translation>需要设置 OAuth 客户端（Google Cloud 的 ID 和密钥）。</translation>
     </message>
@@ -38267,30 +38469,30 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     <name>YouTubePage</name>
     <message>
         <location filename="../src/app/qml/pages/YouTubePage.qml" line="+18" />
-        <location line="+516" />
+        <location line="+524" />
         <location line="+19" />
         <location line="+22" />
         <source>Público</source>
         <translation>公开</translation>
     </message>
     <message>
-        <location line="-557" />
-        <location line="+516" />
+        <location line="-565" />
+        <location line="+524" />
         <location line="+19" />
         <location line="+22" />
         <source>No listado</source>
         <translation>不公开</translation>
     </message>
     <message>
-        <location line="-557" />
-        <location line="+516" />
+        <location line="-565" />
+        <location line="+524" />
         <location line="+19" />
         <location line="+22" />
         <source>Privado</source>
         <translation>私享</translation>
     </message>
     <message>
-        <location line="-556" />
+        <location line="-564" />
         <source>Creado</source>
         <translation>已创建</translation>
     </message>
@@ -38336,12 +38538,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+16" />
-        <location line="+365" />
+        <location line="+373" />
         <source>Actualizar</source>
         <translation>刷新</translation>
     </message>
     <message>
-        <location line="-364" />
+        <location line="-372" />
         <source>YouTube Studio</source>
         <translation>YouTube 工作室</translation>
     </message>
@@ -38363,7 +38565,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1" />
-        <location line="+145" />
+        <location line="+153" />
         <location line="+6" />
         <location line="+105" />
         <location line="+86" />
@@ -43974,7 +44176,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-885" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-886" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -50426,7 +50628,7 @@ Datos (de %2): %3</source>
         <translation>回放</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+540" />
+        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+564" />
         <location filename="../src/app/emision/VigiaDisco.cpp" line="-45" />
         <source>grabación</source>
         <translation>录制</translation>
@@ -55521,7 +55723,7 @@ Datos (de %2): %3</source>
 <context>
     <name>grabacion</name>
     <message>
-        <location filename="../src/app/arranque/ServicioEmision.cpp" line="-409" />
+        <location filename="../src/app/arranque/ServicioEmision.cpp" line="-432" />
         <source>la grabación no arrancó: %1</source>
         <translation>录制未启动：%1</translation>
     </message>
@@ -55758,7 +55960,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+919" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+920" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -59771,7 +59973,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>叠加在所有输出内容之上的垫片画面（"休会"、"马上回来"、"默哀一分钟"…），含 `texto`、可选的 `imagen`（路径）和淡入淡出 `ms`（600）。不依赖场景。在播时开启，如果由自动流程发起则需确认；关闭则不需要。应用崩溃后仍会保留。每个输出有自己的垫片画面（`salida`）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1327" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1328" />
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>如果应用停止心跳，守护程序会重新启动它。心跳来自界面，「以及」一个监视引擎帧的线程：如果界面卡住而引擎仍在运行，播出「不会」中断。界面卡住超过 `espera_ui_s`（10 到 3600，默认 60）且 `matar_si_ui_trabada_sin_aire`（默认 true）时，只有在没有推流和录制的情况下才会重启。「有」播出时界面卡住会产生一个不经界面发出的警报，发送到网页控制端以及 `notificar` 中的通知器（「todos」为默认，或 notificador_listar 中的 id 列表；[] = 无）。无参数时显示当前设置（含状态：motor_vivo、ui_viva、ui_trabada_ms、ultima_traba_ms）。</translation>
     </message>
@@ -62948,7 +63150,7 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+2" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2316" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2317" />
         <source>La herramienta fallo: %1</source>
         <translation>工具执行失败：%1</translation>
     </message>
@@ -66551,7 +66753,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+718" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+719" />
         <source>Escenas</source>
         <translation>场景</translation>
     </message>
@@ -73719,7 +73921,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>等待摄像头中看不到任何人。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4150" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4151" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>注意：会重启引擎。所有输出（节目、会场、屏幕、嘉宾看到的画面）会中断几秒，摄像机会重新打开。有推流或录制进行时不会应用。不要用它来修复摄像机：事先告诉操作员并请其确认。</translation>
     </message>
@@ -73799,7 +74001,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>请您亲自接待在等候室等待的人（id %1，登记为「%2」）。通过 `chat_send` 以对方为收件人在聊天中交谈，用一行话自我介绍，然后用中文每次问一个问题，询问：希望在屏幕上显示的姓名、职务或发言主题、希望在播出中如何介绍，以及断线时可联系的电话或邮箱。用 `invitados_chat_leer` 读取其回答。随着获得信息，用 `participant_profile` 填写其档案。全部拿到之后，在询问我「之前」，先通过 `chat_send` 告诉对方已经完成：例如「好了，信息都齐了。我交给制作团队，一有确认马上通知您」。对方看不到这里发生的任何事，对着摄像头默默等待、不知道是否有人在看，会让人觉得被晾在一边。之后再用 `operator_ask` 把信息一并展示给我（选项：「放行」和「暂不」），并传入带其姓名的 `photoOf`，这样卡片上会带有其照片。如果我回答「放行」，用 `participant_admit` 准入对方，「并」在聊天中告诉对方马上进入；否则让其继续等待，并礼貌地告知暂时还不行。无论结果如何「始终」要回复对方：沉默是最糟糕的回应。在此期间不要再问我任何事：自行处理。</translation>
     </message>
     <message>
-        <location line="+177" />
+        <location line="+178" />
         <source>«tapado»</source>
         <translation>「已隐去」</translation>
     </message>
@@ -80265,6 +80467,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+7" />
+        <location filename="../src/app/mcp/McpVivosTools.cpp" line="+306" />
         <source>Id o nombre de la salida (salidas_listar).</source>
         <translation>输出的 id 或名称（salidas_listar）。</translation>
     </message>
@@ -80590,6 +80793,131 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+24" />
         <source>Todavía no hay un resultado de ese tipo (capacidad_arrancar).</source>
         <translation>尚无此类结果（capacidad_arrancar）。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mcp/McpVivosTools.cpp" line="-270" />
+        <source>La plataforma.</source>
+        <translation>平台。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>El id de la cuenta (cuentas_listar); sin ella, la principal.</source>
+        <translation>账号 id（cuentas_listar）；不填则为主账号。</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Las cuentas de cada plataforma</source>
+        <translation>各平台的账号</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Las cuentas de YouTube, Twitch y Facebook del aparato (puede haber varias por plataforma; la «principal» es la de la página de la plataforma), con su `estado`: conectada, sin_conectar, conectando, vencida (hay que reautorizarla con cuenta_conectar), sin_permiso (reautorizar) o sin_app (falta la app de la plataforma: account_setup_guide). Nunca devuelve secretos. `plataforma` filtra.</source>
+        <translation>设备上的 YouTube、Twitch 和 Facebook 账号（每个平台可以有多个；«principal» 是平台页面使用的账号），及其 `estado`：conectada、sin_conectar、conectando、vencida（用 cuenta_conectar 重新授权）、sin_permiso（重新授权）或 sin_app（缺少平台应用：account_setup_guide）。从不返回密钥。`plataforma` 用于筛选。</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Agregar una cuenta de una plataforma</source>
+        <translation>添加平台账号</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Suma otra cuenta de YouTube, Twitch o Facebook (otro canal, otra Página) con el `nombre` que verá el operador. Usa la misma app de la plataforma que la principal. Con `conectar: true` abre ya el navegador para que la PERSONA elija esa cuenta y autorice (después, cuentas_listar dice si quedó conectada). Devuelve su `id`.</source>
+        <translation>添加另一个 YouTube、Twitch 或 Facebook 账号（另一个频道、另一个主页），`nombre` 为操作员看到的名称。使用与主账号相同的平台应用。`conectar: true` 时立即打开浏览器，由“人”选择该账号并授权（之后用 cuentas_listar 查看是否已连接）。返回其 `id`。</translation>
+    </message>
+    <message>
+        <location line="+24" />
+        <source>Cambiar el nombre de una cuenta</source>
+        <translation>重命名账号</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Cambia el nombre con el que el operador ve una cuenta (no toca nada en la plataforma).</source>
+        <translation>修改操作员看到的账号名称（不改动平台上的任何内容）。</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Quitar una cuenta</source>
+        <translation>移除账号</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Revoca el acceso de esa cuenta, borra su token y la saca de la lista. La principal no se quita (se desconecta con &lt;plataforma&gt;_logout). Si algún destino de este evento la usa, no se quita: quitá o reasigná ese destino antes. Preguntale al operador.</source>
+        <translation>撤销该账号的访问权限、删除其令牌并从列表中移除。主账号不能移除（用 &lt;plataforma&gt;_logout 断开）。如果本活动的某个目标正在使用它，则不会移除：请先移除或重新分配该目标。先询问操作员。</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Conectar o reautorizar una cuenta</source>
+        <translation>连接或重新授权账号</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Abre el navegador de esta máquina para que la PERSONA elija esa cuenta y la autorice (también para reautorizar una vencida o sin permiso). En Twitch se abre twitch.tv/activate con el código ya cargado. Con `wait: true` espera a que termine (máx. 5 min); si no, vuelve enseguida y cuentas_listar dice cuándo quedó conectada.</source>
+        <translation>打开本机的浏览器，由“人”选择该账号并授权（也用于重新授权已过期或缺少权限的账号）。Twitch 会打开已填好代码的 twitch.tv/activate。`wait: true` 时等待完成（最长 5 分钟）；否则立即返回，之后用 cuentas_listar 查看何时已连接。</translation>
+    </message>
+    <message>
+        <location line="+28" />
+        <source>Se abrió el navegador: la persona elige la cuenta y acepta. Después, cuentas_listar.</source>
+        <translation>浏览器已打开：由人选择账号并同意。之后调用 cuentas_listar。</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Los vivos de una cuenta</source>
+        <translation>账号的直播</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Los vivos programados o activos de una cuenta (YouTube: liveBroadcasts; Facebook: los live_videos de la Página que todavía reciben señal): id, titulo, estado, privacidad, inicio, url. En Twitch el vivo es el canal (uno solo, id vacío). El `id` es el que pide salida_destino_asignar.</source>
+        <translation>账号已安排或正在进行的直播（YouTube：liveBroadcasts；Facebook：主页中仍可接收信号的 live_videos）：id、titulo、estado、privacidad、inicio、url。在 Twitch 上直播就是频道（只有一个，id 为空）。`id` 就是 salida_destino_asignar 所需的值。</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Crear un vivo en una cuenta</source>
+        <translation>在账号中创建直播</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Crea un vivo en la cuenta (YouTube: liveBroadcast + su stream, privado si no se dice; Facebook: un live_video en prueba, o público con privacidad «public»; Twitch: le pone el título al canal). No transmite nada. Con `salida` además lo asigna como destino de esa salida (como salida_destino_asignar).</source>
+        <translation>在账号中创建直播（YouTube：liveBroadcast 及其推流，未指定时为私享；Facebook：测试状态的 live_video，隐私为 «public» 时公开；Twitch：设置频道标题）。不会推送任何内容。带 `salida` 时还会将其分配为该输出的目标（同 salida_destino_asignar）。</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>ISO 8601 (por omisión, ahora).</source>
+        <translation>ISO 8601（默认：现在）。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Id o nombre de la salida a la que asignarlo.</source>
+        <translation>要分配到的输出的 id 或名称。</translation>
+    </message>
+    <message>
+        <location line="+29" />
+        <source>El vivo se creó pero no se pudo asignar: %1</source>
+        <translation>直播已创建，但无法分配：%1</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Asignar un vivo o un destino a una salida</source>
+        <translation>将直播或目标分配给输出</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Un destino más de la salida (`salida`; sin ella, la de quien llama o la por omisión): el vivo `vivo` (vivos_listar) de la cuenta `cuenta` de `plataforma` (en Twitch, sin `vivo`: el canal), o uno genérico con `url` (rtmp://, rtmps://, srt://, rist://) y `clave` (va cifrada). Pide la ingesta a la plataforma (en YouTube enlaza un stream si el vivo no tiene) y queda guardado como los demás destinos (vuelve tras un corte de luz). No lo arranca: stream_start con `destino` (su id). Si otro destino (de esta u otra salida) ya manda a ese vivo, no se asigna y el error dice cuál. Con `id` reemplaza a ese destino.</source>
+        <translation>为输出（`salida`；不填则为调用方的或默认输出）再加一个目标：`plataforma` 的账号 `cuenta` 中的直播 `vivo`（vivos_listar）（Twitch 上不填 `vivo`：即频道），或使用 `url`（rtmp://、rtmps://、srt://、rist://）和 `clave`（加密保存）的通用目标。向平台获取推流地址（YouTube 上如直播没有推流则绑定一个），并像其他目标一样保存（断电后会恢复）。不会启动它：用 stream_start 加 `destino`（其 id）。如果已有其他目标（本输出或其他输出）推送到该直播，则不分配，错误信息会说明是哪个。带 `id` 时替换该目标。</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>El destino a reemplazar (stream_destinos).</source>
+        <translation>要替换的目标（stream_destinos）。</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>Estado de cada destino</source>
+        <translation>每个目标的状态</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Cada destino (de todas las salidas, o de `salida`) con su plataforma, cuenta y vivo, su `estado` (detenido, conectando, en_vivo, reintentando), el bitrate que sale (`kbps`), la salud que informa la plataforma (`salud`: en YouTube estado_stream y salud good/ok/bad; espectadores en Twitch y Facebook) y `choque` si manda al mismo vivo que otro.</source>
+        <translation>每个目标（所有输出的，或 `salida` 的）及其平台、账号和直播、`estado`（detenido、conectando、en_vivo、reintentando）、输出码率（`kbps`）、平台报告的健康状况（`salud`：YouTube 为 estado_stream 和 salud good/ok/bad；Twitch 和 Facebook 为观众数），以及与其他目标推送到同一直播时的 `choque`。</translation>
     </message>
 </context>
 <context>
@@ -81601,6 +81929,60 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>renombrar salida color de la salida nombre de la salida tope de salidas cambiar salida</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>重命名输出 输出颜色 输出名称 输出上限 修改输出</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>cuentas varias cuentas canales paginas youtube twitch facebook conectada vencida otra cuenta segundo canal</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>账号 多个账号 频道 主页 youtube twitch facebook 已连接 已过期 另一个账号 第二个频道</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>agregar cuenta otra cuenta segundo canal otro canal de youtube otra pagina de facebook sumar cuenta</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>添加账号 另一个账号 第二个频道 另一个 youtube 频道 另一个 facebook 主页</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>renombrar cuenta nombre de la cuenta cambiar nombre canal</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>重命名账号 账号名称 改名 频道</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>quitar cuenta borrar cuenta sacar canal revocar acceso olvidar cuenta</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>移除账号 删除账号 移除频道 撤销访问 忘记账号</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>conectar cuenta reautorizar vencida autorizar permiso login otra cuenta iniciar sesion</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>连接账号 重新授权 已过期 授权 权限 登录 另一个账号</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>vivos transmisiones programadas eventos en vivo de la cuenta liveBroadcasts directos programados</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>直播 已安排的直播 账号的直播活动 liveBroadcasts 预定直播</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>crear vivo nueva transmision programar directo evento en vivo en otra cuenta</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>创建直播 新直播 安排直播 在另一个账号中直播</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>asignar destino a la salida elegir vivo cuenta para la salida mandar salida a youtube twitch facebook rtmp srt</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>为输出分配目标 选择直播 输出使用的账号 推送输出到 youtube twitch facebook rtmp srt</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>estado destinos salud del vivo bitrate en vivo conectando reintentando por salida streamStatus healthStatus</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>目标状态 直播健康 码率 直播中 连接中 重试中 按输出 streamStatus healthStatus</translation>
     </message>
     <message>
         <location line="+2" />
@@ -92572,14 +92954,14 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location filename="../src/app/arranque/ServicioEmision.cpp" line="-97" />
         <location line="+128" />
         <location line="+124" />
-        <location line="+83" />
+        <location line="+106" />
         <location filename="../src/app/emision/SalidasConfig.cpp" line="+123" />
         <location line="+9" />
         <source>no hay una salida «%1»</source>
         <translation>不存在输出「%1」</translation>
     </message>
     <message>
-        <location line="-198" />
+        <location line="-221" />
         <source>para otra salida, pasá el servidor y la clave (o usá un destino guardado con esa salida)</source>
         <translation>对于其他输出，请提供服务器和密钥（或使用该输出已保存的目标）</translation>
     </message>
@@ -92609,7 +92991,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>`url`：rtmp://、rtmps://、srt:// 或 rist://</translation>
     </message>
     <message>
-        <location line="+27" />
+        <location line="+30" />
         <source>`modo` y `latencia_ms` son solo para srt://</source>
         <translation>`modo` 和 `latencia_ms` 仅适用于 srt://</translation>
     </message>
@@ -92624,7 +93006,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>`latencia_ms`：20 到 8000 之间</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+38" />
         <location line="+16" />
         <source>Repetición: %1</source>
         <translation>回放：%1</translation>
@@ -94202,6 +94584,266 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <location line="+39" />
         <source>superresolución de «%1»: %2</source>
         <translation>「%1」的超分辨率：%2</translation>
+    </message>
+</context>
+<context>
+    <name>vivos</name>
+    <message>
+        <location filename="../src/app/ui/VivosViewModel.cpp" line="+56" />
+        <source>recibe la señal</source>
+        <translation>正在接收信号</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>todavía sin señal</source>
+        <translation>尚无信号</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>error en la ingesta</source>
+        <translation>推流接收出错</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>salud excelente</source>
+        <translation>状况极佳</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>salud buena</source>
+        <translation>状况良好</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>salud mala: revisá el bitrate y la red</source>
+        <translation>状况不佳：请检查码率和网络</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>sin datos de salud</source>
+        <translation>无健康数据</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>al aire en la plataforma</source>
+        <translation>已在平台上直播</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>en prueba</source>
+        <translation>测试中</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>el canal no está en vivo</source>
+        <translation>频道未在直播</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>%1 mirando</source>
+        <translation>%1 人观看</translation>
+    </message>
+    <message>
+        <location line="+174" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+157" />
+        <location line="+227" />
+        <source>No hay una plataforma «%1» (youtube, twitch o facebook).</source>
+        <translation>没有平台“%1”（youtube、twitch 或 facebook）。</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La usa el destino «%1»: quitalo antes (o asignale otra cuenta).</source>
+        <translation>目标“%1”正在使用它：请先移除该目标（或为其分配另一个账号）。</translation>
+    </message>
+    <message>
+        <location line="+32" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+3" />
+        <source>No hay una cuenta «%1» de %2 (cuentas_listar las lista).</source>
+        <translation>没有 %2 账号“%1”（cuentas_listar 可列出）。</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+4" />
+        <source>Falta la app de %1: seguí account_setup_guide.</source>
+        <translation>缺少 %1 应用：请按 account_setup_guide 操作。</translation>
+    </message>
+    <message>
+        <location line="+30" />
+        <source>Cuenta conectada: %1</source>
+        <translation>账号已连接：%1</translation>
+    </message>
+    <message>
+        <location line="+78" />
+        <source>Vivo creado: %1</source>
+        <translation>直播已创建：%1</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>A ese vivo ya le transmite la página de YouTube (la transmisión principal): cortala antes o elegí otro vivo.</source>
+        <translation>YouTube 页面已在向该直播推流（主推流）：请先停止，或选择其他直播。</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>Destino asignado: arrancalo desde la tarjeta de la salida.</source>
+        <translation>目标已分配：请在输出卡片上启动它。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/vivos/PlataformasVivo.cpp" line="+150" />
+        <source>Ese vivo ya no existe en YouTube.</source>
+        <translation>该直播在 YouTube 上已不存在。</translation>
+    </message>
+    <message>
+        <location line="+213" />
+        <source>Facebook no da la ingesta de ese vivo (¿ya terminó?).</source>
+        <translation>Facebook 未提供该直播的推流地址（是否已结束？）。</translation>
+    </message>
+    <message>
+        <location filename="../src/app/vivos/Vivos.cpp" line="-311" />
+        <source>falta la app de la plataforma</source>
+        <translation>缺少平台应用</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>esperando la autorización en el navegador</source>
+        <translation>正在等待浏览器中的授权</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>conectada</source>
+        <translation>已连接</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>conectada sin el permiso necesario: reautorizala</source>
+        <translation>已连接但缺少所需权限：请重新授权</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>vencida: volvé a autorizarla</source>
+        <translation>已过期：请重新授权</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>sin conectar</source>
+        <translation>未连接</translation>
+    </message>
+    <message>
+        <location line="+37" />
+        <source>Principal</source>
+        <translation>主账号</translation>
+    </message>
+    <message>
+        <location line="+42" />
+        <source>Cuenta %1</source>
+        <translation>账号 %1</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+11" />
+        <location line="+10" />
+        <source>No se pudo guardar la lista de cuentas.</source>
+        <translation>无法保存账号列表。</translation>
+    </message>
+    <message>
+        <location line="-14" />
+        <location line="+12" />
+        <source>No hay una cuenta «%1» de %2.</source>
+        <translation>没有 %2 账号“%1”。</translation>
+    </message>
+    <message>
+        <location line="-11" />
+        <source>Falta el nombre.</source>
+        <translation>缺少名称。</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>La cuenta principal no se quita: desconectala (o conectá otra en su lugar).</source>
+        <translation>主账号不能移除：请断开它（或改连接另一个账号）。</translation>
+    </message>
+    <message>
+        <location line="+115" />
+        <source>Ese vivo ya es el destino «%1» de esta misma salida («%2»): no hace falta otro.</source>
+        <translation>该直播已是本输出（“%2”）的目标“%1”：无需再加。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Ese vivo ya lo usa el destino «%1» de la salida «%2». Dos salidas al mismo vivo se pisan (la plataforma recibe dos señales en la misma clave): elegí otro vivo, creá uno nuevo o quitá ese destino primero.</source>
+        <translation>该直播已被输出“%2”的目标“%1”使用。两个输出推送到同一直播会互相覆盖（平台在同一密钥上收到两路信号）：请选择其他直播、新建一个，或先移除该目标。</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>conectando</source>
+        <translation>连接中</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>en vivo</source>
+        <translation>直播中</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>cortado, reintentando</source>
+        <translation>已中断，正在重试</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>detenido</source>
+        <translation>已停止</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Falta la plataforma (youtube, twitch, facebook) o la URL (rtmp://, srt://…).</source>
+        <translation>缺少平台（youtube、twitch、facebook）或 URL（rtmp://、srt://…）。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Falta la salida.</source>
+        <translation>缺少输出。</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Falta el vivo de %1: elegí uno de la lista (vivos_listar) o creá uno nuevo.</source>
+        <translation>缺少 %1 直播：请从列表中选择（vivos_listar）或新建一个。</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>No hay una plataforma «%1».</source>
+        <translation>没有平台“%1”。</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>`url`: rtmp://, rtmps://, srt:// o rist://</source>
+        <translation>`url`：rtmp://、rtmps://、srt:// 或 rist://</translation>
+    </message>
+    <message>
+        <location line="+39" />
+        <source>La cuenta «%1» de %2 está vencida: volvé a autorizarla (cuenta_conectar).</source>
+        <translation>%2 账号“%1”已过期：请重新授权（cuenta_conectar）。</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La cuenta «%1» de %2 no está conectada (cuenta_conectar).</source>
+        <translation>%2 账号“%1”未连接（cuenta_conectar）。</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>No hay una salida «%1».</source>
+        <translation>没有输出“%1”。</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>La plataforma no dio la ingesta.</source>
+        <translation>平台未提供推流地址。</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>La plataforma no dio la dirección o la clave de ingesta.</source>
+        <translation>平台未提供推流地址或密钥。</translation>
+    </message>
+    <message>
+        <location line="+31" />
+        <source>Manda al mismo vivo que otro destino (salidas: %1): se pisan.</source>
+        <translation>与另一个目标推送到同一直播（输出：%1）：会互相覆盖。</translation>
     </message>
 </context>
 <context>

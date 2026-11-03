@@ -1240,7 +1240,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SalidasPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/SalidasPage.qml" line="+86"/>
+        <location filename="../src/app/qml/pages/SalidasPage.qml" line="+87"/>
         <source>Tiene %n destino guardado: ¿qué pasa con él?</source>
         <translation>
             <numerusform>Tiene %n destino guardado: ¿qué pasa con él?</numerusform>
@@ -1452,7 +1452,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+216"/>
+        <location line="+224"/>
         <source>%n vista</source>
         <translation>
             <numerusform>%n vista</numerusform>
@@ -1504,7 +1504,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>YouTubePage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/YouTubePage.qml" line="+292"/>
+        <location filename="../src/app/qml/pages/YouTubePage.qml" line="+300"/>
         <source>%n vista</source>
         <translation>
             <numerusform>%n vista</numerusform>

@@ -5369,7 +5369,10 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n en train d'entrer (%1 par seconde)</numerusform><numerusform>%n en train d'entrer (%1 par seconde)</numerusform></translation>
+        <translation>
+            <numerusform>%n en train d'entrer (%1 par seconde)</numerusform>
+            <numerusform>%n en train d'entrer (%1 par seconde)</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -6517,9 +6520,101 @@ L'ancien PIN ne permet plus d'entrer.</translation>
     </message>
 </context>
 <context>
+    <name>CuentasPlataforma</name>
+    <message>
+        <location filename="../src/app/qml/controls/CuentasPlataforma.qml" line="+33" />
+        <source>Cuentas</source>
+        <translation>Comptes</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>La principal es la de esta página; todas se pueden elegir como destino de cualquier salida.</source>
+        <translation>Le principal est celui de cette page ; tous peuvent être choisis comme destination de n'importe quelle sortie.</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Nombre de otra cuenta</source>
+        <translation>Nom d'un autre compte</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>+ Cuenta</source>
+        <translation>+ Compte</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Suma otra cuenta de esta plataforma (usa la misma app); después conectala</source>
+        <translation>Ajoute un autre compte de cette plateforme (même application) ; connectez-le ensuite</translation>
+    </message>
+    <message>
+        <location line="+31" />
+        <source>principal</source>
+        <translation>principal</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+6" />
+        <source>Reautorizar</source>
+        <translation>Réautoriser</translation>
+    </message>
+    <message>
+        <location line="-6" />
+        <source>Conectar</source>
+        <translation>Connecter</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <location line="+10" />
+        <location line="+11" />
+        <source>Cancelar</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <location line="-16" />
+        <location line="+5" />
+        <source>Desconectar</source>
+        <translation>Déconnecter</translation>
+    </message>
+    <message>
+        <location line="-2" />
+        <source>¿Desconectar «%1»?</source>
+        <translation>Déconnecter « %1 » ?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se revoca el acceso en la plataforma y se borra el token guardado. Los destinos que la usan siguen con su clave.</source>
+        <translation>L'accès est révoqué sur la plateforme et le jeton enregistré est supprimé. Les destinations qui l'utilisent gardent leur clé.</translation>
+    </message>
+    <message>
+        <location line="+10" />
+        <source>¿Quitar «%1»?</source>
+        <translation>Retirer « %1 » ?</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Se revoca su acceso, se borra su token y sale de la lista.</source>
+        <translation>Son accès est révoqué, son jeton supprimé et il quitte la liste.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Quitar</source>
+        <translation>Retirer</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Quitar esta cuenta</source>
+        <translation>Retirer ce compte</translation>
+    </message>
+</context>
+<context>
     <name>CuentasViewModel</name>
     <message>
-        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+130" />
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+136" />
         <location line="+6" />
         <source>El escáner de red no está disponible.</source>
         <translation>Le scanner réseau n'est pas disponible.</translation>
@@ -7265,6 +7360,94 @@ Réactivez-la depuis le Journal.</translation>
         <location line="+0" />
         <source>El PIN no va en el QR: pasalo aparte.</source>
         <translation>Le PIN n'est pas dans le QR : transmettez-le à part.</translation>
+    </message>
+</context>
+<context>
+    <name>DialogoVivo</name>
+    <message>
+        <location filename="../src/app/qml/controls/DialogoVivo.qml" line="+50" />
+        <source>Vivo de una cuenta</source>
+        <translation>Direct d'un compte</translation>
+    </message>
+    <message>
+        <location line="+40" />
+        <source>Esta cuenta no tiene vivos programados: creá uno nuevo.</source>
+        <translation>Ce compte n'a aucun direct programmé : créez-en un.</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>(sin título)</source>
+        <translation>(sans titre)</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Título</source>
+        <translation>Titre</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>p. ej. «Sesión ordinaria — audio original»</source>
+        <translation>p. ex. « Séance ordinaire — audio original »</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Privacidad</source>
+        <translation>Confidentialité</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Privado</source>
+        <translation>Privé</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>No listado</source>
+        <translation>Non répertorié</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Público</source>
+        <translation>Public</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Inicio</source>
+        <translation>Début</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>ISO 8601 (vacío = ahora), p. ej. 2026-11-04T18:00:00-03:00</source>
+        <translation>ISO 8601 (vide = maintenant), p. ex. 2026-11-04T18:00:00-03:00</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Elegir uno existente</source>
+        <translation>Choisir un existant</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Crear uno nuevo…</source>
+        <translation>En créer un…</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cambiar el título…</source>
+        <translation>Changer le titre…</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Cancelar</source>
+        <translation>Annuler</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Crear y asignar</source>
+        <translation>Créer et attribuer</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Asignar</source>
+        <translation>Attribuer</translation>
     </message>
 </context>
 <context>
@@ -11160,7 +11343,7 @@ Réactivez-la depuis le Journal.</translation>
 <context>
     <name>FacebookClient</name>
     <message>
-        <location filename="../src/app/facebook/FacebookClient.cpp" line="+97" />
+        <location filename="../src/app/facebook/FacebookClient.cpp" line="+109" />
         <source>No se pudo guardar en %1</source>
         <translation>Impossible d'enregistrer dans %1</translation>
     </message>
@@ -11357,13 +11540,13 @@ Réactivez-la depuis le Journal.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+183" />
+        <location line="+191" />
         <location line="+52" />
         <source>Terminar</source>
         <translation>Terminer</translation>
     </message>
     <message>
-        <location line="-227" />
+        <location line="-235" />
         <source>¿Borrar «%1» de Facebook?</source>
         <translation>Supprimer « %1 » de Facebook ?</translation>
     </message>
@@ -11389,21 +11572,21 @@ Réactivez-la depuis le Journal.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+226" />
+        <location line="+234" />
         <location line="+29" />
         <source>Borrar</source>
         <translation>Supprimer</translation>
     </message>
     <message>
-        <location line="-254" />
+        <location line="-262" />
         <location line="+38" />
-        <location line="+89" />
+        <location line="+97" />
         <location line="+6" />
         <source>Cancelar</source>
         <translation>Annuler</translation>
     </message>
     <message>
-        <location line="-112" />
+        <location line="-120" />
         <source>Página:</source>
         <translation>Page :</translation>
     </message>
@@ -11434,7 +11617,7 @@ Réactivez-la depuis le Journal.</translation>
         <translation>L'accès est révoqué sur Facebook et le jeton enregistré est supprimé.</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+26" />
         <source>La API de Facebook permite transmitir y administrar videos en PÁGINAS (no en el perfil personal). Para usarla, creá una app de Meta propia (queda en modo desarrollo: solo vos la usás) — unos 5 minutos:</source>
         <translation>L'API Facebook permet de diffuser et de gérer des vidéos sur des PAGES (pas sur un profil personnel). Pour l'utiliser, créez votre propre app Meta (elle reste en mode développement : vous seul l'utilisez) — environ 5 minutes :</translation>
     </message>
@@ -30642,7 +30825,7 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
         <translation>Aucun moyen de connexion enregistré : configurez-en un dans Paramètres → Accès à distance.</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>en salle d'attente</translation>
     </message>
@@ -30670,7 +30853,7 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
 <context>
     <name>SalidasPage</name>
     <message>
-        <location filename="../src/app/qml/pages/SalidasPage.qml" line="+61" />
+        <location filename="../src/app/qml/pages/SalidasPage.qml" line="+62" />
         <source>Pasarlos a «%1»</source>
         <translation>Les passer à « %1 »</translation>
     </message>
@@ -30699,12 +30882,12 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
     </message>
     <message>
         <location line="+13" />
-        <location line="+230" />
+        <location line="+254" />
         <source>Cancelar</source>
         <translation>Annuler</translation>
     </message>
     <message>
-        <location line="-228" />
+        <location line="-252" />
         <source>Borrar</source>
         <translation>Supprimer</translation>
     </message>
@@ -30754,7 +30937,7 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
         <translation>Encodeur utilisé : %1</translation>
     </message>
     <message>
-        <location line="+48" />
+        <location line="+47" />
         <source>por omisión</source>
         <translation>par défaut</translation>
     </message>
@@ -30845,12 +31028,12 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
         <translation>L'encodeur vidéo de cette sortie : il s'applique à ce qui y démarrera ensuite (diffusion, destination ou enregistrement)</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+6" />
         <source>Destinos</source>
         <translation>Destinations</translation>
     </message>
     <message>
-        <location line="+4" />
+        <location line="+11" />
         <source>Ninguno además de la transmisión principal.</source>
         <translation>Aucune en plus de la diffusion principale.</translation>
     </message>
@@ -30860,12 +31043,17 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
         <translation>Aucune pour l'instant : ajoutez-en une pour que cette sortie diffuse.</translation>
     </message>
     <message>
-        <location line="+12" />
+        <location line="+27" />
         <source>%1 · respaldo</source>
         <translation>%1 · secours</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+2" />
+        <source>%1 kbps</source>
+        <translation>%1 kbit/s</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <location line="+6" />
         <source>Cortar</source>
         <translation>Couper</translation>
@@ -30886,9 +31074,24 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
         <translation>Les autres destinations continuent.</translation>
     </message>
     <message>
-        <location line="+11" />
-        <source>+ Destino…</source>
-        <translation>+ Destination…</translation>
+        <location line="+10" />
+        <source>%1 · %2</source>
+        <translation>%1 · %2</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>+ Vivo de una cuenta…</source>
+        <translation>+ Direct d'un compte…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>YouTube, Twitch o Facebook: elegí la cuenta y el vivo (o creá uno)</source>
+        <translation>YouTube, Twitch ou Facebook : choisissez le compte et le direct (ou créez-en un)</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>+ RTMP/SRT…</source>
+        <translation>+ RTMP/SRT…</translation>
     </message>
     <message>
         <location line="+4" />
@@ -33662,7 +33865,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Un synthé automatique n'est pas passé : %1</translation>
     </message>
     <message>
-        <location line="+273" />
+        <location line="+274" />
         <source>no contestó</source>
         <translation>n'a pas répondu</translation>
     </message>
@@ -35203,7 +35406,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
 <context>
     <name>TwitchClient</name>
     <message>
-        <location filename="../src/app/twitch/TwitchClient.cpp" line="+84" />
+        <location filename="../src/app/twitch/TwitchClient.cpp" line="+95" />
         <source>El Client ID de Twitch son unos 30 caracteres (lo muestra la consola de desarrolladores al administrar la app).</source>
         <translation>Le Client ID de Twitch fait environ 30 caractères (la console des développeurs l'affiche quand vous gérez l'app).</translation>
     </message>
@@ -35344,7 +35547,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
     </message>
     <message>
         <location line="+2" />
-        <location line="+96" />
+        <location line="+104" />
         <location line="+7" />
         <location line="+47" />
         <location line="+69" />
@@ -38222,7 +38425,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
 <context>
     <name>YouTubeClient</name>
     <message>
-        <location filename="../src/app/youtube/YouTubeClient.cpp" line="+123" />
+        <location filename="../src/app/youtube/YouTubeClient.cpp" line="+133" />
         <source>Ese cliente es de tipo "Aplicacion web": crea uno de tipo "App de escritorio".</source>
         <translation>Ce client est de type "Application Web" : créez-en un de type "Application de bureau".</translation>
     </message>
@@ -38272,7 +38475,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>YouTube ne reçoit pas encore de vidéo : lancez la diffusion depuis l'app et attendez quelques secondes.</translation>
     </message>
     <message>
-        <location line="+99" />
+        <location line="+105" />
         <location line="+326" />
         <source>Sin conexión con YouTube: %1</source>
         <translation>Pas de connexion avec YouTube : %1</translation>
@@ -38293,7 +38496,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Pas de connexion avec Google : %1</translation>
     </message>
     <message>
-        <location line="-234" />
+        <location line="-240" />
         <source>El cliente OAuth debe ser de tipo "App de escritorio".</source>
         <translation>Le client OAuth doit être de type "Application de bureau".</translation>
     </message>
@@ -38309,19 +38512,19 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+3" />
-        <location line="+369" />
+        <location line="+375" />
         <source>No existe ese video (o no es de este canal).</source>
         <translation>Cette vidéo n'existe pas (ou n'appartient pas à cette chaîne).</translation>
     </message>
     <message>
-        <location line="-368" />
-        <location line="+549" />
+        <location line="-374" />
+        <location line="+555" />
         <location line="+68" />
         <source>No existe ese evento en vivo.</source>
         <translation>Cet événement en direct n'existe pas.</translation>
     </message>
     <message>
-        <location line="-616" />
+        <location line="-622" />
         <source>Llegaste al limite de subidas de YouTube por hoy.</source>
         <translation>Vous avez atteint la limite de mises en ligne YouTube pour aujourd'hui.</translation>
     </message>
@@ -38342,7 +38545,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Aucun compte YouTube connecté.</translation>
     </message>
     <message>
-        <location line="+106" />
+        <location line="+112" />
         <source>Falta configurar el cliente OAuth (ID y secreto de Google Cloud).</source>
         <translation>Le client OAuth reste à configurer (ID et secret de Google Cloud).</translation>
     </message>
@@ -38426,30 +38629,30 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     <name>YouTubePage</name>
     <message>
         <location filename="../src/app/qml/pages/YouTubePage.qml" line="+18" />
-        <location line="+516" />
+        <location line="+524" />
         <location line="+19" />
         <location line="+22" />
         <source>Público</source>
         <translation>Public</translation>
     </message>
     <message>
-        <location line="-557" />
-        <location line="+516" />
+        <location line="-565" />
+        <location line="+524" />
         <location line="+19" />
         <location line="+22" />
         <source>No listado</source>
         <translation>Non répertorié</translation>
     </message>
     <message>
-        <location line="-557" />
-        <location line="+516" />
+        <location line="-565" />
+        <location line="+524" />
         <location line="+19" />
         <location line="+22" />
         <source>Privado</source>
         <translation>Privé</translation>
     </message>
     <message>
-        <location line="-556" />
+        <location line="-564" />
         <source>Creado</source>
         <translation>Créé</translation>
     </message>
@@ -38495,12 +38698,12 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+16" />
-        <location line="+365" />
+        <location line="+373" />
         <source>Actualizar</source>
         <translation>Actualiser</translation>
     </message>
     <message>
-        <location line="-364" />
+        <location line="-372" />
         <source>YouTube Studio</source>
         <translation>YouTube Studio</translation>
     </message>
@@ -38522,7 +38725,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+1" />
-        <location line="+145" />
+        <location line="+153" />
         <location line="+6" />
         <location line="+105" />
         <location line="+86" />
@@ -44136,7 +44339,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-885" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-886" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>démarrage : %1 a pris %2 ms</translation>
     </message>
@@ -50592,7 +50795,7 @@ Données (de %2) : %3</translation>
         <translation>replay</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+540" />
+        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+564" />
         <location filename="../src/app/emision/VigiaDisco.cpp" line="-45" />
         <source>grabación</source>
         <translation>enregistrement</translation>
@@ -55687,7 +55890,7 @@ Données (de %2) : %3</translation>
 <context>
     <name>grabacion</name>
     <message>
-        <location filename="../src/app/arranque/ServicioEmision.cpp" line="-409" />
+        <location filename="../src/app/arranque/ServicioEmision.cpp" line="-432" />
         <source>la grabación no arrancó: %1</source>
         <translation>l'enregistrement n'a pas démarré : %1</translation>
     </message>
@@ -55924,7 +56127,7 @@ Données (de %2) : %3</translation>
         <translation>non</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+919" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+920" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>« %1 » n'a pas démarré à l'ouverture : %2</translation>
     </message>
@@ -59937,7 +60140,7 @@ CE QU'IL FAUT SAVOIR EN L'ACTIVANT : le garde-fou des approbations (`mcp.approv
         <translation>Un carton par-dessus tout ce qui sort ("Suspension de séance", "Nous revenons tout de suite", "Minute de silence"…), avec `texto`, une `imagen` facultative (chemin) et `ms` de fondu (600). Ne dépend pas des scènes. L'activer à l'antenne demande confirmation si un automatisme le demande ; le retirer, non. Survit à un plantage de l'application. Chaque sortie a son carton (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1327" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1328" />
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>Le chien de garde relance l'application si elle cesse de battre. Le battement vient de l'interface ET d'un thread qui surveille les images du moteur : si l'interface se bloque et que le moteur continue, l'antenne n'est PAS coupée. Avec l'interface bloquée plus de `espera_ui_s` (10 à 3600, par défaut 60) et `matar_si_ui_trabada_sin_aire` (par défaut true), elle n'est relancée que s'il n'y a ni diffusion ni enregistrement. L'interface bloquée AVEC antenne est une alarme qui part sans l'interface, vers la régie web et les notificateurs de `notificar` (« todos », par défaut, ou une liste d'ids de notificador_listar ; [] = aucun). Sans arguments, l'affiche (avec l'état : motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -63116,7 +63319,7 @@ Vous êtes le rôle `%1` : voici TOUT votre jeu d'outils. Ce qui n'est pas ici,
     </message>
     <message>
         <location line="+2" />
-        <location filename="../src/app/mcp/McpService.cpp" line="-2316" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-2317" />
         <source>La herramienta fallo: %1</source>
         <translation>L'outil a échoué : %1</translation>
     </message>
@@ -66723,7 +66926,7 @@ Avec ce répertoire, on construit un graphique SANS écrire de code : c'est ce 
     </message>
     <message>
         <location line="+1" />
-        <location filename="../src/app/mcp/McpService.cpp" line="+718" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+719" />
         <source>Escenas</source>
         <translation>Scènes</translation>
     </message>
@@ -73901,7 +74104,7 @@ N'enregistre qu'après avoir vu le même visage trois passages d'affilée : un 
         <translation>Personne n'est visible sur les caméras d'attente.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4150" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4151" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>ATTENTION : REDÉMARRE LE MOTEUR. Pendant quelques secondes, TOUT ce qui sort est coupé (le programme, la salle, les écrans, ce que voient les invités) et les caméras sont rouvertes. Ne s'applique pas pendant une diffusion ou un enregistrement. Ne l'utilisez pas pour réparer une caméra : prévenez d'abord l'opérateur et demandez-lui de confirmer.</translation>
     </message>
@@ -73981,7 +74184,7 @@ N'enregistre qu'après avoir vu le même visage trois passages d'affilée : un 
         <translation>Prenez vous-même en charge la personne qui attend en salle d'attente (id %1, inscrite comme « %2 »). Parlez-lui dans le chat avec `chat_send` en la mettant comme destinataire, présentez-vous en une ligne et demandez-lui, une question à la fois et en français : ses prénom et nom tels qu'elle veut les voir à l'écran, sa fonction ou le sujet de son intervention, comment elle veut être présentée à l'antenne, et un téléphone ou un e-mail de contact en cas de coupure. Lisez ses réponses avec `invitados_chat_leer`. Au fur et à mesure, remplissez sa fiche avec `participant_profile`. Quand vous avez tout, AVANT de me consulter, prévenez-la par `chat_send` que c'est bon : quelque chose comme « C'est bon, j'ai tout. Je transmets à la production et je vous préviens dès qu'ils confirment ». De l'autre côté, on ne voit rien de ce qui se passe ici, et attendre en silence devant une caméra, sans savoir si quelqu'un regarde, donne l'impression d'avoir été abandonné. Ensuite seulement, montrez-les-moi tous ensemble avec `operator_ask` (options : « Faire entrer » et « Pas encore ») en passant `photoOf` avec son nom, pour que la carte porte sa photo. Si j'ai répondu « Faire entrer », admettez-la avec `participant_admit` ET prévenez-la dans le chat qu'elle entre ; sinon, laissez-la en attente et dites-lui poliment que ce n'est pas encore le moment. Répondez-lui TOUJOURS, quoi qu'il arrive : le silence est la pire réponse. Tant que cela dure, ne me demandez rien d'autre : débrouillez-vous seul.</translation>
     </message>
     <message>
-        <location line="+177" />
+        <location line="+178" />
         <source>«tapado»</source>
         <translation>« masqué »</translation>
     </message>
@@ -80449,6 +80652,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
     </message>
     <message>
         <location line="+7" />
+        <location filename="../src/app/mcp/McpVivosTools.cpp" line="+306" />
         <source>Id o nombre de la salida (salidas_listar).</source>
         <translation>Id ou nom de la sortie (salidas_listar).</translation>
     </message>
@@ -80774,6 +80978,131 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <location line="+24" />
         <source>Todavía no hay un resultado de ese tipo (capacidad_arrancar).</source>
         <translation>Pas encore de résultat de ce type (capacidad_arrancar).</translation>
+    </message>
+    <message>
+        <location filename="../src/app/mcp/McpVivosTools.cpp" line="-270" />
+        <source>La plataforma.</source>
+        <translation>La plateforme.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>El id de la cuenta (cuentas_listar); sin ella, la principal.</source>
+        <translation>L'id du compte (cuentas_listar) ; sans lui, le principal.</translation>
+    </message>
+    <message>
+        <location line="+12" />
+        <source>Las cuentas de cada plataforma</source>
+        <translation>Les comptes de chaque plateforme</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Las cuentas de YouTube, Twitch y Facebook del aparato (puede haber varias por plataforma; la «principal» es la de la página de la plataforma), con su `estado`: conectada, sin_conectar, conectando, vencida (hay que reautorizarla con cuenta_conectar), sin_permiso (reautorizar) o sin_app (falta la app de la plataforma: account_setup_guide). Nunca devuelve secretos. `plataforma` filtra.</source>
+        <translation>Les comptes YouTube, Twitch et Facebook de l'appareil (plusieurs possibles par plateforme ; le « principal » est celui de la page de la plateforme), avec leur `estado` : conectada, sin_conectar, conectando, vencida (réautoriser avec cuenta_conectar), sin_permiso (réautoriser) ou sin_app (il manque l'application de la plateforme : account_setup_guide). Ne renvoie jamais de secrets. `plataforma` filtre.</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>Agregar una cuenta de una plataforma</source>
+        <translation>Ajouter un compte de plateforme</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Suma otra cuenta de YouTube, Twitch o Facebook (otro canal, otra Página) con el `nombre` que verá el operador. Usa la misma app de la plataforma que la principal. Con `conectar: true` abre ya el navegador para que la PERSONA elija esa cuenta y autorice (después, cuentas_listar dice si quedó conectada). Devuelve su `id`.</source>
+        <translation>Ajoute un autre compte YouTube, Twitch ou Facebook (une autre chaîne, une autre Page) avec le `nombre` que verra l'opérateur. Utilise la même application de plateforme que le principal. Avec `conectar: true`, ouvre tout de suite le navigateur pour que la PERSONNE choisisse ce compte et l'autorise (ensuite, cuentas_listar indique s'il est connecté). Renvoie son `id`.</translation>
+    </message>
+    <message>
+        <location line="+24" />
+        <source>Cambiar el nombre de una cuenta</source>
+        <translation>Renommer un compte</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Cambia el nombre con el que el operador ve una cuenta (no toca nada en la plataforma).</source>
+        <translation>Change le nom sous lequel l'opérateur voit un compte (ne touche à rien sur la plateforme).</translation>
+    </message>
+    <message>
+        <location line="+15" />
+        <source>Quitar una cuenta</source>
+        <translation>Retirer un compte</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Revoca el acceso de esa cuenta, borra su token y la saca de la lista. La principal no se quita (se desconecta con &lt;plataforma&gt;_logout). Si algún destino de este evento la usa, no se quita: quitá o reasigná ese destino antes. Preguntale al operador.</source>
+        <translation>Révoque l'accès de ce compte, supprime son jeton et le retire de la liste. Le principal ne se retire pas (on le déconnecte avec &lt;plataforma&gt;_logout). Si une destination de cet événement l'utilise, il n'est pas retiré : retirez ou réattribuez d'abord cette destination. Demandez à l'opérateur.</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>Conectar o reautorizar una cuenta</source>
+        <translation>Connecter ou réautoriser un compte</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Abre el navegador de esta máquina para que la PERSONA elija esa cuenta y la autorice (también para reautorizar una vencida o sin permiso). En Twitch se abre twitch.tv/activate con el código ya cargado. Con `wait: true` espera a que termine (máx. 5 min); si no, vuelve enseguida y cuentas_listar dice cuándo quedó conectada.</source>
+        <translation>Ouvre le navigateur de cette machine pour que la PERSONNE choisisse ce compte et l'autorise (aussi pour réautoriser un compte expiré ou sans permission). Sur Twitch, twitch.tv/activate s'ouvre avec le code déjà saisi. Avec `wait: true`, attend la fin (5 min max.) ; sinon, revient tout de suite et cuentas_listar indique quand il est connecté.</translation>
+    </message>
+    <message>
+        <location line="+28" />
+        <source>Se abrió el navegador: la persona elige la cuenta y acepta. Después, cuentas_listar.</source>
+        <translation>Le navigateur s'est ouvert : la personne choisit le compte et accepte. Ensuite, cuentas_listar.</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <source>Los vivos de una cuenta</source>
+        <translation>Les directs d'un compte</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Los vivos programados o activos de una cuenta (YouTube: liveBroadcasts; Facebook: los live_videos de la Página que todavía reciben señal): id, titulo, estado, privacidad, inicio, url. En Twitch el vivo es el canal (uno solo, id vacío). El `id` es el que pide salida_destino_asignar.</source>
+        <translation>Les directs programmés ou actifs d'un compte (YouTube : liveBroadcasts ; Facebook : les live_videos de la Page qui reçoivent encore un signal) : id, titulo, estado, privacidad, inicio, url. Sur Twitch, le direct est la chaîne (un seul, id vide). L'`id` est celui que demande salida_destino_asignar.</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Crear un vivo en una cuenta</source>
+        <translation>Créer un direct dans un compte</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Crea un vivo en la cuenta (YouTube: liveBroadcast + su stream, privado si no se dice; Facebook: un live_video en prueba, o público con privacidad «public»; Twitch: le pone el título al canal). No transmite nada. Con `salida` además lo asigna como destino de esa salida (como salida_destino_asignar).</source>
+        <translation>Crée un direct dans le compte (YouTube : liveBroadcast + son stream, privé sauf indication ; Facebook : un live_video en test, ou public avec la confidentialité « public » ; Twitch : met le titre de la chaîne). Ne diffuse rien. Avec `salida`, l'attribue aussi comme destination de cette sortie (comme salida_destino_asignar).</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>ISO 8601 (por omisión, ahora).</source>
+        <translation>ISO 8601 (par défaut, maintenant).</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Id o nombre de la salida a la que asignarlo.</source>
+        <translation>Id ou nom de la sortie à laquelle l'attribuer.</translation>
+    </message>
+    <message>
+        <location line="+29" />
+        <source>El vivo se creó pero no se pudo asignar: %1</source>
+        <translation>Le direct a été créé mais n'a pas pu être attribué : %1</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>Asignar un vivo o un destino a una salida</source>
+        <translation>Attribuer un direct ou une destination à une sortie</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Un destino más de la salida (`salida`; sin ella, la de quien llama o la por omisión): el vivo `vivo` (vivos_listar) de la cuenta `cuenta` de `plataforma` (en Twitch, sin `vivo`: el canal), o uno genérico con `url` (rtmp://, rtmps://, srt://, rist://) y `clave` (va cifrada). Pide la ingesta a la plataforma (en YouTube enlaza un stream si el vivo no tiene) y queda guardado como los demás destinos (vuelve tras un corte de luz). No lo arranca: stream_start con `destino` (su id). Si otro destino (de esta u otra salida) ya manda a ese vivo, no se asigna y el error dice cuál. Con `id` reemplaza a ese destino.</source>
+        <translation>Une destination de plus pour la sortie (`salida` ; sans elle, celle de l'appelant ou celle par défaut) : le direct `vivo` (vivos_listar) du compte `cuenta` de `plataforma` (sur Twitch, sans `vivo` : la chaîne), ou une générique avec `url` (rtmp://, rtmps://, srt://, rist://) et `clave` (stockée chiffrée). Demande l'ingest à la plateforme (sur YouTube, lie un stream si le direct n'en a pas) et est enregistrée comme les autres destinations (revient après une coupure de courant). Ne la démarre pas : stream_start avec `destino` (son id). Si une autre destination (de cette sortie ou d'une autre) envoie déjà vers ce direct, elle n'est pas attribuée et l'erreur dit laquelle. Avec `id`, remplace cette destination.</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>El destino a reemplazar (stream_destinos).</source>
+        <translation>La destination à remplacer (stream_destinos).</translation>
+    </message>
+    <message>
+        <location line="+27" />
+        <source>Estado de cada destino</source>
+        <translation>État de chaque destination</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Cada destino (de todas las salidas, o de `salida`) con su plataforma, cuenta y vivo, su `estado` (detenido, conectando, en_vivo, reintentando), el bitrate que sale (`kbps`), la salud que informa la plataforma (`salud`: en YouTube estado_stream y salud good/ok/bad; espectadores en Twitch y Facebook) y `choque` si manda al mismo vivo que otro.</source>
+        <translation>Chaque destination (de toutes les sorties, ou de `salida`) avec sa plateforme, son compte et son direct, son `estado` (detenido, conectando, en_vivo, reintentando), le débit sortant (`kbps`), la santé signalée par la plateforme (`salud` : sur YouTube estado_stream et salud good/ok/bad ; spectateurs sur Twitch et Facebook) et `choque` si elle envoie vers le même direct qu'une autre.</translation>
     </message>
 </context>
 <context>
@@ -81785,6 +82114,60 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <source>renombrar salida color de la salida nombre de la salida tope de salidas cambiar salida</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>renommer la sortie couleur de la sortie nom de la sortie limite de sorties changer la sortie</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>cuentas varias cuentas canales paginas youtube twitch facebook conectada vencida otra cuenta segundo canal</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>comptes plusieurs comptes chaînes pages youtube twitch facebook connecté expiré autre compte deuxième chaîne</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>agregar cuenta otra cuenta segundo canal otro canal de youtube otra pagina de facebook sumar cuenta</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>ajouter compte autre compte deuxième chaîne autre chaîne youtube autre page facebook</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>renombrar cuenta nombre de la cuenta cambiar nombre canal</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>renommer compte nom du compte changer nom chaîne</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>quitar cuenta borrar cuenta sacar canal revocar acceso olvidar cuenta</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>retirer compte supprimer compte retirer chaîne révoquer accès oublier compte</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>conectar cuenta reautorizar vencida autorizar permiso login otra cuenta iniciar sesion</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>connecter compte réautoriser expiré autoriser permission login autre compte se connecter</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>vivos transmisiones programadas eventos en vivo de la cuenta liveBroadcasts directos programados</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>directs diffusions programmées événements en direct du compte liveBroadcasts lives programmés</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>crear vivo nueva transmision programar directo evento en vivo en otra cuenta</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>créer direct nouvelle diffusion programmer live événement en direct dans un autre compte</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>asignar destino a la salida elegir vivo cuenta para la salida mandar salida a youtube twitch facebook rtmp srt</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>attribuer destination à la sortie choisir direct compte pour la sortie envoyer sortie vers youtube twitch facebook rtmp srt</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>estado destinos salud del vivo bitrate en vivo conectando reintentando por salida streamStatus healthStatus</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>état destinations santé du direct débit en direct connexion nouvelle tentative par sortie streamStatus healthStatus</translation>
     </message>
     <message>
         <location line="+2" />
@@ -92757,14 +93140,14 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <location filename="../src/app/arranque/ServicioEmision.cpp" line="-97" />
         <location line="+128" />
         <location line="+124" />
-        <location line="+83" />
+        <location line="+106" />
         <location filename="../src/app/emision/SalidasConfig.cpp" line="+123" />
         <location line="+9" />
         <source>no hay una salida «%1»</source>
         <translation>aucune sortie « %1 »</translation>
     </message>
     <message>
-        <location line="-198" />
+        <location line="-221" />
         <source>para otra salida, pasá el servidor y la clave (o usá un destino guardado con esa salida)</source>
         <translation>pour une autre sortie, passez le serveur et la clé (ou utilisez une destination enregistrée avec cette sortie)</translation>
     </message>
@@ -92794,7 +93177,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>`url` : rtmp://, rtmps://, srt:// ou rist://</translation>
     </message>
     <message>
-        <location line="+27" />
+        <location line="+30" />
         <source>`modo` y `latencia_ms` son solo para srt://</source>
         <translation>`modo` et `latencia_ms` sont uniquement pour srt://</translation>
     </message>
@@ -92809,7 +93192,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>`latencia_ms` : entre 20 et 8000</translation>
     </message>
     <message>
-        <location line="+18" />
+        <location line="+38" />
         <location line="+16" />
         <source>Repetición: %1</source>
         <translation>Replay : %1</translation>
@@ -94387,6 +94770,266 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <location line="+39" />
         <source>superresolución de «%1»: %2</source>
         <translation>super-résolution de « %1 » : %2</translation>
+    </message>
+</context>
+<context>
+    <name>vivos</name>
+    <message>
+        <location filename="../src/app/ui/VivosViewModel.cpp" line="+56" />
+        <source>recibe la señal</source>
+        <translation>reçoit le signal</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>todavía sin señal</source>
+        <translation>pas encore de signal</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>error en la ingesta</source>
+        <translation>erreur d'ingest</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>salud excelente</source>
+        <translation>santé excellente</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>salud buena</source>
+        <translation>bonne santé</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>salud mala: revisá el bitrate y la red</source>
+        <translation>mauvaise santé : vérifiez le débit et le réseau</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>sin datos de salud</source>
+        <translation>pas de données de santé</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>al aire en la plataforma</source>
+        <translation>en direct sur la plateforme</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>en prueba</source>
+        <translation>en test</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>el canal no está en vivo</source>
+        <translation>la chaîne n'est pas en direct</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>%1 mirando</source>
+        <translation>%1 spectateurs</translation>
+    </message>
+    <message>
+        <location line="+174" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+157" />
+        <location line="+227" />
+        <source>No hay una plataforma «%1» (youtube, twitch o facebook).</source>
+        <translation>Il n'y a pas de plateforme « %1 » (youtube, twitch ou facebook).</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La usa el destino «%1»: quitalo antes (o asignale otra cuenta).</source>
+        <translation>La destination « %1 » l'utilise : retirez-la d'abord (ou attribuez-lui un autre compte).</translation>
+    </message>
+    <message>
+        <location line="+32" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+3" />
+        <source>No hay una cuenta «%1» de %2 (cuentas_listar las lista).</source>
+        <translation>Il n'y a pas de compte « %1 » de %2 (cuentas_listar les liste).</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <location filename="../src/app/vivos/Vivos.cpp" line="+4" />
+        <source>Falta la app de %1: seguí account_setup_guide.</source>
+        <translation>Il manque l'application %1 : suivez account_setup_guide.</translation>
+    </message>
+    <message>
+        <location line="+30" />
+        <source>Cuenta conectada: %1</source>
+        <translation>Compte connecté : %1</translation>
+    </message>
+    <message>
+        <location line="+78" />
+        <source>Vivo creado: %1</source>
+        <translation>Direct créé : %1</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>A ese vivo ya le transmite la página de YouTube (la transmisión principal): cortala antes o elegí otro vivo.</source>
+        <translation>La page YouTube diffuse déjà vers ce direct (la diffusion principale) : arrêtez-la d'abord ou choisissez un autre direct.</translation>
+    </message>
+    <message>
+        <location line="+22" />
+        <source>Destino asignado: arrancalo desde la tarjeta de la salida.</source>
+        <translation>Destination attribuée : démarrez-la depuis la carte de la sortie.</translation>
+    </message>
+    <message>
+        <location filename="../src/app/vivos/PlataformasVivo.cpp" line="+150" />
+        <source>Ese vivo ya no existe en YouTube.</source>
+        <translation>Ce direct n'existe plus sur YouTube.</translation>
+    </message>
+    <message>
+        <location line="+213" />
+        <source>Facebook no da la ingesta de ese vivo (¿ya terminó?).</source>
+        <translation>Facebook ne fournit pas l'ingest de ce direct (est-il terminé ?).</translation>
+    </message>
+    <message>
+        <location filename="../src/app/vivos/Vivos.cpp" line="-311" />
+        <source>falta la app de la plataforma</source>
+        <translation>il manque l'application de la plateforme</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>esperando la autorización en el navegador</source>
+        <translation>en attente de l'autorisation dans le navigateur</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>conectada</source>
+        <translation>connecté</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>conectada sin el permiso necesario: reautorizala</source>
+        <translation>connecté sans la permission nécessaire : réautorisez-le</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>vencida: volvé a autorizarla</source>
+        <translation>expiré : autorisez-le à nouveau</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>sin conectar</source>
+        <translation>non connecté</translation>
+    </message>
+    <message>
+        <location line="+37" />
+        <source>Principal</source>
+        <translation>Principal</translation>
+    </message>
+    <message>
+        <location line="+42" />
+        <source>Cuenta %1</source>
+        <translation>Compte %1</translation>
+    </message>
+    <message>
+        <location line="+7" />
+        <location line="+11" />
+        <location line="+10" />
+        <source>No se pudo guardar la lista de cuentas.</source>
+        <translation>Impossible d'enregistrer la liste des comptes.</translation>
+    </message>
+    <message>
+        <location line="-14" />
+        <location line="+12" />
+        <source>No hay una cuenta «%1» de %2.</source>
+        <translation>Il n'y a pas de compte « %1 » de %2.</translation>
+    </message>
+    <message>
+        <location line="-11" />
+        <source>Falta el nombre.</source>
+        <translation>Le nom manque.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>La cuenta principal no se quita: desconectala (o conectá otra en su lugar).</source>
+        <translation>Le compte principal ne se retire pas : déconnectez-le (ou connectez-en un autre à sa place).</translation>
+    </message>
+    <message>
+        <location line="+115" />
+        <source>Ese vivo ya es el destino «%1» de esta misma salida («%2»): no hace falta otro.</source>
+        <translation>Ce direct est déjà la destination « %1 » de cette même sortie (« %2 ») : inutile d'en ajouter une autre.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Ese vivo ya lo usa el destino «%1» de la salida «%2». Dos salidas al mismo vivo se pisan (la plataforma recibe dos señales en la misma clave): elegí otro vivo, creá uno nuevo o quitá ese destino primero.</source>
+        <translation>Ce direct est déjà utilisé par la destination « %1 » de la sortie « %2 ». Deux sorties vers le même direct se chevauchent (la plateforme reçoit deux signaux sur la même clé) : choisissez un autre direct, créez-en un ou retirez d'abord cette destination.</translation>
+    </message>
+    <message>
+        <location line="+16" />
+        <source>conectando</source>
+        <translation>connexion</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>en vivo</source>
+        <translation>en direct</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>cortado, reintentando</source>
+        <translation>coupé, nouvelle tentative</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>detenido</source>
+        <translation>arrêté</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Falta la plataforma (youtube, twitch, facebook) o la URL (rtmp://, srt://…).</source>
+        <translation>Il manque la plateforme (youtube, twitch, facebook) ou l'URL (rtmp://, srt://…).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Falta la salida.</source>
+        <translation>La sortie manque.</translation>
+    </message>
+    <message>
+        <location line="+8" />
+        <source>Falta el vivo de %1: elegí uno de la lista (vivos_listar) o creá uno nuevo.</source>
+        <translation>Il manque le direct %1 : choisissez-en un dans la liste (vivos_listar) ou créez-en un.</translation>
+    </message>
+    <message>
+        <location line="+14" />
+        <source>No hay una plataforma «%1».</source>
+        <translation>Il n'y a pas de plateforme « %1 ».</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>`url`: rtmp://, rtmps://, srt:// o rist://</source>
+        <translation>`url` : rtmp://, rtmps://, srt:// ou rist://</translation>
+    </message>
+    <message>
+        <location line="+39" />
+        <source>La cuenta «%1» de %2 está vencida: volvé a autorizarla (cuenta_conectar).</source>
+        <translation>Le compte « %1 » de %2 a expiré : autorisez-le à nouveau (cuenta_conectar).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>La cuenta «%1» de %2 no está conectada (cuenta_conectar).</source>
+        <translation>Le compte « %1 » de %2 n'est pas connecté (cuenta_conectar).</translation>
+    </message>
+    <message>
+        <location line="+9" />
+        <source>No hay una salida «%1».</source>
+        <translation>Il n'y a pas de sortie « %1 ».</translation>
+    </message>
+    <message>
+        <location line="+17" />
+        <source>La plataforma no dio la ingesta.</source>
+        <translation>La plateforme n'a pas fourni l'ingest.</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>La plataforma no dio la dirección o la clave de ingesta.</source>
+        <translation>La plateforme n'a pas fourni l'adresse ou la clé d'ingest.</translation>
+    </message>
+    <message>
+        <location line="+31" />
+        <source>Manda al mismo vivo que otro destino (salidas: %1): se pisan.</source>
+        <translation>Envoie vers le même direct qu'une autre destination (sorties : %1) : elles se chevauchent.</translation>
     </message>
 </context>
 <context>
