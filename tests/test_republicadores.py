@@ -57,6 +57,7 @@ CLASIFICACION = {
     "/api/v1/proxy": "lectura",
     "/api/v1/proxy/renovar": "orden",
     "/api/v1/publico-info": "publico",
+    "/api/v1/capacidad/red": "orden",
     "/api/v1/gateway": "lectura",
     "/api/v1/publico-link": "lectura",
     "/api/v1/qr": "lectura",
