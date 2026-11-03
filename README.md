@@ -88,14 +88,21 @@ Windows, macOS and Linux.
   multiview, AI super-resolution, panoramic stitching. Each input runs through
   its own chain of cards: the built-in ones (chroma key, color, crop, digital
   PTZ, image enhancement) and any GStreamer element in the installation, of
-  which there are hundreds. Recording and streaming to YouTube, Twitch,
-  Facebook or any RTMP/SRT server.
+  which there are hundreds. An atomic TAKE: the next scene goes on air whole,
+  once every layer has a picture. Recording and streaming to YouTube, Twitch,
+  Facebook (several accounts each, one live stream per output) or any RTMP/SRT
+  server.
 - **Audio.** A mixer with groups that compact and a **VCA per group**, a rack of
   [LSP Plugins](https://lsp-plug.in/) per source (compressors, equalizers,
   gates, limiters…), a mixing matrix, EBU R128 loudness, room
   calibration, automixer, PFL, AFV and lip sync.
 - **Conference.** Guests join by WebRTC from a link: a private lobby, chat,
-  speaker mode with timer, up to 512 guests.
+  speaker mode with timer, up to 512 guests. A people grid that adapts and
+  enlarges whoever has the floor (animated, with a colored border); guests
+  nobody sees are paused and the rest enter staggered. Measured: ~160 guests
+  with headroom on a Ryzen 9 + Radeon RX 5700 XT PC
+  ([capacity](docs/en/capacity.md)); a built-in test gives the number for
+  your own machine.
 - **Assembly.** Members in the room and remote, the chamber with its seats,
   quorum, agenda with PDF result reports, debates and voting.
 - **Bosch DCN Next Generation (beta).** Drives the conference central unit
@@ -118,7 +125,8 @@ Windows, macOS and Linux.
   own permissions and live state on every button: the scene on air, recording,
   who is speaking.
 - **Screens.** The machine's monitors and the TVs on the network (Chromecast),
-  with what goes on each one.
+  with what goes on each one. Saved screen layouts: one borderless full-screen
+  window per monitor, picked from a searchable list with a live preview.
 - **People.** Face recognition, a guest list with check-in, and **registration
   totems**: a TV or a phone with a camera where people register by talking to
   the assistant, show their ID (barcode or the back via OCR) and get their
@@ -147,6 +155,7 @@ Windows, macOS and Linux.
 | [Building, testing and packaging](docs/en/building.md) | For developers: requirements, build, tests, CI and the portable bundle. |
 | [Architecture](docs/en/architecture.md) | Processes, core, status of each part, repository layout, dependencies. |
 | [Configuration reference](docs/en/configuration.md) | What can be tuned by hand (normally the assistant does it). |
+| [Capacity](docs/en/capacity.md) | How many remote guests, measured on a Windows PC and an M1 Pro Mac: hardware, conditions and limits. |
 | [How each feature works](docs/funciones/) | One file per feature *(Spanish)*. |
 | [Operator manual](docs/en/manual/README.md) | For people who use it: first live show, guests, audio, troubleshooting. |
 | [Guest guide](docs/en/manual/guest-guide.md) | For people joining the conference. |

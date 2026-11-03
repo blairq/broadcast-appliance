@@ -69,6 +69,9 @@ Los procesos están **implementados** y corren en Linux (nativo) y en Windows
   también en Linux), `MediaPump` (IPC ↔ WebRTC por ruta), `TlsTerminator`
   (HTTPS), `WgDevice` + `IpStack` (WireGuard + lwIP en espacio de usuario) y
   `Cloudflared`. Ver [`docs/funciones/CONFERENCIA.md`](../../docs/funciones/CONFERENCIA.md).
+  Desde noviembre de 2026 trabaja en capas de hilos compartidos (red y trabajo, el TURN que le
+  entrega a WebRTC en memoria, colas de tareas compartidas) con H.264 por la placa
+  (Direct3D 11 / VideoToolbox) en vez de hilos por invitado: ver [docs/hardware](../hardware/README.md).
 - **Motor de video** (`src/motor`, GStreamer): escenas, transiciones, DSK,
   clean feed, grabación y salidas; los invitados remotos entran a la escena
   desde el IPC del Proceso B. Sus plugins propios viven en `src/gst-plugins`.

@@ -1,6 +1,6 @@
 # PC Ryzen 9 5900X + Radeon RX 5700 XT (Windows 11)
 
-La PC de pruebas de Windows (`192.168.1.177`, `ssh windows`). Medida el **2026-11-03** (la
+La PC de pruebas con Windows. Medida el **2026-11-03** (la
 vigente) y tres veces el **2026-11-02**:
 
 - **2026-11-03 (la vigente)**: master `5e405912` con todo integrado (red→trabajo en lote, playout
@@ -12,13 +12,17 @@ vigente) y tres veces el **2026-11-02**:
 - **A la tarde**: campaña completa con el paquete de master `b792325d`
   (H.264 por la placa en el gateway), por cada camino de entrada (directo, TURN por UDP, por
   TCP y mezclado, y pinggy), códecs, ráfaga, grabar y transmitir, resistencia, 60 y 80
-  invitados y los núcleos con ETW. Crudas en
-  `~/Proyectos/mediciones-carga/2026-11-02-campana/pc177/` (fuera del repo).
+  invitados y los núcleos con ETW. Las mediciones crudas quedan fuera del repo.
 - A la mañana: master `87f4d0d8` (VP8 por software en el gateway), solo directo; queda al final
   como referencia («Medición de la mañana»).
 
 La app corre en la PC y **hinchada genera los invitados desde la Mac por la LAN**
-(`tools/carga/medir-sala.py --remoto windows`).
+(`tools/carga/medir-sala.py --remoto <PC>`).
+
+**En resumen**: **~160 invitados por TURN con margen; 200 entran y andan** (miniaturas más
+lentas). Lo primero que se llena es el motor de video de la placa (decodificar las cámaras,
+desde ~120); después, los hilos de red del gateway (con 200). Ver «Límites y
+recomendaciones» y la página en inglés [docs/en/capacity.md](../en/capacity.md).
 
 ## Ficha
 
@@ -28,7 +32,7 @@ La app corre en la PC y **hinchada genera los invitados desde la Mac por la LAN*
 | CPU | AMD Ryzen 9 5900X: 12 núcleos / 24 hilos, 3,7 GHz base, L2 6 MB, L3 64 MB |
 | RAM | 32 GB DDR4 (2 × 16 GB Crucial Ballistix BL16G36C16U4RL) **a 2666 MT/s** (el kit es de 3600: el XMP/DOCP está apagado) |
 | GPU | AMD Radeon RX 5700 XT (Navi 10, 8 GB GDDR6), driver 32.0.21045.16010 (2026-10-15) |
-| Discos | NVMe Kingston SNV3S 2 TB (C:, sistema y `C:\ba-pruebas`) + NVMe Kingston SNV2S 1 TB (D:) |
+| Discos | NVMe Kingston SNV3S 2 TB (C:, sistema y la app de pruebas) + NVMe Kingston SNV2S 1 TB (D:) |
 | Sistema | Windows 11 IoT Enterprise 26H2, build 26300.9711, 64 bits; plan de energía «Equilibrado» |
 | Red | Intel I225-V 2.5GbE, enlazada a **1 Gbps** por cable (perfil de red Privada); Wi-Fi AX200 sin usar |
 | Monitores | DELL U2913WM 2560×1080 a 60 Hz (principal) + DELL 2208WFP 1680×1050 en vertical (1050×1680) |
@@ -46,7 +50,7 @@ La app corre en la PC y **hinchada genera los invitados desde la Mac por la LAN*
   `gateway.decodificarConPlaca` apagado cae al H.264 por software de Windows (ver el problema
   abajo: hoy no anda). VP8 sigue por software (libvpx).
 - La red de la prueba: la Mac está por **Wi-Fi 5** (802.11ac, 5 GHz/80 MHz, 866 Mbps de enlace,
-  -41 dBm) y la PC por cable a 1 Gbps; ping ~5 ms. Internet de la casa (para pinggy):
+  -41 dBm) y la PC por cable a 1 Gbps; ping ~5 ms. Internet del lugar de pruebas (para pinggy):
   195 Mbps de bajada y 42,8 Mbps de subida (`networkQuality`, RTT base 73 ms).
 
 ## Con todo integrado (2026-11-03, master 5e405912)
@@ -56,13 +60,13 @@ frontera #4 red→trabajo en lote, el playout repartido en 3 hilos y sin mezcla/
 demanda y la celda achicada en la placa, la interfaz desacoplada de la foto de la sala, la foto
 del motor por partes y el turno por llamada, la vista de conferencia liviana, el reacomodo
 agrupado de la grilla y la entrada escalonada. Mismas condiciones que la noche anterior: evento
-«prueba linea L0» con `gateway.afinidad`, `procesador.mediosJuntos` y `procesador.prioridad`
+de prueba con `gateway.afinidad`, `procesador.mediosJuntos` y `procesador.prioridad`
 apagados, app arrancada en clase Normal con `--test --gw-arg=--turn-prueba`, hinchada desde la
 Mac (`--modo grabado --hablan 1 --decodificar todo`), `--regimen 45 --medir-grilla-s 15
 --remoto-cada 5`, cada corrida 2 minutos como mucho. **Entrada escalonada**: de fábrica
 `room.entradaPorSegundo` = 2 (40 tardan 20 s en entrar); para la escalera se subió a **10/s** en el
 evento de prueba (y se volvió a 2 al terminar); una corrida de 120 se hizo a 2/s. Crudas en
-`~/Proyectos/mediciones-carga/2026-11-03-n2/` (fuera del repo: `tabla.md`, cada corrida con
+las mediciones crudas (fuera del repo: `tabla.md`, cada corrida con
 `contadores.txt` y las métricas de ba-app antes y después, `franjas/`, `trabas/analisis.txt`).
 
 ### 40: antes y después
@@ -158,7 +162,7 @@ Lo que no se rompe en ningún escalón: el audio (11,6-15,2 ms), «llega tarde»
 de hinchada decodificando todos los retornos en la Mac, no del sistema. No se subió de 200
 (256/320/400/512 quedan para generar desde dos máquinas o con `--decodificar 5%`).
 
-**El techo nuevo de la .177 es ~160 invitados** en régimen sin trabas de más de 1,3 s (antes ~80);
+**El techo nuevo de esta PC es ~160 invitados** en régimen sin trabas de más de 1,3 s (antes ~80);
 200 entra y anda, con trabas de 2,5-2,7 s al entrar y las miniaturas a 7,5 cps.
 
 ### La placa por escalón
@@ -209,7 +213,7 @@ interfaz estaba en:
    (`ConferenceViewModel.cpp:414`) → `StudioViewModel.cpp:828`: `frames_->setGuestNames(...)` con
    todos los lugares en cada `roomChanged`.
 
-### Franjas en la grilla (lo que vio el usuario)
+### Franjas en la grilla (lo que se vio en pantalla)
 
 «Al ir agregando gente, una división que parte la pantalla al medio horizontalmente y muchas
 franjas de video de 1-2 cm de ancho y 10 de alto». Es el **programa** (la Grilla de personas al
@@ -252,9 +256,9 @@ El paquete de `3824d1f5` (igual a master salvo un merge): el gateway con F1-F5 d
 [PLAN-GATEWAY-FRAGMENTOS](../planes/PLAN-GATEWAY-FRAGMENTOS.md) (TURN y red en el mismo hilo,
 capas R/T/D, colas compartidas de libwebrtc, decodificar con D3D11 en la placa, afinidad), como
 mucho 4 en alta en la grilla y tope de 512 invitados. Arrancado con `--test --gw-arg=--turn-prueba`
-(TURN sin pinggy), evento «prueba linea L0», hinchada `--modo grabado --hablan 1 --decodificar
+(TURN sin pinggy), evento de prueba, hinchada `--modo grabado --hablan 1 --decodificar
 todo` desde la Mac, `--remoto-cada 5` (muestreo liviano), 45-50 s de régimen; cada corrida, 2 min
-como mucho. Crudas en `~/Proyectos/mediciones-carga/2026-11-02-nw/` (fuera del repo).
+como mucho. Crudas en las mediciones crudas (fuera del repo).
 
 ### 10 y 40: antes y después
 
@@ -289,10 +293,10 @@ como mucho. Crudas en `~/Proyectos/mediciones-carga/2026-11-02-nw/` (fuera del r
 
 ### Hasta que se rompe (TURN mezcla 10 %)
 
-Con afinidad y prioridades de fábrica hasta 120 (60-120); después, por decisión del usuario,
+Con afinidad y prioridades de fábrica hasta 120 (60-120); después, por decisión del proyecto,
 `gateway.afinidad`, `procesador.mediosJuntos` y `procesador.prioridad` apagados y los procesos
 en clase Normal («sin afinidad»: 80, 100, 120). Ojo: la tarea programada que arranca la app en
-la sesión del usuario la lanzaba en **BelowNormal** (el launcher y el gateway heredaban eso;
+la sesión de Windows abierta la lanzaba en **BelowNormal** (el launcher y el gateway heredaban eso;
 ba-app subía sola a AboveNormal); las «sin afinidad» se lanzaron con `start /NORMAL`.
 
 | Invitados | entran | ba-app | gateway | grilla en la app (baja p50 / p5, mosaico) | audio | `webrtc-playout` por pase | interfaz: trabas > 2 s (máx.) | «llega tarde» | invitado | Mac generadora |
@@ -341,7 +345,7 @@ ISR 3-5 %).
 `ba-rtc-net-#` 183 % (repartido), `ba-rtc-work-#` 93 %, `ba-app/control` 80 %, `ba-colas-dec/#`
 63 %, `ba-app/interfaz` 63 %, gateway sin nombre 54 %, `anillos-video` 32 %, `anillos-audio` 28 %.
 En una corrida anterior el **SearchIndexer** de Windows se llevaba ~1,3 núcleos (4-9 % en casi
-todos): se marcaron como «no indexar» los ~500 mil archivos de `C:\ba-pruebas` y en la siguiente ya
+todos): se marcaron como «no indexar» los ~500 mil archivos de la carpeta de la app y en la siguiente ya
 no apareció.
 
 ### Capturas
@@ -365,7 +369,7 @@ celda todavía sin video):
 
 ## Campaña de la tarde (master b792325d)
 
-Sala «prueba linea L0», grilla de personas al aire (`alta_hasta` 10), hinchada `--modo grabado
+Sala de prueba, grilla de personas al aire (`alta_hasta` 10), hinchada `--modo grabado
 --hablan 1 --decodificar todo` (H.264 42e01f por omisión), medición de 60 s de régimen (las de
 pinggy, 45 s). CPU en **% de un núcleo** (100 % = un hilo entero); «máquina» en % de los 24
 hilos. Los cambios de contexto son la suma de los hilos de cada proceso (`NtQuerySystemInformation`).
@@ -435,14 +439,14 @@ hilos. Los cambios de contexto son la suma de los hilos de cada proceso (`NtQuer
 | F · 60 (TURN mezcla) | 192 % | 396 % | 842 | 60/60, grilla 30 cps, 106 Mbps de salida, máquina 32 % |
 | F · 80 (TURN mezcla) | 200 % | 411 % | 964 | **entran 68**: el cupo tiene tope 64 (+4 de reserva, `kMaxInvitados`) |
 
-(E se pidió de 30 min y se cortó a los 17 por pedido del usuario; F-60/80 con
+(E se pidió de 30 min y se cortó a los 17 a pedido; F-60/80 con
 `turn.maxAsignaciones` 96 y `direct.rtcMax` 40199, vueltos después a 64 y 40099.)
 
 ### Pinggy (el camino de producción, por internet)
 
-La .177 no tiene cuenta de pinggy: se usó **pinggy gratis** (dirección al azar, se corta a los
-60 min). El medio sale de la Mac a internet, entra a pinggy y vuelve a la casa: la conexión de
-la casa lleva todo dos veces. 45 s de régimen cada una.
+Esta PC no tiene cuenta de pinggy: se usó **pinggy gratis** (dirección al azar, se corta a los
+60 min). El medio sale de la Mac a internet, entra a pinggy y vuelve al lugar de pruebas: la conexión de
+internet lleva todo dos veces. 45 s de régimen cada una.
 
 | Pinggy · invitados | el invitado recibe | pérdida | RTT | congelamientos | retorno (resolución) | salida de la PC | punta a punta (audio) |
 |---|---|---|---|---|---|---|---|
@@ -462,7 +466,7 @@ la casa lleva todo dos veces. 45 s de régimen cada una.
   todavía anda; desde 10 el control de congestión del gateway baja el retorno de todos a
   320×180 (~200-350 kbps cada uno) y la grilla recibe a 14-23 cps. Con 40 no se probó: harían
   falta ~70 Mbps.
-- **No es la casa**: hay 42,8 Mbps de subida. Tampoco es hinchada (`--decodificar todo`
+- **No es la conexión del lugar**: hay 42,8 Mbps de subida. Tampoco es hinchada (`--decodificar todo`
   decodifica todo lo que recibe) ni la medición (la placa de red de la PC dice lo mismo). Es el
   túnel: el RTT depende del servidor que toca en cada conexión (525-1060 ms en una sesión,
   150-240 ms en otra), y por TCP la cola del túnel sube el RTT a ~1 s (TCP·10).
@@ -510,7 +514,7 @@ ETW de 20 s con 40 invitados (`--etw 20`), directo y por TURN mezcla, con el mue
 
 ## Medición de la mañana (master 87f4d0d8, VP8 por software, solo directo)
 
-Sala de prueba «prueba linea L0» (la misma de las mediciones de la Mac): grilla de personas al
+Sala de prueba de prueba (la misma de las mediciones de la Mac): grilla de personas al
 aire con `alta_hasta` 10 (hasta 10 personas, todas en alta 720p30; con más, miniaturas en baja
 360p15 salvo el orador), hinchada `--modo grabado --hablan 1`, 60 s de régimen y 20 s de
 cuadros por celda. CPU en **% de un núcleo** (como `ps`: 100 % = un hilo entero); la máquina
@@ -557,14 +561,24 @@ subida pico 9,6 Mbps, bajada pico 67,5 Mbps; memoria disponible mínima 21,4 GB.
 
 ## Límites y recomendaciones
 
-- **Hasta 60 invitados medidos con margen** (campaña de la tarde): con 60 por TURN, gateway
-  ~4 núcleos, ba-app ~2, la máquina entera al 32 % y la grilla a 30 cps sin pérdidas. **El cupo
-  no deja pasar de 64** (`kMaxInvitados`, más 4 de reserva: con 80 pedidos entraron 68). Ojo
-  con la memoria privada de ba-app: 3,5 GB con 40, 6,2 GB con 60, 6,9 GB con 68.
+Lo vigente es «Con todo integrado (2026-11-03)» más los arreglos de la interfaz de esa noche:
+
+- **~160 invitados por TURN con margen** (régimen sin trabas de más de 1,3 s, audio en 13 ms,
+  0 «llega tarde»); **200 entran y andan**, con las miniaturas de la grilla a 7,5 cps (el motor
+  de video de la placa lleno desde ~120) y los dos hilos de red del gateway al 97-98 %. Antes
+  del gateway en varios núcleos el techo era ~80, y antes del 2026-11-02 el cupo no dejaba
+  pasar de 64 (hoy el tope es 512).
+- **La interfaz con 200**: después de los arreglos del [detector de
+  acoples](../arquitectura/detector-de-acoples.md) (noche del 2026-11-03), el recorrido por
+  todas las páginas con 200 invitados entrando no tuvo trabas de más de 2 s, salvo la página
+  **Latencias** (crear cientos de tarjetas de una vez: 4,6-5,0 s al mostrarse).
+- **Memoria**: ba-app llega a 8,4 GB privados con 200 (cada lugar del cupo reserva sus canales);
+  con 32 GB quedan 10 GB libres como mínimo.
 - **Por TURN casi como directo** (+5-10 % de gateway con 40). **Por pinggy gratis, unos 5
   invitados** (techo de ~7-8 Mbps del túnel; ver «Pinggy»).
-- **Entrar todos a la vez por el TURN falla** (C): en ráfaga solo conectan ~la mitad; entrando
-  de a uno cada 100 ms entran todos. Directo, la ráfaga de 40 entra entera en 2 s.
+- **Entrar todos a la vez por el TURN** fallaba en la campaña de la tarde (solo conectaba la
+  mitad); está arreglado ([TURN.md](../funciones/TURN.md), «Ráfaga») y además los invitados
+  entran escalonados (`room.entradaPorSegundo`, de fábrica 2 por segundo).
 - **La red manda antes que la CPU**: con 40, 70 Mbps de salida. Por cable a 1 Gbps sobra; por
   Wi-Fi o por un túnel/servidor propio, medir el enlace (tarjeta «Enlace») antes del evento.
 - **Ojo con `alta_hasta`**: subirlo (más gente en 720p30) cuesta ~0,3-0,4 núcleos de gateway por
@@ -580,10 +594,10 @@ subida pico 9,6 Mbps, bajada pico 67,5 Mbps; memoria disponible mínima 21,4 GB.
 ## Comparación con la Mac
 
 De la medición de la mañana (VP8 por software en la PC). La campaña de la Mac de la tarde quedó
-pausada con solo directo 10-40 medido (`mediciones-carga/2026-11-02-campana/mac/`).
+pausada con solo directo 10-40 medido ([mac-m1-pro.md](mac-m1-pro.md)).
 
 MacBook Pro M1 Pro (8 núcleos), 32 GB, macOS 26, misma sala y mismo hinchada, pero **la app y
-hinchada en la misma Mac** (`mediciones-carga/2026-11-02-al-final`, la serie después de los arreglos de la grilla; los
+hinchada en la misma Mac** (la serie después de los arreglos de la grilla; los
 números de la Mac incluyen la carga del generador en la máquina).
 
 | Invitados | 10 | 20 | 30 | 40 |
@@ -669,30 +683,33 @@ Medición de la mañana:
 ## Cómo repetir la medición
 
 1. Paquete de Windows (`make dist-win-docker`) con hinchada de Windows en `extern/hinchada`
-   (`make deps-hinchada`); desplegar en `C:\ba-pruebas\BroadcastAppliance` y arrancar en la
-   sesión del usuario (`C:\ba-pruebas\app.ps1 -Que arrancar`).
+   (`make deps-hinchada`); desplegarlo en la PC y arrancar la app en la sesión abierta de
+   Windows (no como servicio).
 2. Evento de prueba con el gateway en la LAN (`gateway.bind` 0.0.0.0) y, para más de 32 desde
    una sola máquina, `room.maxConexionesPorIp` 64. Comprobar con `evento_en_curso`.
-3. Desde la Mac, con la app de la Mac **cerrada**, colima apagada y sin compilaciones:
+3. Desde la Mac, con la app de la Mac **cerrada**, sin contenedores ni compilaciones, y el
+   MCP de la PC alcanzable por un túnel ssh (`<PC>` es el nombre o la dirección de la PC en
+   la LAN):
 
    ```sh
-   ssh -f -N -L 18790:127.0.0.1:8790 windows
+   ssh -f -N -L 18790:127.0.0.1:8790 <PC>
    export BA_MCP_URL=http://127.0.0.1:18790/mcp
-   export BA_MCP_TOKEN=$(ssh windows 'C:\ba-pruebas\BroadcastAppliance\bin\64bit\ba-mcp.exe --token' | tr -d '\r\n')
+   export BA_MCP_TOKEN=<el token que da «ba-mcp.exe --token» en la PC>
    for c in directo turn-udp turn-tcp turn-mezcla:10; do for n in 10 20 30 40; do
      tools/carga/medir-sala.py --ba-mcp dist/BroadcastAppliance.app/Contents/Resources/bin/64bit/ba-mcp \
        --hinchada extern/hinchada/macos-arm64/hinchada \
-       --remoto windows --url http://192.168.1.177:8787 --participantes $n --cupo --cupo-final 2 \
+       --remoto <PC> --url http://<PC>:8787 --participantes $n --cupo --cupo-final 2 \
        --camino $c --regimen 45 --medir-grilla-s 15 --etw 20 --palabra 5 \
-       --salida ~/Proyectos/mediciones-carga/<fecha>-pc177/$c-$n \
+       --salida <carpeta-de-mediciones>/$c-$n \
        -- --modo grabado --hablan 1 --decodificar todo
    done; done
    ```
 
    Los caminos por TURN y `pinggy[:udp|tcp|mezcla:PCT]` necesitan pinggy prendido en el evento
-   de prueba (`acceso_remoto_conectar`; el TURN solo arranca con pinggy) y, para UDP,
+   de prueba (`acceso_remoto_conectar`; el TURN solo arranca con pinggy; para probar el TURN
+   sin pinggy, arrancar la app con `--test --gw-arg=--turn-prueba`) y, para UDP,
    `pinggy.turnUdp`. Apagarlo al terminar. `--etw` necesita la sesión ssh como administrador.
-   Cada corrida, 2 minutos como mucho (pedido del usuario).
+   Cada corrida, 2 minutos como mucho.
 
 4. Al terminar: volver al evento que estaba abierto, `app_quit`, que no quede `ba-*.exe` ni
    tareas `\ba-*` (`schtasks /Query`), y cerrar el túnel.

@@ -69,6 +69,9 @@ The processes are **implemented** and run on Linux (native) and on Windows
   on Linux too), `MediaPump` (IPC ↔ WebRTC per route), `TlsTerminator`
   (HTTPS), `WgDevice` + `IpStack` (userspace WireGuard + lwIP) and
   `Cloudflared`. See [`docs/funciones/CONFERENCIA.md`](../../docs/funciones/CONFERENCIA.md).
+  Since November 2026 it runs on shared thread layers (network and worker threads, the TURN
+  relay handing packets to WebRTC in memory, shared task queues) with hardware H.264
+  (Direct3D 11 / VideoToolbox) instead of threads per guest: see [Capacity](capacity.md).
 - **Video engine** (`src/motor`, GStreamer): scenes, transitions, DSK,
   clean feed, recording and outputs; remote guests enter the scene
   through Process B's IPC. Its own plugins live in `src/gst-plugins`.

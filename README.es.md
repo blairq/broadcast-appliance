@@ -85,14 +85,21 @@ adentro de la carpeta, en Windows, macOS y Linux.
   multiview, superresolución con IA y unión de cámaras en panorámica. Cada
   entrada pasa por su cadena de tarjetas: las propias (croma, color, recorte,
   PTZ digital, mejora de imagen) y cualquier elemento de GStreamer que traiga la
-  instalación, que son cientos. Grabación y transmisión a YouTube, Twitch,
-  Facebook o cualquier servidor RTMP/SRT.
+  instalación, que son cientos. TAKE atómico: la escena que entra sale al aire
+  entera, cuando todas sus capas tienen imagen. Grabación y transmisión a
+  YouTube, Twitch, Facebook (varias cuentas de cada una, un vivo por salida) o
+  cualquier servidor RTMP/SRT.
 - **Audio.** Un mezclador con grupos que se compactan y **un VCA por grupo**, un
   rack de [LSP Plugins](https://lsp-plug.in/) por fuente (compresores,
   ecualizadores, compuertas, limitadores…), matriz de mezcla, loudness EBU R128,
   calibración de sala, automezclador, PFL, AFV y sincronía con los labios.
 - **Conferencia.** Los invitados entran por WebRTC con un enlace: lobby
-  privado, chat, modo oradores con reloj, hasta 512 invitados.
+  privado, chat, modo oradores con reloj, hasta 512 invitados. Una grilla de
+  personas que se adapta y agranda al que tiene la palabra (animado, con borde de
+  color); a quien nadie ve se lo pausa y los demás entran escalonados. Medido:
+  ~160 invitados con margen en una PC con Ryzen 9 y Radeon RX 5700 XT
+  ([capacidad](docs/hardware/README.md)); una prueba integrada da el número de
+  tu máquina.
 - **Asamblea.** Integrantes presenciales y remotos, recinto con sus bancas,
   quórum, orden del día con informes en PDF, debates y votación.
 - **Bosch DCN Next Generation (beta).** Maneja la central de conferencia por su
@@ -115,7 +122,9 @@ adentro de la carpeta, en Windows, macOS y Linux.
   X-keys…). Cada puesto con sus permisos y con el estado en vivo en cada botón:
   la escena al aire, si se graba, quién habla.
 - **Pantallas.** Los monitores de la máquina y los televisores de la red
-  (Chromecast), con lo que va en cada uno.
+  (Chromecast), con lo que va en cada uno. Distribuciones de pantallas
+  guardadas: una ventana sin bordes a pantalla completa por monitor, elegida de
+  una lista con búsqueda y vista previa en vivo.
 - **Personas.** Reconocimiento de caras, padrón con acreditación y **tótems de
   registro**: una TV o un celular con cámara donde la gente se registra
   hablando con el asistente, muestra su documento (el código de barras, o el
@@ -144,6 +153,7 @@ adentro de la carpeta, en Windows, macOS y Linux.
 | [Arquitectura](docs/es/arquitectura.md) | Procesos, núcleo, estado de cada parte, estructura del repositorio, dependencias. |
 | [Configuración de referencia](docs/es/configuracion.md) | Lo que se puede ajustar a mano (normalmente lo hace el asistente). |
 | [Cómo funciona cada parte](docs/funciones/) | Un archivo por función. |
+| [Capacidad y hardware](docs/hardware/README.md) | Cuántos invitados remotos, medido en una PC con Windows y en una Mac M1 Pro: el equipo, las condiciones y los límites. |
 | [Manual del operador](docs/es/manual/README.md) | Para quien lo usa: primer vivo, invitados, audio, problemas. |
 | [Guía del invitado](docs/es/manual/guia-del-invitado.md) | Para quien entra a la conferencia. |
 | [`docs/`](docs/README.md) | Todo lo demás: planes, modelos locales, historia. |
