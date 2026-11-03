@@ -3318,7 +3318,7 @@ Add a microphone or a system input.</translation>
         <translation>%1 %2</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+31"/>
         <source>«%1» → ¿&lt;b&gt;%2&lt;/b&gt;?</source>
         <translation>“%1” → &lt;b&gt;%2&lt;/b&gt;?</translation>
     </message>
@@ -3368,7 +3368,7 @@ Add a microphone or a system input.</translation>
         <translation>The assistant isn&apos;t running (Assistant tab)</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Mantené apretado (o %1) y hablá. Mientras tanto el lobby no te oye.</source>
         <translation>Press and hold (or %1) and speak. Meanwhile the lobby can&apos;t hear you.</translation>
     </message>
@@ -3378,7 +3378,7 @@ Add a microphone or a system input.</translation>
         <translation>Ask</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>La respuesta aparece en el Asistente.
 Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
         <translation>The answer appears in the Assistant.
@@ -18558,7 +18558,7 @@ They aren&apos;t deleted from the disk: if any was in a scene, it&apos;s just re
         <translation>, after %1 dB. </translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+13"/>
         <source>[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]</source>
         <translation>[Mixer window, Room calibration tab; everything is in calibracion_ver and is controlled with calibracion_*. It&apos;s nighttime unless I tell you otherwise: prefer the simulated room.]</translation>
     </message>
@@ -34591,7 +34591,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>didn&apos;t respond</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+143"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conference restarted with the new settings.</translation>
     </message>
@@ -45286,7 +45286,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-939"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-942"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>startup: %1 took %2 ms</translation>
     </message>
@@ -57317,7 +57317,7 @@ Data (from %2): %3</translation>
         <translation>each layer of “escena” must be an object</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+973"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+976"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” didn&apos;t start on open: %2</translation>
     </message>

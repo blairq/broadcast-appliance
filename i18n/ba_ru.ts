@@ -3335,7 +3335,7 @@ Agregá un micrófono o una entrada del sistema.</source>
         <translation>%1 %2</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+31"/>
         <source>«%1» → ¿&lt;b&gt;%2&lt;/b&gt;?</source>
         <translation>«%1» → &lt;b&gt;%2&lt;/b&gt;?</translation>
     </message>
@@ -3385,7 +3385,7 @@ Agregá un micrófono o una entrada del sistema.</source>
         <translation>Ассистент не запущен (вкладка «Ассистент»)</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Mantené apretado (o %1) y hablá. Mientras tanto el lobby no te oye.</source>
         <translation>Удерживайте (или %1) и говорите. В это время зал ожидания вас не слышит.</translation>
     </message>
@@ -3395,7 +3395,7 @@ Agregá un micrófono o una entrada del sistema.</source>
         <translation>Спросить</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>La respuesta aparece en el Asistente.
 Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
         <translation>Ответ появится в «Ассистенте».
@@ -18644,7 +18644,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>, после %1 dB. </translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+13"/>
         <source>[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]</source>
         <translation>[Окно микшера, вкладка «Калибровка зала»; всё есть в calibracion_ver и управляется через calibracion_*. Сейчас ночь, если я не скажу иначе: предпочитай симулированный зал.]</translation>
     </message>
@@ -34745,7 +34745,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>не ответил</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+143"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Конференция перезапущена с новыми настройками.</translation>
     </message>
@@ -45457,7 +45457,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-939"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-942"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -57502,7 +57502,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+973"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+976"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>

@@ -9,6 +9,12 @@ R"json([
   "mcp": "supervisor_politica"
  },
  {
+  "o": "Studio.agent",
+  "n": "send",
+  "tipo": "llamar",
+  "mcp": "agente_encargar"
+ },
+ {
   "o": "Studio.alarmas",
   "n": "reconocer",
   "tipo": "llamar",

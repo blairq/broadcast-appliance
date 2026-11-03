@@ -351,9 +351,12 @@ json ReplicaPublicador::armarEsquema(const QString& id, Obj& ob) {
     const QMetaObject* mo = ob.o->metaObject();
     json props = json::array();
     std::set<int> avisos; // señales de aviso de propiedades: no se publican como funciones
+    const auto limite = limitados_.find(ob.o.data());
+    const QSet<QString>* solo = limite != limitados_.end() ? &limite->second : nullptr;
     for (int i = QObject::staticMetaObject.propertyCount(); i < mo->propertyCount(); ++i) {
         const QMetaProperty p = mo->property(i);
         if (!p.isReadable() || nombreSecreto(QString::fromLatin1(p.name()))) continue;
+        if (solo && !solo->contains(QString::fromLatin1(p.name()))) continue;
         ob.props.push_back(i);
         if (p.hasNotifySignal()) avisos.insert(p.notifySignalIndex());
         props.push_back(json::array({p.name(), tipoCorto(p.metaType()), p.isWritable() && !p.isConstant()}));
@@ -366,6 +369,7 @@ json ReplicaPublicador::armarEsquema(const QString& id, Obj& ob) {
         if (m.methodType() == QMetaMethod::Constructor) continue;
         const QString nombre = QString::fromLatin1(m.name());
         if (funcionesNegadas_.contains(nombre) || nombre.startsWith(QLatin1Char('_'))) continue;
+        if (solo && !solo->contains(nombre)) continue;
         // Una señal que nadie avisa como propiedad se puede emitir (Studio.notify(…)).
         const bool conValor = m.returnMetaType().id() != QMetaType::Void && m.returnMetaType().isValid();
         // Una acción que devuelve algo (setMuted → bool) va como acción: la réplica la manda cada
@@ -716,6 +720,10 @@ void ReplicaPublicador::entrada(const std::string& cid, const std::string& apara
         for (const QString& p : std::as_const(aNegar_))
             if (QObject* o = raiz_->property(p.toUtf8().constData()).value<QObject*>()) negados_.insert(o);
         aNegar_.clear();
+        for (const auto& [prop, nombres] : aLimitar_)
+            if (QObject* o = raiz_->property(prop.toUtf8().constData()).value<QObject*>())
+                limitados_[o] = QSet<QString>(nombres.begin(), nombres.end());
+        aLimitar_.clear();
         if (!avisosConectados_) {
             avisosConectados_ = true;
             const int i = raiz_->metaObject()->indexOfSignal("notify(QString,QString)");
@@ -758,6 +766,7 @@ void ReplicaPublicador::cerrada(const std::string& cid) {
 
 void ReplicaPublicador::vaciar() {
     reloj_.stop();
+    std::map<std::string, std::pair<json, std::string>> enEsteLote; ///< «camino|salida» → valor y su texto
     for (auto& [cid, c] : cons_) {
         if (c.pausada && c.cola.empty()) continue; // escondida: lo sucio espera
         const std::function<void()> volver = enSuSalida(c);
@@ -774,9 +783,21 @@ void ReplicaPublicador::vaciar() {
             for (int i : props) {
                 const QMetaProperty p = it->second.o->metaObject()->property(i);
                 const QString camino = id + QLatin1Char('.') + QLatin1String(p.name());
-                json x = valor(p.read(it->second.o), c, esquemas, camino);
+                // Lo mismo para todos los aparatos de la misma salida se lee y se arma UNA vez
+                // por lote (los niveles de los vúmetros, 20 veces por segundo, sobre todo). Lo
+                // que nombra objetos no: cada aparato recibe sus esquemas.
+                const std::string clave = camino.toStdString() + '|' + c.salida;
+                json x;
+                std::string texto;
+                if (const auto hecho = enEsteLote.find(clave); hecho != enEsteLote.end()) {
+                    x = hecho->second.first;
+                    texto = hecho->second.second;
+                } else {
+                    x = valor(p.read(it->second.o), c, esquemas, camino);
+                    texto = x.dump();
+                    if (texto.find("\"$o\"") == std::string::npos) enEsteLote[clave] = {x, texto};
+                }
                 // Lo que no cambió desde la última vez que se le mandó, no se manda.
-                std::string texto = x.dump();
                 std::string& antes = c.enviado[camino.toStdString()];
                 if (antes == texto) continue;
                 antes = std::move(texto);

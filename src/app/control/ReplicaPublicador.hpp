@@ -136,6 +136,10 @@ class ReplicaPublicador : public QObject {
     /// Objetos que se vuelven a leer una vez por segundo (lo que depende de la salida de cada
     /// aparato y la app avisa solo por la suya); van solo si cambió.
     void refrescarCadaSegundo(const QStringList& objetos) { refrescoLento_ = objetos; }
+    /// De ese objeto de la raíz se publica SOLO esto (propiedades y funciones). Para lo que la
+    /// web necesita poco de un objeto grande y delicado: del asistente, si corre y mandarle un
+    /// pedido (Studio.agent: running, send), nada de su sesión ni su configuración.
+    void publicarSolo(const QString& propiedadDeLaRaiz, const QStringList& nombres) { aLimitar_[propiedadDeLaRaiz] = nombres; }
     /// Funciones que no se llaman nunca desde la web (en cualquier objeto: «copiar», «quit»…).
     void negarFunciones(const QStringList& nombres);
 
@@ -219,6 +223,8 @@ class ReplicaPublicador : public QObject {
     std::unordered_map<QObject*, QString> idDe_;
     QSet<QObject*> negados_;
     QStringList aNegar_;
+    std::map<QString, QStringList> aLimitar_;          ///< se resuelven al primer «hola»
+    std::map<const QObject*, QSet<QString>> limitados_;
     bool avisosConectados_ = false; ///< Studio.notify(texto, nivel) → {op:"aviso"} a todos ///< se resuelven al primer «hola» (la raíz ya está armada)
     QSet<QString> funcionesNegadas_;
     std::vector<Permitida> permitidas_ = permitidasDeLaApp();

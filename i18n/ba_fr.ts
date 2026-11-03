@@ -3318,7 +3318,7 @@ Ajoutez un micro ou une entrée du système.</translation>
         <translation>%1 %2</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+31"/>
         <source>«%1» → ¿&lt;b&gt;%2&lt;/b&gt;?</source>
         <translation>«&#xa0;%1&#xa0;» → &lt;b&gt;%2&lt;/b&gt;&#xa0;?</translation>
     </message>
@@ -3368,7 +3368,7 @@ Ajoutez un micro ou une entrée du système.</translation>
         <translation>L&apos;assistant n&apos;est pas lancé (onglet Assistant)</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Mantené apretado (o %1) y hablá. Mientras tanto el lobby no te oye.</source>
         <translation>Maintenez appuyé (ou %1) et parlez. Pendant ce temps, la salle d&apos;attente ne vous entend pas.</translation>
     </message>
@@ -3378,7 +3378,7 @@ Ajoutez un micro ou une entrée du système.</translation>
         <translation>Demander</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>La respuesta aparece en el Asistente.
 Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
         <translation>La réponse apparaît dans l&apos;Assistant.
@@ -18558,7 +18558,7 @@ Ils ne sont pas effacés du disque&#xa0;: si l&apos;un d&apos;eux était dans un
         <translation>, après %1 dB. </translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+13"/>
         <source>[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]</source>
         <translation>[Fenêtre de la console de mixage, onglet Calibrage de la salle&#xa0;; tout est dans calibracion_ver et se pilote avec calibracion_*. C&apos;est la nuit sauf indication contraire&#xa0;: privilégiez la salle simulée.]</translation>
     </message>
@@ -34591,7 +34591,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>n&apos;a pas répondu</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+143"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conférence redémarrée avec les nouveaux paramètres.</translation>
     </message>
@@ -45286,7 +45286,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-939"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-942"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>démarrage&#xa0;: %1 a pris %2 ms</translation>
     </message>
@@ -57327,7 +57327,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>non</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+973"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+976"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«&#xa0;%1&#xa0;» n&apos;a pas démarré à l&apos;ouverture&#xa0;: %2</translation>
     </message>

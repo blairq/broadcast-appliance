@@ -54,6 +54,20 @@ class Hijo : public QObject {
     void cambio();
 };
 
+class Agente : public QObject { // como Studio.agent: grande y delicado; la web ve solo dos cosas
+    Q_OBJECT
+    Q_PROPERTY(bool running MEMBER running NOTIFY cambio)
+    Q_PROPERTY(QString sesion MEMBER sesion NOTIFY cambio)
+   public:
+    bool running = true;
+    QString sesion = "lo que habló con el operador";
+    QStringList pedidos;
+    Q_INVOKABLE void send(const QString& t) { pedidos << t; }
+    Q_INVOKABLE void borrarTodo() { sesion.clear(); }
+   signals:
+    void cambio();
+};
+
 class Lista : public QAbstractListModel {
     Q_OBJECT
     Q_PROPERTY(int columnas MEMBER columnas NOTIFY cambio)
@@ -98,6 +112,7 @@ class Raiz : public QObject {
     Q_PROPERTY(QObject* lista READ lista CONSTANT)
     Q_PROPERTY(QObject* ventanas READ ventanas CONSTANT)
     Q_PROPERTY(QVariantList cosas READ cosas NOTIFY contadorCambio)
+    Q_PROPERTY(QObject* agente READ agente CONSTANT)
    public:
     int c = 1;
     QString n = "inicial";
@@ -113,6 +128,8 @@ class Raiz : public QObject {
     QObject* hijo() { return &h; }
     QObject* lista() { return &l; }
     QObject* ventanas() { return &v; }
+    Agente ag;
+    QObject* agente() { return &ag; }
     QVariantList cosas() const { return {c, QVariantMap{{"a", "b"}, {"hijo", QVariant::fromValue<QObject*>(const_cast<Hijo*>(&h))}}}; }
     Q_INVOKABLE void sumar(int k) {
         c += k;
@@ -165,12 +182,14 @@ int main(int argc, char** argv) {
     ReplicaPublicador pub(&raiz);
     pub.negar({"ventanas"});
     pub.negarFunciones({"copiar"});
+    pub.publicarSolo("agente", {"running", "send"});
     // La lista permitida (en la app sale de la QML del dashboard): «restar» no está.
     pub.setPermitidas({{"Studio", "sumar", false, "herr_aire"},
                        {"Studio", "nombre", true, ""},
                        {"Studio", "titulo", false, "herr_lectura"},
                        {"Studio", "setNivel", false, "herr_audio"},
                        {"Studio", "setMudo", false, "herr_audio"},
+                       {"Studio.agente", "send", false, "herr_agentes"},
                        {"Studio.lista", "quitarPrimera", false, ""}});
     bool hayAire = false;
     std::vector<std::string> autorizadas;
@@ -223,6 +242,17 @@ int main(int argc, char** argv) {
     CHECK(r != nullptr && r->valor("ventanas").value<QObject*>() == &tableroLocal,
           "una propiedad local del navegador es la local, no la de la app");
     CHECK(r != nullptr && !r->valor("copiar").isValid(), "una función negada no se publica");
+    {
+        auto* ag = qobject_cast<ObjetoReplica*>(r ? r->valor("agente").value<QObject*>() : nullptr);
+        CHECK(ag != nullptr && ag->valor("running").isValid() && !ag->valor("sesion").isValid() &&
+                  !ag->valor("borrarTodo").isValid() && ag->valor("send").isValid(),
+              "de un objeto con publicarSolo, solo eso (running y send; ni la sesión ni borrarTodo)");
+        if (ag) {
+            ag->replicaLlamar("send", {QStringLiteral("hola asistente")}, false);
+            bombear(pub, cli);
+            CHECK(raiz.ag.pedidos == QStringList{"hola asistente"}, "el pedido al asistente llega a la app");
+        }
+    }
 
     qmlRegisterSingletonInstance("BA", 1, 0, "Studio", r);
     QQmlComponent comp(&engine);

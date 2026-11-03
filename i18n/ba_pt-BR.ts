@@ -3318,7 +3318,7 @@ Adicione um microfone ou uma entrada do sistema.</translation>
         <translation>%1 %2</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+31"/>
         <source>«%1» → ¿&lt;b&gt;%2&lt;/b&gt;?</source>
         <translation>“%1” → &lt;b&gt;%2&lt;/b&gt;?</translation>
     </message>
@@ -3368,7 +3368,7 @@ Adicione um microfone ou uma entrada do sistema.</translation>
         <translation>O assistente não está rodando (aba Assistente)</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Mantené apretado (o %1) y hablá. Mientras tanto el lobby no te oye.</source>
         <translation>Mantenha pressionado (ou %1) e fale. Enquanto isso a sala de espera não ouve você.</translation>
     </message>
@@ -3378,7 +3378,7 @@ Adicione um microfone ou uma entrada do sistema.</translation>
         <translation>Pedir</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>La respuesta aparece en el Asistente.
 Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
         <translation>A resposta aparece no Assistente.
@@ -18558,7 +18558,7 @@ Não são apagados do disco: se algum estava em uma cena, é tirado de lá e pro
         <translation>, depois %1 dB. </translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+13"/>
         <source>[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]</source>
         <translation>[Janela do Mixer, aba Calibração de sala; tudo está em calibracion_ver e se controla com calibracion_*. É noite, a menos que eu diga o contrário: prefira a sala simulada.]</translation>
     </message>
@@ -34591,7 +34591,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>não respondeu</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+143"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conferência reiniciada com a configuração nova.</translation>
     </message>
@@ -45286,7 +45286,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-939"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-942"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>inicialização: %1 levou %2 ms</translation>
     </message>
@@ -57327,7 +57327,7 @@ Dados (de %2): %3</translation>
         <translation>não</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+973"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+976"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” não iniciou ao abrir: %2</translation>
     </message>

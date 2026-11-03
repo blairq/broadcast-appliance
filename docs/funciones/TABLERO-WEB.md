@@ -43,6 +43,11 @@ escucha (PFL/AFL), AFV, retardos, los grupos (VCA), las salidas y buses, la matr
 calibración. Usa el mismo aparato (sin volver a emparejar) y la misma salida elegida. Los
 faders se mueven en vivo; mientras la pestaña está escondida la app no le manda nada.
 
+En la calibración de sala, la barra del asistente también anda desde la web: lo que se le
+pide (o los pedidos ya escritos, como «Explicame la sala») le llega al asistente de la app
+con el contexto del panel, y la respuesta aparece en la pestaña Asistente de la app. El
+dictado por voz es solo en la app (usa su micrófono).
+
 ### Un tablero propio por aparato
 
 El tablero web **no es el de la app**: las tarjetas que se abren, cierran, mueven o achican, y
@@ -63,7 +68,7 @@ pantalla completa sola: agregala a la pantalla de inicio (Compartir → Agregar 
 abrila desde ahí.
 
 Lo que es de la máquina donde corre la app no está en la web: sacar algo a una ventana, abrir
-otra página de la app, el asistente.
+otra página de la app, el dictado por voz.
 
 ## El video
 

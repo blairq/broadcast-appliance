@@ -83,6 +83,9 @@ EQUIVALENTES = {
     "Studio.mezclador.calibracion.medir": "calibracion_medir",
     "Studio.mezclador.calibracion.aplicar": "calibracion_aplicar",
     "Studio.mezclador.calibracion.*": "calibracion_editar",
+    # Mandarle un pedido al asistente (la barra del asistente; del asistente solo se publica
+    # `running` y `send`: ReplicaPublicador::publicarSolo). Queda en el registro con el aparato.
+    "Studio.agent.send": "agente_encargar",
     # Alarmas y salud
     "Studio.alarmas.*": "alert_reconocer",
     "Studio.latido.*": "supervisor_politica",
@@ -94,7 +97,7 @@ SOLO_VISTA = {"Studio.multivistas.*"}
 # objetos que la réplica no publica (StudioViewModel: replica_->negar).
 NUNCA = {"Studio.ventanas", "Studio.escritorio", "Studio.copiar", "Studio.catalogo", "Studio.control",
          "Studio.botonera", "Studio.accesoRemoto", "Studio.settings", "Studio.cuentas", "Studio.controlWeb",
-         "Studio.agent", "Studio.asistente",
+         "Studio.asistente",
          # El estado de la VISTA de la app: en el tablero web es local (la disposición, el fondo y
          # las tarjetas son del aparato: Studio.dashboard es suyo, src/tablero-web/main.cpp) o
          # no existe (la página de configuración, el riel, el foco, el diario de extensiones,

@@ -76,7 +76,8 @@ Panel {
         Rectangle {
             id: propuesta
             readonly property var p: barra.voz.propuesta || ({})
-            visible: !!p.herramienta
+            // La propuesta del dictado es de quien habló en la app: en el tablero web no se muestra.
+            visible: !!p.herramienta && !Theme.web
             Layout.fillWidth: true
             implicitHeight: filaPropuesta.implicitHeight + 16
             radius: 10
@@ -155,7 +156,8 @@ Panel {
 
             // Mantener apretado para hablar (o la tecla, en cualquier página).
             GlassButton {
-                visible: barra.voz.disponible
+                // En el tablero web no: el dictado usa el micrófono de la máquina de la app.
+                visible: barra.voz.disponible && !Theme.web
                 compact: true
                 icon: barra.voz.grabando ? "●" : barra.voz.transcribiendo ? "…" : "🎙"
                 active: barra.voz.grabando
@@ -179,6 +181,7 @@ Panel {
                 onClicked: barra.mandar(campo.text)
             }
             GlassButton {
+                visible: !Theme.web // la ventana del asistente se abriría en la máquina de la app
                 icon: "⧉"; compact: true
                 onClicked: ApplicationWindow.window.sacarAVentana(barra.paginaAsistente, "Asistente")
                 ToolTip.visible: hovered

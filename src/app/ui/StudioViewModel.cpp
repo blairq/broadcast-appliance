@@ -797,8 +797,11 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         // Lo que no sale nunca: credenciales y cuentas, los aparatos del control web y las
         // ventanas y el escritorio de ESTA máquina (no tienen sentido en otro aparato).
         replica_->negar({"settings", "cuentas", "controlWeb", "control", "youtube", "twitch", "facebook", "system",
-                         "botonera", "satellite", "carasBotonera", "ventanas", "escritorio", "agent",
+                         "botonera", "satellite", "carasBotonera", "ventanas", "escritorio",
                          "agenteAutomatizacion", "asistente", "descargas", "modelos", "accesoRemoto"});
+        // Del asistente, solo si corre y mandarle un pedido (la barra del asistente de las
+        // tarjetas y del Mezclador, desde el tablero web): nada de su sesión ni su configuración.
+        replica_->publicarSolo("agent", {"running", "send"});
         replica_->negarFunciones({"copiar", "quit", "quitRequested", "salir", "reiniciar", "abrirCarpeta", "abrirArchivo",
                                   "abrirUrl", "revelar", "mostrarEnFinder"});
         cuadrosWeb_ = std::make_unique<control::CuadrosWeb>(frames_.get());

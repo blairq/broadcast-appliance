@@ -3301,7 +3301,7 @@ Agregá un micrófono o una entrada del sistema.</source>
         <translation>%1 %2</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+31"/>
         <source>«%1» → ¿&lt;b&gt;%2&lt;/b&gt;?</source>
         <translation>「%1」→ &lt;b&gt;%2&lt;/b&gt;？</translation>
     </message>
@@ -3351,7 +3351,7 @@ Agregá un micrófono o una entrada del sistema.</source>
         <translation>助手未运行（「助手」选项卡）</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+17"/>
         <source>Mantené apretado (o %1) y hablá. Mientras tanto el lobby no te oye.</source>
         <translation>按住（或 %1）并说话。期间等候室听不到您的声音。</translation>
     </message>
@@ -3361,7 +3361,7 @@ Agregá un micrófono o una entrada del sistema.</source>
         <translation>请求</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>La respuesta aparece en el Asistente.
 Esto lo abre en otra ventana, para tener las dos cosas a la vez.</source>
         <translation>回复显示在「助手」中。
@@ -18472,7 +18472,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         <translation>，校准后 %1 dB。 </translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+13"/>
         <source>[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]</source>
         <translation>[调音台窗口，「房间校准」选项卡；所有内容都在 calibracion_ver 中，用 calibracion_* 操作。除非我另行说明，否则视为夜间：优先使用模拟房间。]</translation>
     </message>
@@ -34437,7 +34437,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+143"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>会议已使用新设置重启。</translation>
     </message>
@@ -45115,7 +45115,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-939"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-942"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -57152,7 +57152,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+973"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+976"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
