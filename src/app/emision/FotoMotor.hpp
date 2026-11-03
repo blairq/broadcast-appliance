@@ -161,6 +161,12 @@ struct FotoMotor {
     };
     std::vector<Salida> salidas; ///< la por omisión primera
     int tope = 1;
+    /// Las escenas que se MUESTRAN además del aire y el preview (BroadcastEngine::
+    /// escenasMostradas, al día en cada vuelta con Salidas): `escenasEnVistas`, las de la
+    /// interfaz (monitores, ventanas, multiview, distribuciones de pantallas, miniaturas);
+    /// `escenasEnCanales`, las que salen por un canal de escena (pantallas de la sala,
+    /// retornos de escena). Para la sala: quien sale en ellas no se pausa (sala/CapasRemotos).
+    std::vector<std::string> escenasEnVistas, escenasEnCanales;
 
     // --- Estado (la por omisión) -----------------------------------------------------
     struct EstadoAire {
@@ -386,7 +392,8 @@ struct FotoMotor {
         };
         mirar(Escenas, a.escenas != b.escenas || a.fuentes != b.fuentes || a.tipos != b.tipos ||
                            a.transicionesEntrada != b.transicionesEntrada);
-        mirar(Salidas, a.salidas != b.salidas || a.tope != b.tope);
+        mirar(Salidas, a.salidas != b.salidas || a.tope != b.tope || a.escenasEnVistas != b.escenasEnVistas ||
+                           a.escenasEnCanales != b.escenasEnCanales);
         mirar(Estado, a.estado != b.estado);
         mirar(Emision, a.destinos != b.destinos || a.grabacion != b.grabacion || a.limpia != b.limpia || a.isos != b.isos ||
                            a.apurosDisco != b.apurosDisco || a.remux != b.remux || a.retornos != b.retornos);

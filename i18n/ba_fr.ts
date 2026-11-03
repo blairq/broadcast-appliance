@@ -5369,7 +5369,10 @@ Faire défiler la bande ne change pas ce qui est affiché.</translation>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n en train d'entrer (%1 par seconde)</numerusform><numerusform>%n en train d'entrer (%1 par seconde)</numerusform></translation>
+        <translation>
+            <numerusform>%n en train d'entrer (%1 par seconde)</numerusform>
+            <numerusform>%n en train d'entrer (%1 par seconde)</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -30642,7 +30645,7 @@ Ajoutez-en une dans Scènes et sources : placez-la là où le synthé doit appa
         <translation>Aucun moyen de connexion enregistré : configurez-en un dans Paramètres → Accès à distance.</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>en salle d'attente</translation>
     </message>
@@ -40255,6 +40258,76 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="+1" />
+        <source>Video de los invitados: no recibir a quien nadie ve</source>
+        <translation>Vidéo des invités : ne pas recevoir ceux que personne ne voit</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>A un invitado que no está al aire ni en el preview, ni en una grilla a la vista, ni con su tarjeta a la vista en la interfaz, se le pide que deje de mandar la cámara: no viaja ni se decodifica (con 200 invitados, la placa de video decodifica a los que se ven y no a todos). Cuando vuelve a hacer falta, la manda de nuevo en una fracción de segundo; mientras tanto queda su última imagen. Apagado, todos mandan siempre la calidad baja.</source>
+        <translation>On demande à un invité qui n'est ni à l'antenne ni en aperçu, ni dans une grille visible, et dont la vignette n'est pas visible dans l'interface, d'arrêter d'envoyer sa caméra : elle ne circule pas et n'est pas décodée (avec 200 invités, la carte graphique décode ceux qu'on voit, pas tous). Quand elle redevient nécessaire, il la renvoie en une fraction de seconde ; en attendant, sa dernière image reste. Désactivé, tous envoient toujours la basse qualité.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Video de los invitados: menos cuadros si la placa no da</source>
+        <translation>Vidéo des invités : moins d'images si la carte graphique ne suit pas</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Si el motor de video de la placa (el que decodifica las cámaras) se carga, se les pide a los invitados en calidad baja menos cuadros por segundo (15, 10, 7,5), primero a los de las celdas más chicas; cuando se alivia, vuelven a 15. Los de calidad alta (el que está al aire, los lugares grandes de una grilla) no se tocan.</source>
+        <translation>Si le moteur vidéo de la carte graphique (celui qui décode les caméras) se charge, on demande aux invités en basse qualité moins d'images par seconde (15, 10, 7,5), d'abord aux plus petites cellules ; quand la charge baisse, ils reviennent à 15. Ceux en haute qualité (celui à l'antenne, les grandes places d'une grille) ne sont pas touchés.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Menos cuadros con la placa de video al</source>
+        <translation>Moins d'images avec le moteur vidéo à</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Con la carga del motor de video en esto o más durante 2 segundos, se baja un escalón.</source>
+        <translation>Avec la charge du moteur vidéo à cette valeur ou plus pendant 2 secondes, on descend d'un palier.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Más cuadros con la placa de video al</source>
+        <translation>Plus d'images avec le moteur vidéo à</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Con la carga en esto o menos durante el tiempo de recuperar, se sube un escalón. Tiene que quedar por debajo del de arriba (si no, se toma uno menos).</source>
+        <translation>Avec la charge à cette valeur ou moins pendant le temps de récupération, on remonte d'un palier. Doit rester en dessous de celle du dessus (sinon on prend un de moins).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Volver a subir los cuadros después de</source>
+        <translation>Remonter les images après</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cuánto tiene que sostenerse la carga baja para subir un escalón (bajar es rápido; subir, prudente).</source>
+        <translation>Combien de temps la charge basse doit durer pour remonter d'un palier (descendre est rapide ; remonter, prudent).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuadros perdidos al decodificar que cuentan como saturado</source>
+        <translation>Images perdues avant décodage qui comptent comme saturation</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Si de los cuadros que llegan se pierde esto o más antes de decodificarlos, la placa ya no da abasto (sirve donde el sistema no dice la carga del motor de video: macOS, Linux). 0 = no mirarlo.</source>
+        <translation>Si cette part ou plus des images reçues est perdue avant d'être décodée, la carte graphique ne suit plus (utile là où le système n'indique pas la charge du moteur vidéo : macOS, Linux). 0 = ne pas en tenir compte.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuadros por segundo mínimos de la calidad baja</source>
+        <translation>Images par seconde minimales de la basse qualité</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Hasta dónde se baja como mucho (los escalones son 15, 10 y este).</source>
+        <translation>Jusqu'où on descend au maximum (les paliers sont 15, 10 et celui-ci).</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>Conferencia: núcleos propios</source>
         <translation>Conférence : cœurs dédiés</translation>
     </message>
@@ -40534,7 +40607,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>n'est pas une des options</translation>
     </message>
     <message>
-        <location line="-236" />
+        <location line="-243" />
         <source>Mensajes de chat que se guardan</source>
         <translation>Messages de chat conservés</translation>
     </message>
@@ -40689,7 +40762,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Windows : en direct, le gateway passe chaque image au GPU sans intermédiaire (moins de processeur et de threads) ; Media Foundation, le décodeur de Windows (pour comparer ou si le GPU pose problème).</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+15" />
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>Parler à un invité : baisse du programme</translation>
     </message>
@@ -51675,7 +51748,7 @@ Données (de %2) : %3</translation>
         <translation>impossible de recadrer « %1 » dans « %2 » (recadrage plus grand que l'image ?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+186" />
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+187" />
         <source>todavía no se pueden crear escenas</source>
         <translation>il n'est pas encore possible de créer des scènes</translation>
     </message>
@@ -53763,9 +53836,9 @@ Données (de %2) : %3</translation>
         <location line="+7" />
         <location filename="../src/gateway/Botonera.cpp" line="+91" />
         <location line="+2" />
-        <location filename="../src/gateway/SignalingServer.cpp" line="+688" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="+692" />
         <location line="+9" />
-        <location line="+356" />
+        <location line="+357" />
         <location line="+109" />
         <location line="+11" />
         <location line="+3" />
@@ -54177,7 +54250,7 @@ Données (de %2) : %3</translation>
         <translation>cellule de « %1 » sans taille</translation>
     </message>
     <message>
-        <location line="+672" />
+        <location line="+675" />
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>grilles : BA.Grilla.%1 prête (%2x%3)</translation>
     </message>
@@ -54363,7 +54436,7 @@ Données (de %2) : %3</translation>
         <translation>aucun audio n'est arrivé de son micro pendant le test (est-il coupé ?)</translation>
     </message>
     <message>
-        <location line="+249" />
+        <location line="+277" />
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>montée %1 : %2 fps (%3x%4)</translation>
     </message>
@@ -54653,7 +54726,7 @@ Données (de %2) : %3</translation>
         <translation>personne</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1672" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1675" />
         <source>pantalla %1 sale: %2</source>
         <translation>écran %1 sort : %2</translation>
     </message>
@@ -54668,7 +54741,7 @@ Données (de %2) : %3</translation>
         <translation>signalisation : impossible de faire bind %1:%2 (port utilisé ou adresse invalide ?)</translation>
     </message>
     <message>
-        <location line="+67" />
+        <location line="+69" />
         <source>señalización: escuchando en %1:%2 (webroot=%3)</source>
         <translation>signalisation : écoute sur %1:%2 (webroot=%3)</translation>
     </message>
@@ -54713,7 +54786,7 @@ Données (de %2) : %3</translation>
         <translation>tunnel : écoute de pinggy sur 127.0.0.1:%1 (tout l'externe)</translation>
     </message>
     <message>
-        <location line="+349" />
+        <location line="+350" />
         <source>señalización: %1 conexiones sin cerrar tras %2 ms</source>
         <translation>signalisation : %1 connexions non fermées après %2 ms</translation>
     </message>
@@ -54758,7 +54831,7 @@ Données (de %2) : %3</translation>
         <translation>ws : médias de %1 (session %2) fermés</translation>
     </message>
     <message>
-        <location line="+53" />
+        <location line="+59" />
         <source>ws: setRemoteOffer falló (sesión %1)</source>
         <translation>ws : échec de setRemoteOffer (session %1)</translation>
     </message>
@@ -54883,12 +54956,17 @@ Données (de %2) : %3</translation>
         <translation>ws : message invalide de %1 (%2)</translation>
     </message>
     <message>
-        <location line="+427" />
+        <location line="+446" />
+        <source>capas: a %1 no lo ve nadie (tarjeta: %2): se pausa su cámara</source>
+        <translation>couches : personne ne voit %1 (vignette : %2) : sa caméra est mise en pause</translation>
+    </message>
+    <message>
+        <location line="+3" />
         <source>capas: a %1 se le pide la %2</source>
         <translation>couches : on demande à %1 la couche %2</translation>
     </message>
     <message>
-        <location line="+23" />
+        <location line="+24" />
         <source>capas: llegó la HD de %1 (%2 ms desde el pedido); fundido de %3 ms</source>
         <translation>couches : la HD de %1 est arrivée (%2 ms après la demande) ; fondu de %3 ms</translation>
     </message>
@@ -54913,7 +54991,12 @@ Données (de %2) : %3</translation>
         <translation>test de salle : terminé (%1) ; identifiant révoqué, %2 participants de test retirés</translation>
     </message>
     <message>
-        <location line="-3112" />
+        <location line="+227" />
+        <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
+        <translation>vidéo : charge du moteur vidéo %1 ; les ips de la couche basse passent du palier %2 au %3 (sur %4)</translation>
+    </message>
+    <message>
+        <location line="-3369" />
         <source>direcciones: red %1, afuera %2</source>
         <translation>adresses : réseau %1, extérieur %2</translation>
     </message>
@@ -54930,7 +55013,7 @@ Données (de %2) : %3</translation>
         <translation>(non)</translation>
     </message>
     <message>
-        <location line="+269" />
+        <location line="+270" />
         <location line="+143" />
         <location line="+8" />
         <source>servidor saturado</source>
@@ -55027,7 +55110,7 @@ Données (de %2) : %3</translation>
         <translation>ws : aucune session WebRTC libre pour %1</translation>
     </message>
     <message>
-        <location line="+285" />
+        <location line="+291" />
         <source>salidas: %1</source>
         <translation>sorties : %1</translation>
     </message>
@@ -55213,7 +55296,7 @@ Données (de %2) : %3</translation>
         <translation>turn : MODE TEST (--turn-prueba) : le TURN démarre sans pinggy, uniquement sur le réseau local</translation>
     </message>
     <message>
-        <location line="+267" />
+        <location line="+270" />
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>tunnel : --tunnel-token est visible dans la liste des processus ; préférez %1</translation>
     </message>
@@ -55233,7 +55316,7 @@ Données (de %2) : %3</translation>
         <translation>tunnel : désactivé par la configuration (accès local uniquement)</translation>
     </message>
     <message>
-        <location line="-645" />
+        <location line="-648" />
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>réseau : IP de la machine %1 ; dans le QR : %2</translation>
     </message>
@@ -55283,7 +55366,7 @@ Données (de %2) : %3</translation>
         <translation>https : ba-web ne le prend pas en charge ; démarrage du terminateur intégré</translation>
     </message>
     <message>
-        <location line="+215" />
+        <location line="+218" />
         <source>puerta de la sala: https en %1:%2</source>
         <translation>porte de la salle : https sur %1:%2</translation>
     </message>
@@ -86856,7 +86939,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Étapes de « donner la priorité au programme » désactivées à cause de la chaleur</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1138" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1144" />
         <source>Invitados que se cortaron y volvieron a su lugar</source>
         <translation>Invités coupés qui ont retrouvé leur place</translation>
     </message>

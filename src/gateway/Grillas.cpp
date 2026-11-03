@@ -383,7 +383,10 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
             if (x.r.w <= 0 || x.r.h <= 0) return llenar(traducir("gateway", "celda de «%1» sin tamaño"), {x.persona});
             x.resaltar = c.value("resaltar", false);
             const std::string capa = c.value("capa", std::string());
-            x.capa = capa == "alta" ? Capa::Alta : capa == "baja" ? Capa::Baja : Capa::Nada;
+            x.capa = capa == "alta"    ? Capa::Alta
+                     : capa == "media" ? Capa::Media // 360p: la alta topada (Capas.hpp)
+                     : capa == "baja"  ? Capa::Baja
+                                       : Capa::Nada;
             x.rotulo = c.value("rotulo", std::string());
             n.celdas.push_back(std::move(x));
         }

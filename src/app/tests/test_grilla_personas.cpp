@@ -1011,7 +1011,7 @@ void sinCambiosAgrandarYPase() {
 
 } // namespace
 
-// Las capas de una vuelta: clave → "alta" | "baja".
+// Las capas de una vuelta: clave → "alta" | "media" | "baja".
 std::map<std::string, std::string> capasDe(const Resultado& r) {
     std::map<std::string, std::string> m;
     for (const auto& x : r.celdas) m[x.clave] = x.capa;
@@ -1060,6 +1060,15 @@ void altaHasta() {
     CHECK(!res[0].enBaja && res[0].celdas.size() == 10, "10 personas: por tamaño");
     CHECK(res[0].celdas.front().r.h > kSubirAlta, "las celdas de 10 son grandes");
     CHECK(cuantasAlta(res[0]) == kAltaMaxDefecto, "10 personas en celdas grandes: en alta solo las del tope (alta_max)");
+    {
+        // Las grandes que no entran en el tope: la media (360p), no la baja estirada.
+        int medias = 0, bajas = 0;
+        for (const auto& x : res[0].celdas) {
+            medias += x.capa == "media" ? 1 : 0;
+            bajas += x.capa == "baja" ? 1 : 0;
+        }
+        CHECK(medias == 10 - kAltaMaxDefecto && bajas == 0, "las celdas grandes fuera del tope van en la media");
+    }
 
     res = rep.calcular(gs, v, {}, 2000);
     auto capas = capasDe(res[0]);
@@ -1113,7 +1122,9 @@ void altaHasta() {
         w[1].palabra = true;
         x = r2.calcular(g0, w, {}, 10000);
         auto c = capasDe(x[0]);
-        CHECK(c["sala:p1"] == "alta" && c["sala:p0"] == "baja", "el orador anterior vuelve a la baja (no ganó la alta por su lugar)");
+        // Sale de la alta: a la media si su celda pasa kSubirMedia, si no a la baja.
+        CHECK(c["sala:p1"] == "alta" && c["sala:p0"] == (h > kSubirMedia ? "media" : "baja"),
+              "el orador anterior deja la alta (no la ganó por su lugar)");
         CHECK(cuantasAlta(x[0]) == 1, "solo el orador en alta");
     }
     // Un invitado del cupo (en el programa, no al aire) en una celda chica de la grilla: baja.
@@ -1452,7 +1463,38 @@ void grupoConOradorQueRota() {
         }
 }
 
+/// La capa media (360p): las celdas grandes que no están en alta, con histéresis.
+void capaMedia() {
+    using P = CapasGrilla::Pedido;
+    CapasGrilla c;
+    std::map<std::string, P> pedidos{{"a", P{360}}, {"b", P{360}}, {"chica", P{120}}};
+    auto alta = c.decidir(pedidos, 1, 1); // tope de 1: «a» o «b» queda afuera
+    auto media = c.medias(pedidos, alta);
+    int enAlta = 0;
+    for (const auto& [k, v] : alta) enAlta += v ? 1 : 0;
+    CHECK(enAlta == 1, "una sola en alta (el tope)");
+    CHECK(media.size() == 1 && !alta.at(*media.begin()), "la otra grande, en la media");
+    CHECK(media.count("chica") == 0, "la chica, en la baja");
+    // Histéresis: la de la media se achica a 170 (entre bajar y subir): sigue en la media.
+    const std::string m = *media.begin();
+    pedidos[m].alto = 170;
+    media = c.medias(pedidos, c.decidir(pedidos, 1, 1));
+    CHECK(media.count(m) == 1, "entre kBajarMedia y kSubirMedia sigue en la media");
+    pedidos[m].alto = 140;
+    media = c.medias(pedidos, c.decidir(pedidos, 1, 1));
+    CHECK(media.count(m) == 0, "por debajo de kBajarMedia, a la baja");
+    pedidos[m].alto = 170;
+    media = c.medias(pedidos, c.decidir(pedidos, 1, 1));
+    CHECK(media.count(m) == 0, "y para volver tiene que pasar kSubirMedia");
+    // Sin tope: las dos en alta, ninguna en la media.
+    CapasGrilla d;
+    std::map<std::string, P> dos{{"a", P{360}}, {"b", P{360}}};
+    for (int i = 0; i < 3; ++i) media = d.medias(dos, d.decidir(dos, 1, 0));
+    CHECK(media.empty(), "en alta no se es media");
+}
+
 int main() {
+    capaMedia();
     disposicion();
     formaDeLasCeldas();
     filtrosYOrden();

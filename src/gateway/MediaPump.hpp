@@ -201,6 +201,16 @@ class MediaPump {
     /// (BA.GuestUi.N, `vistas`), por quién las lee ahora (SpoutSender::demanda): {sin_lector,
     /// de_vez_en_cuando, todos}. Las que no tienen lector no se convierten ni se copian.
     nlohmann::json demandaCamaras() const;
+    /// F3 (no decodificar a quien nadie ve): cómo lee la interfaz la tarjeta (BA.GuestUi.N)
+    /// del lugar del programa de `session`. «todos» si no está en el programa, si su canal no
+    /// existe o no va según demanda (`gateway.videoSegunDemanda` apagado): lo que no se sabe
+    /// no pausa a nadie.
+    Mirada vistaDe(int session) const;
+    /// La sala le pausó a propósito la cámara a `session` (nadie la ve): mientras siga en su
+    /// lugar del programa, la placa «sin señal» no pisa la última imagen (el motor de la app
+    /// la sigue leyendo; si la escena se ve en un multiview, queda congelada en vez de negra).
+    /// false: volvió a hacer falta (o se fue): la placa vuelve a valer.
+    void pausarCamara(int session, bool pausada);
 
     /// Ruta de la sesion `session` (1..hub.sessions()).
     void setRoute(int session, const MediaRoute& route);
@@ -261,6 +271,9 @@ class MediaPump {
         // entradas de las escenas) y convertir cada cuadro entero para nadie era lo que más
         // gastaba el hilo que decodifica (F3, #8). `gateway.videoSegunDemanda` lo apaga.
         bool segunDemanda = false;
+        // La sesión a la que la sala le pausó la cámara a propósito (0 = ninguna): mientras
+        // esa sesión siga en este lugar, sin placa (pausarCamara).
+        std::atomic<int> pausadaSesion{0};
         // A cuantos cuadros por segundo esta LLEGANDO lo que sube el
         // participante. Es la mitad que faltaba para saber donde se va el
         // retardo: si el telefono entrega 30 parejos, lo que se ve tarde se

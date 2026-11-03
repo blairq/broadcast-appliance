@@ -1194,6 +1194,9 @@ int main(int argc, char** argv) {
         out["turn"] = turnSrv ? turnSrv->estado() : nlohmann::json{{"activo", false}};
         // F2: los hilos de red y de trabajo con su carga, las fábricas y la entrega en memoria.
         out["capas"] = hub.capasEstado();
+        // F3: quién se decodifica (capas pedidas, decodificadores trabajando o en pausa) y los
+        // cps de la capa baja según la carga del motor de video (CpsSegunCarga.hpp).
+        out["videoSegunCarga"] = server.estadoCargaVideo();
         if (pinggy) {
             const PinggySupervisor::Estado st = pinggy->estado();
             out["pinggy"] = {{"turnPublico", st.turnPublico}, {"turnTipo", st.turnTipo}, {"turnUdp", st.turnUdp}};

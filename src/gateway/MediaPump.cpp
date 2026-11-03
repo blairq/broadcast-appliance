@@ -1438,6 +1438,34 @@ bool MediaPump::pideCuadro(const VideoOut& v, uint64_t ahoraNs) {
     return intervalo == 0 || ahoraNs - ultimo >= intervalo;
 }
 
+Mirada MediaPump::vistaDe(int session) const {
+    const MediaRoute r = route(session);
+    if (r.kind != MediaRoute::Kind::Program || r.index < 1 || r.index > kMaxInvitados) return Mirada::Todos;
+    const VideoOut* v = guestUiVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire);
+    if (v == nullptr || !v->segunDemanda) return Mirada::Todos;
+    // Sin publicar todavía (la app no lo abrió): nadie lo lee.
+    if (!v->sender.published()) return Mirada::Nadie;
+    switch (v->sender.demanda()) {
+    case ba::ipc::SpoutSender::Demanda::Nadie: return Mirada::Nadie;
+    case ba::ipc::SpoutSender::Demanda::DeVezEnCuando: return Mirada::DeVezEnCuando;
+    case ba::ipc::SpoutSender::Demanda::Todos: break;
+    }
+    return Mirada::Todos;
+}
+
+void MediaPump::pausarCamara(int session, bool pausada) {
+    const MediaRoute r = route(session);
+    if (r.kind != MediaRoute::Kind::Program || r.index < 1 || r.index > kMaxInvitados) return;
+    if (VideoOut* v = guestVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire)) {
+        if (pausada)
+            v->pausadaSesion.store(session, std::memory_order_relaxed);
+        else {
+            int s = session;
+            v->pausadaSesion.compare_exchange_strong(s, 0, std::memory_order_relaxed); // solo si era la suya
+        }
+    }
+}
+
 nlohmann::json MediaPump::demandaCamaras() const {
     int nadie = 0, deVez = 0, todos = 0;
     const auto contar = [&](const VideoOut* v) {
@@ -1704,6 +1732,12 @@ void MediaPump::plateThread() {
             }
             // Lo último que llegó (aunque no se haya publicado: sin lector no se publica).
             const uint64_t last = std::max(v->lastNs.load(std::memory_order_relaxed), v->llegoNs.load(std::memory_order_relaxed));
+            // Pausado a propósito (nadie lo ve) y sigue en este lugar: no es «sin señal», es
+            // que no se le pide; queda la última imagen.
+            if (const int p = v->pausadaSesion.load(std::memory_order_relaxed); p > 0 && last != 0) {
+                const MediaRoute r = route(p);
+                if (r.kind == MediaRoute::Kind::Program && r.index == static_cast<int>(s)) continue;
+            }
             if (last == 0 || now - last > kGuestTimeoutNs) {
                 publishVideo(*v, plates[s].data(), w, h, false);
                 // La tarjeta de la interfaz muestra la misma placa (F3-11).

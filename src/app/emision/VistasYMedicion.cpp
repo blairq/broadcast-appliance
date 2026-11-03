@@ -240,6 +240,14 @@ std::string VistasYMedicion::scenePreviewName(const std::string& canal) const {
     return it == scenePreviews_.end() ? std::string() : it->second.name;
 }
 
+std::vector<std::string> VistasYMedicion::nombresEnVistas() const {
+    const std::lock_guard<std::mutex> l(vistasMu_); // DESDE CUALQUIER HILO
+    std::vector<std::string> out;
+    out.reserve(scenePreviews_.size());
+    for (const auto& [canal, v] : scenePreviews_) out.push_back(v.name);
+    return out;
+}
+
 bool VistasYMedicion::renderScenePreview(const std::string& canal, motor::Cuadro& out, std::uint64_t& serial) {
     const std::lock_guard<std::mutex> l(vistasMu_); // DESDE CUALQUIER HILO
     auto it = scenePreviews_.find(canal);

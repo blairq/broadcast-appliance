@@ -100,6 +100,8 @@
 
 #include "Canal.hpp"
 #include "Botonera.hpp"
+#include "CargaVideo.hpp"
+#include "CpsSegunCarga.hpp"
 #include "Direcciones.hpp"
 #include "Registro.hpp"
 #include "Sesion.hpp"
@@ -736,19 +738,45 @@ class SignalingServer {
     std::mutex calidadMu_;
     std::map<std::string, int> altoGrilla_;           // pid -> alto en píxeles (0 = en ninguna)
     std::map<std::string, std::string> calidadPedida_; // pid -> "180p" | "360p" | "libre"
+    std::set<std::string> mediaDe_;                    // pids en la capa media (la alta topada a 360p)
     void enviarCalidadGrilla(const std::string& pid, bool forzar = false);
     // Las capas de la cámara (Capas.hpp): qué entradas de remotos tiene la app al aire y
     // armadas ("guest:<n>", "remoto:<k>"), como las manda por POST /api/v1/capas.
     std::mutex capasMu_;
     std::map<std::string, std::int64_t> pedidoAltaMs_; // pid → cuándo se le pidió la alta (con capasMu_)
     bool capasApp_ = false; ///< la app ya dijo algo (antes, el programa va en alta)
-    std::set<std::string> capasAire_, capasSiguiente_;
+    std::set<std::string> capasAire_, capasSiguiente_, capasVisibles_;
     /// La capa que necesita la sala de `pid` (si manda dos) y se la pide a su sesión.
     void revisarCapas(const std::string& pid);
     void revisarCapasTodas();
     /// Llegó el primer cuadro HD de `pid` (después de la baja): su canal y su retrato en las
     /// grillas funden en `ms`, y se anota cuánto tardó desde el pedido (Fundido.hpp).
     void alLlegarHd(const std::string& pid, const std::string& persona, int idx, int ms);
+
+    // F3 — LO QUE CUESTA DECODIFICAR (docs/planes/PLAN-GATEWAY-FRAGMENTOS.md, F3):
+    //   - no se decodifica a quien nadie ve: cada 250 ms se mira cómo lee la interfaz la
+    //     tarjeta de cada uno (MediaPump::vistaDe); si cambió, se le vuelve a decidir la capa
+    //     (capaNecesaria: fuera del aire, sin grilla y sin tarjeta a la vista, «nada»);
+    //   - los cps de la capa baja según la carga del motor de video (CpsSegunCarga.hpp),
+    //     cada segundo: {type:"cps-baja", cps} a cada página que cambia.
+    std::thread cargaThread_;
+    void bucleCarga();
+    /// Una vuelta del controlador: mide, decide y le manda a cada uno sus cps.
+    void ajustarCps(cargavideo::Medidor& medidor);
+    mutable std::mutex cpsMu_;
+    ControlCps cps_;                                    ///< el controlador (con cpsMu_)
+    std::map<std::string, double> cpsEnviado_;          ///< pid → cps pedido (con cpsMu_; sin entrada: los de la página)
+    std::map<int, Mirada> vistas_;                      ///< idx → la última mirada (solo bucleCarga)
+    /// idx → los bytes de cámara de la vuelta anterior y cuándo (solo bucleCarga: kbps por capa).
+    std::map<int, std::pair<WebrtcHub::EntradaCamara, std::int64_t>> entradaAntes_;
+    nlohmann::json estadoCarga_ = nlohmann::json::object(); ///< para gateway_estado (con cpsMu_)
+
+   public:
+    /// Para gateway_estado (`videoSegunCarga`): {pausados, frenados, cps:{pid: cps},
+    /// control: ControlCps::estado(), medidor}.
+    nlohmann::json estadoCargaVideo() const;
+
+   private:
     // T44: las frases que esperan al corrector (las manda la app) y desde cuándo.
     std::mutex correccionMu_;
     nlohmann::json correccionPend_ = nlohmann::json::array();

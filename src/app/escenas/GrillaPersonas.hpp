@@ -190,6 +190,11 @@ enum class Nombres { No, Nombre, NombreCargo };
 constexpr int kSubirAlta = 260;
 /// …y vuelven a la baja recién por debajo de esto (histéresis).
 constexpr int kBajarAlta = 180;
+/// Las que no están en alta pasan a la MEDIA (360p) por encima de esto: la baja (180p) ya se
+/// ve estirada (2026-11-03: celdas de 640x360 pixeladas con la baja, por el tope de la alta)…
+constexpr int kSubirMedia = 200;
+/// …y vuelven a la baja recién por debajo de esto.
+constexpr int kBajarMedia = 150;
 /// «Alta definición hasta N personas» de fábrica (más que esto: todas las miniaturas en baja).
 constexpr int kAltaHastaDefecto = 10;
 /// Con todas en baja, se vuelve a la regla por tamaño recién con N - esto o menos (histéresis).
@@ -305,7 +310,7 @@ struct Celda {
     std::string clave;
     Rect r;
     bool resaltar = false;
-    std::string capa;   ///< "alta" | "baja" ("" = no se dice)
+    std::string capa;   ///< "alta" | "media" | "baja" ("" = no se dice)
     std::string rotulo; ///< el id de su rótulo ("" = sin nombre)
 };
 
@@ -418,10 +423,16 @@ class CapasGrilla {
     /// `altaMax`: cuántos en alta como mucho (0 = sin tope), elegidos por prioridad (ver arriba).
     std::map<std::string, bool> decidir(const std::map<std::string, Pedido>& pedidos, int maxSubidas = 1,
                                         int altaMax = 0);
+    /// De los que NO quedaron en alta (`alta`, lo que dio decidir), los que van en la MEDIA
+    /// (360p): su lugar pasa kSubirMedia de alto, o ya estaban y no bajó de kBajarMedia. La media
+    /// no cuenta para «alta_max» (cuesta un cuarto de la alta al decodificar) ni espera turno
+    /// para subir (no hay transceptor nuevo: la alta topada; ver src/gateway/Capas.hpp).
+    std::set<std::string> medias(const std::map<std::string, Pedido>& pedidos, const std::map<std::string, bool>& alta);
 
    private:
     enum class Por { Tamano, Orador }; ///< por qué está en alta (Orador: orador, presentador o precargado)
     std::map<std::string, Por> alta_;  ///< los que están en alta
+    std::set<std::string> media_;      ///< los que están en la media
 };
 
 /// Pasar a la escena del orador (al_hablar = escena) a mano, automático o con el asistente.

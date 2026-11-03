@@ -48,6 +48,9 @@ class VistasYMedicion {
     void disableScenePreview(const std::string& canal);
     void medirVista(const std::string& clave);
     std::string scenePreviewName(const std::string& canal) const;
+    /// Lo que muestran las vistas pedidas ahora, tal como se pidió (una escena por nombre o
+    /// id, «mini:X», «entera:X», una fuente, «programa:<salida>»…). DESDE CUALQUIER HILO.
+    std::vector<std::string> nombresEnVistas() const;
     bool renderScenePreview(const std::string& canal, motor::Cuadro& out, std::uint64_t& serial);
     void soltarVistasSinMirar(bool on);
     bool vistasSinMirar() const { return vistasSinMirar_; }

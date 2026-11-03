@@ -5399,7 +5399,11 @@ Recorrer la tira no cambia lo que se ve.</source>
     <message numerus="yes">
         <location line="-476" />
         <source>%n entrando (%1 por segundo)</source>
-        <translation><numerusform>%n входит (%1 в секунду)</numerusform><numerusform>%n входят (%1 в секунду)</numerusform><numerusform>%n входят (%1 в секунду)</numerusform></translation>
+        <translation>
+            <numerusform>%n входит (%1 в секунду)</numerusform>
+            <numerusform>%n входят (%1 в секунду)</numerusform>
+            <numerusform>%n входят (%1 в секунду)</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+2" />
@@ -30774,7 +30778,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>Нет сохранённого способа подключения: настройте его в Настройки → Удалённый доступ.</translation>
     </message>
     <message>
-        <location line="+17" />
+        <location line="+19" />
         <source>espera en el lobby</source>
         <translation>ждёт в зале ожидания</translation>
     </message>
@@ -40417,6 +40421,76 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1" />
+        <source>Video de los invitados: no recibir a quien nadie ve</source>
+        <translation>Видео гостей: не принимать тех, кого никто не видит</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>A un invitado que no está al aire ni en el preview, ni en una grilla a la vista, ni con su tarjeta a la vista en la interfaz, se le pide que deje de mandar la cámara: no viaja ni se decodifica (con 200 invitados, la placa de video decodifica a los que se ven y no a todos). Cuando vuelve a hacer falta, la manda de nuevo en una fracción de segundo; mientras tanto queda su última imagen. Apagado, todos mandan siempre la calidad baja.</source>
+        <translation>Гостя, который не в эфире и не в превью, не в видимой сетке и чья карточка не видна в интерфейсе, просят перестать передавать камеру: она не передаётся и не декодируется (при 200 гостях видеокарта декодирует тех, кого видно, а не всех). Когда камера снова нужна, он отправляет её за долю секунды; до тех пор остаётся последний кадр. Если выключено, все всегда передают низкое качество.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Video de los invitados: menos cuadros si la placa no da</source>
+        <translation>Видео гостей: меньше кадров, если видеокарта не справляется</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Si el motor de video de la placa (el que decodifica las cámaras) se carga, se les pide a los invitados en calidad baja menos cuadros por segundo (15, 10, 7,5), primero a los de las celdas más chicas; cuando se alivia, vuelven a 15. Los de calidad alta (el que está al aire, los lugares grandes de una grilla) no se tocan.</source>
+        <translation>Если видеодвижок видеокарты (тот, что декодирует камеры) загружен, у гостей в низком качестве запрашивается меньше кадров в секунду (15, 10, 7,5), сначала у самых маленьких ячеек; когда нагрузка спадает, возвращается 15. Гости в высоком качестве (тот, кто в эфире, большие места сетки) не затрагиваются.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Menos cuadros con la placa de video al</source>
+        <translation>Меньше кадров при загрузке видеодвижка</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Con la carga del motor de video en esto o más durante 2 segundos, se baja un escalón.</source>
+        <translation>Если загрузка видеодвижка держится на этом уровне или выше 2 секунды, опускается на одну ступень.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Más cuadros con la placa de video al</source>
+        <translation>Больше кадров при загрузке видеодвижка</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Con la carga en esto o menos durante el tiempo de recuperar, se sube un escalón. Tiene que quedar por debajo del de arriba (si no, se toma uno menos).</source>
+        <translation>Если загрузка держится на этом уровне или ниже в течение времени восстановления, поднимается на одну ступень. Должно быть ниже значения выше (иначе берётся на единицу меньше).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Volver a subir los cuadros después de</source>
+        <translation>Снова поднимать кадры через</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Cuánto tiene que sostenerse la carga baja para subir un escalón (bajar es rápido; subir, prudente).</source>
+        <translation>Сколько должна держаться низкая нагрузка, чтобы подняться на ступень (опускаться — быстро, подниматься — осторожно).</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuadros perdidos al decodificar que cuentan como saturado</source>
+        <translation>Потерянные до декодирования кадры, считающиеся перегрузкой</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Si de los cuadros que llegan se pierde esto o más antes de decodificarlos, la placa ya no da abasto (sirve donde el sistema no dice la carga del motor de video: macOS, Linux). 0 = no mirarlo.</source>
+        <translation>Если из приходящих кадров столько или больше теряется до декодирования, видеокарта уже не справляется (полезно там, где система не сообщает загрузку видеодвижка: macOS, Linux). 0 — не учитывать.</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cuadros por segundo mínimos de la calidad baja</source>
+        <translation>Минимум кадров в секунду для низкого качества</translation>
+    </message>
+    <message>
+        <location line="+0" />
+        <source>Hasta dónde se baja como mucho (los escalones son 15, 10 y este).</source>
+        <translation>Насколько можно опуститься максимум (ступени: 15, 10 и это значение).</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>Conferencia: núcleos propios</source>
         <translation>Конференция: собственные ядра</translation>
     </message>
@@ -40696,7 +40770,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>не является одним из вариантов</translation>
     </message>
     <message>
-        <location line="-236" />
+        <location line="-243" />
         <source>Mensajes de chat que se guardan</source>
         <translation>Хранимых сообщений чата</translation>
     </message>
@@ -40851,7 +40925,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Windows: напрямую — gateway передаёт каждый кадр видеокарте без посредников (меньше нагрузки на процессор и меньше потоков); Media Foundation — декодер Windows (для сравнения или если с видеокартой проблемы).</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+15" />
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>Разговор с гостем: насколько приглушается программа</translation>
     </message>
@@ -51841,7 +51915,7 @@ Datos (de %2): %3</source>
         <translation>не удалось обрезать '%1' в '%2' (обрезка больше изображения?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+186" />
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+187" />
         <source>todavía no se pueden crear escenas</source>
         <translation>сцены пока нельзя создавать</translation>
     </message>
@@ -53929,9 +54003,9 @@ Datos (de %2): %3</source>
         <location line="+7" />
         <location filename="../src/gateway/Botonera.cpp" line="+91" />
         <location line="+2" />
-        <location filename="../src/gateway/SignalingServer.cpp" line="+688" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="+692" />
         <location line="+9" />
-        <location line="+356" />
+        <location line="+357" />
         <location line="+109" />
         <location line="+11" />
         <location line="+3" />
@@ -54343,7 +54417,7 @@ Datos (de %2): %3</source>
         <translation>у ячейки «%1» нет размера</translation>
     </message>
     <message>
-        <location line="+672" />
+        <location line="+675" />
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>сетки: BA.Grilla.%1 готова (%2x%3)</translation>
     </message>
@@ -54529,7 +54603,7 @@ Datos (de %2): %3</source>
         <translation>во время проверки с его микрофона не пришёл звук (звук отключён?)</translation>
     </message>
     <message>
-        <location line="+249" />
+        <location line="+277" />
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>отправка %1: %2 fps (%3x%4)</translation>
     </message>
@@ -54819,7 +54893,7 @@ Datos (de %2): %3</source>
         <translation>никто</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1672" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1675" />
         <source>pantalla %1 sale: %2</source>
         <translation>экран %1 выходит: %2</translation>
     </message>
@@ -54834,7 +54908,7 @@ Datos (de %2): %3</source>
         <translation>сигнализация: не удалось выполнить bind %1:%2 (порт занят или неверный адрес?)</translation>
     </message>
     <message>
-        <location line="+67" />
+        <location line="+69" />
         <source>señalización: escuchando en %1:%2 (webroot=%3)</source>
         <translation>сигнализация: слушает на %1:%2 (webroot=%3)</translation>
     </message>
@@ -54879,7 +54953,7 @@ Datos (de %2): %3</source>
         <translation>туннель: приёмник pinggy на 127.0.0.1:%1 (всё внешнее)</translation>
     </message>
     <message>
-        <location line="+349" />
+        <location line="+350" />
         <source>señalización: %1 conexiones sin cerrar tras %2 ms</source>
         <translation>сигнализация: %1 соединений не закрыто через %2 мс</translation>
     </message>
@@ -54924,7 +54998,7 @@ Datos (de %2): %3</source>
         <translation>ws: медиа от %1 (сеанс %2) закрыты</translation>
     </message>
     <message>
-        <location line="+53" />
+        <location line="+59" />
         <source>ws: setRemoteOffer falló (sesión %1)</source>
         <translation>ws: setRemoteOffer не удался (сеанс %1)</translation>
     </message>
@@ -55049,12 +55123,17 @@ Datos (de %2): %3</source>
         <translation>ws: неверное сообщение от %1 (%2)</translation>
     </message>
     <message>
-        <location line="+427" />
+        <location line="+446" />
+        <source>capas: a %1 no lo ve nadie (tarjeta: %2): se pausa su cámara</source>
+        <translation>слои: %1 никто не видит (карточка: %2): камера приостановлена</translation>
+    </message>
+    <message>
+        <location line="+3" />
         <source>capas: a %1 se le pide la %2</source>
         <translation>слои: у %1 запрашивается слой %2</translation>
     </message>
     <message>
-        <location line="+23" />
+        <location line="+24" />
         <source>capas: llegó la HD de %1 (%2 ms desde el pedido); fundido de %3 ms</source>
         <translation>слои: пришла HD для %1 (через %2 мс после запроса); плавный переход %3 мс</translation>
     </message>
@@ -55079,7 +55158,12 @@ Datos (de %2): %3</source>
         <translation>тест зала: завершён (%1); ключ отозван, удалено тестовых участников: %2</translation>
     </message>
     <message>
-        <location line="-3112" />
+        <location line="+227" />
+        <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
+        <translation>видео: загрузка видеодвижка %1; к/с нижнего слоя переходят со ступени %2 на %3 (из %4)</translation>
+    </message>
+    <message>
+        <location line="-3369" />
         <source>direcciones: red %1, afuera %2</source>
         <translation>адреса: сеть %1, извне %2</translation>
     </message>
@@ -55096,7 +55180,7 @@ Datos (de %2): %3</source>
         <translation>(нет)</translation>
     </message>
     <message>
-        <location line="+269" />
+        <location line="+270" />
         <location line="+143" />
         <location line="+8" />
         <source>servidor saturado</source>
@@ -55193,7 +55277,7 @@ Datos (de %2): %3</source>
         <translation>ws: нет свободных сеансов WebRTC для %1</translation>
     </message>
     <message>
-        <location line="+285" />
+        <location line="+291" />
         <source>salidas: %1</source>
         <translation>выходы: %1</translation>
     </message>
@@ -55379,7 +55463,7 @@ Datos (de %2): %3</source>
         <translation>turn: ТЕСТОВЫЙ РЕЖИМ (--turn-prueba): TURN запускается без pinggy, только в локальной сети</translation>
     </message>
     <message>
-        <location line="+267" />
+        <location line="+270" />
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>туннель: --tunnel-token виден в списке процессов; лучше использовать %1</translation>
     </message>
@@ -55399,7 +55483,7 @@ Datos (de %2): %3</source>
         <translation>туннель: отключён в конфигурации (только локальный доступ)</translation>
     </message>
     <message>
-        <location line="-645" />
+        <location line="-648" />
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>сеть: IP компьютера %1; в QR: %2</translation>
     </message>
@@ -55449,7 +55533,7 @@ Datos (de %2): %3</source>
         <translation>https: ba-web его не обслуживает; запускается встроенный терминатор</translation>
     </message>
     <message>
-        <location line="+215" />
+        <location line="+218" />
         <source>puerta de la sala: https en %1:%2</source>
         <translation>дверь комнаты: https на %1:%2</translation>
     </message>
@@ -87040,7 +87124,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Шаги «приоритета программы», отключённые из-за перегрева</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1138" />
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1144" />
         <source>Invitados que se cortaron y volvieron a su lugar</source>
         <translation>Гости, которые отключились и вернулись на своё место</translation>
     </message>

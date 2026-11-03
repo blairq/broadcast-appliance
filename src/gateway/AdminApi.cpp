@@ -996,7 +996,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         return;
     }
     // LAS CAPAS DE LA CÁMARA (Capas.hpp): qué entradas de remotos tiene la app al aire y
-    // armadas, en cualquier salida ({aire: ["guest:2", "remoto:1"], siguiente: [...]}). Con
+    // armadas, en cualquier salida ({aire: ["guest:2", "remoto:1"], siguiente: [...],
+    // visibles: [...]}; «aire» incluye lo que sale por un canal de escena). Con
     // eso la sala le pide a cada navegador la capa alta o la baja. Si B se reinicia, A se
     // lo vuelve a dar (republicador «capas»).
     if (path == "/api/v1/capas" && method == "POST") {
@@ -1012,6 +1013,9 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
             capasApp_ = true;
             capasAire_ = lista("aire");
             capasSiguiente_ = lista("siguiente");
+            // Las que la interfaz muestra en una escena fuera del aire (monitores, multiview,
+            // distribuciones de pantallas): no se pausan (Capas.hpp, NecesidadCapa::enVista).
+            capasVisibles_ = lista("visibles");
         }
         revisarCapasTodas();
         sendJson(fd, 200, json{{"ok", true}});

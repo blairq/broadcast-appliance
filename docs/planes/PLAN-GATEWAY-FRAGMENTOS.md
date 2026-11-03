@@ -733,6 +733,58 @@ Escrito (2026-11-02, noche, sin compilar todavía: se compila y se mide todo jun
   en placa/cpu, enteros), las fronteras #6/#8 (µs por pase y % de núcleo) y el mosaico (30 cps,
   colores iguales a los de antes: comparar una captura con `gateway.celdaEnPlaca` apagado).
 
+#### F3 — Decodificar solo lo que se ve, y menos cps si la placa no da (2026-11-03)
+
+Medido en la .177 (escalera por TURN, `mediciones-carga/2026-11-03-n2`): el motor de video
+de la placa («Video Codec 0», decodifica y codifica) 48 % con 40, 82 % con 80, **96-99 %
+desde 120** hasta 200, con 224 decodificadores para 200 (`camaras.enteros.todos = N`: el
+motor de ba-app lee todos los BA.Guest.N siempre). El 3D y la memoria sobran. Saturado, las
+celdas en baja caen de 15 cps a 13/11 (120), 10/8 (160), 7,5 (200): la recepción tira lo
+que el decodificador no alcanza, después de que el navegador lo codificó y la red lo trajo.
+
+1. **No decodificar a quien nadie ve** (`Capas.hpp`: `NecesidadCapa::vista`,
+   `capaNecesaria`). Lo que dice si se lo ve: al aire/armado (la app), una escena que sale
+   por un canal de escena (pantallas, retornos de escena: va en «aire») o que la interfaz
+   muestra (monitores, multiview, distribuciones: «visibles» → `NecesidadCapa::enVista`, baja;
+   lo arma `sala/CapasNecesarias` con `FotoMotor::escenasEnVistas/escenasEnCanales`, de
+   `BroadcastEngine::escenasMostradas`, el registro de vistas del motor), una celda de grilla
+   (CapasGrilla: los del «+N» no tienen), una vista web, y la tarjeta de la interfaz
+   (`MediaPump::vistaDe`: la demanda de BA.GuestUi.N). NO la de BA.Guest.N: ba-app la lee
+   entera siempre. «De vez en cuando» (la tarjeta que no se ve, 1 por segundo) cuenta como
+   no verse: alcanza la última imagen (se evaluó 1 cps de la baja: igual deja el
+   decodificador abierto y trabajando, y pausar cuesta solo un cuadro clave al volver).
+   Sin nada de eso → `Capa::Nada`: el navegador pausa las dos capas. `bucleCarga`
+   (SignalingServer, cada 250 ms) mira si cambió la mirada de cada uno. Reanudar: el
+   navegador arranca con un cuadro clave; `VigiaReanudar` en el `TapTransformer` pide uno
+   (PLI) si el primero después de un hueco no lo es. La placa «sin señal» no pisa la última
+   imagen del pausado a propósito (`MediaPump::pausarCamara`). Ajuste `gateway.pausarSinVer`.
+2. **Cps de la baja según la carga** (`CpsSegunCarga.hpp`, `CargaVideo.hpp`). Carga = la
+   mayor de: el motor de códec de la placa (Windows, PDH «GPU Engine» sumando procesos), los
+   perdidos entre el Tap y el `Decode()` (portable; ≥ 5 % = 100) y, apagado de fábrica, el
+   tiempo por `Decode()` contra un presupuesto. Escalones de a media lista (las celdas más
+   chicas primero) 15 → 10 → 7,5; baja con ≥ 85 % sostenido 2 s (3 s entre cambios), sube
+   con ≤ 70 % sostenido 10 s. A la página: `{type:"cps-baja", cps}` → `maxFramerate` del
+   encoding de la baja (comun/capas.js). La alta y la media no se tocan.
+3. **Descartar cuadros no de referencia antes de decodificar: no.** El H.264 de los
+   navegadores no tiene capas temporales (todo `nal_ref_idc ≠ 0`), y el `RtpSeqNumOnlyRefFinder`
+   arma la cadena antes del transformador: tirar uno deja al siguiente esperando hasta el
+   próximo cuadro clave.
+4. **La capa media (360p)**, pedido del usuario: el transceptor de la alta topado a 360p
+   (`Capa::Media`, `transceptorDe`), para las celdas grandes fuera de `alta_max`. Cada
+   invitado sigue mandando una sola capa por vez.
+5. Contadores en `gateway_estado.videoSegunCarga`: capas pedidas (`nada/baja/media/alta`,
+   `mandan_dos`), `entra_kbps` por capa, `invitados` (capa, activas, kbps por capa),
+   decodificadores `trabajando`/`en_pausa`, `cpsBaja` (cuántos a cada cps), `control`
+   (escalón, carga, medida, decisiones) y `medidor` (recibidos/decodificados por segundo).
+   También `uso.codecsVideo.decodificando`.
+
+Qué esperar al medir: con 120 y 64 en la grilla (el resto en el «+N» y sus tarjetas fuera
+de la vista) `capas.nada` ≈ 56 y `decodificadores.trabajando` ≈ 64-70; el motor de video
+tendría que quedar por debajo del 85 % sin tocar los cps. Con 200, lo mismo (~70
+trabajando): si aun así pasa el 85 % (otras salidas codificando en la misma placa), el
+controlador baja la mitad chica a 10 y lo anota. Las celdas en baja: 15 cps (o el escalón
+que diga `cpsBaja`), no 7,5 por saturación.
+
 Linux con VA-API (sin hacer: no hay placa para probar). Sería igual que Windows con
 otras piezas: un `CodecsLinux.cpp` con decodificador y codificador H.264 sobre libva
 (`vaCreateConfig` con `VAProfileH264ConstrainedBaseline`/`VAEntrypointVLD` para

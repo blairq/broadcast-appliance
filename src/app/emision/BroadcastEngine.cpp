@@ -934,6 +934,19 @@ void BroadcastEngine::ponerTopeRetorno(int ancho, int alto) { BA_TURNO; retorno_
 void BroadcastEngine::retornoEnUso(bool si, const std::string& salida) { BA_TURNO; retorno_->retornoEnUso(si, salida); }
 bool BroadcastEngine::escenaACanal(int k, const std::string& escena) { BA_TURNO; return retorno_->escenaACanal(k, escena); }
 std::string BroadcastEngine::escenaDeCanal(int k) const { BA_TURNO; return retorno_->escenaDeCanal(k); }
+BroadcastEngine::EscenasMostradas BroadcastEngine::escenasMostradas() const {
+    BA_TURNO;
+    std::set<std::string> vistas, canales;
+    for (std::string n : vistas_->nombresEnVistas()) {
+        if (n.rfind("mini:", 0) == 0) n = n.substr(5); // la miniatura viva de la línea de tiempo
+        // Las fuentes («entera:X», una entrada) y los buses de una salida («programa:<id>»)
+        // no son escenas: nombreDe da "".
+        if (std::string e = escenas_->nombreDe(n); !e.empty()) vistas.insert(std::move(e));
+    }
+    for (int k = 0; k < ba::ipc::kCanalesEscena; ++k)
+        if (std::string e = retorno_->escenaDeCanal(k); !e.empty()) canales.insert(std::move(e));
+    return {{vistas.begin(), vistas.end()}, {canales.begin(), canales.end()}};
+}
 int BroadcastEngine::tomarCanalEscena(const std::string& escena, const std::string& dueno) { BA_TURNO; return retorno_->tomarCanalEscena(escena, dueno); }
 void BroadcastEngine::soltarCanalesEscena(const std::string& dueno, const std::set<int>& salvo) { BA_TURNO; retorno_->soltarCanalesEscena(dueno, salvo); }
 bool BroadcastEngine::canalEscenaConDuenos(int k) const { BA_TURNO; return retorno_->canalEscenaConDuenos(k); }

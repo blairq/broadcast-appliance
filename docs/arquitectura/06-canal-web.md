@@ -174,6 +174,13 @@ lo apagan o lo sueltan también.
   la grilla; de fábrica 300 ms) y la baja **sigue prendida ese tiempo**: recién al
   terminar llega `{"type":"capas","alta":true,"baja":false}`. Al bajar de la alta a la
   baja no hay fundido. Ver `src/gateway/Fundido.hpp` y `SelectorCapas`.
+- `{"type":"cps-baja", "cps": 15|10|7.5}` (solo el invitado): los cuadros por segundo de
+  la **baja** (`encodings[0].maxFramerate` de su sender; entre 1 y 15). La sala los baja
+  cuando su placa de video se satura y los sube cuando se alivia
+  (`src/gateway/CpsSegunCarga.hpp`); la alta no se toca. Una conexión nueva arranca en 15
+  y la sala lo vuelve a decir si hace falta. Una página que no lo conoce lo ignora.
+- Una capa pausada que se reanuda arranca con un cuadro clave (lo hace el navegador al
+  prender el codificador); si el primero que llega no lo es, la sala pide uno (PLI).
 - `{"type":"medios", "activo": true, "previo": true}` (solo la sesión): sos el siguiente
   de la fila. Se abre la conexión y la cámara viaja (la sala pide la alta para tenerla
   lista) pero no va a ningún canal ni a la mezcla. Al darle la palabra llega

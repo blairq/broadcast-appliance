@@ -17,6 +17,9 @@
 //      cuadros son «anterior») y recién al terminar se pausa. Pedir lo mismo en pleno
 //      fundido no lo corta. La capa de la grilla (con histéresis) manda sobre el umbral por
 //      alto; la precarga pide la alta.
+//   5. F3, quién se decodifica: fuera del aire, sin grilla, sin vista web y con la tarjeta
+//      de la interfaz sin ver («nadie» o «de vez en cuando»), nada; cualquiera de esas cosas
+//      lo vuelve a pedir. Reanudar pide un cuadro clave si el primero no lo es.
 // ============================================================================
 
 #include <cstdio>
@@ -124,6 +127,105 @@ void necesidad() {
     CHECK(capaNecesaria(n) == Capa::Nada, "la atención hablada no manda cámara");
 }
 
+/// F3: no se decodifica a quien nadie ve.
+void quienSeDecodifica() {
+    NecesidadCapa n;
+    n.ruta = MediaRoute::program(5);
+    n.appDijo = true;
+    n.vista = Mirada::Todos;
+    CHECK(capaNecesaria(n) == Capa::Baja, "fuera del aire con su tarjeta a la vista: baja");
+    n.vista = Mirada::DeVezEnCuando;
+    CHECK(capaNecesaria(n) == Capa::Nada, "la tarjeta no se ve (una vez por segundo): nada, queda la última imagen");
+    n.vista = Mirada::Nadie;
+    CHECK(capaNecesaria(n) == Capa::Nada, "nadie lo lee: nada (no viaja ni se decodifica)");
+
+    // Lo que sí lo hace ver, aunque la tarjeta no se vea.
+    n.capaGrilla = Capa::Baja;
+    CHECK(capaNecesaria(n) == Capa::Baja, "en una celda de una grilla a la vista: baja");
+    n.capaGrilla = Capa::Nada; // quedó en el «+N»
+    CHECK(capaNecesaria(n) == Capa::Nada, "en el «+N» de la grilla: nada");
+    // Una escena fuera del aire que la interfaz MUESTRA (monitor, multiview, distribución de
+    // pantallas): no puede quedar congelado.
+    n.enVista = true;
+    CHECK(capaNecesaria(n) == Capa::Baja, "en una escena a la vista (multiview): baja, no pausado");
+    n.enVista = false;
+    n.alAire = true;
+    CHECK(capaNecesaria(n) == Capa::Alta, "al aire: alta, se vea o no su tarjeta");
+    n.alAire = false;
+    n.siguiente = true;
+    CHECK(capaNecesaria(n) == Capa::Alta, "armado en el preview: alta");
+    n.siguiente = false;
+    n.precarga = true;
+    CHECK(capaNecesaria(n) == Capa::Alta, "precargado por una grilla: alta");
+    n.precarga = false;
+    n.espectadores = 2;
+    CHECK(capaNecesaria(n) == Capa::Alta, "lo mira una vista web: alta");
+    n.espectadores = 0;
+
+    // Sin que la app haya dicho qué está al aire, no se pausa a nadie (como siempre).
+    n.appDijo = false;
+    CHECK(capaNecesaria(n) == Capa::Alta, "la app no dijo nada: alta, aunque nadie mire su tarjeta");
+
+    // Fuera del programa la tarjeta no cuenta: el lobby sigue con su cuadrito.
+    n = {};
+    n.ruta = MediaRoute::lobby(1, false);
+    n.appDijo = true;
+    n.vista = Mirada::Nadie;
+    CHECK(capaNecesaria(n) == Capa::Baja, "en el lobby: baja (la tarjeta del programa no tiene que ver)");
+
+    // Reanudar: después de la pausa, «nada» → «baja» prende solo la baja.
+    SelectorCapas s;
+    s.pedir(Capa::Baja);
+    bool pasa = false;
+    s.llego(Capa::Baja, pasa);
+    CHECK(s.pedir(Capa::Nada) && activas(s, false, false), "se deja de ver: se pausan las dos");
+    CHECK(s.pedir(Capa::Baja) && activas(s, false, true), "vuelve a verse: se reanuda la baja");
+}
+
+/// La capa media (360p): la alta topada; un solo transceptor prendido.
+void capaMedia() {
+    CHECK(transceptorDe(Capa::Media) == Capa::Alta && transceptorDe(Capa::Baja) == Capa::Baja, "la media va por la alta");
+    CHECK(std::string(nombreCapa(Capa::Media)) == "media", "se llama media");
+    NecesidadCapa n;
+    n.ruta = MediaRoute::program(3);
+    n.appDijo = true;
+    n.vista = Mirada::Nadie;
+    n.capaGrilla = Capa::Media;
+    CHECK(capaNecesaria(n) == Capa::Media, "una celda grande fuera del tope de la alta: media");
+    n.alAire = true;
+    CHECK(capaNecesaria(n) == Capa::Alta, "al aire gana la alta");
+
+    SelectorCapas s;
+    CHECK(s.pedir(Capa::Baja) && activas(s, false, true), "arranca en la baja (solo la baja)");
+    bool pasa = false;
+    s.llego(Capa::Baja, pasa);
+    CHECK(s.pedir(Capa::Media) && activas(s, true, true), "a la media: se prende el transceptor de la alta hasta que llegue");
+    CHECK(s.pedida() == Capa::Alta, "pedida: el transceptor de la alta");
+    CHECK(s.llego(Capa::Alta, pasa) && pasa && activas(s, true, false), "llega: solo ese transceptor (la baja se pausa)");
+    CHECK(!s.pedir(Capa::Alta), "de la media a la alta: mismo transceptor, no se le pide nada nuevo (solo cambia el tope)");
+}
+
+/// Reanudar pide un cuadro clave si el primero que llega después del hueco no lo es.
+void reanudarPideClave() {
+    VigiaReanudar v(400);
+    CHECK(!v.llego(1000, true), "el primero, clave: no hace falta pedir");
+    CHECK(!v.llego(1066, false), "cuadros P seguidos: nada");
+    CHECK(!v.llego(1133, false), "y otro");
+    // Hueco (la capa estuvo pausada) y el navegador arranca con un cuadro clave: bien.
+    CHECK(!v.llego(5000, true), "reanuda con un cuadro clave: no se pide");
+    CHECK(!v.llego(5066, false), "sigue normal");
+    // Hueco y llega un P: se pide, y se sigue pidiendo hasta que llegue la clave.
+    CHECK(v.llego(9000, false), "reanuda sin clave: se pide una");
+    CHECK(v.esperandoClave(), "queda esperando la clave");
+    CHECK(v.llego(9066, false), "mientras no llega, se sigue pidiendo (el Feed lo limita)");
+    CHECK(!v.llego(9133, true), "llegó la clave: listo");
+    CHECK(!v.esperandoClave() && !v.llego(9200, false), "y los P de después no piden nada");
+    CHECK(v.pedidos() == 2, "dos pedidos en total");
+    // La primera vez que llega algo, si no es clave, también se pide.
+    VigiaReanudar w(400);
+    CHECK(w.llego(100, false), "arranca con un P: se pide la clave");
+}
+
 void sesion() {
     WebrtcHub hub(1, 640, 360, 48000, 2);
     WebrtcSession* s = hub.session(1);
@@ -211,6 +313,9 @@ void fundido() {
 int main() {
     selector();
     necesidad();
+    quienSeDecodifica();
+    capaMedia();
+    reanudarPideClave();
     sesion();
     fundido();
     if (g_fallos == 0) std::printf("test_capas: OK\n");

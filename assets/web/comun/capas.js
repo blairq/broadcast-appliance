@@ -10,6 +10,9 @@
 // pausado no se codifica ni viaja. Contrato en docs/arquitectura/06-canal-web.md
 // §7; el porqué (y por qué no simulcast con rid), en src/gateway/Capas.hpp.
 //
+// Si la placa de video de la sala se satura, la sala pide menos cuadros por
+// segundo para la BAJA ({type:"cps-baja", cps}: `cps(n)`); la alta no se toca.
+//
 // Arranca con las dos prendidas hasta que la sala diga. El tope que pone el
 // operador por la red o la grilla (`calidad-*`) es sobre la ALTA: la baja ya es
 // el piso.
@@ -65,6 +68,10 @@
     const baja = pc.addTransceiver(clon, { direction: "sendonly", streams: [flujo], sendEncodings: [encoding(BAJA)] });
     let activas = { alta: true, baja: true };
     let tope = null;
+    // Los cps de la BAJA que pide la sala según la carga de su placa de video
+    // ({type:"cps-baja", cps}: 15 → 10 → 7,5; src/gateway/CpsSegunCarga.hpp). Nunca
+    // más que BAJA.cps (el clon ya viene topado ahí).
+    let cpsBaja = BAJA.cps;
     let cola = Promise.resolve(); // setParameters de a uno (dos a la vez, el segundo falla)
 
     function poner(t, n, activa) {
@@ -87,7 +94,7 @@
     }
     function aplicar() {
       poner(alta, nivelAlta(), activas.alta);
-      return poner(baja, BAJA, activas.baja);
+      return poner(baja, { alto: BAJA.alto, bitrate: BAJA.bitrate, cps: cpsBaja }, activas.baja);
     }
 
     return {
@@ -98,6 +105,14 @@
       pedido(m) { activas = { alta: !!m.alta, baja: !!m.baja }; return aplicar(); },
       /// El tope de la alta ({alto, bitrate, cps} o null = sin tope).
       topar(n) { tope = n || null; return aplicar(); },
+      /// Los cps de la baja que pide la sala (entre 1 y BAJA.cps). Solo cambia el
+      /// encoding: el codificador saltea cuadros, sin renegociar ni cuadro clave.
+      cps(n) {
+        const v = Math.min(BAJA.cps, Math.max(1, Number(n) || BAJA.cps));
+        if (v === cpsBaja) return cola;
+        cpsBaja = v;
+        return poner(baja, { alto: BAJA.alto, bitrate: BAJA.bitrate, cps: cpsBaja }, activas.baja);
+      },
       /// Conexión recién conectada: el codificador arranca de fábrica.
       reponer: aplicar,
       activas() { return { alta: activas.alta, baja: activas.baja }; },

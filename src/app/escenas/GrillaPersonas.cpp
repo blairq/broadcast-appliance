@@ -738,6 +738,18 @@ std::map<std::string, bool> CapasGrilla::decidir(const std::map<std::string, Ped
     return out;
 }
 
+std::set<std::string> CapasGrilla::medias(const std::map<std::string, Pedido>& pedidos,
+                                          const std::map<std::string, bool>& alta) {
+    std::set<std::string> out;
+    for (const auto& [k, p] : pedidos) {
+        if (const auto it = alta.find(k); it != alta.end() && it->second) continue; // en alta: no es media
+        const bool estaba = media_.count(k) > 0;
+        if (p.alto > kSubirMedia || (estaba && p.alto >= kBajarMedia)) out.insert(k);
+    }
+    media_ = out;
+    return out;
+}
+
 std::string idRotulo(Nombres n, const std::string& nombre, const std::string& cargo) {
     if (n == Nombres::No || nombre.empty()) return {};
     // FNV-1a de 64 bits sobre el texto (y la versión del dibujo, por si cambia la letra).
@@ -1138,9 +1150,13 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
     for (const Config& c : grillas)
         if (c.altaMax > 0) altaMax = altaMax == 0 ? c.altaMax : std::min(altaMax, c.altaMax);
     const std::map<std::string, bool> alta = capas_.decidir(pedidos, 1, altaMax);
+    // Las celdas grandes que no entraron en la alta (el tope, o esperando su turno de subir):
+    // la media (360p), no la baja estirada.
+    const std::set<std::string> media = capas_.medias(pedidos, alta);
     for (auto& [f, r] : porFuente)
         for (Celda& x : r.celdas)
-            if (const auto it = alta.find(x.clave); it != alta.end()) x.capa = it->second ? "alta" : "baja";
+            if (const auto it = alta.find(x.clave); it != alta.end())
+                x.capa = it->second ? "alta" : media.count(x.clave) > 0 ? "media" : "baja";
 
     std::vector<Resultado> out;
     for (const Config& c : grillas) out.push_back(porFuente[c.fuente]);
