@@ -14,9 +14,46 @@ json`— con el juego de herramientas del rol y el encargo como argumento. El
 proceso vive lo que dura el trabajo y se muere.
 
 Lo que desaparece con eso: procesos ociosos, sesiones que se pisan, latidos,
-inyección de texto en una TUI que capaz está en un menú. Y el problema
+inyección de texto en una TUI que capaz está en un menú. (Con OpenCode, el
+encargo de un rol que no corre aparte va a la conversación del evento: ver
+«Una conversación por evento».) Y el problema
 original se resuelve solo: al asistente interactivo no le llega nada, porque
 el despachador nunca le habla.
+
+## Una conversación por evento
+
+Cada evento tiene **su** conversación con el asistente, una por pestaña (la del
+evento y la de automatización). Se retoma sola al reiniciar la app o al volver a
+abrir ese evento, y al pasar a otro evento se usa la de ese (la primera vez se
+empieza una). Así el asistente tiene el contexto del evento entero: lo que se
+charló, los avisos que llegaron y lo que se hizo con ellos.
+
+Lo que el programa le manda solo —los avisos de los disparadores, las novedades
+del evento, las notas del sistema— cae en esa misma conversación, con su marca
+al principio (`[AVISO AUTOMATICO de Broadcast Appliance]`, `[NOVEDADES del
+evento]`, `[ENCARGO AUTOMATICO]`) para que se distinga de lo que escribe el
+operador. **No se abre una sesión (una pestaña) nueva por aviso.**
+
+Con **OpenCode** (OpenCode Go, OpenRouter):
+
+- los avisos no se escriben en la terminal: van al servidor de OpenCode, a la
+  sesión del evento, **en cola**. Si el asistente está respondiendo, esperan y
+  salen cuando termina, en orden; no cortan la respuesta ni se mezclan con lo
+  que el operador está escribiendo. Si llegan varios mientras tanto, salen
+  **juntos en un solo mensaje**. Las imágenes que trae un encargo van adjuntas;
+- los encargos de los roles (más abajo) también caen en la conversación del
+  evento del asistente de automatización, salvo los roles que corren **aparte**.
+
+Con **Claude Code**, la terminal retoma la conversación del evento
+(`--resume`) y los avisos se le escriben como antes (Claude los encola si está
+respondiendo). Los roles con Claude corren siempre aparte: una conversación no
+puede tener dos programas escribiéndola a la vez.
+
+**Conversación nueva** (botón de la pestaña del asistente, o `assistant_run`
+con `new_conversation` por MCP) empieza otra para ese evento; la de antes queda
+en el historial del motor. `assistant_status` dice cuál se está usando
+(`sesionEvento`). Se guarda en `Config/asistente-sesiones.json` del evento; un
+evento copiado empieza la suya (no comparte la del original).
 
 ## Un rol
 
@@ -28,7 +65,21 @@ el despachador nunca le habla.
 | disparadores | el sistema | los tipos de disparador que atiende (`lobby`, `audio_peak`…) |
 | prompt | el sistema | el `CLAUDE.md`/`AGENTS.md` de su espacio de trabajo |
 | agrupación | el sistema | una corrida por evento, o juntar lo que llegue en N ms |
-| activo, proveedor, modelo | el operador | `Config/roles.json` |
+| activo, proveedor, modelo, consola, aparte | el operador | `Config/roles.json` |
+
+**Aparte o en la conversación del evento.** Con el asistente de
+automatización andando en OpenCode, un encargo de un rol va a **la
+conversación del evento** de ese asistente (`opencode run --server …
+--session …`): con todo el contexto del evento y con las herramientas, el motor
+y el modelo de ese asistente; las instrucciones del rol van al principio del
+mensaje. Un rol **aparte** corre cada encargo en su propia sesión, con su juego
+de herramientas, su prompt y su motor, como antes. Corren aparte siempre los
+que tienen otro proveedor u otro modelo, y de fábrica **visión** (las imágenes
+no entran a la conversación del asistente, que aguanta muy pocas),
+**escenógrafo** (consola, disco y red) y **organizador** (arma el evento
+entero). La recepción y el técnico, que atienden disparadores, van a la
+conversación del evento. Se cambia en la página Agentes («Aparte») o con
+`agente_configurar` (`aparte`).
 
 Roles de esta versión: **recepción** (lobby: ficha, verificación de identidad,
 dejar listo para pasar) y **técnico** (audio y entradas: medir antes de tocar,

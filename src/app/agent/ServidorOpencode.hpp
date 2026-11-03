@@ -9,8 +9,11 @@
 // conecta con `--server <url>` desde SU carpeta de trabajo (el servidor toma la
 // configuración —proveedores, MCP— de la carpeta de cada sesión: probado). Lo
 // levanta la primera pestaña que lo pide y se apaga cuando la última lo suelta o
-// al cerrar la app (y si la app muere sin cerrar, igual: agent/HijosDeLaApp). Los
-// roles automáticos (agentes de un tiro) no lo usan: van con su --standalone.
+// al cerrar la app (y si la app muere sin cerrar, igual: agent/HijosDeLaApp). Cada
+// pestaña abre la sesión de SU evento (--session, ver SesionesEvento) y los avisos
+// automáticos le llegan por la API de este servidor (EnvioOpencode). Los encargos de
+// roles también van a la del asistente de automatización (`opencode run --server
+// --session`), salvo los que corren aparte (Rol::aparte): esos con su --standalone.
 // ============================================================================
 #pragma once
 

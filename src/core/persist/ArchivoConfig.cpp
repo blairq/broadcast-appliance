@@ -41,6 +41,7 @@ const std::vector<EsquemaConfig>& esquemasConfig() {
         {"alertas.json"},
         {"asistente.json"},
         {"asistente-automatizacion.json"},
+        {"asistente-sesiones.json"}, // la conversación de cada asistente en este evento (agent/SesionesEvento)
         {"atajos.json", 2, {listaEn("atajos")}},
         {"atencion.json"},
         {"audio-escucha.json"},

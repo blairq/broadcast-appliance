@@ -129,7 +129,9 @@ void McpService::registerAssistantTools() {
         t.category = "asistente";
         t.clase = Clase::Lectura;
         t.description =
-            QT_TRANSLATE_NOOP("mcp", "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.");
+            QT_TRANSLATE_NOOP("mcp", "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo, "
+                                     "y `sesionEvento`: la conversación del evento que usa (una por evento; ahí caen los avisos "
+                                     "automáticos).");
         t.inputSchema = {{"type", "object"}, {"properties", {{"asistente", propAsistente}}}};
         t.run = [elegir](const json& a, Done done) {
             auto* ag = elegir(a);
@@ -143,6 +145,7 @@ void McpService::registerAssistantTools() {
                                         {"running", ag->running()},
                                         {"autoStart", ag->autoStart()},
                                         {"alertsToChat", ag->alertsToChat()},
+                                        {"sesionEvento", ag->sesionEvento().toStdString()},
                                         {"providers", qvToJson(ag->providers())}}));
         };
         core_.addTool(std::move(t));
@@ -220,14 +223,32 @@ void McpService::registerAssistantTools() {
         t.category = "asistente";
         t.clase = Clase::Escritura;
         t.description = QT_TRANSLATE_NOOP("mcp", "Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización "
-                                                 "(`asistente`).");
+                                                 "(`asistente`). `new_conversation` olvida la conversación del evento y "
+                                                 "empieza otra (si corre, se relanza con la nueva; lo de antes queda en el "
+                                                 "historial del motor).");
         t.inputSchema = {
             {"type", "object"},
-            {"properties", {{"action", {{"type", "string"}, {"enum", {"start", "stop", "restart"}}}}, {"asistente", propAsistente}}},
+            {"properties",
+             {{"action", {{"type", "string"}, {"enum", {"start", "stop", "restart", "new_conversation"}}}}, {"asistente", propAsistente}}},
             {"required", {"action"}}};
         t.run = [elegir](const json& a, Done done) {
             auto* ag = elegir(a);
             const std::string act = a["action"];
+            if (act == "new_conversation") {
+                const bool corria = ag->running();
+                ag->nuevaConversacion();
+                if (!corria)
+                    return done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo: la próxima vez que arranque empieza una conversación nueva.")));
+                // Se relanza: se espera a que corra con la nueva (la sesión del evento cambia).
+                return esperarHasta(
+                    ag, std::make_tuple(&agent::AgentViewModel::sesionEventoChanged, &agent::AgentViewModel::errorChanged),
+                    [ag]() -> std::optional<ToolResult> {
+                        if (!ag->lastError().isEmpty() && !ag->running()) return ToolResult::error(ag->lastError().toStdString());
+                        if (!ag->running() || ag->sesionEvento().isEmpty()) return std::nullopt;
+                        return ToolResult::ok(ba::i18n::traducir("mcp", "Conversación nueva.")).data(json{{"sesionEvento", ag->sesionEvento().toStdString()}});
+                    },
+                    30000, []() { return ToolResult::ok(ba::i18n::traducir("mcp", "Relanzando con una conversación nueva.")); }, done);
+            }
             if (act == "start") ag->start();
             if (act == "stop") ag->stop();
             if (act == "restart") ag->restart();

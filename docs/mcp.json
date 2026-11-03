@@ -1622,7 +1622,7 @@
       "nombre": "agente_configurar",
       "titulo": "Prender, apagar o cambiar el motor de un rol",
       "categoria": "agentes",
-      "descripcion": "Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`. Lo que no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.",
+      "descripcion": "Cambia un rol: `activo` (true/false), `proveedor` (id de proveedor, como en el asistente: claude-cuenta, opencode-go, openrouter...), `modelo`, `consola`, `aparte`. Lo que no se manda no se toca. Un rol apagado no atiende nada ni acepta encargos.",
       "esquema": {
         "type": "object",
         "required": [
@@ -1644,6 +1644,10 @@
           "consola": {
             "type": "boolean",
             "description": "herramientas propias del agente: consola, archivos, internet"
+          },
+          "aparte": {
+            "type": "boolean",
+            "description": "cada encargo en su propia sesión, no en la conversación del evento"
           }
         }
       },
@@ -1698,7 +1702,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAgenteTools.cpp",
-        "linea": 178
+        "linea": 187
       },
       "roles": [
         "asistente",
@@ -1741,7 +1745,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAgenteTools.cpp",
-        "linea": 159
+        "linea": 168
       },
       "roles": [
         "asistente",
@@ -1781,7 +1785,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAgenteTools.cpp",
-        "linea": 199
+        "linea": 208
       },
       "roles": [
         "asistente",
@@ -1827,7 +1831,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAgenteTools.cpp",
-        "linea": 109
+        "linea": 118
       },
       "roles": [
         "asistente",
@@ -4073,7 +4077,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 152
+        "linea": 155
       },
       "roles": [
         "asistente"
@@ -4115,7 +4119,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 187
+        "linea": 190
       },
       "roles": [
         "asistente"
@@ -4125,7 +4129,7 @@
       "nombre": "assistant_run",
       "titulo": "Arrancar / detener el asistente",
       "categoria": "asistente",
-      "descripcion": "Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`).",
+      "descripcion": "Arranca (`start`), detiene (`stop`) o reinicia (`restart`) el asistente del evento o el de automatización (`asistente`). `new_conversation` olvida la conversación del evento y empieza otra (si corre, se relanza con la nueva; lo de antes queda en el historial del motor).",
       "esquema": {
         "type": "object",
         "properties": {
@@ -4134,7 +4138,8 @@
             "enum": [
               "start",
               "stop",
-              "restart"
+              "restart",
+              "new_conversation"
             ]
           },
           "asistente": {
@@ -4161,7 +4166,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 218
+        "linea": 221
       },
       "roles": [
         "asistente"
@@ -4202,7 +4207,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 256
+        "linea": 277
       },
       "roles": [
         "asistente"
@@ -4212,7 +4217,7 @@
       "nombre": "assistant_status",
       "titulo": "Estado del asistente",
       "categoria": "asistente",
-      "descripcion": "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo.",
+      "descripcion": "Proveedor y modelo elegidos, proveedores disponibles, si el agente esta instalado y corriendo, y `sesionEvento`: la conversación del evento que usa (una por evento; ahí caen los avisos automáticos).",
       "esquema": {
         "type": "object",
         "properties": {
@@ -11028,7 +11033,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4291
+        "linea": 4294
       },
       "roles": [
         "asistente"
@@ -11117,7 +11122,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4169
+        "linea": 4172
       },
       "roles": [
         "asistente"
@@ -11152,7 +11157,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4203
+        "linea": 4206
       },
       "roles": [
         "asistente"
@@ -30508,7 +30513,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4085
+        "linea": 4088
       },
       "roles": [
         "asistente"
@@ -30570,7 +30575,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3831
+        "linea": 3834
       },
       "roles": [
         "asistente"
@@ -30639,7 +30644,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3804
+        "linea": 3807
       },
       "roles": [
         "asistente"
@@ -30744,7 +30749,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3981
+        "linea": 3984
       },
       "roles": [
         "asistente"
@@ -30779,7 +30784,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4004
+        "linea": 4007
       },
       "roles": [
         "asistente"
@@ -31045,7 +31050,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4030
+        "linea": 4033
       },
       "roles": [
         "asistente"
@@ -31098,7 +31103,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4060
+        "linea": 4063
       },
       "roles": [
         "asistente"
@@ -31160,7 +31165,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3896
+        "linea": 3899
       },
       "roles": [
         "asistente"
@@ -31194,7 +31199,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3963
+        "linea": 3966
       },
       "roles": [
         "asistente"
@@ -31250,7 +31255,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3934
+        "linea": 3937
       },
       "roles": [
         "asistente"
@@ -31277,7 +31282,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3879
+        "linea": 3882
       },
       "roles": [
         "asistente"
@@ -32231,7 +32236,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3747
+        "linea": 3749
       },
       "roles": [
         "asistente"
@@ -32282,7 +32287,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3774
+        "linea": 3777
       },
       "roles": [
         "asistente"

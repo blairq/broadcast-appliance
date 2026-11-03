@@ -39,6 +39,7 @@ std::vector<Rol> deFabrica() {
         // cosa, no tiene con que. Un rol que mira no necesita poder tocar.
         x.categorias = {"imagenes"};
         x.disparadores = {}; // no se dispara solo: lo llama `imagen_preguntar`
+        x.aparte = true;     // la imagen nunca a la conversación del evento (ver Rol::aparte)
         x.prompt = promptDe("vision");
         // PRENDIDO de fabrica, y es la excepcion a la regla. Los demas roles
         // arrancan apagados porque actuan solos ante un evento; este no tiene
@@ -62,6 +63,7 @@ std::vector<Rol> deFabrica() {
         // bajar una imagen, convertirla y dejarla en Medios/ no se puede hacer
         // con herramientas del aparato. Ver `Rol::consola` para lo que implica.
         x.consola = true;
+        x.aparte = true; // su consola y su juego, en su sesión (ver Rol::aparte)
         // Apagado de fabrica, como los demas que actuan: prenderlo es decidir
         // que un agente puede tocar el disco y la red de esta maquina.
         x.activo = false;
@@ -85,6 +87,7 @@ std::vector<Rol> deFabrica() {
                         "graficos", "qr",     "operador",  "rostros", "laminas", "totems"};
         x.disparadores = {}; // no se dispara solo: lo llama quien organiza
         x.prompt = promptDe("organizador");
+        x.aparte = true; // un encargo grande, con su juego: en su sesión (ver Rol::aparte)
         // PRENDIDO de fabrica, por la misma razon que `vision`: no tiene
         // disparadores, asi que no hace nada hasta que alguien le encarga algo.
         // Apagado, el boton de «Armar contandolo» de la pagina de Evento no
@@ -164,6 +167,7 @@ std::vector<Rol> deFabrica() {
         // un tótem. Apagado, los tótems usan el guion solo.
         x.activo = true;
         x.enLaApp = true;
+        x.aparte = true;
         r.push_back(std::move(x));
     }
     return r;
@@ -250,6 +254,16 @@ bool Roles::setActivo(const std::string& id, bool activo) {
     return true;
 }
 
+bool Roles::setAparte(const std::string& id, bool aparte) {
+    auto* r = const_cast<Rol*>(porId(id));
+    if (r == nullptr) return false;
+    if (r->aparte != aparte) {
+        r->aparte = aparte;
+        guardar();
+    }
+    return true;
+}
+
 bool Roles::setConsola(const std::string& id, bool consola) {
     auto* r = const_cast<Rol*>(porId(id));
     if (r == nullptr) return false;
@@ -319,6 +333,7 @@ json Roles::aJson() const {
                            {"agruparMax", r.agruparMax},
                            {"activo", r.activo},
                            {"consola", r.consola},
+                           {"aparte", r.aparte},
                            {"enLaApp", r.enLaApp},
                            {"proveedor", r.proveedor},
                            {"modelo", r.modelo},
@@ -338,6 +353,7 @@ void Roles::leer() {
         if (!e.is_object()) continue;
         r.activo = e.value("activo", r.activo);
         r.consola = e.value("consola", r.consola);
+        r.aparte = e.value("aparte", r.aparte);
         r.proveedor = e.value("proveedor", r.proveedor);
         r.modelo = e.value("modelo", r.modelo);
         r.promptPropio = e.value("promptPropio", r.promptPropio);
@@ -349,7 +365,7 @@ void Roles::guardar() const {
     json o = json::object();
     for (const Rol& r : roles_)
         o[r.id] = json{
-            {"activo", r.activo}, {"consola", r.consola}, {"proveedor", r.proveedor}, {"modelo", r.modelo},
+            {"activo", r.activo}, {"consola", r.consola}, {"aparte", r.aparte}, {"proveedor", r.proveedor}, {"modelo", r.modelo},
             {"promptPropio", r.promptPropio}};
     config::guardar(archivo_, o);
 }

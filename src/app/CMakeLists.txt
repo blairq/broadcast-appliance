@@ -1647,6 +1647,14 @@ endif()
     target_link_libraries(test_despachador PRIVATE ba_core Qt6::Core)
     set_target_properties(test_despachador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_despachador COMMAND test_despachador)
+    # Una conversación del asistente por evento y los avisos automáticos a ella (OpenCode,
+    # con un servidor falso): agent/SesionesEvento y agent/EnvioOpencode.
+    add_executable(test_sesion_evento tests/test_sesion_evento.cpp agent/SesionesEvento.cpp agent/EnvioOpencode.cpp
+                   agent/EnvioOpencode.hpp)
+    target_include_directories(test_sesion_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_sesion_evento PRIVATE ba_core Qt6::Core Qt6::Network)
+    set_target_properties(test_sesion_evento PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_sesion_evento COMMAND test_sesion_evento)
     # Los discursos del teleprompter: carpetas, nombres y que nada salga de la raiz.
     add_executable(test_captura_web tests/test_captura_web.cpp net/CapturaWeb.cpp net/CapturaWeb.hpp)
     target_include_directories(test_captura_web PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

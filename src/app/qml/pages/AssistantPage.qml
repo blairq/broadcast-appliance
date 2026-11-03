@@ -128,6 +128,11 @@ Rectangle {
                         GlassButton { compact: true; visible: term.hasSelection; text: qsTr("Copiar"); onClicked: term.copySelection() }
                         GlassButton { compact: true; visible: ag.running; text: qsTr("Pegar"); onClicked: term.pasteClipboard() }
                         GlassButton { compact: true; visible: ag.running; text: qsTr("Reiniciar"); onClicked: ag.restart() }
+                        // Una conversación por evento (se retoma al volver): esto empieza otra.
+                        GlassButton { compact: true; visible: ag.running && ag.sesionEvento !== ""
+                                      text: qsTr("Conversación nueva"); onClicked: ag.nuevaConversacion()
+                                      ToolTip.visible: hovered; ToolTip.delay: 400
+                                      ToolTip.text: qsTr("Este evento tiene una conversación con el asistente que se retoma al reabrir la app; ahí caen también los avisos automáticos. Esto empieza otra (la de antes queda en el historial).") }
                         GlassButton { compact: true; visible: ag.running; text: qsTr("Detener"); onClicked: ag.stop() }
                         // Hay una version usable pero el sistema fija otra: se ofrece,
                         // no se obliga (la instalada sigue andando).

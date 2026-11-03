@@ -116,6 +116,17 @@ int main(int argc, char** argv) {
         CHECK(r2.porId("recepcion")->activo && r2.porId("recepcion")->proveedor == "claude-cuenta",
               "lo elegido se relee");
         CHECK(!r2.porId("recepcion")->categorias.empty(), "lo del sistema no depende del archivo");
+        // Aparte (su sesión) o en la conversación del evento: de fábrica aparte los que se
+        // encargan con su juego (vision, escenografo, organizador); los de disparadores, no.
+        CHECK(r.porId("vision")->aparte && r.porId("escenografo")->aparte && r.porId("organizador")->aparte,
+              "aparte de fábrica: vision, escenografo, organizador");
+        CHECK(!r.porId("recepcion")->aparte && !r.porId("tecnico")->aparte,
+              "los de disparadores van a la conversación del evento");
+        r.setAparte("tecnico", true);
+        r.setAparte("vision", false);
+        Roles r3((dir + "/roles.json").toStdString());
+        CHECK(r3.porId("tecnico")->aparte && !r3.porId("vision")->aparte, "aparte se guarda y se relee");
+        CHECK(r3.aJson()[0].contains("aparte"), "aparte en lo que ve la interfaz y el MCP");
     }
 
 #ifndef _WIN32
@@ -217,6 +228,7 @@ int main(int argc, char** argv) {
                   pasos[5]["tipo"] == "fin",
               "pasos leidos del stream-json");
         CHECK(lanzados.size() == 1 && lanzados[0].rol == "recepcion", "se lanzo con el rol");
+        CHECK(!lanzados[0].aparte, "recepción: a la conversación del evento (el motor decide si hay una)");
         const std::string enc = leer(dir + "/encargo.txt");
         CHECK(enc.find("En la sala: nadie.") != std::string::npos,
               "el encargo lleva el contexto del sistema");

@@ -33,6 +33,9 @@ struct Lanzamiento {
     /// Si el rol lleva las herramientas propias del agente (consola, archivos,
     /// internet). Ver `Rol::consola`.
     bool consola = false;
+    /// El rol corre en su propia sesión (de un tiro) aunque el asistente de automatización
+    /// tenga la conversación del evento abierta en OpenCode. Ver `Rol::aparte`.
+    bool aparte = false;
 };
 
 /// Los motores, vistos desde el despachador.

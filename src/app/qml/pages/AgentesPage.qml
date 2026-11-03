@@ -134,6 +134,40 @@ Rectangle {
                                               "salir a internet (por ejemplo, bajar una imagen y dejarla en Medios). Lo que " +
                                               "hace así NO pasa por las aprobaciones del asistente: prendelo solo si el rol lo necesita.")
                             }
+                            // Dónde corre cada encargo: en la conversación del evento (la
+                            // del asistente de automatización, con OpenCode) o en su sesión.
+                            ColumnLayout {
+                                Layout.fillWidth: false
+                                Layout.preferredWidth: 110
+                                spacing: 1
+                                visible: fila.modelData.enLaApp !== true
+                                RowLayout {
+                                    spacing: 6
+                                    Toggle {
+                                        checked: fila.modelData.aparte === true
+                                        onToggled: (w) => page.d.setAparte(fila.modelData.id, w)
+                                    }
+                                    Text {
+                                        text: qsTr("Aparte")
+                                        color: Theme.textDim
+                                        font.pixelSize: 12
+                                    }
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: fila.modelData.aparte === true ? qsTr("su propia sesión") : qsTr("en la conversación del evento")
+                                    color: Theme.textFaint
+                                    font.pixelSize: 10
+                                    wrapMode: Text.WordWrap
+                                }
+                                HoverHandler { id: aparteHov }
+                                ToolTip.visible: aparteHov.hovered
+                                ToolTip.delay: 400
+                                ToolTip.text: qsTr("Apagado: con el asistente de automatización en OpenCode, cada encargo va a su " +
+                                              "conversación del evento (con todo lo que pasó, sin abrir una sesión nueva por aviso). " +
+                                              "Prendido: cada encargo corre en su propia sesión, con las herramientas, las instrucciones " +
+                                              "y el motor del rol. Un rol con otro motor u otro modelo corre aparte siempre.")
+                            }
                             ComboBox {
                                 id: provBox
                                 Layout.preferredWidth: 250
