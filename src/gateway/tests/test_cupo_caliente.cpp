@@ -79,6 +79,27 @@ int main() {
     }
     CHECK(llego, "el video del invitado del lugar 3 llega a la app");
 
+    // Según demanda (SpoutSender::demanda): la cámara del lugar 1 no la lee nadie (nadie se
+    // suscribió a Guest.1), así que el hilo que decodifica no la convierte; en cuanto la app
+    // la lee, sí.
+    pump.setRoute(2, MediaRoute::program(1));
+    CHECK(!pump.quiereCamara(2), "sin quien lea la cámara del lugar 1, no se convierte");
+    CHECK(pump.demandaCamaras()["enteros"]["sin_lector"].get<int>() >= 1, "la cuenta la muestra sin lector");
+    {
+        ba::ipc::SpoutReceiver rx1;
+        CHECK(rx1.subscribe(w(pre + "Guest.1").c_str()), "la app se suscribe al lugar 1");
+        CHECK(pump.quiereCamara(2), "con un lector, se convierte");
+        CHECK(pump.llegoCamara(2), "llegoCamara dice lo mismo");
+        bool llego1 = false;
+        for (int i = 0; i < 50 && !llego1; ++i) {
+            pump.forwardVideo(2, cuadro.data(), cuadro.size(), 320, 180);
+            ba::ipc::FrameMeta m{};
+            llego1 = rx1.receive(dst.data(), dst.size(), m) && dst[0] == 0x7F;
+            std::this_thread::sleep_for(std::chrono::milliseconds(10));
+        }
+        CHECK(llego1, "y le llega");
+    }
+
     pump.ampliar(2);
     CHECK(pump.lugares() == 3 && hayCanal(pre + "Guest.3"), "bajar no borra canales (no saca a nadie)");
     pump.ampliar(kMaxInvitados + 5);

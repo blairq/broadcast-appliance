@@ -197,6 +197,10 @@ class MediaPump {
     /// (del canal), escalados_bytes, empujes (cuadro × sesión), demorados (los que esperaron
     /// a su audio), conversiones y convertidos_bytes (a I420: una por cuadro, no por sesión)}.
     nlohmann::json copiasVideo() const;
+    /// Las cámaras de los lugares (BA.Guest.N, `enteros`) y sus vistas para la interfaz
+    /// (BA.GuestUi.N, `vistas`), por quién las lee ahora (SpoutSender::demanda): {sin_lector,
+    /// de_vez_en_cuando, todos}. Las que no tienen lector no se convierten ni se copian.
+    nlohmann::json demandaCamaras() const;
 
     /// Ruta de la sesion `session` (1..hub.sessions()).
     void setRoute(int session, const MediaRoute& route);
@@ -210,6 +214,10 @@ class MediaPump {
     /// (su ruta tiene un canal abierto y no está topado de cps). Si no, el hilo que decodifica
     /// no lo convierte a BGRA (con 40 en la grilla, casi ninguno va a ba-app).
     bool quiereCamara(int session) const;
+    /// Llegó un cuadro de la cámara de `session` (lo llama el hilo que decodifica, se use o
+    /// no): lo anota para la placa (un lugar cuya cámara nadie lee no es un lugar sin video)
+    /// y devuelve quiereCamara.
+    bool llegoCamara(int session);
     void forwardScreen(int session, const uint8_t* pixels, size_t bytes, int w, int h);
     /// De la baja a la HD (Fundido.hpp): el próximo cuadro de la cámara de `session` es el
     /// primero de la alta; su canal (el lugar del programa y su vista chica, o el remoto)
@@ -243,8 +251,16 @@ class MediaPump {
         std::vector<uint8_t> scratch;
         int w = 0;
         int h = 0;
-        std::atomic<uint64_t> lastNs{0}; // ultimo frame REAL (no placa)
+        std::atomic<uint64_t> lastNs{0}; // ultimo frame REAL (no placa) publicado
+        // El último cuadro real que LLEGÓ, se haya publicado o no (sin lector no se publica):
+        // es lo que mira la placa para saber si el invitado tiene video.
+        std::atomic<uint64_t> llegoNs{0};
         uint64_t minIntervalNs = 0;      // 0 = todos los cuadros; si no, tope de fps
+        // Solo si alguien lo lee (SpoutSender::demanda): la cámara de los lugares del programa
+        // y su vista chica. Con 40 en la grilla, ba-app lee pocas (las tarjetas que se ven, las
+        // entradas de las escenas) y convertir cada cuadro entero para nadie era lo que más
+        // gastaba el hilo que decodifica (F3, #8). `gateway.videoSegunDemanda` lo apaga.
+        bool segunDemanda = false;
         // A cuantos cuadros por segundo esta LLEGANDO lo que sube el
         // participante. Es la mitad que faltaba para saber donde se va el
         // retardo: si el telefono entrega 30 parejos, lo que se ve tarde se
@@ -263,6 +279,10 @@ class MediaPump {
     };
     /// Los canales de video de la cámara de `session` según su ruta (para el fundido).
     std::vector<VideoOut*> videosDeCamara(int session) const;
+    /// ¿Se publicaría ahora en `v` un cuadro real? (publicado, alguien lo lee si va según
+    /// demanda —uno por segundo si solo mira de vez en cuando— y no topado de cps). Lo
+    /// mismo para quiereCamara (antes de convertir) que para publishVideo (antes de copiar).
+    static bool pideCuadro(const VideoOut& v, uint64_t ahoraNs);
     /// Canal de audio B->A: ring + re-bloqueo a 10 ms + re-muestreo.
     struct AudioOut {
         ba::ipc::SharedAudioRing ring;

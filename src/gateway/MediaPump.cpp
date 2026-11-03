@@ -395,9 +395,11 @@ void MediaPump::ampliar(int slots) {
     std::lock_guard<std::mutex> l(canalesLock_);
     const int hasta = std::min(slots, kMaxInvitados);
     const int antes = lugares_;
+    const bool segunDemanda = ba::ajustes::siNo("gateway.videoSegunDemanda", true);
     for (int s = lugares_ + 1; s <= hasta; ++s) {
         const size_t i = static_cast<size_t>(s);
         videosInvitado_.push_back(crearVideo(name(cfg_.guestVideoNames, i), cfg_.programW, cfg_.programH));
+        videosInvitado_.back()->segunDemanda = segunDemanda; // la entrada de una escena, si hay
         guestVideo_[i].store(videosInvitado_.back().get(), std::memory_order_release);
         videosInvitado_.push_back(crearVideo(name(cfg_.shareVideoNames, i), cfg_.programW, cfg_.programH));
         shareVideo_[i].store(videosInvitado_.back().get(), std::memory_order_release);
@@ -406,6 +408,7 @@ void MediaPump::ampliar(int slots) {
         if (const std::wstring ui = name(cfg_.guestUiVideoNames, i); !ui.empty()) {
             videosInvitado_.push_back(crearVideo(ui, cfg_.guestUiW, cfg_.guestUiH));
             videosInvitado_.back()->minIntervalNs = 30'000'000;
+            videosInvitado_.back()->segunDemanda = segunDemanda; // la tarjeta, si se ve
             guestUiVideo_[i].store(videosInvitado_.back().get(), std::memory_order_release);
         }
         audiosInvitado_.push_back(crearAudio(name(cfg_.guestAudioNames, i)));
@@ -1392,11 +1395,8 @@ std::string MediaPump::pruebaTecnica(int session, int ms) {
 bool MediaPump::quiereCamara(int session) const {
     const MediaRoute r = route(session);
     // Lo mismo que mira forwardVideo y publishVideo antes de copiar.
-    const auto sirve = [](const VideoOut* v) {
-        if (v == nullptr || !v->sender.published()) return false;
-        if (v->minIntervalNs != 0 && monoNs() - v->lastNs.load(std::memory_order_relaxed) < v->minIntervalNs) return false;
-        return true;
-    };
+    const uint64_t ahora = monoNs();
+    const auto sirve = [ahora](const VideoOut* v) { return v != nullptr && pideCuadro(*v, ahora); };
     const auto en = [&](const std::vector<std::unique_ptr<VideoOut>>& v) {
         return r.index >= 1 && r.index < static_cast<int>(v.size()) && sirve(v[static_cast<size_t>(r.index)].get());
     };
@@ -1415,13 +1415,58 @@ bool MediaPump::quiereCamara(int session) const {
     }
 }
 
+bool MediaPump::llegoCamara(int session) {
+    const MediaRoute r = route(session);
+    if (r.kind == MediaRoute::Kind::Program && r.index >= 1 && r.index <= kMaxInvitados)
+        if (VideoOut* v = guestVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
+            v->llegoNs.store(monoNs(), std::memory_order_relaxed);
+    return quiereCamara(session);
+}
+
+bool MediaPump::pideCuadro(const VideoOut& v, uint64_t ahoraNs) {
+    if (!v.sender.published()) return false;
+    const uint64_t ultimo = v.lastNs.load(std::memory_order_relaxed);
+    uint64_t intervalo = v.minIntervalNs;
+    if (v.segunDemanda) {
+        switch (v.sender.demanda()) {
+        case ba::ipc::SpoutSender::Demanda::Nadie: return false;
+        // La tarjeta que no se ve (FrameService la refresca una vez por segundo).
+        case ba::ipc::SpoutSender::Demanda::DeVezEnCuando: intervalo = std::max<uint64_t>(intervalo, 1'000'000'000ULL); break;
+        case ba::ipc::SpoutSender::Demanda::Todos: break;
+        }
+    }
+    return intervalo == 0 || ahoraNs - ultimo >= intervalo;
+}
+
+nlohmann::json MediaPump::demandaCamaras() const {
+    int nadie = 0, deVez = 0, todos = 0;
+    const auto contar = [&](const VideoOut* v) {
+        if (v == nullptr || !v->sender.published()) return;
+        switch (v->segunDemanda ? v->sender.demanda() : ba::ipc::SpoutSender::Demanda::Todos) {
+        case ba::ipc::SpoutSender::Demanda::Nadie: ++nadie; break;
+        case ba::ipc::SpoutSender::Demanda::DeVezEnCuando: ++deVez; break;
+        case ba::ipc::SpoutSender::Demanda::Todos: ++todos; break;
+        }
+    };
+    nlohmann::json j;
+    for (const auto* lista : {&guestVideo_, &guestUiVideo_}) {
+        nadie = deVez = todos = 0;
+        for (size_t s = 1; s < lista->size(); ++s)
+            contar((*lista)[s].load(std::memory_order_acquire));
+        j[lista == &guestVideo_ ? "enteros" : "vistas"] = {{"sin_lector", nadie}, {"de_vez_en_cuando", deVez}, {"todos", todos}};
+    }
+    return j;
+}
+
 void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h) {
     if (pixels == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
     const MediaRoute r = route(session);
     if (r.kind == MediaRoute::Kind::Program && r.index >= 1 &&
         r.index <= kMaxInvitados) {
-        if (VideoOut* v = guestVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
+        if (VideoOut* v = guestVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire)) {
+            v->llegoNs.store(monoNs(), std::memory_order_relaxed);
             publishVideo(*v, pixels, w, h, true);
+        }
         if (VideoOut* u = guestUiVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
             publishVideo(*u, pixels, w, h, true);
     } else if (r.kind == MediaRoute::Kind::Lobby && r.index >= 1 &&
@@ -1529,9 +1574,12 @@ void MediaPump::apagarRemoto(int canal) {
 
 void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real) {
     if (!out.sender.published()) return;
-    if (out.minIntervalNs != 0) {
-        const uint64_t t = monoNs();
-        if (t - out.lastNs.load(std::memory_order_relaxed) < out.minIntervalNs) return;
+    if (real) {
+        if (!pideCuadro(out, monoNs())) return;
+    } else {
+        // La placa (lugar sin video): a su ritmo, pero no para nadie.
+        if (out.segunDemanda && out.sender.demanda() == ba::ipc::SpoutSender::Demanda::Nadie) return;
+        if (out.minIntervalNs != 0 && monoNs() - out.lastNs.load(std::memory_order_relaxed) < out.minIntervalNs) return;
     }
     if (real) out.lastNs.store(monoNs(), std::memory_order_relaxed);
     std::lock_guard<std::mutex> lock(out.lock);
@@ -1654,7 +1702,8 @@ void MediaPump::plateThread() {
                 plates[s].assign(static_cast<size_t>(w) * h * 4u, 0);
                 drawPlate(plates[s].data(), w, h, static_cast<int>(s));
             }
-            const uint64_t last = v->lastNs.load(std::memory_order_relaxed);
+            // Lo último que llegó (aunque no se haya publicado: sin lector no se publica).
+            const uint64_t last = std::max(v->lastNs.load(std::memory_order_relaxed), v->llegoNs.load(std::memory_order_relaxed));
             if (last == 0 || now - last > kGuestTimeoutNs) {
                 publishVideo(*v, plates[s].data(), w, h, false);
                 // La tarjeta de la interfaz muestra la misma placa (F3-11).

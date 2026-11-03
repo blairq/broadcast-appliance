@@ -34,7 +34,10 @@ class DestinoCamara {
     DestinoCamara(MediaPump* pump, int sesion, Grillas* grillas, std::string persona)
         : pump_(pump), sesion_(sesion), grillas_(grillas), persona_(std::move(persona)) {}
 
-    /// ¿ba-app quiere el cuadro entero de este momento? (si no, no se convierte a BGRA).
+    /// ¿ba-app quiere el cuadro entero de este momento? (si no, no se convierte a BGRA). Es
+    /// «quiere» de verdad: su canal tiene quién lo lea ahora (SpoutSender::demanda; una
+    /// tarjeta que no se ve, uno por segundo). Se llama con cada cuadro que llega: anota la
+    /// llegada para la placa del lugar (MediaPump::llegoCamara).
     bool quiereEntero() const;
     /// El cuadro entero en BGRA (filas de w*4) a ba-app.
     void entero(const std::uint8_t* bgra, int w, int h);
