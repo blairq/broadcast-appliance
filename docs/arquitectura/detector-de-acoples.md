@@ -179,3 +179,78 @@ y 323 `disco` (la mayoría en `video/SuperRes.cpp`, `agent/AgentViewModel.cpp`,
 positivos (código que corre en un hilo propio que la lectura no ve: p. ej.
 `InputThumbProvider::requestImage` corre en el hilo de carga de imágenes): lo confirma o lo
 descarta la parte dinámica.
+
+## Lo que encontró y lo que se arregló (noche del 2026-11-03)
+
+### Sin invitados, en la Mac (el recorrido entero)
+
+| acople | antes | después | arreglo |
+|---|---:|---:|---|
+| `GuionViewModel::enlaceDeCue` (tarjeta Dirección) | 44 404 ms, 205× | 0 | `enlacesPrompter` con aviso propio (`enlacesPrompterChanged`, solo si cambia el puerto de la sala o la lista de prompters); la tarjeta lee el mapa |
+| `RielConfig::paginaDeId` | 24 902 ms, 101× | 0 | mapas `paginaPorId` / `idPorPagina` (CONSTANT) y `tituloPorPagina`; las tres funciones ya no son Q_INVOKABLE (las usa el MCP desde C++) |
+| `RielConfig::idDePagina` | 8 100 ms, 33× | 0 | ídem (el riel y `Main.qml`) |
+| `PrompterViewModel::avisoParaOrador` | 1 200 ms, 4× | 0 | `avisoPuesto` (la clave del aviso puesto, NOTIFY con el estado) |
+| `persist::leerArchivo` (bitácora, foto de Config) | 904 ms, 6× | 0 | `BitacoraEvento::revisarConfigEnElFondo`: leer `ultima.json`, comparar y guardar, todo en el fondo; vuelven las líneas |
+| `ListaObjetos::fila` (matriz, «Mute de») | 300 ms, 15× | 0 | el combo lee `Studio.salidas.lista.lista` (propiedad) |
+| `persist::escribir` (bitácora) | 1 ms, 1× | 0 | ídem bitácora |
+
+Además, de la lectura estática: `ConferenceViewModel::nameOf` (el chat: cada mensaje recorría la
+foto de la sala → rol `toName` en el mensaje y `nombres` {id: nombre}) y `MultiviewViewModel::de`
+(→ `porId`; `elegida` también pasaba por el gancho). `test_acoples.py` bajó: QML 39 → 29
+bindings, ganchos de los caminos que ya no existen fuera de la tabla.
+
+### Con 200 invitados, en la PC (Ryzen 9 5900X + RX 5700 XT)
+
+Cinco tandas de ≤ 2 min (hinchada en la Mac por TURN de la caja, 10 % TCP, `--modo grabado
+--hablan 1`; el recorrido arranca con 100 con medios y sigue mientras entran los demás):
+`tools/diag/recorrer-ui.py --sala-externa 100 --paginas …` en paralelo con
+`tools/carga/medir-sala.py --remoto windows --participantes 200 --cupo --estabilizar-max 60
+--regimen 40`. Mediciones en `~/Proyectos/mediciones-carga/2026-11-03-acoples-pc177/`.
+
+**El detector no anotaba nada en Windows**: `detalle::demoraMs` era `inline` en el .hpp y en el
+.exe de clang-cl los ganchos leían una copia que `activar()` no tocaba. Ahora está definida en
+`Acoples.cpp` y el informe dice `hilo_interfaz_marcado`, `de_otro_hilo` y `reentradas` (para
+ver que de verdad mira).
+
+Acoples del sabotaje (después de los arreglos de la Mac): `ListaObjetos::fila` 206× (3 000 ms,
+tope) en Audio → Matriz — `Matriz::rearmarUltimas` leía su propio modelo por la invocable de la
+vista (→ `ListaObjetos::datosDe`) — y `persist::leerArchivo` 1-2× (300-600 ms) al pasar por el
+tablero y por Asistente (`EstadoIA::recalcular` → `AgentViewModel::current/installed/hasKey`
+leen disco: queda, ver abajo).
+
+Lo que más pesaba no eran los acoples del sabotaje sino **trabas de verdad** de la interfaz
+mientras la sala se llena (el vigía de trabas dejó nueve volcados; `tools/caidas/analizar.py --pc`):
+
+| traba (volcado) | duró | causa | arreglo |
+|---|---:|---|---|
+| 6 de 9 (`…044814`, `…045434`, `…045725`, `…050054`, `…050411`, `…050921`) | 2,0-4,6 s | `BuscadorCatalogo` (el selector de cosas: hay uno por página que lo usa, siempre vivo) recontaba el catálogo entero y avisaba con cada fila que entraba o salía; la QML rearmaba el Repeater de los tipos | mira el catálogo solo con el selector abierto; los cambios se juntan (60 ms) |
+| `…045000` | 2,1 s | `Studio.catalogo.porId` era un QVariantMap con NOTIFY `cambio`: cada binding que mira UNA cosa (monitores, ventanas, TV) convertía las ~450 filas a JS en cada cambio | `porId` es un `QQmlPropertyMap`: una propiedad por id, avisa solo la que cambió |
+| `…045109` | 2,6 s | `TiemposModel::eventos`: la QML la recorre y cada acceso a un elemento de una lista de una propiedad vuelve a leer la propiedad (convertía el JSON entero por elemento) | armada una vez por cambio |
+| `…054757` (después) | 2,7-6,6 s | `VistaGrillas` (Sala, Escenas y Asamblea, cargadas siempre): cada aviso de `ControlGrillas` convertía y rearmaba todas las caras en las tres aunque nadie las mirara, y «Fijar a alguien» era N² | arma solo mientras se ve; `hay` no depende de verse; un `Set` |
+| `…050551` | 3,3 s | el propio sabotaje (`ListaObjetos::fila` 206 × 300 ms con tope) | `datosDe` |
+| `…050756` | 2,5 s | destruir un `TreeView` de QML al cambiar de página | queda |
+
+Además, de raíz y sin traba propia: el catálogo junta las ráfagas de claves y rótulos de
+invitados (`pedirRefresco`, 50 ms) y una distribución cambiada rearma solo sus filas
+(`refrescarDistribuciones`; arrastrar en el editor ya avisaba una vez, al soltar).
+
+| tanda (páginas) | trabas > 2 s antes | después |
+|---|---|---|
+| 1 (tablero, sala, escenas, cámaras, rótulos, prompter, público) | 16 (2,0-4,3 s) | 0 |
+| 2 (asamblea con sus 12 secciones, guion y sus paneles) | 0 | 0 |
+| 3 (medios … multiview) | 1 (2,9 s) | 0 |
+| 4 (YouTube … audio) | 1 (3,2 s, sabotaje) | 0 |
+| 5 (botonera … configuración) | 1 (4,6 s) | 4 (2,7-6,6 s: `VistaGrillas`) → NUEVA_T5 |
+
+Lo que queda: `AgentViewModel` lee disco en sus getters (`current()` → `pins()`, `installed()`,
+`hasKey()`) y `EstadoIA` los llama en el hilo de la interfaz (54 `disco` en la deuda de ese
+archivo: pasar su estado a una foto armada en el fondo); el bucle de la interfaz sigue con
+~75 demoras de 50-130 ms por tanda de 2 min (la mayoría «QTimer, cada 1000 ms» cada ~10 s, y
+`VentanillaMotor`/`ConferenceClient`); el `TreeView` que tarda en destruirse; y
+`test_vigia_traba` falla en Windows nativo (sus pilas de prueba usan nombres de Itanium que el
+resumen no desarma con el ABI de MSVC: de antes, no de esto).
+
+La grilla con 200 (hinchada con el rótulo de cada capa en el centro): las miniaturas llegan en
+180p y el orador (`--hablan 1`) en **720p** en su celda, sin agrandar
+(`docs/hardware/img/pc177-noche-sala-200-rotulo.jpg`,
+`docs/hardware/img/pc177-noche-programa-200-orador-720p.jpg`).
