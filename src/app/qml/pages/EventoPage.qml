@@ -484,7 +484,7 @@ Rectangle {
             target: Studio
             function onAbrirPanel(pagina, panel) {
                 if (pagina !== "guion") return
-                const i = ["guion", "padron", "publico", "orden", "web", "documentos"].indexOf(panel)
+                const i = ["guion", "padron", "publico", "orden", "web", "documentos", "eventos"].indexOf(panel)
                 if (i >= 0) pestanas.currentIndex = i
             }
         }
@@ -507,6 +507,23 @@ Rectangle {
             TabButton { text: qsTr("Orden del día") }
             TabButton { text: qsTr("Página web") }
             TabButton { text: Studio.documentos && Studio.documentos.lista.length ? qsTr("Documentos (%1)").arg(Studio.documentos.lista.length) : qsTr("Documentos") }
+            TabButton { text: Studio.configuraciones && Studio.configuraciones.lista.length ? qsTr("Eventos (%1)").arg(Studio.configuraciones.lista.length) : qsTr("Eventos") }
+        }
+
+        // ---- Los eventos de la máquina (abrir otro, crear, recuperar, borrar) -----------
+        // Antes estaba en Configuración → Sistema y datos; es del evento, va acá.
+        Panel {
+            visible: page.guionVm.abierto !== "" && !page.armando && pestanas.currentIndex === 6
+            Layout.fillWidth: true
+            Layout.fillHeight: true
+            title: qsTr("Los eventos de este equipo")
+            ScrollView {
+                id: eventosScroll
+                anchors.fill: parent
+                clip: true
+                contentWidth: availableWidth
+                PanelConfiguraciones { width: eventosScroll.availableWidth }
+            }
         }
 
         // ---- Documentación del evento (PDF con carátula, por punto y sección) ----------

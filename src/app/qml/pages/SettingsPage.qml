@@ -2013,9 +2013,6 @@ Rectangle {
                 Text { Layout.fillWidth: true; color: Theme.textDim; font.pixelSize: 13; visible: sys.version !== ""
                        text: qsTr("Versión instalada: %1").arg(sys.version) }
                 Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
-                // Configuraciones con nombre (cada una con lo suyo).
-                PanelConfiguraciones { Layout.fillWidth: true }
-                Rectangle { Layout.fillWidth: true; height: 1; color: Theme.glassBorder }
                 Text { text: qsTr("Arranque y recuperación"); color: Theme.text; font { pixelSize: 15; weight: Font.DemiBold } }
                 // Volver solo después de un corte de luz.
                 ColumnLayout {

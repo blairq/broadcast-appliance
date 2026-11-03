@@ -11028,7 +11028,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4291
+        "linea": 4294
       },
       "roles": [
         "asistente"
@@ -11117,7 +11117,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4169
+        "linea": 4172
       },
       "roles": [
         "asistente"
@@ -11152,7 +11152,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4203
+        "linea": 4206
       },
       "roles": [
         "asistente"
@@ -20294,7 +20294,7 @@
       "nombre": "ui_abrir_panel",
       "titulo": "Abrir un panel o diálogo de una página",
       "categoria": "interfaz",
-      "descripcion": "Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo cierra con panel=\"cerrar\". Paneles: video → superresolucion (redes, placa, modelos, entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con `fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos). Para mirarlo, capture_ui.",
+      "descripcion": "Muestra la página `page` y abre su panel `panel` (el mismo que abre su botón), o lo cierra con panel=\"cerrar\". Paneles: video → superresolucion (redes, placa, modelos, entrenar), entrada_virtual, catalogo (módulos de GStreamer); escenas → efectos (con `fuente`: la elige en el editor de la escena que se edita y muestra su transparencia, borde difuso y sombra); historico → registro (qué se anota en cada evento, disco y retención); guion → las pestañas de la página del evento (guion, padron, publico, orden, web, documentos, eventos). Para mirarlo, capture_ui.",
       "esquema": {
         "type": "object",
         "properties": {
@@ -30508,7 +30508,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4085
+        "linea": 4088
       },
       "roles": [
         "asistente"
@@ -30570,7 +30570,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3831
+        "linea": 3834
       },
       "roles": [
         "asistente"
@@ -30639,7 +30639,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3804
+        "linea": 3807
       },
       "roles": [
         "asistente"
@@ -30744,7 +30744,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3981
+        "linea": 3984
       },
       "roles": [
         "asistente"
@@ -30779,7 +30779,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4004
+        "linea": 4007
       },
       "roles": [
         "asistente"
@@ -31045,7 +31045,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4030
+        "linea": 4033
       },
       "roles": [
         "asistente"
@@ -31098,7 +31098,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4060
+        "linea": 4063
       },
       "roles": [
         "asistente"
@@ -31160,7 +31160,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3896
+        "linea": 3899
       },
       "roles": [
         "asistente"
@@ -31194,7 +31194,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3963
+        "linea": 3966
       },
       "roles": [
         "asistente"
@@ -31250,7 +31250,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3934
+        "linea": 3937
       },
       "roles": [
         "asistente"
@@ -31277,7 +31277,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3879
+        "linea": 3882
       },
       "roles": [
         "asistente"
@@ -32231,7 +32231,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3747
+        "linea": 3749
       },
       "roles": [
         "asistente"
@@ -32282,7 +32282,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3774
+        "linea": 3777
       },
       "roles": [
         "asistente"
