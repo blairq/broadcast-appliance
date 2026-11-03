@@ -42,7 +42,8 @@ AlarmasViewModel::AlarmasViewModel(Fuentes f, QObject* parent)
       sonido_(std::make_unique<agent::AlarmaSonora>(f.rt.dataRoot())) {
     entradas_->refrescar();
     // Lo de la interfaz que lee el vigía se copia cuando cambia (nada de releerlo con un reloj).
-    connect(&f.sala.client(), &ConferenceClient::snapshotChanged, this, &AlarmasViewModel::fotoCambio);
+    // La foto de la sala NO: es directa (la arma el lector de la sala en su hilo; antes, cada
+    // foto se pasaba a JSON y de vuelta en el hilo de la interfaz para copiarla acá).
     auto* chatSala = static_cast<JsonListModel*>(f.sala.chat());
     connect(chatSala, &QAbstractItemModel::modelReset, this, &AlarmasViewModel::fotoCambio);
     connect(chatSala, &QAbstractItemModel::rowsInserted, this, &AlarmasViewModel::fotoCambio);
@@ -66,11 +67,7 @@ AlarmasViewModel::~AlarmasViewModel() = default;
 
 agent::AlertInputs AlarmasViewModel::deLaInterfaz(const Fuentes& f) {
     agent::AlertInputs in;
-    // (El audio de cada entrada y los medios van directos: abajo.)
-    in.room = [s = &f.sala]() {
-        return json::parse(QJsonDocument(s->client().snapshot()).toJson(QJsonDocument::Compact).toStdString(), nullptr,
-                           false);
-    };
+    // (El audio de cada entrada, los medios y la foto de la sala van directos: abajo.)
     in.chat = [c = &f.chat]() {
         std::vector<json> out;
         for (const auto& m : c->collect())
@@ -118,6 +115,13 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
         out.push_back({"Programa", motor.picoProgramaVigiaDb(), false});
         return out;
     };
+    // La foto de la sala: la última que leyó y armó el lector de eventos de la sala en su hilo
+    // (ConferenceClient::fotoSalaJson: una vez por foto, sin I/O ni la interfaz). Sin B, {}.
+    directas.room = []() {
+        const std::shared_ptr<const json> j = ConferenceClient::fotoSalaJson();
+        return j && j->is_object() ? *j : json::object();
+    };
+    directas.roomNumero = []() { return ConferenceClient::fotoSalaNumero(); };
     // Los medios que suenan y cuánto les queda (la parte Medidas de la foto del dueño).
     directas.media = [&rt]() {
         std::vector<agent::AlertInputs::Media> out;
@@ -260,13 +264,10 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
 
 agent::AlertInputs AlarmasViewModel::sinLaInterfaz() {
     agent::AlertInputs in;
-    // La sala y su chat cuando la foto de la interfaz se quedó quieta: la última que leyó el
-    // lector de eventos de la sala en su hilo (ConferenceClient::fotoSala), sin I/O ni esperar
-    // a B (antes, un GET de hasta 800 ms por segundo desde el plano de control).
+    // El chat de la sala cuando la foto de la interfaz se quedó quieta: el de la última foto
+    // que leyó el lector de eventos de la sala en su hilo (ConferenceClient::fotoSala), sin
+    // I/O ni esperar a B. (La sala misma es directa: ver `directas`.)
     const auto leer = []() { return ConferenceClient::fotoSala(); };
-    in.room = [leer]() {
-        return json::parse(QJsonDocument(leer()).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-    };
     in.roomChat = [leer]() {
         QJsonArray chat;
         for (const QJsonValue& v : leer().value("chat").toArray()) chat.append(ConferenceViewModel::mensajeDelChat(v.toObject()));

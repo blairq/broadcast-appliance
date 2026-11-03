@@ -154,7 +154,10 @@ void StudioViewModel::crearCapacidad() {
     // Lo que la hace revisar (sin sondeo): la foto de la sala, lo que está al aire, la sala
     // que va y viene, el enlace que termina y pinggy que cambia.
     CapacidadViewModel* c = capacidad_.get();
-    connect(&cli, &ConferenceClient::snapshotChanged, c, &CapacidadViewModel::revisar);
+    // De la sala, solo quién está (no la red de cada uno, que cambia en cada foto).
+    connect(&cli, &ConferenceClient::salaCambio, c, [c](unsigned partes) {
+        if ((partes & sala::Gente) != 0) c->revisar();
+    });
     connect(&cli, &ConferenceClient::onlineChanged, c, &CapacidadViewModel::alCambiarOnline);
     connect(&cli, &ConferenceClient::estadoEvento, c, &CapacidadViewModel::alEventoSala);
     connect(aire_.get(), &EstadoAireViewModel::aireChanged, c, &CapacidadViewModel::revisar);

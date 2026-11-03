@@ -136,7 +136,11 @@ ControlGrillas::ControlGrillas(Partes p, QObject* parent) : QObject(parent), p_(
     pronto_.setInterval(40);
     connect(&pronto_, &QTimer::timeout, this, &ControlGrillas::recalcular);
     const auto pedir = [this]() { pronto_.start(); };
-    connect(&p_.sala, &ConferenceClient::snapshotChanged, this, pedir);
+    // De la sala, solo quién está y cómo (y la fila de oradores): no la red de cada uno, que
+    // cambia en cada foto y no cambia ninguna grilla.
+    connect(&p_.sala, &ConferenceClient::salaCambio, this, [pedir](unsigned partes) {
+        if ((partes & ::ba::app::sala::Gente) != 0) pedir();
+    });
     connect(&p_.sala, &ConferenceClient::hablanEvento, this, [this, pedir](const QJsonObject& ev) {
         hablan_.clear();
         for (const QJsonValue& v : ev.value("ids").toArray()) hablan_.insert(v.toString().toStdString());

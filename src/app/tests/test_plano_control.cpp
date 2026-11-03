@@ -778,6 +778,38 @@ int main(int argc, char** argv) {
     }
     latidoUi.stop();
 
+    // (c) La sala DIRECTA, como en la app desde 2026-11-02: la foto la arma el lector de la
+    // sala en su hilo (ConferenceClient::fotoSalaJson) y no pasa por la interfaz. Con su
+    // número quieto, el vigía no la vuelve a leer ni a recorrer (O(invitados) cada vuelta en
+    // el control); con una foto nueva y la interfaz trabada, la lee y cuenta la novedad. (Vive
+    // hasta el final, como vigia9: adoptado por el control, vuelve al detener el plano.)
+    std::atomic<std::uint64_t> numero{1};
+    std::atomic<int> lecturas{0}, novedades9c{0};
+    std::atomic<bool> conectada{true};
+    ba::app::agent::AlertInputs ui9c; // nada de la sala en la interfaz
+    ba::app::agent::AlertInputs dir9c;
+    dir9c.room = [&]() {
+        ++lecturas;
+        return json{{"participants",
+                     json::array({{{"id", "p1"}, {"name", "Ana"}, {"state", "admitted"}, {"connected", conectada.load()}}})}};
+    };
+    dir9c.roomNumero = [&]() { return numero.load(); };
+    ba::app::agent::EntradasAlarmas e9c(ui9c, dir9c);
+    ba::app::agent::AlertEngine v9c(e9c.paraElVigia(), ""); // sin reglas: solo las novedades leen la sala
+    QObject::connect(&v9c, &ba::app::agent::AlertEngine::novedad, &v9c, [&](const QString&) { ++novedades9c; },
+                     Qt::DirectConnection);
+    v9c.start(100);
+    plano.adoptar(&v9c);
+    atender(600);
+    const int quieta = lecturas.load();
+    atender(600);
+    CHECK(quieta > 0 && lecturas.load() == quieta, "9c: con la misma foto de la sala, el vigía no la vuelve a leer");
+    conectada = false;
+    ++numero;
+    trabarInterfaz(800);
+    CHECK(lecturas.load() > quieta && novedades9c.load() > 0,
+          "9c: foto nueva con la interfaz trabada: el control la lee y cuenta que Ana se desconectó");
+
     // --- 8. Las de aire, en el control y con el turno del motor -------------------------
     // Como en la app: participan del turno la interfaz (el dueño del motor) y el control.
     ba::app::TurnoMotor::participar("interfaz");

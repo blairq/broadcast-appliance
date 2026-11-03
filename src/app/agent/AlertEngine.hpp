@@ -52,6 +52,7 @@
 
 #include "comun/JsonSignals.hpp"
 
+#include <cstdint>
 #include <deque>
 #include <mutex>
 #include <functional>
@@ -94,6 +95,10 @@ struct AlertInputs {
     std::function<std::vector<Audio>()> audio;
     std::function<std::vector<Media>()> media;
     std::function<json()> room;                ///< snapshot de la sala (participants, order, serverNowMs)
+    /// Opcional: el número de la foto de la sala (cambia con cada foto nueva). Con él, una
+    /// vuelta sin foto nueva no la copia ni la recorre para las novedades (O(invitados) cada
+    /// 250 ms en el plano de control, con la sala quieta).
+    std::function<std::uint64_t()> roomNumero;
     std::function<std::vector<json>()> chat;   ///< {key, platform, author, text}
     std::function<json()> roomChat;            ///< chat de la sala: [{uid, fromId, fromName, to, text, mine}]
     std::function<std::vector<json>()> textos; ///< salidas de texto: {key, flujo, texto, origen}
@@ -196,6 +201,7 @@ class AlertEngine : public QObject {
     std::map<std::string, std::string> previo_;       ///< el estado de la vuelta anterior (novedades)
     std::map<std::string, std::int64_t> cambioDesde_; ///< señal de una entrada: desde cuándo es distinta
     bool novedadesListas_ = false;                    ///< la primera vuelta solo anota
+    std::uint64_t roomVisto_ = 0;                     ///< roomNumero de la foto que ya se recorrió (0: ninguna)
 
     void fire(json& rule, State& st, const std::string& text, const json& data, std::int64_t now);
     void save() const;

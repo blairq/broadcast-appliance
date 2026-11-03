@@ -69,26 +69,22 @@ QStringList filasDe(const sala::Enlace& e) {
 
 ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QObject* parent)
     : QObject(parent), rt_(rt), ventanilla_(ventanilla), client_(std::make_unique<ConferenceClient>()),
-      waiting_(std::make_unique<JsonListModel>(
-          QStringList{"uid", "name", "connected", "joinedMs", "lobbySlot", "talk", "info", "contact", "prueba"})),
-      inside_(std::make_unique<JsonListModel>(QStringList{"uid", "name", "slot", "connected", "mediaUp",
-                                                          "mic", "cam", "screen", "hand", "admittedMs",
-                                                          "presenter", "speaker", "info", "contact", "talk", "prueba",
-                                                          "semaforo", "sinRetorno"})),
-      shares_(std::make_unique<JsonListModel>(
-          QStringList{"uid", "name", "kind", "mime", "bytes", "participantName", "path", "atMs", "url"})),
+      // Las claves de cada lista son las del resumen de la sala (sala/ResumenSala): las filas
+      // y los cambios se arman en el hilo del lector con estas mismas.
+      waiting_(std::make_unique<JsonListModel>(sala::clavesEspera())),
+      inside_(std::make_unique<JsonListModel>(sala::clavesAdentro())),
+      shares_(std::make_unique<JsonListModel>(sala::clavesArchivos())),
       chat_(std::make_unique<JsonListModel>(
           QStringList{"uid", "fromId", "fromName", "to", "text", "atMs", "mine", "voz"})),
-      speakers_(std::make_unique<JsonListModel>(
-          QStringList{"uid", "name", "info", "contact", "speaker", "position", "allottedSec", "onAirSinceMs",
-                      "usedMs", "connected", "slot", "avatar", "backstageSlot", "presenter", "restanteMs",
-                      "estadoTiempo", "textoTiempo", "textoAsignado", "textoUsado"})) {
-    lugares_ = std::make_unique<JsonListModel>(QStringList{"slot", "nombre", "pid", "info", "sinRetorno", "semaforo", "red"});
+      speakers_(std::make_unique<JsonListModel>(sala::clavesOradores())) {
+    lugares_ = std::make_unique<JsonListModel>(sala::clavesLugares());
+    // La foto de cada orador (las tarjetas): la pone el lector al armar la fila (seguro entre hilos).
+    client_->setAvatar([](const QString& id) { return FotosPersonas::las().url("sala:" + id); });
     connect(client_.get(), &ConferenceClient::onlineChanged, this, [this]() {
         rehacerLugares(); // sin la sala, nadie en ningún lugar
         emit onlineChanged();
     });
-    connect(client_.get(), &ConferenceClient::snapshotChanged, this, &ConferenceViewModel::onSnapshot);
+    connect(client_.get(), &ConferenceClient::salaCambio, this, &ConferenceViewModel::aplicarPaquete);
     connect(client_.get(), &ConferenceClient::chatReceived, this,
             [this](const QJsonObject& m) { onChatMsg(m, true); });
     control_ = std::make_unique<sala::ControlSala>(rt_, ventanilla_, *client_);
@@ -183,7 +179,7 @@ ConferenceViewModel::ConferenceViewModel(AppRuntime& rt, VentanillaMotor& ventan
     connect(&relojOradores_, &QTimer::timeout, this, &ConferenceViewModel::actualizarRelojes);
     // La atención automática la guarda el modelo (sigue prendida al arrancar
     // y la sala se entera cuando conecta). Si no hay asistente, se apaga sola
-    // en cuanto lo intenta (ver onSnapshot).
+    // en cuanto lo intenta (ver atenderLobby).
 }
 
 ConferenceViewModel::~ConferenceViewModel() = default;
@@ -196,52 +192,14 @@ bool ConferenceViewModel::lobby() const { return client_->snapshot().value("lobb
 bool ConferenceViewModel::locked() const { return client_->snapshot().value("locked").toBool(); }
 int ConferenceViewModel::maxGuests() const { return client_->snapshot().value("maxGuests").toInt(); }
 int ConferenceViewModel::slotsFree() const { return client_->snapshot().value("slotsFree").toInt(); }
-int ConferenceViewModel::peopleConnected() const {
-    return static_cast<int>(client_->snapshot().value("participants").toArray().size());
-}
+int ConferenceViewModel::peopleConnected() const { return client_->resumen().conectados; }
 QObject* ConferenceViewModel::waiting() const { return waiting_.get(); }
 QObject* ConferenceViewModel::inside() const { return inside_.get(); }
 QObject* ConferenceViewModel::shares() const { return shares_.get(); }
 QObject* ConferenceViewModel::chat() const { return chat_.get(); }
 QObject* ConferenceViewModel::speakers() const { return speakers_.get(); }
-QVariantMap ConferenceViewModel::speakerCfg() const {
-    QVariantMap m = client_->snapshot().value("speakers").toObject().toVariantMap();
-    // El tiempo general escrito como se lee («m:ss»), para el campo de la página.
-    m["defaultTexto"] = QString::fromStdString(sala::OradoresSala::textoTiempo(m.value("defaultSec").toInt() * 1000.0));
-    return m;
-}
-bool ConferenceViewModel::speakerMode() const {
-    return client_->snapshot().value("speakers").toObject().value("enabled").toBool();
-}
-
-void ConferenceViewModel::rebuildSpeakers() {
-    // La fila en orden: la misma que da remotos_fila_ver (sala::OradoresSala::fila).
-    const nlohmann::json foto =
-        nlohmann::json::parse(QJsonDocument(client_->snapshot()).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
-    QJsonArray rows;
-    QVariantList onAir;
-    for (const nlohmann::json& f : sala::OradoresSala::fila(foto.is_object() ? foto : nlohmann::json::object())) {
-        QJsonObject p = QJsonDocument::fromJson(QByteArray::fromStdString(f.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).object();
-        p.insert("uid", p.value("id"));
-        p.insert("avatar", FotosPersonas::las().url("sala:" + p.value("id").toString()));
-        p.insert("textoAsignado", QString::fromStdString(sala::OradoresSala::textoTiempo(p.value("allottedSec").toInt() * 1000.0)));
-        p.insert("textoUsado", QString::fromStdString(sala::OradoresSala::textoTiempo(p.value("usedMs").toDouble())));
-        if (p.value("speaker").toString() == "onair") {
-            onAir << QVariantMap{{"uid", p.value("id").toString()},
-                                 {"name", p.value("name").toString()},
-                                 {"allottedSec", p.value("allottedSec").toInt()},
-                                 {"onAirSinceMs", p.value("onAirSinceMs").toDouble()}};
-        }
-        rows.append(p);
-    }
-    speakers_->setItems(rows);
-    onAir_ = onAir;
-    // Con alguien al aire corre el reloj; sin nadie, se apaga.
-    if (onAir_.isEmpty()) relojOradores_.stop();
-    else if (!relojOradores_.isActive()) relojOradores_.start();
-    actualizarRelojes();
-    emit onAirCambio();
-}
+QVariantMap ConferenceViewModel::speakerCfg() const { return client_->resumen().speakerCfg; }
+bool ConferenceViewModel::speakerMode() const { return client_->resumen().speakerMode; }
 
 void ConferenceViewModel::actualizarRelojes() {
     const double ahora = static_cast<double>(QDateTime::currentMSecsSinceEpoch()) + clockOffset_;
@@ -262,14 +220,14 @@ void ConferenceViewModel::actualizarRelojes() {
         if (rango(QString::fromStdString(r.estado)) > rango(peor)) peor = QString::fromStdString(r.estado);
         onAir << m;
     }
-    QJsonArray rows = speakers_->items();
+    // En el lugar: solo las filas de los que hablan (cada una avisa sus roles del reloj).
+    const QJsonArray& rows = speakers_->items();
     for (int i = 0; i < rows.size(); ++i) {
         QJsonObject p = rows.at(i).toObject();
         if (p.value("speaker").toString() != "onair") continue;
         poner(p, p.value("allottedSec").toInt(), p.value("onAirSinceMs").toDouble());
-        rows[i] = p;
+        speakers_->ponerFila(i, p);
     }
-    speakers_->setItems(rows); // en el lugar: solo cambian las filas de los que hablan
     const bool cambio = onAir != onAir_ || peor != peorEstado_;
     onAir_ = onAir;
     peorEstado_ = peor;
@@ -288,7 +246,17 @@ void ConferenceViewModel::aplicarAvatar(const QString& id, const QByteArray& jpe
     const QString clave = "sala:" + id;
     const QString antes = FotosPersonas::las().url(clave);
     FotosPersonas::las().poner(clave, jpeg);
-    if (FotosPersonas::las().url(clave) != antes) rebuildSpeakers();
+    const QString url = FotosPersonas::las().url(clave);
+    if (url == antes) return;
+    // Su tarjeta en la fila de oradores (las que siguen ya la traen del lector).
+    const QJsonArray& rows = speakers_->items();
+    for (int i = 0; i < rows.size(); ++i) {
+        QJsonObject p = rows.at(i).toObject();
+        if (p.value("uid").toString() != id) continue;
+        p.insert("avatar", url);
+        speakers_->ponerFila(i, p);
+        break;
+    }
 }
 
 void ConferenceViewModel::traerAvatar(const QString& id) {
@@ -325,25 +293,7 @@ void ConferenceViewModel::speakerNext() {
 }
 void ConferenceViewModel::speakerMove(const QString& id, int index) { oradores_->mover(ss(id), index); }
 void ConferenceViewModel::speakerRequeue(const QString& id) { oradores_->aLaFila(ss(id)); }
-QVariantMap ConferenceViewModel::usage() const {
-    const QJsonObject s = client_->snapshot();
-    QVariantMap u = s.value("uso").toObject().toVariantMap();
-    int conectados = 0;
-    int conVideo = 0;
-    int enSala = 0;
-    for (const QJsonValue& v : s.value("participants").toArray()) {
-        const QJsonObject p = v.toObject();
-        if (!p.value("connected").toBool()) continue;
-        ++conectados;
-        if (p.value("mediaUp").toBool() && p.value("cam").toBool()) ++conVideo;
-        if (p.value("state").toString() == "admitted") ++enSala;
-    }
-    u["conectados"] = conectados;
-    u["conVideo"] = conVideo;
-    u["enSala"] = enSala;
-    u["lugares"] = s.value("maxGuests").toInt();
-    return u;
-}
+QVariantMap ConferenceViewModel::usage() const { return client_->resumen().uso; }
 
 QString ConferenceViewModel::photoOf(const QString& idOrName) const {
     // Como data: URL (va dentro de un mensaje al operador, no a una vista).
@@ -367,7 +317,7 @@ void ConferenceViewModel::setAutoIntake(bool on) {
     if (!on) intakeDone_.clear();
     control_->setAtencionAutomatica(on);
     emit autoIntakeChanged();
-    if (on) onSnapshot();
+    if (on) atenderLobby();
 }
 
 void ConferenceViewModel::setPresenter(const QString& id, bool on) { oradores_->presentador(ss(id), on); }
@@ -403,143 +353,100 @@ void ConferenceViewModel::requestBoardLink(const QString& target) {
     });
 }
 
-void ConferenceViewModel::onSnapshot() {
-    const QJsonObject s = client_->snapshot();
-    QJsonArray waiting;
-    QJsonArray inside;
-    QStringList nowWaiting;
-    QStringList slotNames;
-    for (int i = 0; i < s.value("maxGuests").toInt(); ++i) slotNames << QString();
-    for (const QJsonValue& v : s.value("participants").toArray()) {
-        QJsonObject p = v.toObject();
-        p.insert("uid", p.value("id")); // "id" no puede ser un rol en QML
-        // Lo que la grilla de la sala muestra como íconos: el semáforo de su red (solo el
-        // color: las cifras cambian en cada foto) y si su retorno está apagado.
-        p.insert("semaforo", p.value("red").toObject().value("semaforo").toString());
-        p.insert("sinRetorno", p.value("retorno").toString() == "apagado");
-        const int slot = p.value("slot").toInt();
-        if (p.value("state").toString() == "admitted" && slot >= 1 && slot <= slotNames.size()) {
-            slotNames[slot - 1] = p.value("name").toString();
-        }
-        if (p.value("state").toString() == "waiting") {
-            waiting.append(p);
-            nowWaiting << p.value("id").toString();
-            // Los de la prueba de sala no se anuncian ni los atiende el asistente.
-            const bool dePrueba = p.value("prueba").toBool();
-            if (!dePrueba && !knownWaiting_.contains(p.value("id").toString()) && !firstSnapshot_) {
-                emit notify(tr("%1 espera en el lobby").arg(p.value("name").toString()), "info");
-            }
-            // Atencion automatica: se le encarga al asistente una sola vez por
-            // persona (mientras siga esperando).
-            const QString pid = p.value("id").toString();
-            if (!dePrueba && autoIntake() && intakeSink_ && !intakeDone_.contains(pid)) {
-                intakeDone_.insert(pid);
-                // UN MOMENTO ANTES DE ABORDARLO, a propósito. El
-                // reconocimiento de rostros necesita una vuelta para tener algo
-                // que decir de alguien que se acaba de conectar. Atendiéndolo
-                // en el instante en que aparece, el asistente mira la libreta,
-                // no encuentra nada todavía y le pide los datos de cero a
-                // alguien que el sistema conoce perfectamente —y que un
-                // segundo después va a estar identificado—. Dos segundos y
-                // medio no los nota nadie del otro lado.
-                const QString nombre = p.value("name").toString();
-                QTimer::singleShot(kEsperarAlReconocimientoMs(), this, [this, pid, nombre]() {
-                    if (intakeSink_ == nullptr) return;
-                    // Si mientras tanto entró sola (lista del evento), la
-                    // atiende el otro camino: `marcarAtendido` lo saca de acá.
-                    if (!intakeDone_.contains(pid)) return;
-                    const QString err = intakeSink_(pid, nombre, false);
-                    if (!err.isEmpty()) {
-                        // Sin asistente no tiene sentido seguir: se apaga como si
-                        // lo hubiera apagado el operador (se guarda y B se entera).
-                        setAutoIntake(false);
-                        emit notify(err, "error");
-                    }
-                });
-            }
-        } else if (slot > 0) {
-            inside.append(p); // en el programa (la fila de oradores va aparte)
-        } else if (p.value("speaker").toString() == "none") {
-            // Admitido, sin lugar en el programa y fuera de la fila de oradores:
-            // igual esta en la sala y conectado. Se muestra (sin video) para que
-            // nunca quede alguien invisible para el operador.
-            inside.append(p);
-        }
+void ConferenceViewModel::aplicarPaquete(unsigned partes) {
+    // Todo lo que recorre la foto se hizo en el hilo del lector (sala/ResumenSala): acá se
+    // aplican los pasos (proporcional a lo que cambió) y se avisa por grupo.
+    const std::shared_ptr<const sala::PaqueteSala> p = client_->paquete();
+    if (!p || !p->r) return;
+    const sala::ResumenSala& r = *p->r;
+    using namespace sala;
+    if ((partes & Espera) != 0) {
+        waiting_->aplicar(p->espera);
+        // Los que llegaron al lobby (los de la prueba de sala no se anuncian).
+        if (!p->primera)
+            for (const QJsonObject& e : p->llegaronAlLobby)
+                if (!e.value("prueba").toBool()) emit notify(tr("%1 espera en el lobby").arg(e.value("name").toString()), "info");
+        atenderLobby();
     }
-    // Los que ya no esperan se olvidan: si vuelven, se los atiende de nuevo.
-    for (auto it = intakeDone_.begin(); it != intakeDone_.end();)
-        it = nowWaiting.contains(*it) ? std::next(it) : intakeDone_.erase(it);
-    knownWaiting_ = nowWaiting;
-    slotNames_ = slotNames;
-    rehacerLugares();
-    // Adentro, ordenados por slot (coincide con "Invitado N" de las fuentes).
-    QList<QJsonObject> sorted;
-    for (const QJsonValue& v : inside)
-        sorted << v.toObject();
-    std::sort(sorted.begin(), sorted.end(), [](const QJsonObject& a, const QJsonObject& b) {
-        return a.value("slot").toInt() < b.value("slot").toInt();
-    });
-    inside = QJsonArray();
-    for (const QJsonObject& o : sorted)
-        inside.append(o);
-    waiting_->setItems(waiting);
-    inside_->setItems(inside);
+    if ((partes & Adentro) != 0) inside_->aplicar(p->adentro);
+    if ((partes & Archivos) != 0) shares_->aplicar(p->archivos);
+    if (lugaresSucios_ || r.nLugares != nLugares_) rehacerLugares();
+    else if ((partes & Lugares) != 0) lugares_->aplicar(p->lugares);
 
-    // Monitoreo: solo se escucha (por auriculares) a quien se le esta hablando.
-    std::vector<bool> monitor(9, false);
-    for (const QJsonValue& v : waiting) {
-        const QJsonObject p = v.toObject();
-        const int k = p.value("lobbySlot").toInt();
-        if (k >= 1 && k <= 8 && p.value("talk").toBool()) monitor[static_cast<size_t>(k)] = true;
-    }
-    // Al motor solo cuando cambia (cada foto de la sala no es una orden).
-    if (monitor != monitorLobby_) {
-        monitorLobby_ = monitor;
-        ventanilla_.pedir("lobby_monitor", [&rt = rt_, monitor]() {
-            for (int k = 1; k <= 8; ++k) rt.setLobbyMonitor(k, monitor[static_cast<size_t>(k)]);
+    // Monitoreo: solo se escucha (por auriculares) a quien se le esta hablando. Al motor
+    // solo cuando cambia (cada foto de la sala no es una orden).
+    if ((partes & Monitor) != 0 && r.monitor != monitorLobby_) {
+        monitorLobby_ = r.monitor;
+        ventanilla_.pedir("lobby_monitor", [&rt = rt_, monitor = r.monitor]() {
+            for (int k = 1; k <= 8 && k < static_cast<int>(monitor.size()); ++k) rt.setLobbyMonitor(k, monitor[static_cast<size_t>(k)]);
         });
     }
 
-    QJsonArray shares;
-    const QJsonArray all = s.value("shares").toArray();
-    for (int i = all.size() - 1; i >= 0; --i) { // lo mas nuevo arriba
-        QJsonObject f = all.at(i).toObject();
-        f.insert("url", QUrl::fromLocalFile(f.value("path").toString()).toString());
-        f.insert("uid", f.value("id"));
-        shares.append(f);
+    // Chat: solo los mensajes que faltan (el lector ya los separó); si la secuencia volvió
+    // atrás, B se reinició y el historial se reemplaza.
+    if ((partes & Chat) != 0) {
+        if (p->chatReinicio) {
+            chat_->setItems({});
+            emit chatCambio();
+            lastSeq_ = 0;
+        }
+        for (const QJsonValue& v : p->chatNuevos) onChatMsg(v.toObject(), false);
     }
-    shares_->setItems(shares);
+    if ((partes & Uso) != 0) clockOffset_ = r.clockOffset;
 
-    // Chat: el snapshot trae el historial reciente. Se agregan solo los que
-    // faltan (por numero de secuencia); si la secuencia volvio atras, B se
-    // reinicio y el historial se reemplaza.
-    const QJsonArray history = s.value("chat").toArray();
-    const qint64 lastInSnap = history.isEmpty() ? 0 : history.last().toObject().value("seq").toInteger();
-    if (lastInSnap < lastSeq_) {
-        chat_->setItems({});
-        emit chatCambio();
-        lastSeq_ = 0;
+    if ((partes & Oradores) != 0) {
+        speakers_->aplicar(p->oradores);
+        onAir_ = r.onAir;
+        // Con alguien al aire corre el reloj; sin nadie, se apaga.
+        if (onAir_.isEmpty()) relojOradores_.stop();
+        else if (!relojOradores_.isActive()) relojOradores_.start();
+        actualizarRelojes(); // las filas que se reemplazaron vuelven a tener su reloj
+        emit onAirCambio();
     }
-    for (const QJsonValue& v : history)
-        onChatMsg(v.toObject(), false);
-    if (s.contains("serverNowMs")) {
-        clockOffset_ =
-            s.value("serverNowMs").toDouble() - static_cast<double>(QDateTime::currentMSecsSinceEpoch());
+
+    // Cada grupo avisa solo si cambió lo suyo (lo comparó el lector).
+    if ((partes & Sala) != 0) emit salaChanged();
+    if ((partes & Participantes) != 0) emit participantesChanged();
+    if ((partes & Uso) != 0) emit usoChanged();
+    if ((partes & OradoresCfg) != 0) emit oradoresCfgChanged();
+    if ((partes & Gente) != 0) emit roomChanged();
+}
+
+void ConferenceViewModel::atenderLobby() {
+    // O(los que esperan): solo cuando cambió la espera o se prendió la atención automática.
+    QSet<QString> esperan;
+    for (const QJsonValue& v : waiting_->items()) {
+        const QJsonObject p = v.toObject();
+        const QString pid = p.value("id").toString();
+        esperan.insert(pid);
+        // Los de la prueba de sala no los atiende el asistente.
+        if (p.value("prueba").toBool() || !autoIntake() || !intakeSink_ || intakeDone_.contains(pid)) continue;
+        // Atencion automatica: se le encarga al asistente una sola vez por persona (mientras
+        // siga esperando).
+        intakeDone_.insert(pid);
+        // UN MOMENTO ANTES DE ABORDARLO, a propósito. El reconocimiento de rostros necesita
+        // una vuelta para tener algo que decir de alguien que se acaba de conectar.
+        // Atendiéndolo en el instante en que aparece, el asistente mira la libreta, no
+        // encuentra nada todavía y le pide los datos de cero a alguien que el sistema conoce
+        // perfectamente —y que un segundo después va a estar identificado—. Dos segundos y
+        // medio no los nota nadie del otro lado.
+        const QString nombre = p.value("name").toString();
+        QTimer::singleShot(kEsperarAlReconocimientoMs(), this, [this, pid, nombre]() {
+            if (intakeSink_ == nullptr) return;
+            // Si mientras tanto entró sola (lista del evento), la atiende el otro camino:
+            // `marcarAtendido` lo saca de acá.
+            if (!intakeDone_.contains(pid)) return;
+            const QString err = intakeSink_(pid, nombre, false);
+            if (!err.isEmpty()) {
+                // Sin asistente no tiene sentido seguir: se apaga como si lo hubiera apagado
+                // el operador (se guarda y B se entera).
+                setAutoIntake(false);
+                emit notify(err, "error");
+            }
+        });
     }
-    rebuildSpeakers();
-    firstSnapshot_ = false;
-    // Cada grupo avisa solo si cambió lo suyo: la foto llega seguido y casi siempre igual.
-    const auto avisar = [this](QVariantList& antes, QVariantList ahora, void (ConferenceViewModel::*senal)()) {
-        if (ahora == antes) return;
-        antes = std::move(ahora);
-        emit(this->*senal)();
-    };
-    avisar(firmaSala_, {room(), pin(), guestUrl(), lobby(), locked(), maxGuests(), slotsFree()}, &ConferenceViewModel::salaChanged);
-    avisar(firmaParticipantes_, {peopleConnected(), this->slotNames(), chatTargets()},
-           &ConferenceViewModel::participantesChanged);
-    avisar(firmaUso_, {usage(), clockOffset()}, &ConferenceViewModel::usoChanged);
-    avisar(firmaOradoresCfg_, {speakerCfg(), speakerMode()}, &ConferenceViewModel::oradoresCfgChanged);
-    emit roomChanged();
+    // Los que ya no esperan se olvidan: si vuelven, se los atiende de nuevo.
+    for (auto it = intakeDone_.begin(); it != intakeDone_.end();) it = esperan.contains(*it) ? std::next(it) : intakeDone_.erase(it);
 }
 
 QJsonObject ConferenceViewModel::mensajeDelChat(const QJsonObject& msg) {
@@ -671,14 +578,8 @@ void ConferenceViewModel::request(const QString& id, const QString& what) {
 }
 
 QVariantList ConferenceViewModel::chatTargets() const {
-    QVariantList out{QVariantMap{{"label", "A todos"}, {"value", "all"}}};
-    for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
-        const QJsonObject p = v.toObject();
-        const QString where = p.value("state").toString() == "waiting" ? " (lobby)" : "";
-        out << QVariantMap{{"label", "A " + p.value("name").toString() + where},
-                           {"value", p.value("id").toString()}};
-    }
-    return out;
+    if (!client_->paquete()) return {QVariantMap{{"label", "A todos"}, {"value", "all"}}};
+    return client_->resumen().chatTargets;
 }
 
 QVariantMap ConferenceViewModel::participanteEnSlot(int slot) const {
@@ -695,13 +596,23 @@ QObject* ConferenceViewModel::lugares() const { return lugares_.get(); }
 void ConferenceViewModel::setLugares(int n) {
     if (n == nLugares_) return;
     nLugares_ = n;
+    client_->setLugares(n); // el lector rearma la última foto con esta cantidad
     rehacerLugares();
 }
 
 void ConferenceViewModel::rehacerLugares() {
+    // Con la sala y el resumen ya armado con esta cantidad: esas filas (y desde ahí, los
+    // cambios que manda el lector). Si no, a mano desde la foto, hasta que llegue.
+    if (online() && client_->paquete() && client_->resumen().nLugares == nLugares_) {
+        lugares_->setItems(client_->resumen().lugares);
+        lugaresSucios_ = false;
+        return;
+    }
+    lugaresSucios_ = true;
     QList<QJsonObject> filas;
-    for (int k = 1; k <= nLugares_; ++k) filas << QJsonObject{{"slot", k}, {"nombre", ""}, {"pid", ""}, {"info", ""},
-                                                              {"sinRetorno", false}, {"semaforo", ""}, {"red", QJsonObject{}}};
+    for (int k = 1; k <= nLugares_; ++k)
+        filas << QJsonObject{{"id", k},         {"slot", k},      {"nombre", ""},          {"pid", ""},
+                             {"info", ""},      {"sinRetorno", false}, {"semaforo", ""}, {"red", QJsonObject{}}};
     if (online()) {
         for (const QJsonValue& v : client_->snapshot().value("participants").toArray()) {
             const QJsonObject p = v.toObject();
@@ -724,7 +635,7 @@ void ConferenceViewModel::rehacerLugares() {
 
 QStringList ConferenceViewModel::slotNames() const {
     if (!online()) return {};
-    return slotNames_;
+    return client_->resumen().slotNames;
 }
 
 

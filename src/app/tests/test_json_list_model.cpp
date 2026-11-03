@@ -14,9 +14,12 @@
 
 #include "ui/JsonListModel.hpp"
 
+#include <thread>
+
 #include <cstdio>
 
 using ba::app::JsonListModel;
+using ba::app::PlanFilas;
 
 namespace {
 int fallos = 0;
@@ -130,6 +133,31 @@ int main(int argc, char** argv) {
                       QJsonObject{{"nombre", ""}, {"red", QJsonObject{{"kbps_in", 900}}}}});
     CHECK(avisosL.size() == 1 && avisosL[0].desde == 1 && avisosL[0].roles == QList<int>{Qt::UserRole + 2},
           "sin id: la red de un lugar avisa solo ese rol de esa fila");
+
+    // El plan armado en otro hilo (planear) y aplicado después: lo mismo que setItems.
+    {
+        JsonListModel a(QStringList{"name", "semaforo"});
+        const QJsonArray uno{fila("a", "Ana", 1), fila("b", "Beto", 1), fila("c", "Ceci", 1)};
+        const QJsonArray dos{fila("c", "Ceci", 2, "rojo"), fila("d", "Dani", 1), fila("a", "Ana", 3)};
+        a.setItems(uno);
+        int r = 0, cambios = 0;
+        QObject::connect(&a, &QAbstractItemModel::modelReset, [&]() { ++r; });
+        QObject::connect(&a, &QAbstractItemModel::dataChanged, [&]() { ++cambios; });
+        PlanFilas plan;
+        std::thread([&]() { plan = JsonListModel::planear(uno, dos, QStringList{"name", "semaforo"}); }).join();
+        a.aplicar(plan);
+        CHECK(r == 0 && a.items() == dos && cambios == 1, "plan de otro hilo: queda igual a la lista, sin reset, avisa solo el rol cambiado");
+        // Un plan viejo (la lista ya no es la planeada): queda como su final igual.
+        const PlanFilas viejo = JsonListModel::planear(uno, QJsonArray{fila("a", "Ana", 9)}, QStringList{"name", "semaforo"});
+        a.aplicar(viejo);
+        CHECK(a.count() == 1 && a.items().at(0).toObject().value("red").toObject().value("kbps_in").toInt() == 9,
+              "plan sobre otra lista: queda como su final (por el camino de siempre)");
+        // La red sola (no es rol): se guarda sin avisar.
+        cambios = 0;
+        a.aplicar(JsonListModel::planear(a.items(), QJsonArray{fila("a", "Ana", 10)}, QStringList{"name", "semaforo"}));
+        CHECK(cambios == 0 && a.items().at(0).toObject().value("red").toObject().value("kbps_in").toInt() == 10,
+              "plan con un cambio que no es rol: se guarda callado");
+    }
 
     std::printf(fallos ? "\n%d FALLAS\n" : "\nTODO OK\n", fallos);
     return fallos ? 1 : 0;

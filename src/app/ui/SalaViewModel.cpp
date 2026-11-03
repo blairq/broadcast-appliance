@@ -323,18 +323,9 @@ void SalaViewModel::avisarA(EnlacesViewModel& e) {
 }
 
 void SalaViewModel::publicarParticipantes(control::BusEventos& bus) const {
-    nlohmann::json gente = nlohmann::json::array();
-    const QJsonObject snap = p_.conferencia.client().snapshot();
-    for (const QJsonValue& v : snap.value("participants").toArray()) {
-        const QJsonObject o = v.toObject();
-        gente.push_back({{"id", o.value("id").toString().toStdString()},
-                         {"nombre", o.value("name").toString().toStdString()},
-                         {"estado", o.value("state").toString().toStdString()},
-                         {"mic", o.value("mic").toBool()},
-                         {"cam", o.value("cam").toBool()},
-                         {"mano", o.value("hand").toBool()}});
-    }
-    bus.publicar("sala/participantes", gente);
+    // Armado en el hilo del lector de la sala (ResumenSala::participantesBus): {id, nombre,
+    // estado, mic, cam, mano} de cada uno.
+    bus.publicar("sala/participantes", p_.conferencia.client().resumen().participantesBus);
 }
 
 } // namespace ba::app

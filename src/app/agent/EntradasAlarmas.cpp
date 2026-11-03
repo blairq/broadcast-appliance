@@ -82,6 +82,8 @@ AlertInputs EntradasAlarmas::paraElVigia() const {
             return v;
         };
     in.nowMs = directas_.nowMs ? directas_.nowMs : ui_.nowMs;
+    // El número de la foto de la sala solo vale con la sala directa (la de la foto no lo tiene).
+    if (directas_.room) in.roomNumero = directas_.roomNumero;
     return in;
 }
 
