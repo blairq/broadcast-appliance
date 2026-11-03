@@ -42,6 +42,7 @@
 
 #include "ui/ListaConClave.hpp"
 
+#include <QQmlPropertyMap>
 #include <QSortFilterProxyModel>
 #include <QStringList>
 #include <QTimer>
@@ -73,8 +74,11 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
     /// Cuántas cosas hay (para «no hay nada» sin contar en QML).
     Q_PROPERTY(int cantidad READ cantidad NOTIFY cambio)
     /// {id: cosa} (los nombres de los roles): para que una vista se ENLACE a
-    /// una cosa por su id (`Studio.catalogo.porId[id]`) y se actualice sola.
-    Q_PROPERTY(QVariantMap porId READ porId NOTIFY cambio)
+    /// una cosa por su id (`Studio.catalogo.porId[id]`) y se actualice sola. Es un
+    /// QQmlPropertyMap: cada id avisa solo cuando cambia ESA cosa, y leer una no convierte el
+    /// catálogo entero (con 200 invitados, cada binding que miraba una cosa convertía ~450
+    /// filas a JS en cada cambio: trabas de 2 s en la PC).
+    Q_PROPERTY(QObject* porId READ porIdQml CONSTANT)
 
    public:
     enum Roles {
@@ -135,7 +139,9 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
     QObject* locales() const { return locales_; }
     QObject* deRed() const { return deRed_; }
     int cantidad() const { return rowCount(); }
+    /// Lo mismo como mapa, para el C++ y las pruebas.
     QVariantMap porId() const;
+    QObject* porIdQml() const;
 
     /// Vuelve a pedirle todo a las fuentes y actualiza las filas en su lugar (ya).
     void refrescar();
@@ -178,6 +184,8 @@ class CatalogoVisible : public ListaConClave<CosaVisible> {
     QTimer juntar_;
     mutable QVariantMap porId_;
     mutable bool porIdSucio_ = true;
+    QQmlPropertyMap* mapa_ = nullptr; ///< porId para la QML (ver arriba)
+    void sincronizarMapa();
 };
 
 } // namespace ba::app

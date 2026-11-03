@@ -78,6 +78,8 @@ CatalogoVisible::CatalogoVisible(Fuentes fuentes, QObject* parent)
     };
     locales_ = filtro(LocalRole);
     deRed_ = filtro(RedRole);
+    mapa_ = new QQmlPropertyMap(this);
+    sincronizarMapa();
 }
 
 QVariant CatalogoVisible::data(const QModelIndex& index, int role) const {
@@ -331,8 +333,24 @@ QVariantMap CatalogoVisible::item(const QString& id) const {
 
 void CatalogoVisible::avisar() {
     porIdSucio_ = true;
+    sincronizarMapa();
     emit cambio();
 }
+
+void CatalogoVisible::sincronizarMapa() {
+    // Solo lo que cambió: cada id avisa a quien lo mira; lo que se fue queda indefinido.
+    std::set<QString> vistos;
+    for (int i = 0; i < rowCount(); ++i) {
+        const QString& id = filas_[static_cast<std::size_t>(i)].id;
+        vistos.insert(id);
+        const QVariant v = comoMapa(*this, i);
+        if (mapa_->value(id) != v) mapa_->insert(id, v);
+    }
+    for (const QString& k : mapa_->keys())
+        if (vistos.count(k) == 0 && mapa_->value(k).isValid()) mapa_->clear(k);
+}
+
+QObject* CatalogoVisible::porIdQml() const { return mapa_; }
 
 QVariantMap CatalogoVisible::porId() const {
     // Se lee en cada binding que mira una cosa (cada ventana, cada monitor): se arma una vez

@@ -21,6 +21,7 @@
 
 #include <QCoreApplication>
 #include <QElapsedTimer>
+#include <QQmlPropertyMap>
 #include <QTemporaryDir>
 
 #include <cstdio>
@@ -598,6 +599,12 @@ int main(int argc, char** argv) {
         CHECK(cambio->count() == 1);
         CHECK(c.existe("distribucion:b") && c.buscar("distribucion:a")->titulo == "Una (bis)");
         CHECK(c.porId().value("distribucion:b").toMap().value("titulo").toString() == "Dos");
+        // El de la QML: un QQmlPropertyMap con una propiedad por id (avisa solo esa).
+        auto* mapa = qobject_cast<QQmlPropertyMap*>(c.porIdQml());
+        CHECK(mapa != nullptr && mapa->value("distribucion:a").toMap().value("titulo").toString() == "Una (bis)");
+        dists.removeLast();
+        c.refrescarDistribuciones();
+        CHECK(mapa->value("distribucion:a").isValid() && !mapa->value("distribucion:b").isValid());
         // En el mismo lugar que si se rearmara todo (después de las páginas, antes de lo de la TV).
         std::vector<QString> ids, idsTodo;
         for (const auto& x : c.cosas()) ids.push_back(x.id);
@@ -605,7 +612,7 @@ int main(int argc, char** argv) {
         for (const auto& x : c.cosas()) idsTodo.push_back(x.id);
         CHECK(ids == idsTodo);
         c.refrescarDistribuciones(); // nada cambió: nada avisa
-        CHECK(cambio->count() == 1);
+        CHECK(cambio->count() == 2);
         // Una ráfaga de invitados: una sola pasada.
         const int antes = pedidasEscenas;
         for (int i = 0; i < 50; ++i) {

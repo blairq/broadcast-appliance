@@ -595,7 +595,7 @@ endif()
                    pantallas/Monitores.cpp pantallas/Ventanas.cpp
                    pantallas/BuscadorCatalogo.cpp ui/FiltroCatalogo.cpp ui/ListaObjetos.cpp)
     target_include_directories(test_pantallas_catalogo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pantallas_catalogo PRIVATE ba_core Qt6::Core Qt6::Gui)
+    target_link_libraries(test_pantallas_catalogo PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Qml)
     set_target_properties(test_pantallas_catalogo PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pantallas_catalogo COMMAND test_pantallas_catalogo)
     # Las distribuciones de pantallas (Pantallas locales → Distribuciones): relativas ↔
@@ -605,7 +605,7 @@ endif()
                    pantallas/Monitores.cpp pantallas/Ventanas.cpp pantallas/Distribuciones.cpp
                    pantallas/BuscadorCatalogo.cpp ui/FiltroCatalogo.cpp ui/ListaObjetos.cpp)
     target_include_directories(test_pantallas_distribuciones PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pantallas_distribuciones PRIVATE ba_core Qt6::Core Qt6::Gui)
+    target_link_libraries(test_pantallas_distribuciones PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Qml)
     set_target_properties(test_pantallas_distribuciones PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pantallas_distribuciones COMMAND test_pantallas_distribuciones)
     # Las pantallas de la red (Chromecast) y lo que muestran: lo guardado, la búsqueda, el
