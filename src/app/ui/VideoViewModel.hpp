@@ -36,6 +36,7 @@
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -128,24 +129,25 @@ class VideoViewModel : public QObject {
     QString entrada() const { return entrada_; }
     void seleccionar(const QString& entrada);
     QVariantMap grafo() const { return grafo_; }
-    QVariantMap estudio() const { return estudio_; }
+    // (Las que crecen con las entradas se convierten al leerlas: ver `releer`.)
+    QVariantMap estudio() const;
     QString vista() const { return vista_; }
     void setVista(const QString& v);
     static QVariantList catalogo();
-    QVariantList estadoRed() const { return estadoRed_; }
-    QVariantList diagnostico() const { return diagnostico_; }
+    QVariantList estadoRed() const;
+    QVariantList diagnostico() const;
     QVariantMap eventos() const { return eventos_; }
-    QVariantMap programador() const { return programador_; }
-    QVariantMap reloj() const { return reloj_; }
-    QVariantMap latencia() const { return latencia_; }
-    QVariantMap automixer() const { return automixer_; }
-    QVariantMap filtrosAudio() const { return filtrosAudio_; }
+    QVariantMap programador() const;
+    QVariantMap reloj() const;
+    QVariantMap latencia() const;
+    QVariantMap automixer() const;
+    QVariantMap filtrosAudio() const;
     QStringList escenas() const { return escenas_; }
     bool haySuperres() const { return haySuperres_; }
     QVariantList modulosGst() const;
     QVariantList modulosAudio() const;
     QString versionGst() const;
-    QVariantMap formularios() const { return formularios_; }
+    QVariantMap formularios() const;
     /// Los de un módulo, para el detalle del catálogo (con estos valores puestos).
     Q_INVOKABLE QVariantList propiedadesModulo(const QString& elemento) const;
     Q_INVOKABLE QVariantList propiedadesModuloCon(const QString& elemento, const QVariantMap& valores) const;
@@ -276,8 +278,12 @@ class VideoViewModel : public QObject {
     video::VideoGrafos& grafos_;
     QString entrada_, vista_ = QStringLiteral("racks");
     QStringList entradas_, escenas_;
-    QVariantList entradasInfo_, estadoRed_, diagnostico_;
-    QVariantMap grafo_, estudio_, eventos_, programador_, reloj_, latencia_, automixer_, filtrosAudio_, formularios_;
+    QVariantList entradasInfo_;
+    QVariantMap grafo_, eventos_;
+    /// Lo que se convierte recién al leerlo (vacío = hay que convertirlo de `antes_`, la
+    /// vista de la última foto): ver `releer`.
+    mutable std::optional<QVariantList> estadoRed_, diagnostico_;
+    mutable std::optional<QVariantMap> estudio_, programador_, reloj_, latencia_, automixer_, filtrosAudio_, formularios_;
     bool haySuperres_ = false;
     /// Lo que se mostró la última vez (para avisar solo lo que cambió): la vista de la foto
     /// anterior, compartida (un puntero; copiarla entera en cada foto era O(tamaño)).

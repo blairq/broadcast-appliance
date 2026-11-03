@@ -103,27 +103,26 @@ void VideoViewModel::releer() {
         campo = std::move(nuevo);
         avisar.push_back(senal);
     };
-    poner("red", estadoRed_, [&] { return aVariant(x.value("red", json::array())).toList(); }, &VideoViewModel::redCambio);
-    poner("diagnostico", diagnostico_, [&] { return aVariant(x.value("diagnostico", json::array())).toList(); },
-          &VideoViewModel::diagnosticoCambio);
-    poner("programador", programador_, [&] { return aVariant(x.value("programador", json::object())).toMap(); },
-          &VideoViewModel::programadorCambio);
-    poner("reloj", reloj_, [&] { return aVariant(x.value("reloj", json::object())).toMap(); }, &VideoViewModel::relojCambio);
-    poner("latencia", latencia_, [&] { return aVariant(x.value("latencia", json::object())).toMap(); }, &VideoViewModel::latenciaCambio);
-    poner("automixer", automixer_, [&] { return aVariant(x.value("automixer", json::object())).toMap(); },
-          &VideoViewModel::automixerCambio);
-    poner("filtros_audio", filtrosAudio_, [&] { return aVariant(x.value("filtros_audio", json::object())).toMap(); },
-          &VideoViewModel::filtrosAudioCambio);
-    poner("escenas", escenas_, [&] { return listaDeTextos(x.value("escenas", json::array())); }, &VideoViewModel::escenasCambio);
-    poner("hay_superres", haySuperres_, [&] { return x.value("hay_superres", false); }, &VideoViewModel::haySuperresCambio);
-    // Los formularios: solo si cambiaron (la introspección de cada módulo la guarda el catálogo).
-    if (difiere("formularios")) {
-        QVariantMap f = armarFormularios(parte(x, "formularios"));
-        if (f != formularios_) {
-            formularios_ = std::move(f);
-            avisar.push_back(&VideoViewModel::formulariosCambio);
-        }
-    }
+    // Lo que crece con las entradas (la red y el diagnóstico de cada una, los formularios…)
+    // NI SE CONVIERTE: se avisa y se convierte recién cuando alguien lo lee (la vista que lo
+    // muestra), de la vista guardada. Con 200 invitados, convertirlo en cada foto (JSON →
+    // texto → QVariant de todas las entradas) era lo que más pesaba de este oyente.
+    const auto perezosa = [&](const char* k, auto& cache, void (VideoViewModel::*senal)()) {
+        if (!difiere(k)) return;
+        cache.reset();
+        avisar.push_back(senal);
+    };
+    perezosa("red", estadoRed_, &VideoViewModel::redCambio);
+    perezosa("diagnostico", diagnostico_, &VideoViewModel::diagnosticoCambio);
+    perezosa("programador", programador_, &VideoViewModel::programadorCambio);
+    perezosa("reloj", reloj_, &VideoViewModel::relojCambio);
+    perezosa("latencia", latencia_, &VideoViewModel::latenciaCambio);
+    perezosa("automixer", automixer_, &VideoViewModel::automixerCambio);
+    perezosa("filtros_audio", filtrosAudio_, &VideoViewModel::filtrosAudioCambio);
+    perezosa("formularios", formularios_, &VideoViewModel::formulariosCambio);
+    poner("escenas", escenas_, [&] { return listaDeTextos(parte(x, "escenas")); }, &VideoViewModel::escenasCambio);
+    poner("hay_superres", haySuperres_, [&] { return parte(x, "hay_superres").is_boolean() && parte(x, "hay_superres").get<bool>(); },
+          &VideoViewModel::haySuperresCambio);
     const bool eventos = difiere("eventos");
     // Los estados de las entradas (los tamaños que llegan): solo los que cambiaron.
     const json objetoVacio = json::object();
@@ -143,7 +142,7 @@ void VideoViewModel::releer() {
     if (estructura) {
         entradas_ = listaDeTextos(parte(x, "entradas"));
         entradasInfo_ = aVariant(parte(x, "info").is_array() ? parte(x, "info") : json::array()).toList();
-        estudio_ = aVariant(conResumenes(parte(x, "estudio").is_object() ? parte(x, "estudio") : objetoVacio)).toMap();
+        estudio_.reset(); // (se convierte cuando se lee: todo el estudio, con los resúmenes)
         // La elegida: la que se eligió acá; si no hay o se fue, la primera.
         if ((entrada_.isEmpty() || !entradas_.contains(entrada_)) && !entradas_.isEmpty()) entrada_ = entradas_.first();
         grafo_ = entrada_.isEmpty() ? QVariantMap{} : aVariant(conResumenes(deLaElegida("grafos"))).toMap();
@@ -158,6 +157,47 @@ void VideoViewModel::releer() {
     }
     if (estructura) emit cambio();
     for (const auto senal : avisar) emit(this->*senal)();
+}
+
+// --- Lo que se convierte al leerlo (de la vista de la última foto, `antes_`) -----------
+
+namespace {
+template <class T, class F>
+const T& perezoso(std::optional<T>& cache, F armar) {
+    if (!cache) cache = armar();
+    return *cache;
+}
+} // namespace
+
+QVariantList VideoViewModel::estadoRed() const {
+    return perezoso(estadoRed_, [&] { return aVariant(parte(antes_.get(), "red")).toList(); });
+}
+QVariantList VideoViewModel::diagnostico() const {
+    return perezoso(diagnostico_, [&] { return aVariant(parte(antes_.get(), "diagnostico")).toList(); });
+}
+QVariantMap VideoViewModel::programador() const {
+    return perezoso(programador_, [&] { return aVariant(parte(antes_.get(), "programador")).toMap(); });
+}
+QVariantMap VideoViewModel::reloj() const {
+    return perezoso(reloj_, [&] { return aVariant(parte(antes_.get(), "reloj")).toMap(); });
+}
+QVariantMap VideoViewModel::latencia() const {
+    return perezoso(latencia_, [&] { return aVariant(parte(antes_.get(), "latencia")).toMap(); });
+}
+QVariantMap VideoViewModel::automixer() const {
+    return perezoso(automixer_, [&] { return aVariant(parte(antes_.get(), "automixer")).toMap(); });
+}
+QVariantMap VideoViewModel::filtrosAudio() const {
+    return perezoso(filtrosAudio_, [&] { return aVariant(parte(antes_.get(), "filtros_audio")).toMap(); });
+}
+QVariantMap VideoViewModel::formularios() const {
+    return perezoso(formularios_, [&] { return armarFormularios(parte(antes_.get(), "formularios")); });
+}
+QVariantMap VideoViewModel::estudio() const {
+    return perezoso(estudio_, [&] {
+        const json& e = parte(antes_.get(), "estudio");
+        return aVariant(conResumenes(e.is_object() ? e : json::object())).toMap();
+    });
 }
 
 void VideoViewModel::releerEstados(const json& ahora, const json& antes, bool entradasCambiaron) {

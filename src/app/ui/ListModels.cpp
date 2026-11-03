@@ -455,20 +455,15 @@ QVariant MixerModel::data(const QModelIndex& index, int role) const {
         case NameRole: return qs(names_[i]);
         case PeakDbRole: return peaks_[i];
         case VolumeDbRole:
-            return mulToDb(pend != nullptr && pend->volumen ? *pend->volumen : m.volumen(names_[i], salida_));
-        case MutedRole: return pend != nullptr && pend->mudo ? *pend->mudo : m.mudo(names_[i], salida_);
+            return mulToDb(pend != nullptr && pend->volumen ? *pend->volumen : volumenEn(i, salida_));
+        case MutedRole: return pend != nullptr && pend->mudo ? *pend->mudo : mudoEn(i, salida_);
         case RetardoMsRole: {
-            const FotoMotor::CanalAudio* c = m.canal(names_[i]);
+            const FotoMotor::CanalAudio* c = canalEn(i);
             return c != nullptr ? c->retardoMs : 0;
         }
         case GrupoRole: return qs(grupos_[i]);
         case PrimeroDeGrupoRole: return !grupos_[i].empty() && (i == 0 || grupos_[i - 1] != grupos_[i]);
-        case TamGrupoRole: {
-            if (grupos_[i].empty()) return 1;
-            int n = 0;
-            for (const std::string& g : grupos_) n += g == grupos_[i] ? 1 : 0;
-            return n;
-        }
+        case TamGrupoRole: return i < tamGrupo_.size() ? tamGrupo_[i] : 1; // (armado en reload: O(1))
         case CompactoRole: return !grupos_[i].empty() && compactos_.count(grupos_[i]) > 0;
         case GananciaGrupoDbRole: {
             if (grupos_[i].empty()) return 0.0;
@@ -523,7 +518,34 @@ void MixerModel::reload() {
         }
         i = j;
     }
+    // Cuántas tiras tiene el grupo de cada fila (antes se contaba en data(), por fila: O(N²)).
+    std::map<std::string, int> porGrupo;
+    for (const std::string& g : grupos_)
+        if (!g.empty()) ++porGrupo[g];
+    tamGrupo_.assign(names_.size(), 1);
+    for (std::size_t k = 0; k < names_.size(); ++k)
+        if (!grupos_[k].empty()) tamGrupo_[k] = porGrupo[grupos_[k]];
     endResetModel();
+}
+
+const FotoMotor::CanalAudio* MixerModel::canalEn(std::size_t i) const {
+    const std::vector<FotoMotor::CanalAudio>& cs = foto_->mezcla.canales.get();
+    if (i < cs.size() && i < names_.size() && cs[i].nombre == names_[i]) return &cs[i];
+    return i < names_.size() ? foto_->mezcla.canal(names_[i]) : nullptr; // (no debería pasar)
+}
+
+float MixerModel::volumenEn(std::size_t i, const std::string& salida) const {
+    const FotoMotor::CanalAudio* c = canalEn(i);
+    if (c == nullptr) return 1.0f;
+    const auto it = c->volumen.find(foto_->mezcla.salida(salida));
+    return it != c->volumen.end() ? it->second : 1.0f;
+}
+
+bool MixerModel::mudoEn(std::size_t i, const std::string& salida) const {
+    const FotoMotor::CanalAudio* c = canalEn(i);
+    if (c == nullptr) return false;
+    const auto it = c->mudo.find(foto_->mezcla.salida(salida));
+    return it != c->mudo.end() && it->second;
 }
 
 void MixerModel::alCambiar(unsigned partes) {
@@ -605,7 +627,7 @@ QVariantList MixerModel::gruposEn(const std::string& salida) const {
         bool mudo = true;
         for (std::size_t k = i; k < grupos_.size() && grupos_[k] == grupos_[i]; ++k) {
             tiras << qs(names_[k]);
-            mudo = mudo && m.mudo(names_[k], salida);
+            mudo = mudo && mudoEn(k, salida); // (por fila: sin recorrer la lista por cada tira)
         }
         const auto nom = nombresGrupo_.find(grupos_[i]);
         out.push_back(QVariantMap{{"grupo", qs(grupos_[i])},
