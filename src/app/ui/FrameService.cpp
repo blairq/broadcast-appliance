@@ -67,8 +67,15 @@ class FrameService::Canales {
     Canales(const Canales&) = delete;
     Canales& operator=(const Canales&) = delete;
 
-    /// Qué canales leer y cuándo los miró alguien por última vez (µs; 0 = nunca).
-    void pedir(std::vector<std::pair<QString, std::int64_t>> pedidos) {
+    /// Un canal a leer: cuándo lo miró alguien por última vez (µs; 0 = nunca) y cada cuánto
+    /// quiere cuadros el que más quiere (0: todos; una celda chica de la sala, 15 por segundo).
+    struct Pedido {
+        QString clave;
+        std::int64_t miradoUs = 0;
+        std::int64_t intervaloUs = 0;
+    };
+    /// Qué canales leer, cuándo los miró alguien y a qué ritmo.
+    void pedir(std::vector<Pedido> pedidos) {
         std::lock_guard<std::mutex> l(mu_);
         pedidos_ = std::move(pedidos);
     }
@@ -89,7 +96,7 @@ class FrameService::Canales {
 
     void bucle() {
         ba::platform::nombrarHilo("ui-canales");
-        std::vector<std::pair<QString, std::int64_t>> pedidos;
+        std::vector<Pedido> pedidos;
         for (;;) {
             {
                 std::lock_guard<std::mutex> l(mu_);
@@ -97,14 +104,16 @@ class FrameService::Canales {
                 pedidos = pedidos_;
             }
             auto despertar = std::chrono::steady_clock::now() + std::chrono::milliseconds(50);
-            for (const auto& [key, pedidoUs] : pedidos) leer(key, pedidoUs, despertar);
+            for (const Pedido& p : pedidos) leer(p, despertar);
             std::unique_lock<std::mutex> l(mu_);
             const auto minimo = std::chrono::steady_clock::now() + std::chrono::milliseconds(2);
             cv_.wait_until(l, std::max(despertar, minimo), [this] { return !seguir_; });
         }
     }
 
-    void leer(const QString& key, std::int64_t pedidoUs, std::chrono::steady_clock::time_point& despertar) {
+    void leer(const Pedido& pedido, std::chrono::steady_clock::time_point& despertar) {
+        const QString& key = pedido.clave;
+        const std::int64_t pedidoUs = pedido.miradoUs;
         const std::int64_t ahora = ahoraUs();
         Lector& lec = lectores_[key];
         auto& r = lec.r;
@@ -125,8 +134,16 @@ class FrameService::Canales {
         // Lo que nadie mira (una página que no se ve, un lugar vacío), una vez por segundo
         // y no a cada cuadro: uno por segundo alcanza para que una captura (MCP) no salga vieja.
         const bool mirado = ahora - pedidoUs <= 2'000'000;
-        if (mirado) despertar = std::min(despertar, r.proximaMirada(std::chrono::milliseconds(50)));
         if (!mirado && ahora - lec.leidoUs < 1'000'000) return;
+        // Mirado, pero solo por celdas chicas (15 por segundo): no se copia cada cuadro del
+        // productor (640×360, ~0,9 MB) para tirar la mitad. Se despierta cuando toca.
+        // (El 90 %: el cuadro que llega apenas antes de cumplirse el intervalo vale.)
+        if (mirado && pedido.intervaloUs > 0 && ahora - lec.leidoUs < pedido.intervaloUs * 9 / 10) {
+            const auto toca = std::chrono::steady_clock::time_point(std::chrono::microseconds(lec.leidoUs + pedido.intervaloUs * 9 / 10));
+            despertar = std::min(despertar, std::max(toca, std::chrono::steady_clock::now()));
+            return;
+        }
+        if (mirado) despertar = std::min(despertar, r.proximaMirada(std::chrono::milliseconds(50)));
         if (!r.hasData()) return;
         // Directo al buffer que se queda la imagen (sin inicializar: se pisa entero).
         const std::size_t cap = r.frameBytes();
@@ -151,7 +168,7 @@ class FrameService::Canales {
     std::mutex mu_; // lo de abajo, hasta lectores_
     std::condition_variable cv_;
     bool seguir_ = true;
-    std::vector<std::pair<QString, std::int64_t>> pedidos_;
+    std::vector<Pedido> pedidos_;
     std::map<QString, QImage> llegados_;
     std::map<QString, Lector> lectores_; ///< solo el hilo
     std::atomic<std::uint64_t> leidos_{0}, bytes_{0};
@@ -168,7 +185,7 @@ QStringList clavesConNombre(const QStringList& claves, const std::vector<QString
 } // namespace
 
 FrameService::FrameService(BroadcastEngine& engine, Encargar encargar, int guests, QObject* parent)
-    : QObject(parent), engine_(engine), encargar_(std::move(encargar)), pollUs_(3600, -1) {
+    : ProveedorCuadros(parent), engine_(engine), encargar_(std::move(encargar)), pollUs_(3600, -1) {
     slots_["program"];
     slots_["scene"];
     // Los nombres de las claves, con cada cambio de claves, nombres o salidas (antes que las
@@ -374,13 +391,28 @@ std::vector<std::wstring> FrameService::channelsOf(const QString& key) {
     return {};
 }
 
-bool FrameService::latest(const QString& clave, QImage& out, std::uint64_t& serial) const {
-    const QString key = clavePropia(clave);
-    leidoUs_ = ahoraUs();
+bool FrameService::ultimo(const QString& clave, QImage& out, std::uint64_t& serial, std::int64_t intervaloUs) const {
+    // Lo llaman todas las vistas de video en cada vuelta con cuadros nuevos (120 celdas de
+    // la sala, 60 veces por segundo): sin armar cadenas ni leer el reloj de más.
+    const bool deSalida = clave.startsWith(QLatin1String("program:")) || clave.startsWith(QLatin1String("armada:"));
+    const QString key = deSalida ? clavePropia(clave) : clave;
+    const std::int64_t ahora = ahoraUs();
+    leidoUs_ = ahora;
     // La vista de otra salida se pide sola mientras alguien la lea (ver poll).
-    if (key.startsWith("program:") || key.startsWith("armada:")) salidasPedidas_[key] = ahoraUs();
+    if (deSalida && (key.startsWith(QLatin1String("program:")) || key.startsWith(QLatin1String("armada:"))))
+        salidasPedidas_[key] = ahora;
     auto it = slots_.find(key);
-    if (it != slots_.end()) it->second.pedidoUs = ahoraUs(); // alguien lo mira: a todos sus cuadros
+    if (it != slots_.end()) {
+        const Slot& s = it->second; // lo que se toca es mutable
+        s.pedidoUs = ahora; // alguien lo mira: a sus cuadros (al ritmo que pida)
+        // El intervalo del canal: el más corto de los que leen. Uno más largo lo reemplaza
+        // recién cuando el más corto deja de leer un segundo.
+        const std::int64_t pedido = std::max<std::int64_t>(0, intervaloUs);
+        if (pedido <= s.intervaloUs || ahora - s.intervaloVistoUs > 1'000'000) {
+            s.intervaloUs = pedido;
+            s.intervaloVistoUs = ahora;
+        }
+    }
     if (it == slots_.end() || it->second.serial == serial || it->second.image.isNull()) {
         return false;
     }
@@ -450,11 +482,12 @@ void FrameService::poll() {
     // Los canales entre procesos los lee su hilo (Canales): acá, decirle cuáles y cuándo
     // los miró alguien, y recoger lo que llegó.
     {
-        std::vector<std::pair<QString, std::int64_t>> pedidos;
+        std::vector<Canales::Pedido> pedidos;
         pedidos.reserve(canalesPedidos_.size());
         for (const QString& key : canalesPedidos_) {
             const auto it = slots_.find(key);
-            pedidos.emplace_back(key, it == slots_.end() ? 0 : it->second.pedidoUs);
+            if (it == slots_.end()) pedidos.push_back({key, 0, 0});
+            else pedidos.push_back({key, it->second.pedidoUs, it->second.intervaloUs});
         }
         canales_->pedir(std::move(pedidos));
         for (auto& [key, img] : canales_->tomar()) {

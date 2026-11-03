@@ -10,9 +10,9 @@
 #include <QSGTexture>
 #include <rhi/qrhi.h>
 
+#include <algorithm>
+#include <chrono>
 #include <utility>
-
-#include "ui/FrameService.hpp"
 
 namespace ba::app {
 
@@ -80,18 +80,33 @@ class TexturaVideo final : public QSGTexture {
     bool alfa_ = false;
 };
 
+std::int64_t ahoraUs() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+constexpr auto kRelajado = std::memory_order_relaxed;
+
 } // namespace
 
-QPointer<FrameService> VideoItem::service_;
+QPointer<ProveedorCuadros> VideoItem::service_;
 
-void VideoItem::setService(FrameService* service) { service_ = service; }
+void VideoItem::setService(ProveedorCuadros* service) { service_ = service; }
+
+VideoItem::Contadores& VideoItem::contadores() {
+    static Contadores c;
+    return c;
+}
 
 VideoItem::VideoItem(QQuickItem* parent) : QQuickItem(parent) {
     setFlag(ItemHasContents, true);
+    contadores().creados.fetch_add(1, kRelajado);
+    contadores().vivos.fetch_add(1, kRelajado);
     if (service_ != nullptr) {
-        connect(service_, &FrameService::framesUpdated, this, &VideoItem::refresh);
+        connect(service_, &ProveedorCuadros::framesUpdated, this, &VideoItem::refresh);
     }
 }
+
+VideoItem::~VideoItem() { contadores().vivos.fetch_sub(1, kRelajado); }
 
 void VideoItem::setSource(const QString& s) {
     if (s == source_) {
@@ -99,11 +114,32 @@ void VideoItem::setSource(const QString& s) {
     }
     source_ = s;
     serial_ = 0;
+    turno_ = -1;
+    const bool habia = !image_.isNull();
     image_ = QImage();
     emit sourceChanged();
     emit hasFrameChanged();
     emit frameSizeChanged();
-    refresh();
+    // Sin cuadro de la fuente nueva todavía, nada (y no el último de la anterior: una celda
+    // reusada de la grilla mostraría a otra persona hasta el primer cuadro).
+    if (habia) {
+        dirty_ = true;
+        update();
+    }
+    traer(true);
+}
+
+void VideoItem::setTopeCps(int n) {
+    n = std::max(-1, n);
+    if (n == topeCps_) return;
+    topeCps_ = n;
+    emit topeCpsChanged();
+}
+
+std::int64_t VideoItem::intervaloUs() const {
+    if (topeCps_ == 0) return 0;
+    const int cps = topeCps_ > 0 ? topeCps_ : (std::max(width(), height()) <= kLadoChico ? kCpsChico : 0);
+    return cps > 0 ? 1'000'000 / cps : 0;
 }
 
 void VideoItem::setFillMode(FillMode m) {
@@ -120,21 +156,36 @@ void VideoItem::setEnVista(bool si) {
     enVista_ = si;
     emit enVistaChanged();
     // De vuelta en la vista: lo último que haya, sin esperar al próximo cuadro.
-    if (si) refresh();
+    if (si) traer(true);
 }
 
-void VideoItem::refresh() {
+void VideoItem::refresh() { traer(false); }
+
+void VideoItem::traer(bool sinTurno) {
+    Contadores& c = contadores();
+    c.refrescos.fetch_add(1, kRelajado);
     if (service_ == nullptr) {
         return;
     }
+    // Fuera de la parte que se ve de una grilla o lista desplazable: nada, ni el primero (la
+    // grilla no mira hasFrame). Sin leerlos, el servicio deja de copiar ese canal y el
+    // productor lo manda «de vez en cuando»; al volver a la vista (setEnVista) se trae.
+    if (!enVista_) return;
     const bool had = !image_.isNull();
-    // Oculto (una página precargada que no se ve), fuera de la vista desplazada o diminuto
-    // (no se distingue) no copia cuadros ni redibuja la ventana: al mostrarse, volver a la
-    // vista o agrandarse los pide. Sin leerlos (latest), FrameService deja de copiar ese
-    // canal. El primero sí, por si alguien mira hasFrame para decidir si mostrarlo.
-    if (had && (!isVisible() || !enVista_ || diminuto())) return;
+    // Oculto (una página precargada que no se ve) o diminuto (no se distingue) no copia
+    // cuadros ni redibuja la ventana: al mostrarse o agrandarse los pide. El primero sí,
+    // por si alguien mira hasFrame para decidir si mostrarlo.
+    if (had && (!isVisible() || diminuto())) return;
+    // Chico: un cuadro por turno del reloj, el mismo turno para todos los chicos (los
+    // cuadros de las 120 celdas de la sala entran en el mismo redibujo, no uno cada vez).
+    const std::int64_t intervalo = intervaloUs();
+    const std::int64_t turno = intervalo > 0 ? ahoraUs() / intervalo : -1;
+    if (had && !sinTurno && intervalo > 0 && turno == turno_) return;
+    c.pedidos.fetch_add(1, kRelajado);
     const QSize antes = image_.size();
-    if (service_->latest(source_, image_, serial_)) {
+    if (service_->ultimo(source_, image_, serial_, intervalo)) {
+        turno_ = turno;
+        c.cuadros.fetch_add(1, kRelajado);
         dirty_ = true;
         update();
         if (!had) {
@@ -148,7 +199,7 @@ void VideoItem::refresh() {
 
 void VideoItem::itemChange(ItemChange change, const ItemChangeData& value) {
     QQuickItem::itemChange(change, value);
-    if (change == ItemVisibleHasChanged && value.boolValue) refresh();
+    if (change == ItemVisibleHasChanged && value.boolValue) traer(true);
 }
 
 void VideoItem::geometryChange(const QRectF& nuevo, const QRectF& viejo) {
@@ -159,7 +210,7 @@ void VideoItem::geometryChange(const QRectF& nuevo, const QRectF& viejo) {
     // (sin esperar al próximo cuadro, por si la fuente está quieta) y los cuadros que siguen.
     dirty_ = true;
     update();
-    if (!es) refresh();
+    if (!es) traer(true);
 }
 
 QSGNode* VideoItem::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
@@ -189,6 +240,7 @@ QSGNode* VideoItem::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
             node->markDirty(QSGNode::DirtyMaterial);
         }
         dirty_ = false;
+        contadores().subidas.fetch_add(1, kRelajado);
     }
     // Ajuste: Fit = entero con barras; Cover = llena y recorta (fondos).
     const QSizeF img = image_.size();
