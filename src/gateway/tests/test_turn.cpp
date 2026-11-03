@@ -13,7 +13,13 @@
 //   - dos asignaciones que se hablan entre sí (navegador↔navegador);
 //   - Allocate y Send/Data por UDP;
 //   - Refresh con LIFETIME 0;
-//   - iceServersPara / respuestaIce.
+//   - iceServersPara / respuestaIce;
+//   - 40 a la vez (UDP y mezcla con TCP), también con el TURN en 3 fragmentos (cada conexión
+//     TCP entregada una vez a su fragmento, el UDP repartido por origen en tandas) y con la
+//     entrega en memoria a la «red de WebRTC» (un punto del Conmutador en el puerto del eco:
+//     PLAN-GATEWAY-FRAGMENTOS.md F1/F2).
+#include "rtc/Conmutador.hpp"
+#include "turn/BuclePoll.hpp"
 #include "turn/Ice.hpp"
 #include "turn/Servidor.hpp"
 #include "turn/Stun.hpp"
@@ -332,7 +338,8 @@ struct EnRafaga {
     int ecos = 0;
 };
 
-static bool rafaga(tu::Servidor& srv, const tu::Servidor::Config& cfg, uint16_t puertoEco, int nUdp, int nTcp) {
+static bool rafaga(tu::Servidor& srv, const tu::Servidor::Config& cfg, uint16_t puertoEco, int nUdp, int nTcp,
+                   const std::function<void()>& antesDeCerrar = {}) {
     const uint16_t puertoTcp = srv.puertoTcp(), puertoUdp = srv.puertoUdp();
     const tu::Credencial cred = tu::credencialEfimera(cfg.secreto, 600);
     std::vector<EnRafaga> cs(size_t(nUdp + nTcp));
@@ -466,6 +473,7 @@ static bool rafaga(tu::Servidor& srv, const tu::Servidor::Config& cfg, uint16_t 
     std::printf("ráfaga: %d de %d con medio de ida y vuelta\n", conEco, int(cs.size()));
     CHECK(conEco == int(cs.size()), "ráfaga: el medio va y vuelve para todos");
     CHECK(srv.estado().value("asignaciones", 0) == int(cs.size()), "ráfaga: el estado cuenta todas las asignaciones");
+    if (antesDeCerrar) antesDeCerrar();
     for (EnRafaga& c : cs) cerrar(c.fd);
     return true;
 }
@@ -732,6 +740,80 @@ int main() {
         }
         CHECK(rafaga(otro, cr, eco.puerto, nUdp, nTcp), "ráfaga: sockets");
         otro.stop();
+    }
+
+    // F2: la misma ráfaga con el TURN en 3 fragmentos (3 hilos propios).
+    {
+        tu::Servidor::Config cr = cfg;
+        cr.secreto = tu::secretoAleatorio();
+        cr.maxAsignaciones = 64;
+        cr.fragmentosPropios = 3;
+        tu::Servidor otro(cr);
+        if (otro.start(&err)) {
+            json e;
+            CHECK(rafaga(otro, cr, eco.puerto, 30, 10, [&] { e = otro.estado(); }), "ráfaga en fragmentos: sockets");
+            std::printf("fragmentos: %s\n", e["fragmentos"].dump().c_str());
+            CHECK(e["fragmentos"].size() == 3, "tres fragmentos");
+            int conTcp = 0, conAsig = 0;
+            for (const auto& f : e["fragmentos"]) {
+                conTcp += f.value("conexiones", 0);
+                conAsig += f.value("asignaciones", 0) > 0 ? 1 : 0;
+            }
+            CHECK(conTcp == 10, "las 10 conexiones TCP, cada una en un fragmento");
+            CHECK(conAsig == 3, "todos los fragmentos atienden asignaciones (TCP entregado y UDP repartido)");
+            otro.stop();
+        } else {
+            CHECK(false, "ráfaga en fragmentos: no arrancó el TURN");
+        }
+    }
+
+    // F1: la entrega en memoria. La «red de WebRTC» es un punto del conmutador en el puerto del
+    // eco (en el hilo 1) que contesta en memoria al relay: nada pasa por el kernel entre el
+    // relay y el peer.
+    {
+        struct EcoEnMemoria : ba::gateway::memoria::Receptor {
+            ba::gateway::memoria::Conmutador* c = nullptr;
+            uint16_t puerto = 0;
+            std::atomic<int> n{0};
+            void recibirEnMemoria(const uint8_t* d, size_t len, uint32_t ip, uint16_t p,
+                                  ba::gateway::memoria::Via) override {
+                ++n;
+                if (auto relay = c->buscar(ip, p)) c->mandar(1, relay, d, len, kLocal, puerto);
+            }
+        };
+        tu::BuclePoll* bs[2] = {nullptr, nullptr};
+        ba::gateway::memoria::Conmutador c(2, 0, [&bs](int h, std::function<void()> f) { bs[h]->enHilo(std::move(f)); });
+        tu::BuclePoll b0("turn-0"), b1("turn-1");
+        bs[0] = &b0;
+        bs[1] = &b1;
+        EcoEnMemoria ecoMem;
+        ecoMem.c = &c;
+        ecoMem.puerto = eco.puerto;
+        ba::gateway::memoria::PuntoPtr punto;
+        b1.enHiloEsperando([&] { punto = c.abrir(kLocal, eco.puerto, 1, ba::gateway::memoria::Clase::WebrtcUdp, &ecoMem); });
+        tu::Servidor::Config cr = cfg;
+        cr.secreto = tu::secretoAleatorio();
+        cr.maxAsignaciones = 64;
+        cr.bucles = {&b0, &b1};
+        cr.memoria = &c;
+        {
+            tu::Servidor otro(cr);
+            if (otro.start(&err)) {
+                CHECK(c.ipRelay() == kLocal, "el TURN le dice al conmutador la IP de sus relays");
+                CHECK(rafaga(otro, cr, eco.puerto, 30, 10), "ráfaga en memoria: sockets");
+                const json e = otro.estado();
+                std::printf("en memoria: %d al eco; TURN %s\n", ecoMem.n.load(), e.dump().c_str());
+                CHECK(ecoMem.n.load() >= 40, "#3: el medio llega en memoria al peer");
+                CHECK(e.value("paquetesEnMemoriaHacia", uint64_t(0)) >= 40, "#3 contado en el TURN");
+                CHECK(e.value("paquetesEnMemoriaDesde", uint64_t(0)) >= 40, "#14: la respuesta vuelve en memoria al relay");
+                otro.stop();
+            } else {
+                CHECK(false, "ráfaga en memoria: no arrancó el TURN");
+            }
+        }
+        b1.enHiloEsperando([&] { c.cerrar(punto); });
+        b0.parar();
+        b1.parar();
     }
 
     srv.stop();

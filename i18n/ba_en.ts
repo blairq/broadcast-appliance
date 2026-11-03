@@ -41051,6 +41051,46 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: hilos de red</source>
+        <translation>Conference: network threads</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (un tercio de los núcleos de un bloque de caché, entre 1 y 4). 1: como antes, para comparar.</source>
+        <translation>How many threads handle the guests&apos; network (their connections and the TURN), each with its own share. 0: automatic for this machine (a third of the cores of one cache block, between 1 and 4). 1: as before, to compare.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: hilos de trabajo</source>
+        <translation>Conference: worker threads</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos arman el audio y el video que llega de los invitados (paquetes, cuadros, el búfer del audio). 0: automático (la mitad de los núcleos de un bloque de caché, entre 1 y 6).</source>
+        <translation>How many threads assemble the audio and video coming from the guests (packets, frames, the audio buffer). 0: automatic (half the cores of one cache block, between 1 and 6).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: combinar hilos de red y de trabajo</source>
+        <translation>Conference: combine network and worker threads</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cada invitado va al hilo de red y al de trabajo menos cargados, en cualquier combinación. Apagado, cada hilo de red tiene su hilo de trabajo fijo (por si algo falla con la combinación).</source>
+        <translation>Each guest goes to the least loaded network thread and worker thread, in any combination. Off: each network thread has its own fixed worker thread (in case something goes wrong with combining them).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: el TURN entrega en memoria</source>
+        <translation>Conference: TURN delivers in memory</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que llega por el TURN (los invitados de afuera) pasa a la conferencia sin dar la vuelta por el sistema. Apagado, como antes (para comparar).</source>
+        <translation>What arrives through the TURN (outside guests) goes to the conference without a round trip through the system. Off: as before (to compare).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: decodificar H.264 con la placa</source>
         <translation type="unfinished"></translation>
     </message>
@@ -41285,7 +41325,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>isn&apos;t one of the options</translation>
     </message>
     <message>
-        <location line="-220"/>
+        <location line="-224"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Chat messages kept</translation>
     </message>
@@ -41415,7 +41455,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Operator console, speakers board and phones: each one is a connection.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+10"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -54015,12 +54055,12 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+296"/>
+        <location line="+302"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https: didn&apos;t start; guests only get http (no camera outside localhost)</translation>
     </message>
     <message>
-        <location line="-253"/>
+        <location line="-259"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>tunnel: no WireGuard private key; tunnel disabled</translation>
     </message>
@@ -54040,7 +54080,7 @@ Data (from %2): %3</translation>
         <translation>tunnel: WireGuard to %1 as %2 (key %3; public %4)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>túnel: no arrancó WireGuard/pila IP</source>
         <translation>tunnel: WireGuard/IP stack didn&apos;t start</translation>
     </message>
@@ -54075,7 +54115,7 @@ Data (from %2): %3</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+267"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>tunnel: --tunnel-token is visible in the process list; prefer %1</translation>
     </message>
@@ -54095,7 +54135,7 @@ Data (from %2): %3</translation>
         <translation>tunnel: disabled in the configuration (local access only)</translation>
     </message>
     <message>
-        <location line="-637"/>
+        <location line="-645"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>network: machine IP %1; in the QR: %2</translation>
     </message>
@@ -54105,7 +54145,7 @@ Data (from %2): %3</translation>
         <translation>proxy: didn&apos;t start (see the reason above)</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+81"/>
         <source>entropia</source>
         <translation>entropy</translation>
     </message>
@@ -54125,7 +54165,7 @@ Data (from %2): %3</translation>
         <translation>Broadcast Appliance (this device)</translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+102"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn: listening on port %1 (TCP and UDP)</translation>
     </message>
@@ -54145,7 +54185,7 @@ Data (from %2): %3</translation>
         <translation>https: ba-web isn&apos;t handling it; starting the built-in terminator</translation>
     </message>
     <message>
-        <location line="+213"/>
+        <location line="+215"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>room door: https on %1:%2</translation>
     </message>
@@ -54200,7 +54240,7 @@ Data (from %2): %3</translation>
         <translation>stopping: shutting down components...</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
         <source>cierre ordenado: BA.Health slot 0 = Terminated; exito</source>
         <translation>clean shutdown: BA.Health slot 0 = Terminated; success</translation>
     </message>
@@ -54441,7 +54481,7 @@ Data (from %2): %3</translation>
         <translation>the service isn&apos;t running</translation>
     </message>
     <message>
-        <location filename="../src/gateway/turn/Servidor.cpp" line="+923"/>
+        <location filename="../src/gateway/turn/Servidor.cpp" line="+1182"/>
         <source>turn: falta el secreto (16 bytes o más)</source>
         <translation>turn: secret missing (16 bytes or more)</translation>
     </message>
@@ -85533,7 +85573,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>Guests that dropped and came back to their place</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-134"/>
+        <location filename="../src/gateway/main.cpp" line="-135"/>
         <source>Edad de lo leído de A (p50 de la última ventana), ms</source>
         <translation>Age of what was read from A (p50 of the last window), ms</translation>
     </message>

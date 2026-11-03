@@ -39733,6 +39733,46 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: hilos de red</source>
+        <translation>Конференция: сетевые потоки</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (un tercio de los núcleos de un bloque de caché, entre 1 y 4). 1: como antes, para comparar.</source>
+        <translation>Сколько потоков обслуживают сеть гостей (их соединения и TURN), каждый свою часть. 0: автоматически по машине (треть ядер одного блока кэша, от 1 до 4). 1: как раньше, для сравнения.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: hilos de trabajo</source>
+        <translation>Конференция: рабочие потоки</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos arman el audio y el video que llega de los invitados (paquetes, cuadros, el búfer del audio). 0: automático (la mitad de los núcleos de un bloque de caché, entre 1 y 6).</source>
+        <translation>Сколько потоков собирают звук и видео, приходящие от гостей (пакеты, кадры, аудиобуфер). 0: автоматически (половина ядер одного блока кэша, от 1 до 6).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: combinar hilos de red y de trabajo</source>
+        <translation>Конференция: сочетать сетевые и рабочие потоки</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cada invitado va al hilo de red y al de trabajo menos cargados, en cualquier combinación. Apagado, cada hilo de red tiene su hilo de trabajo fijo (por si algo falla con la combinación).</source>
+        <translation>Каждый гость попадает в наименее загруженные сетевой и рабочий потоки, в любом сочетании. Выключено: у каждого сетевого потока свой постоянный рабочий поток (на случай, если сочетание даст сбой).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: el TURN entrega en memoria</source>
+        <translation>Конференция: TURN передаёт в памяти</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que llega por el TURN (los invitados de afuera) pasa a la conferencia sin dar la vuelta por el sistema. Apagado, como antes (para comparar).</source>
+        <translation>То, что приходит через TURN (внешние гости), попадает в конференцию без круга через систему. Выключено: как раньше (для сравнения).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: decodificar H.264 con la placa</source>
         <translation type="unfinished"></translation>
     </message>
@@ -39967,7 +40007,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>не является одним из вариантов</translation>
     </message>
     <message>
-        <location line="-220"/>
+        <location line="-224"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Хранимых сообщений чата</translation>
     </message>
@@ -40097,7 +40137,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Консоль оператора, табло выступающих и телефоны: каждый — одно подключение.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+10"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -54176,12 +54216,12 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+296"/>
+        <location line="+302"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https: не запустился; у гостей только http (без камеры вне localhost)</translation>
     </message>
     <message>
-        <location line="-253"/>
+        <location line="-259"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>туннель: нет закрытого ключа WireGuard; туннель отключён</translation>
     </message>
@@ -54201,7 +54241,7 @@ Datos (de %2): %3</source>
         <translation>туннель: WireGuard к %1 как %2 (ключ %3; открытый %4)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>túnel: no arrancó WireGuard/pila IP</source>
         <translation>туннель: WireGuard/IP-стек не запустился</translation>
     </message>
@@ -54236,7 +54276,7 @@ Datos (de %2): %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+267"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>туннель: --tunnel-token виден в списке процессов; лучше использовать %1</translation>
     </message>
@@ -54256,7 +54296,7 @@ Datos (de %2): %3</source>
         <translation>туннель: отключён в конфигурации (только локальный доступ)</translation>
     </message>
     <message>
-        <location line="-637"/>
+        <location line="-645"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>сеть: IP компьютера %1; в QR: %2</translation>
     </message>
@@ -54266,7 +54306,7 @@ Datos (de %2): %3</source>
         <translation>proxy: не запустился (причина выше)</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+81"/>
         <source>entropia</source>
         <translation>энтропия</translation>
     </message>
@@ -54286,7 +54326,7 @@ Datos (de %2): %3</source>
         <translation>Broadcast Appliance (это устройство)</translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+102"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn: слушает на порту %1 (TCP и UDP)</translation>
     </message>
@@ -54306,7 +54346,7 @@ Datos (de %2): %3</source>
         <translation>https: ba-web его не обслуживает; запускается встроенный терминатор</translation>
     </message>
     <message>
-        <location line="+213"/>
+        <location line="+215"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>дверь комнаты: https на %1:%2</translation>
     </message>
@@ -54361,7 +54401,7 @@ Datos (de %2): %3</source>
         <translation>остановка: компоненты останавливаются...</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
         <source>cierre ordenado: BA.Health slot 0 = Terminated; exito</source>
         <translation>штатное завершение: BA.Health slot 0 = Terminated; успех</translation>
     </message>
@@ -54602,7 +54642,7 @@ Datos (de %2): %3</source>
         <translation>сервис не работает</translation>
     </message>
     <message>
-        <location filename="../src/gateway/turn/Servidor.cpp" line="+923"/>
+        <location filename="../src/gateway/turn/Servidor.cpp" line="+1182"/>
         <source>turn: falta el secreto (16 bytes o más)</source>
         <translation>turn: нет секрета (16 байт или больше)</translation>
     </message>
@@ -85712,7 +85752,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Гости, которые отключились и вернулись на своё место</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-134"/>
+        <location filename="../src/gateway/main.cpp" line="-135"/>
         <source>Edad de lo leído de A (p50 de la última ventana), ms</source>
         <translation>Возраст прочитанного из A (p50 последнего окна), мс</translation>
     </message>

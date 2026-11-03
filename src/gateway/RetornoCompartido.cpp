@@ -48,6 +48,7 @@
 #include <functional>
 #include <map>
 #include <mutex>
+#include <shared_mutex>
 #include <optional>
 #include <thread>
 #include <utility>
@@ -248,7 +249,7 @@ struct Emision {
     rtc::scoped_refptr<webrtc::I420BufferInterface> i420;
     std::uint64_t numero = 0;
     std::int64_t capturaUs = 0;
-    std::mutex m;
+    std::shared_mutex m; ///< los que leen el resultado no se esperan entre sí (F2: varios hilos)
     std::map<const Capa*, Resultado> res; ///< solo las capas que estaban en uso al emitir
 
     /// La capa `c` terminó con esta emisión: avisa a los que esperaban (fuera del candado).
@@ -256,7 +257,7 @@ struct Emision {
                   const webrtc::CodecSpecificInfo* info) {
         std::vector<std::function<void()>> avisar;
         {
-            std::lock_guard<std::mutex> l(m);
+            std::lock_guard<std::shared_mutex> l(m);
             const auto it = res.find(c);
             if (it == res.end() || it->second.estado != Resultado::Estado::Pendiente) return;
             it->second.estado = estado;
@@ -270,7 +271,7 @@ struct Emision {
     /// estaba en uso al emitir).
     void alTerminar(const Capa* c, std::function<void()> fn) {
         {
-            std::lock_guard<std::mutex> l(m);
+            std::lock_guard<std::shared_mutex> l(m);
             const auto it = res.find(c);
             if (it != res.end() && it->second.estado == Resultado::Estado::Pendiente) {
                 it->second.avisar.push_back(std::move(fn));
@@ -281,7 +282,7 @@ struct Emision {
     }
     /// Una copia de lo que salió para la capa `c` (los bytes se comparten).
     std::optional<Resultado> resultado(const Capa* c) {
-        std::lock_guard<std::mutex> l(m);
+        std::shared_lock<std::shared_mutex> l(m);
         const auto it = res.find(c);
         if (it == res.end() || it->second.estado != Resultado::Estado::Listo) return std::nullopt;
         Resultado r;
@@ -324,7 +325,7 @@ class Capa : public webrtc::EncodedImageCallback {
     /// más vieja se descarta).
     void encolar(const std::shared_ptr<Emision>& e) {
         {
-            std::lock_guard<std::mutex> l(e->m);
+            std::lock_guard<std::shared_mutex> l(e->m);
             e->res[this];
         }
         std::shared_ptr<Emision> vieja;

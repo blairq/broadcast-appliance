@@ -25,8 +25,15 @@ credenciales y `/api/ice`), navegador en `assets/web/comun/ice.js`, prueba en
 - Una asignación por conexión TCP (o por dirección UDP). Cerrar la conexión TCP
   borra la asignación. Una conexión TCP sin asignación se corta a los 30 s.
 - Vida: la pedida, entre 600 s y `turn.vidaMaxS`; permisos 300 s; canales 600 s.
-- Un hilo propio con `poll()` (WSAPoll en Windows), sockets no bloqueantes.
-  Hacia el cliente TCP: cola por conexión; si se llena (`turn.colaTcpKB`) el
+- Sin hilo propio (PLAN-GATEWAY-FRAGMENTOS.md F1/F2): corre en los hilos de red de
+  WebRTC, un **fragmento** por hilo (`gateway.hilosRed`), cada uno con sus conexiones y
+  asignaciones. El fragmento 0 atiende las escuchas: cada conexión TCP nueva se le pasa una
+  sola vez al fragmento menos cargado; el UDP (un solo puerto) lo vacía de a tandas y reparte
+  cada datagrama por su origen. Entre el relay y la red de WebRTC el medio va **en memoria**
+  (`rtc/Conmutador.hpp`, `gateway.turnEnMemoria`), sin `sendto` a 127.0.0.1; los sockets de
+  relay existen igual (lo que llegue por el kernel se atiende). Sin libwebrtc (tests), hilos
+  propios con `poll()` (`turn/BuclePoll.hpp`). `gateway_estado` → `turn.fragmentos` y
+  `paquetesEnMemoria*`. Hacia el cliente TCP: cola por conexión; si se llena (`turn.colaTcpKB`) el
   **medio** se descarta (como en UDP), el control no.
 
 ## Credenciales

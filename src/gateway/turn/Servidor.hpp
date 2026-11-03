@@ -22,7 +22,19 @@
 // relay desde cualquier otro lado se descarta. Topes de asignaciones y
 // conexiones, vida máxima por asignación. Ver docs/funciones/TURN.md.
 //
-// Hilos: uno propio con poll() y sockets no bloqueantes (Winsock en Windows).
+// Hilos (PLAN-GATEWAY-FRAGMENTOS.md F1/F2): el TURN no tiene hilo propio. Está partido en
+// FRAGMENTOS, uno por hilo de red (Config::bucles: en el gateway, los hilos de red de WebRTC,
+// rtc/BucleRtc.hpp), cada uno con sus conexiones y sus asignaciones, todo en su hilo:
+//   - el fragmento 0 atiende las escuchas: cada conexión TCP nueva se le entrega UNA vez al
+//     fragmento menos cargado (como el accept de nginx); el UDP (un solo puerto, el de
+//     pinggy) lo vacía de a tandas y reparte cada datagrama por su origen, una entrega por
+//     fragmento y por tanda;
+//   - con Config::memoria, lo que va del relay a la red de WebRTC (y vuelve) no pasa por el
+//     kernel: se entrega en memoria (rtc/Conmutador.hpp), en el mismo hilo si la sesión de
+//     WebRTC está en el hilo del fragmento. Los sockets de relay existen igual (el puerto es
+//     de verdad y lo que llegue por el kernel se atiende como siempre).
+// Sin bucles (tests, gateway sin libwebrtc): `fragmentosPropios` hilos con poll()
+// (turn/BuclePoll.hpp) llamados «turn».
 // start()/stop()/estado() se pueden llamar desde cualquier hilo.
 // ============================================================================
 #pragma once
@@ -30,13 +42,21 @@
 #include <atomic>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <string>
-#include <thread>
 #include <vector>
 
 #include <nlohmann/json.hpp>
 
+#include "turn/Bucle.hpp"
+
+namespace ba::gateway::memoria {
+class Conmutador;
+}
+
 namespace ba::gateway::turn {
+
+class BuclePoll;
 
 class Servidor {
    public:
@@ -63,6 +83,13 @@ class Servidor {
         int maxConexiones = 0;   // turn.maxConexiones (1280)
         int vidaMaxS = 0;        // turn.vidaMaxS (3600)
         int nonceS = 0;          // turn.nonceS (600)
+        /// Los hilos donde corre cada fragmento (el i-ésimo, en bucles[i]; tienen que vivir
+        /// más que el servidor). Vacío = `fragmentosPropios` hilos propios con poll().
+        std::vector<Bucle*> bucles;
+        int fragmentosPropios = 1;
+        /// Entrega en memoria hacia la red de WebRTC (el fragmento i manda como el hilo i del
+        /// conmutador). nullptr = sendto por el kernel, como antes.
+        memoria::Conmutador* memoria = nullptr;
     };
 
     explicit Servidor(Config cfg);
@@ -79,14 +106,14 @@ class Servidor {
     uint16_t puertoTcp() const { return puertoTcpReal_.load(); }
     uint16_t puertoUdp() const { return puertoUdpReal_.load(); }
 
-    struct Impl;
+    struct Comun;
+    struct Fragmento;
 
    private:
-    void bucle();
-
     Config cfg_;
-    std::unique_ptr<Impl> impl_;
-    std::thread hilo_;
+    std::vector<std::unique_ptr<BuclePoll>> propios_;
+    mutable std::mutex comunM_; // comun_ (estado() se llama de cualquier hilo)
+    std::shared_ptr<Comun> comun_;
     std::atomic<bool> corriendo_{false};
     std::atomic<uint16_t> puertoTcpReal_{0}, puertoUdpReal_{0};
 };

@@ -870,6 +870,8 @@ int main(int argc, char** argv) {
             if (wg->start() && ipstack->start()) {
                 log.info(llenar(traducir("gateway", "túnel: WireGuard hacia %1 como %2 (clave %3; pública %4)"),
                                 {cfg.wgEndpoint, cfg.wgAddress, keyOrigin, wgPublicKey}));
+                // F5: los datagramas del túnel van en memoria a los sockets de WebRTC (y vuelven).
+                hub.conectarTunel(ipstack.get());
             } else {
                 log.error(traducir("gateway", "túnel: no arrancó WireGuard/pila IP"), -1);
                 ipstack.reset();
@@ -1034,6 +1036,10 @@ int main(int argc, char** argv) {
         turnCfg.rtcMin = cfg.rtcPortMin;
         turnCfg.rtcMax = cfg.rtcPortMax;
         turnCfg.secreto = ba::gateway::turn::secretoAleatorio();
+        // F1/F2 (PLAN-GATEWAY-FRAGMENTOS.md): el TURN corre en los hilos de red de WebRTC, un
+        // fragmento por hilo, y le entrega el medio en memoria (sin sendto a 127.0.0.1).
+        turnCfg.bucles = hub.buclesRed();
+        turnCfg.memoria = hub.conmutador();
         turnSrv = std::make_unique<ba::gateway::turn::Servidor>(turnCfg);
         std::string e;
         if (turnSrv->start(&e)) {
@@ -1184,6 +1190,8 @@ int main(int argc, char** argv) {
         }
         out["fronteras"] = ba::diag::fronterasJson(1000);
         out["turn"] = turnSrv ? turnSrv->estado() : nlohmann::json{{"activo", false}};
+        // F2: los hilos de red y de trabajo con su carga, las fábricas y la entrega en memoria.
+        out["capas"] = hub.capasEstado();
         if (pinggy) {
             const PinggySupervisor::Estado st = pinggy->estado();
             out["pinggy"] = {{"turnPublico", st.turnPublico}, {"turnTipo", st.turnTipo}, {"turnUdp", st.turnUdp}};
@@ -1544,6 +1552,7 @@ int main(int argc, char** argv) {
     // La medición del enlace usa la pila del túnel: se corta antes.
     if (enlace) enlace->parar();
 #if BA_HAVE_LWIP
+    hub.conectarTunel(nullptr); // antes de parar la pila: que nadie le mande más
     if (ipstack) ipstack->stop();
 #endif
     if (wg) wg->stop();

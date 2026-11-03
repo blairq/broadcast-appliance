@@ -26,6 +26,7 @@
 #include "diag/Frontera.hpp"
 #include "diag/Registro.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Nucleos.hpp"
 
 #if defined(__APPLE__)
 #include <sys/sysctl.h>
@@ -274,6 +275,7 @@ class Grupo final : public std::enable_shared_from_this<Grupo> {
         for (int i = 0; i < hilos_; ++i)
             threads_.emplace_back([yo, i]() {
                 ba::platform::nombrarHilo("ba-colas-" + yo->nombre_ + "/" + std::to_string(i + 1));
+                ba::platform::nucleos::alGrupoGateway(); // F4: el bloque de caché del gateway
                 yo->bucle();
             });
     }

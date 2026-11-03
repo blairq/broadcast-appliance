@@ -24,6 +24,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <shared_mutex>
 #include <string>
 #include <vector>
 
@@ -38,7 +39,10 @@
 namespace ba::gateway::audioret {
 
 /// El flujo Opus de un grupo (AudioCompartido::Impl lo tiene). Thread-safe: codifica el hilo
-/// del retorno, leen los codificadores de paso (la cola de cada conexión).
+/// del retorno, leen los codificadores de paso (la cola de cada conexión, de cualquier capa
+/// de hilos: F2 de PLAN-GATEWAY-FRAGMENTOS.md). Los que leen no se esperan entre sí (candado
+/// compartido) ni esperan a que se codifique: Opus corre sin candado y lo nuevo se publica
+/// de una vez al final.
 class Grupo {
    public:
     Grupo(std::uint16_t id, rtc::scoped_refptr<webrtc::AudioEncoderFactory> base);
@@ -74,10 +78,17 @@ class Grupo {
         std::vector<std::uint8_t> bytes;
         webrtc::AudioEncoder::EncodedInfoLeaf info;
     };
+    /// Un atómico que se puede mover (para guardarlo en el map).
+    struct Atomico {
+        std::atomic<std::uint64_t> v{0};
+        Atomico() = default;
+        Atomico(Atomico&& o) noexcept : v(o.v.load(std::memory_order_relaxed)) {}
+    };
     struct Variante {
         std::unique_ptr<webrtc::AudioEncoder> enc;
-        std::uint64_t pedida = 0;   ///< el último bloque en que alguien la pidió
-        std::uint64_t pendiente = 0; ///< el primer bloque del paquete que se está armando (0: ninguno)
+        Atomico pedida;              ///< el último bloque en que alguien la pidió (la escriben los lectores)
+        std::uint64_t pendiente = 0; ///< el primer bloque del paquete que se está armando (0: ninguno), publicado
+        std::uint64_t pendCod = 0;   ///< lo mismo, del lado de codificar (sin candado)
         std::uint32_t ts = 0;
         std::deque<Paquete> paquetes;
         std::vector<std::int16_t> pcm;
@@ -85,8 +96,9 @@ class Grupo {
     };
     const std::uint16_t id_;
     const rtc::scoped_refptr<webrtc::AudioEncoderFactory> base_;
-    mutable std::mutex m_;
-    std::uint64_t seq_ = 0;
+    mutable std::shared_mutex m_; ///< variantes_ (el map), pendiente y paquetes
+    std::mutex codM_;             ///< un codificar a la vez (enc, pcm, buf, ts, pendCod)
+    std::atomic<std::uint64_t> seq_{0};
     std::map<std::string, Variante> variantes_;
 };
 

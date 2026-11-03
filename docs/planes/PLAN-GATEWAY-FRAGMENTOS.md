@@ -256,6 +256,33 @@ Criterio: la tabla de fronteras con números medidos en vez de estimados.
 Criterio: menos cambios de contexto/s del gateway con 40 por TURN (meta −30 %), misma
 edad del audio y mismo mosaico.
 
+Escrito (2026-11-02, noche; **sin compilar ni medir**: por pedido del usuario se compila,
+depura y mide todo junto con F3-F5):
+
+- `rtc/Conmutador.{hpp,cpp}` (sin libwebrtc): la entrega en memoria. Cada extremo (un socket
+  UDP de WebRTC, el relay de una asignación) se anota con su dirección y su hilo de red. En
+  el mismo hilo se entrega ahí mismo, salvo adentro de un `Ambito` (un manejador del TURN u
+  otra entrega): entonces se encola en el hilo y sale al terminar, así nunca se anida WebRTC
+  adentro de WebRTC ni el TURN adentro del TURN. A otro hilo (F2, o el túnel): una cola SPSC
+  sin candado por par (origen, destino), y se despierta al destino solo si no estaba avisado.
+  Fronteras `memoria.cruce` y `memoria.tunel` (#18).
+- `rtc/SocketsEnMemoria.{hpp,cpp}`: `FabricaEnMemoria` (el `rtc::PacketSocketFactory` de las
+  PeerConnection): cada UDP es uno de verdad (los directos siguen por el kernel) envuelto en
+  un `SocketHibrido` que recibe en memoria lo que le da el TURN (desde la dirección del
+  relay, la del candidato señalado) y le manda en memoria al relay (#14). Avisa
+  `SignalSentPacket` igual que `AsyncUDPSocket` (lo usa el control de congestión). Solo los
+  enlazados a una IP concreta (los permisos del TURN son por IP).
+- `turn/Bucle.hpp`, `rtc/BucleRtc.{hpp,cpp}`: el TURN sin `poll()` propio. Sus sockets crudos
+  se anotan como `rtc::Dispatcher` en el `PhysicalSocketServer` del hilo de red (select en
+  macOS, epoll en Linux, WSAEventSelect en Windows); `turn/BuclePoll.{hpp,cpp}` es el de los
+  tests y del gateway sin libwebrtc.
+- `turn/Servidor.cpp`: en fragmentos (uno por hilo de red; con R = 1, uno solo en
+  `ba-rtc-net`). `gateway.turnEnMemoria` = false vuelve al `sendto` (para comparar).
+- Pruebas: `test_sockets_en_memoria` (mismo hilo sin anidar, ida y vuelta, 20 000 a otro hilo
+  en orden y en lote, cerrado, túnel en tandas), `test_turn` (la ráfaga de 40 también con el
+  peer en memoria) y `test_webrtc_capas` (navegadores de libwebrtc que entran solo por relay,
+  UDP y TCP, contra el hub: conectan y el TURN cuenta paquetes en memoria en los dos sentidos).
+
 ### F2 — Lo horizontal: capas con R, T y D hilos
 
 1. `src/gateway/rtc/Capas.{hpp,cpp}`: crea R hilos de red, T de trabajo, la señalización,
@@ -271,6 +298,59 @@ edad del audio y mismo mosaico.
 
 Criterio: con 40, ningún hilo por encima del 60 % de un núcleo; cambios de contexto/s
 no peores que F1; la .177 aguanta igual o mejor.
+
+Escrito (2026-11-02, noche; **sin compilar ni medir**, como F1):
+
+- `rtc/CapasHilos.{hpp,cpp}` (sin libwebrtc, `test_capas_rtc`): los tamaños
+  (`gateway.hilosRed`, `gateway.hilosTrabajo`; 0 = automático: red = núcleos de un bloque /3
+  entre 1 y 4, trabajo = (núcleos+1)/2 entre 1 y 6: 2 y 3 en el 5900X, 1 y 2 en la M1 Pro) y
+  el `Reparto`: cada sesión (invitado o espectador) al hilo de red y al de trabajo menos
+  cargados al entrar; no se muda; el que sube 540p o más pesa 4 (`kPesoAlta`) para las que
+  vienen después. `gateway.capasCruzadas` = false: cada red con su trabajo (T = R), el
+  respaldo si varias fábricas no pudieran compartir hilos.
+- `Webrtc.cpp`: R hilos `ba-rtc-net-i`, T `ba-rtc-work-j` (sin sufijo con 1), un
+  `ba-rtc-sig`; una fábrica por par (R×T) compartiendo esos hilos, todas con las MISMAS colas
+  compartidas (`ColasDePaso` sobre una sola `colas::crearDeLosAjustes()`) y el mismo reloj de
+  audio (`RelojPlayout`: un solo `webrtc-playout` tira de los ADM de todas las fábricas cada
+  10 ms, #10). Cada capa de red con su `BasicNetworkManager`, su `FabricaEnMemoria` y su
+  `BucleRtc` (el TURN pone un fragmento en cada una). `test_webrtc_capas` comprueba que en M123
+  4 fábricas comparten 2 + 2 hilos, conectan y reciben el audio.
+- TURN (`turn/Servidor.cpp`): el fragmento 0 acepta y le entrega cada conexión TCP UNA vez al
+  fragmento menos cargado (el descriptor pasa crudo al otro hilo); el UDP de pinggy lo vacía
+  de a tandas (hasta 256) y reparte por origen (ruta fija por dirección), una tarea por
+  fragmento y por tanda (`turn.reparto.udp`, `turn.entrega.tcp`). Los topes son de todo el
+  servidor. Lo que va del relay a una sesión de otro hilo de red cruza por el conmutador en
+  lote (no hay forma de saber al aceptar de qué sesión es una conexión).
+- Opus y retorno compartidos: el `Grupo` de Opus codifica sin candado y publica junto; los
+  codificadores de paso leen con candado compartido (no se esperan entre ellos ni esperan a
+  Opus); el resultado de cada emisión del retorno, igual.
+- #4 (red → trabajo) y #12/#13 (retorno → oyentes) quedan como los arma libwebrtc: el pase
+  red → trabajo es un `PostTask` de libwebrtc (despierta solo si el hilo dormía) y los
+  codificadores de paso corren en las colas compartidas «rtc» (ya en lote: 733 despertadas
+  para 7,6 mil tareas/s con 40). Medir antes de tocar más.
+- `gateway_estado` → `capas`: cada hilo de red y de trabajo con su carga y sus sesiones, las
+  fábricas y el conmutador (directos, encolados, cruzados, despertadas, descartes); `turn` →
+  `fragmentos`.
+- WireGuard en memoria (F5, con HL): `rtc/TunelEnMemoria.{hpp,cpp}` es el `SumideroRtc` de la
+  pila del túnel: cada tanda del hilo de WireGuard va al hilo de red de cada socket por el
+  conmutador (una despertada por hilo y por tanda) y la vuelta es `IpStack::enviarDesdeRtc`;
+  `WebrtcHub::conectarTunel` lo enchufa (main, al arrancar la pila y antes de pararla).
+- Afinidad (F4, de HL): los hilos de red, de trabajo, de las colas, el reloj de audio y los
+  del TURN sin libwebrtc llaman `nucleos::alGrupoGateway()` al empezar.
+
+Medición (pendiente: se hace con todo junto; `medir-sala.py`, Mac, `--camino turn-mezcla:10`
+con `--turn-prueba` y `--camino directo`, 10 y 40, después 80; grabado, habla 1, decodificar
+todo):
+
+| | master (antes) | F1 (R = T = 1) | F2 (automático) |
+|---|---|---|---|
+| CPU del gateway p50, 40 por TURN | | | |
+| Cambios de contexto/s, 40 por TURN | | | |
+| Hilos | | | |
+| `ba-rtc-net*` / `ba-rtc-work*` / `turn` (% de un núcleo) | | | |
+| Edad del audio p50 | | | |
+| Mosaico / celdas (cps) | | | |
+| Lo que recibe el invitado (cps, congelamientos) | | | |
 
 ### F3 — Decodificación: pozo compartido y la placa en Windows
 

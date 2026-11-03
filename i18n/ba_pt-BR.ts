@@ -39576,6 +39576,46 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: hilos de red</source>
+        <translation>Conferência: threads de rede</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (un tercio de los núcleos de un bloque de caché, entre 1 y 4). 1: como antes, para comparar.</source>
+        <translation>Quantas threads atendem a rede dos convidados (suas conexões e o TURN), cada uma com sua parte. 0: automático conforme a máquina (um terço dos núcleos de um bloco de cache, entre 1 e 4). 1: como antes, para comparar.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: hilos de trabajo</source>
+        <translation>Conferência: threads de trabalho</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos arman el audio y el video que llega de los invitados (paquetes, cuadros, el búfer del audio). 0: automático (la mitad de los núcleos de un bloque de caché, entre 1 y 6).</source>
+        <translation>Quantas threads montam o áudio e o vídeo que chegam dos convidados (pacotes, quadros, o buffer de áudio). 0: automático (metade dos núcleos de um bloco de cache, entre 1 e 6).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: combinar hilos de red y de trabajo</source>
+        <translation>Conferência: combinar threads de rede e de trabalho</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cada invitado va al hilo de red y al de trabajo menos cargados, en cualquier combinación. Apagado, cada hilo de red tiene su hilo de trabajo fijo (por si algo falla con la combinación).</source>
+        <translation>Cada convidado vai para a thread de rede e a de trabalho menos carregadas, em qualquer combinação. Desligado: cada thread de rede tem sua thread de trabalho fixa (caso algo falhe com a combinação).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: el TURN entrega en memoria</source>
+        <translation>Conferência: o TURN entrega na memória</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que llega por el TURN (los invitados de afuera) pasa a la conferencia sin dar la vuelta por el sistema. Apagado, como antes (para comparar).</source>
+        <translation>O que chega pelo TURN (os convidados de fora) passa para a conferência sem dar a volta pelo sistema. Desligado: como antes (para comparar).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: decodificar H.264 con la placa</source>
         <translation type="unfinished"></translation>
     </message>
@@ -39810,7 +39850,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>não é uma das opções</translation>
     </message>
     <message>
-        <location line="-220"/>
+        <location line="-224"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Mensagens de chat que são guardadas</translation>
     </message>
@@ -39940,7 +39980,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>Console do operador, painel de oradores e celulares: cada um é uma conexão.</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+10"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -54015,12 +54055,12 @@ Dados (de %2): %3</translation>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+296"/>
+        <location line="+302"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https: não iniciou; os convidados só têm http (sem câmera fora de localhost)</translation>
     </message>
     <message>
-        <location line="-253"/>
+        <location line="-259"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>túnel: sem chave privada WireGuard; túnel desabilitado</translation>
     </message>
@@ -54040,7 +54080,7 @@ Dados (de %2): %3</translation>
         <translation>túnel: WireGuard para %1 como %2 (chave %3; pública %4)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>túnel: no arrancó WireGuard/pila IP</source>
         <translation>túnel: o WireGuard/pilha IP não iniciou</translation>
     </message>
@@ -54075,7 +54115,7 @@ Dados (de %2): %3</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+267"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>túnel: --tunnel-token fica visível na lista de processos; preferir %1</translation>
     </message>
@@ -54095,7 +54135,7 @@ Dados (de %2): %3</translation>
         <translation>túnel: desativado pela configuração (só acesso local)</translation>
     </message>
     <message>
-        <location line="-637"/>
+        <location line="-645"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>rede: IP da máquina %1; no QR: %2</translation>
     </message>
@@ -54105,7 +54145,7 @@ Dados (de %2): %3</translation>
         <translation>proxy: não iniciou (ver o motivo acima)</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+81"/>
         <source>entropia</source>
         <translation>entropia</translation>
     </message>
@@ -54125,7 +54165,7 @@ Dados (de %2): %3</translation>
         <translation>Broadcast Appliance (este equipamento)</translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+102"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn: escutando na porta %1 (TCP e UDP)</translation>
     </message>
@@ -54145,7 +54185,7 @@ Dados (de %2): %3</translation>
         <translation>https: o ba-web não o atende; inicia o terminador próprio</translation>
     </message>
     <message>
-        <location line="+213"/>
+        <location line="+215"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>porta da sala: https em %1:%2</translation>
     </message>
@@ -54200,7 +54240,7 @@ Dados (de %2): %3</translation>
         <translation>parando: encerrando componentes...</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
         <source>cierre ordenado: BA.Health slot 0 = Terminated; exito</source>
         <translation>encerramento ordenado: BA.Health slot 0 = Terminated; sucesso</translation>
     </message>
@@ -54441,7 +54481,7 @@ Dados (de %2): %3</translation>
         <translation>o serviço não está rodando</translation>
     </message>
     <message>
-        <location filename="../src/gateway/turn/Servidor.cpp" line="+923"/>
+        <location filename="../src/gateway/turn/Servidor.cpp" line="+1182"/>
         <source>turn: falta el secreto (16 bytes o más)</source>
         <translation>turn: falta o segredo (16 bytes ou mais)</translation>
     </message>
@@ -85567,7 +85607,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>Convidados que caíram e voltaram ao seu lugar</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-134"/>
+        <location filename="../src/gateway/main.cpp" line="-135"/>
         <source>Edad de lo leído de A (p50 de la última ventana), ms</source>
         <translation>Idade do que foi lido de A (p50 da última janela), ms</translation>
     </message>

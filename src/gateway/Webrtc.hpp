@@ -73,6 +73,17 @@
 
 namespace ba::gateway {
 
+class DestinoCamara; // DestinoCamara.hpp (F3: la cámara a la grilla en el hilo que decodifica)
+namespace turn {
+class Bucle;
+}
+namespace memoria {
+class Conmutador;
+}
+namespace net {
+class IpStack;
+}
+
 /// Callbacks que una sesion invoca. Ver Webrtc.hpp para el detalle de cada uno.
 struct SessionCallbacks {
     /// B genero el answer tras recibir el offer del invitado. `answerSdp` es la
@@ -110,6 +121,9 @@ struct SessionCallbacks {
     /// Un cuadro de la capa que se va (la baja) durante el fundido: no sale, refresca la
     /// imagen que se funde. BGRA.
     std::function<void(const uint8_t* pixels, size_t bytes, int w, int h)> onRemoteVideoAnterior;
+    /// F3 (#6/#8): adónde va la cámara que sale, en el hilo que decodifica (la celda de la
+    /// grilla y ba-app sin pasar por BGRA acá). Vacío = onRemoteVideo como siempre.
+    std::shared_ptr<DestinoCamara> camara;
 };
 
 /// Un cuadro de video para mandar (F2-13): el BGRA que llega de A convertido UNA vez al
@@ -386,6 +400,19 @@ class WebrtcHub {
     };
     Trafico trafico() const;
     static int kMaxViewers() { return ba::ajustes::entero("room.maxVisores", 48); }
+
+    // --- Las capas de la red (PLAN-GATEWAY-FRAGMENTOS.md F1/F2) -----------------------------
+    /// Los hilos de red, en orden (el TURN pone un fragmento en cada uno). Vacío sin libwebrtc.
+    std::vector<turn::Bucle*> buclesRed() const;
+    /// La entrega en memoria entre el TURN, la red de WebRTC y el túnel (el índice de cada hilo
+    /// de red es su posición en buclesRed()). nullptr sin libwebrtc o con
+    /// `gateway.turnEnMemoria` apagado (todo por el kernel, para comparar).
+    memoria::Conmutador* conmutador() const;
+    /// WireGuard en memoria (F5): con la pila del túnel ya andando, sus datagramas van derecho
+    /// a los sockets de WebRTC y vuelven igual. nullptr la suelta (antes de pararla).
+    void conectarTunel(net::IpStack* pila);
+    /// Las capas con su carga: {red:[{hilo, carga, sesiones}], trabajo:[…], fabricas, memoria}.
+    nlohmann::json capasEstado() const;
 
    private:
     int guests_;
