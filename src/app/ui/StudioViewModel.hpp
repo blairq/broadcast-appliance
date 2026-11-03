@@ -171,6 +171,7 @@ class JsonListModel;
 class EventoViewModel;
 class TemaEventoViewModel;
 class PruebaSalaViewModel;
+class PruebaAsambleaViewModel;
 class EnlaceViewModel;
 class CapacidadViewModel;
 namespace sala {
@@ -271,6 +272,8 @@ class StudioViewModel : public QObject {
     /// La prueba de sala: el simulacro con participantes de prueba antes del evento
     /// (ui/PruebaSalaViewModel).
     Q_PROPERTY(QObject* pruebaSala READ pruebaSalaQml CONSTANT)
+    /// La prueba de asamblea: integrantes simulados por la sesión remota (ui/PruebaAsambleaViewModel).
+    Q_PROPERTY(QObject* pruebaAsamblea READ pruebaAsambleaQml CONSTANT)
     /// La velocidad del enlace por el túnel y cuánto necesita el evento (ui/EnlaceViewModel).
     Q_PROPERTY(QObject* enlace READ enlaceQml CONSTANT)
     /// ¿Cuántos invitados aguanta? (Configuración → Sistema → Capacidad, ui/CapacidadViewModel).
@@ -554,9 +557,11 @@ class StudioViewModel : public QObject {
     RecursosViewModel* recursos() const { return recursos_.get(); }
     QObject* recursosQml() const;
     PruebaSalaViewModel& pruebaSala() { return *pruebaSala_; }
+    PruebaAsambleaViewModel& pruebaAsamblea() { return *pruebaAsamblea_; }
     CapacidadViewModel& capacidad() { return *capacidad_; }
     QObject* capacidadQml() const;
     QObject* pruebaSalaQml() const;
+    QObject* pruebaAsambleaQml() const;
     EnlaceViewModel& enlace() { return *enlace_; }
     QObject* enlaceQml() const;
     /// El corte de luz (F1-11): de dónde viene la energía y la política (arranque/EnergiaAire).
@@ -992,6 +997,7 @@ class StudioViewModel : public QObject {
     /// La prueba de sala: usa la sala, el cupo, los recursos, el evento y el enlace.
     /// Última: se destruye antes que ellos (corta el probador y le avisa a la sala).
     std::unique_ptr<PruebaSalaViewModel> pruebaSala_;
+    std::unique_ptr<PruebaAsambleaViewModel> pruebaAsamblea_;
     /// La prueba de capacidad: usa la sala, el cupo, los recursos, el enlace, pinggy y la
     /// grilla. Después de todo: se destruye primero (corta hinchada).
     std::unique_ptr<CapacidadViewModel> capacidad_;

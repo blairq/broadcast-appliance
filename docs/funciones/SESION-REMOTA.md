@@ -4,6 +4,10 @@ Un integrante que no está en el recinto entra por el navegador (WebRTC) y **ocu
 ven y lo escuchan en la sala y en la transmisión cuando tiene la palabra, pide la palabra en la misma
 fila que los presenciales, vota, cuenta para el quórum, ve la pantalla de la sala y escucha la sala.
 
+> **Para ensayarla:** la [Prueba de asamblea](PRUEBA-ASAMBLEA.md) hace entrar integrantes
+> simulados por este mismo camino (link + PIN, la espera, la palabra, el voto), en un evento de
+> prueba.
+
 Es un sistema **aparte de la sala de invitados**. Reusa sus piezas técnicas (señalización, WebRTC,
 túnel, el camino de los medios a la app), pero no su modelo: acá cada participante es un **integrante
 del Cuerpo** con credencial propia, y lo que hace (estar presente, votar) va al acta.
@@ -225,4 +229,5 @@ Cada fase con su GUI, sus herramientas MCP y su prueba sin equipo (clientes simu
 - **Falta:**
   - **R5:** escala hasta 4096, regulador de video y TURN. Sin TURN, el video directo y el WebRTC
     andan en la red de la sala, pero no siempre desde afuera.
-  - **R6:** prueba real con celulares por HTTPS.
+  - **R6:** prueba real con celulares por HTTPS. Los clientes simulados ya están: la
+    [Prueba de asamblea](PRUEBA-ASAMBLEA.md) (hinchada `--servidor integrantes`).

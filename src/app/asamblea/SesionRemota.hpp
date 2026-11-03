@@ -113,6 +113,10 @@ class SesionRemota : public QObject {
     std::string origen() const { return origenLocal_.empty() ? origenRemoto_ : origenLocal_; }
     std::string origenRemoto() const { return origenRemoto_; }
 
+    /// Muchos cambios juntos (dar o revocar los accesos de la «Prueba de asamblea»): el
+    /// gateway y las vistas se enteran una sola vez, al final.
+    void enLote(const std::function<void()>& f);
+
     // --- Estado ---------------------------------------------------------------------
     /// Un aviso del gateway (evento SSE "sesion"): conexion, entrada, intento, bloqueo.
     void evento(const json& ev);
@@ -300,6 +304,18 @@ class SesionRemota : public QObject {
     void guardar() const;
     void anotar(const std::string& que, const std::string& integrante, const json& extra = {});
     json integrante(const std::string& id) const; ///< null si ya no está en el Cuerpo
+    /// Lo creó la «Prueba de asamblea» (Cuerpo::esDePrueba): sin avisos sueltos al operador.
+    bool dePrueba(const std::string& id) const;
+    int lote_ = 0; ///< enLote: dentro de un lote los avisos esperan al final
+    bool pendienteCred_ = false, pendienteCambio_ = false;
+    void avisarCredenciales() {
+        if (lote_ > 0) pendienteCred_ = true;
+        else emit credencialesCambio();
+    }
+    void avisarCambio() {
+        if (lote_ > 0) pendienteCambio_ = true;
+        else emit cambio();
+    }
     /// Su nombre y su banca, o `siNo` / "" si lo borraron del Cuerpo (un voto, un aviso o
     /// un evento suyo pueden llegar después: no hay que tirar con json().value()).
     std::string nombreDe(const std::string& id, const std::string& siNo) const;

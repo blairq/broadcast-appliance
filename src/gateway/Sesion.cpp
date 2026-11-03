@@ -122,6 +122,7 @@ void SesionBorde::ponerCredenciales(const json& participantes) {
         c.hashPin = p.value("hash_pin", std::string());
         c.usuario = minus(p.value("usuario", std::string()));
         c.hashClave = p.value("hash_clave", std::string());
+        c.prueba = p.value("prueba", false);
         for (const auto& a : p.value("aparatos", json::array()))
             if (a.is_object() && a.value("hash", std::string()).size() == 64 && !a.value("id", std::string()).empty())
                 c.aparatos.push_back({a.value("id", std::string()), a.value("sal", std::string()), a.value("hash", std::string())});
@@ -135,6 +136,25 @@ void SesionBorde::ponerCredenciales(const json& participantes) {
     }
     credenciales_ = std::move(nuevas);
     credencialesListas_ = true;
+}
+
+bool SesionBorde::credencialDePrueba(const std::string& id, const std::string& usuario) const {
+    std::lock_guard<std::mutex> l(mu_);
+    if (!id.empty()) {
+        const auto it = credenciales_.find(id);
+        return it != credenciales_.end() && it->second.prueba;
+    }
+    const std::string u = minus(usuario);
+    if (u.empty()) return false;
+    for (const auto& [cid, c] : credenciales_)
+        if (c.usuario == u) return c.prueba;
+    return false;
+}
+
+std::string SesionBorde::lugarDePrueba(const std::string& id, const json& pedido, const std::string& real) const {
+    const std::string pide = pedido.is_object() ? pedido.value("lugar_prueba", std::string()) : std::string();
+    if ((pide != "sala" && pide != "afuera") || !credencialDePrueba(id)) return real;
+    return pide;
 }
 
 bool SesionBorde::credencialesListas() const {
@@ -354,7 +374,10 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
             c->id = deQuien;
             c->aparato = cual;
         } else {
-            if (!intentoPermitido(ip)) {
+            // Los integrantes de prueba salen todos de la máquina del probador: no cuentan
+            // para el tope de intentos por IP (el bloqueo por PIN errado sí les vale).
+            const bool dePrueba = conUsuario ? credencialDePrueba({}, m.value("u", std::string())) : credencialDePrueba(id);
+            if (!dePrueba && !intentoPermitido(ip)) {
                 log_.warn(llenar(traducir("gateway", "sesión: demasiados intentos desde %1"), {ip}), -1);
                 return rechazar(QT_TRANSLATE_NOOP("web/comun", "Demasiados intentos desde esta conexión. Esperá 10 minutos."));
             }
@@ -389,6 +412,8 @@ void SesionBorde::wsLoop(long long fd, const std::string& ip, const std::string&
         }
     }
     c->fd = fd;
+    // Un integrante de prueba puede decir dónde simula estar (ver Sesion.hpp).
+    if (!consola) c->lugar = lugarDePrueba(c->id, pedido, c->lugar);
     canal::anotar(c);
     // Entró con el PIN y la página pide registrar el aparato: el token, una sola vez.
     std::string tokenAparato;

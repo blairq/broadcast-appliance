@@ -136,6 +136,8 @@ ColumnLayout {
             text: qsTr("Ninguno todavía: se registran solos la primera vez que alguien entra con su PIN.")
         }
     }
+    // --- La prueba de asamblea (integrantes simulados por este mismo camino) -------------------
+    PanelPruebaAsamblea { onIrAlRecinto: cr.irAlRecinto() }
     Dialog {
         id: nuevaConsola
         anchors.centerIn: Overlay.overlay
@@ -281,7 +283,8 @@ ColumnLayout {
             anchors { left: parent.left; right: parent.right; verticalCenter: parent.verticalCenter; leftMargin: 8 }
             spacing: 10
             Text { Layout.preferredWidth: 60; color: Theme.textDim; font.pixelSize: 12; text: modelData.banca ? modelData.banca : "" }
-            Text { Layout.preferredWidth: 200; elide: Text.ElideRight; color: Theme.text; font.pixelSize: 12; text: modelData.nombre }
+            Text { Layout.preferredWidth: 200; elide: Text.ElideRight; color: modelData.prueba ? Theme.textDim : Theme.text; font.pixelSize: 12
+                   text: modelData.prueba ? qsTr("%1 · de prueba").arg(modelData.nombre) : modelData.nombre }
             Text { Layout.preferredWidth: 110; elide: Text.ElideRight; font.pixelSize: 12
                    color: est && est.usuario ? Theme.text : Theme.textFaint; text: est && est.usuario ? est.usuario : "—" }
             Text { Layout.preferredWidth: 130; font.pixelSize: 11
