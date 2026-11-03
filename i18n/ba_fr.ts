@@ -6614,7 +6614,7 @@ L'ancien PIN ne permet plus d'entrer.</translation>
 <context>
     <name>CuentasViewModel</name>
     <message>
-        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+133" />
+        <location filename="../src/app/ui/CuentasViewModel.cpp" line="+139" />
         <location line="+6" />
         <source>El escáner de red no está disponible.</source>
         <translation>Le scanner réseau n'est pas disponible.</translation>
@@ -7864,12 +7864,18 @@ Réactivez-la depuis le Journal.</translation>
     <message numerus="yes">
         <location line="+9" />
         <source>%n guardada(s)</source>
-        <translation><numerusform>%n enregistrée</numerusform><numerusform>%n enregistrées</numerusform></translation>
+        <translation>
+            <numerusform>%n enregistrée</numerusform>
+            <numerusform>%n enregistrées</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <location line="+1" />
         <source>puesta en %n monitor(es)</source>
-        <translation><numerusform>sur %n écran</numerusform><numerusform>sur %n écrans</numerusform></translation>
+        <translation>
+            <numerusform>sur %n écran</numerusform>
+            <numerusform>sur %n écrans</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+19" />
@@ -9271,7 +9277,7 @@ Réactivez-la depuis le Journal.</translation>
 <context>
     <name>EscritorioViewModel</name>
     <message>
-        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+135" />
+        <location filename="../src/app/ui/EscritorioViewModel.cpp" line="+136" />
         <source>No hay un monitor «%1»: decí su número, su nombre o su id.</source>
         <translation>Il n'y a pas d'écran « %1 » : indiquez son numéro, son nom ou son id.</translation>
     </message>
@@ -12174,7 +12180,7 @@ Réactivez-la depuis le Journal.</translation>
 <context>
     <name>FrameService</name>
     <message>
-        <location filename="../src/app/ui/FrameService.cpp" line="+235" />
+        <location filename="../src/app/ui/FrameService.cpp" line="+237" />
         <source>Programa</source>
         <translation>Programme</translation>
     </message>
@@ -13592,7 +13598,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>Aucune destination de diffusion configurée (serveur et clé)</translation>
     </message>
     <message>
-        <location line="+10" />
+        <location line="+12" />
         <source>La entrada «%1» no tiene señal ahora</source>
         <translation>L'entrée « %1 » n'a pas de signal pour l'instant</translation>
     </message>
@@ -15439,7 +15445,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
 <context>
     <name>Matriz</name>
     <message>
-        <location filename="../src/app/audio/Matriz.cpp" line="+113" />
+        <location filename="../src/app/audio/Matriz.cpp" line="+115" />
         <source>Programa</source>
         <translation>Programme</translation>
     </message>
@@ -15449,7 +15455,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>Piste %1</translation>
     </message>
     <message>
-        <location line="+270" />
+        <location line="+368" />
         <source>emisión y grabación</source>
         <translation>diffusion et enregistrement</translation>
     </message>
@@ -15459,7 +15465,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>Écoute</translation>
     </message>
     <message>
-        <location line="+104" />
+        <location line="+105" />
         <location line="+19" />
         <source>el motor no está listo</source>
         <translation>le moteur n'est pas prêt</translation>
@@ -15470,7 +15476,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
         <translation>La source audio « %1 » n'existe pas.</translation>
     </message>
     <message>
-        <location line="+89" />
+        <location line="+94" />
         <location line="+167" />
         <source>No existe esa pista.</source>
         <translation>Cette piste n'existe pas.</translation>
@@ -15545,7 +15551,7 @@ Il se modifie dans son code (section Plugins, ou en le demandant à l'assistant)
 <context>
     <name>MatrizAudio</name>
     <message>
-        <location filename="../src/app/qml/controls/MatrizAudio.qml" line="+110" />
+        <location filename="../src/app/qml/controls/MatrizAudio.qml" line="+97" />
         <source>Matriz de mezcla</source>
         <translation>Matrice de mixage</translation>
     </message>
@@ -15639,7 +15645,7 @@ mixage propre (~25 ms)</translation>
         <translation>Replier les pistes 2 à 6</translation>
     </message>
     <message>
-        <location line="+77" />
+        <location line="+91" />
         <source>«%1»
 El vúmetro mide lo que ENTREGA esta entrada: lo que sale de su rack (sus filtros, voz a texto…), antes de su volumen. Se mueve aunque no vaya a ninguna salida.
 La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el programa, las pistas, los auriculares, las salidas del equipo). Lo que entra y cómo se procesa se arma en el rack de la entrada.</source>
@@ -15648,7 +15654,7 @@ Le vumètre mesure ce que FOURNIT cette entrée : ce qui sort de son rack (ses 
 La matrice ne change pas ce qui entre : elle décide vers quelles sorties cela va (les colonnes : le programme, les pistes, le casque, les sorties matérielles). Ce qui entre et la façon dont c'est traité se règlent dans le rack de l'entrée.</translation>
     </message>
     <message>
-        <location line="+82" />
+        <location line="+83" />
         <source>M</source>
         <comment>mute</comment>
         <translation>M</translation>
@@ -15679,7 +15685,7 @@ La matrice ne change pas ce qui entre : elle décide vers quelles sorties cela 
         <translation>Pas encore de sources avec audio (elles s'ajoutent dans Entrées).</translation>
     </message>
     <message>
-        <location line="+37" />
+        <location line="+39" />
         <source>Pan</source>
         <translation>Pan</translation>
     </message>
@@ -16143,7 +16149,7 @@ La matrice ne change pas ce qui entre : elle décide vers quelles sorties cela 
 <context>
     <name>Mezclador</name>
     <message>
-        <location filename="../src/app/audio/Mezclador.cpp" line="+222" />
+        <location filename="../src/app/audio/Mezclador.cpp" line="+223" />
         <source>el audio de los racks no está disponible</source>
         <translation>l'audio des racks n'est pas disponible</translation>
     </message>
@@ -34014,12 +34020,12 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Un synthé automatique n'est pas passé : %1</translation>
     </message>
     <message>
-        <location line="+274" />
+        <location line="+276" />
         <source>no contestó</source>
         <translation>n'a pas répondu</translation>
     </message>
     <message>
-        <location line="+98" />
+        <location line="+101" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conférence redémarrée avec les nouveaux paramètres.</translation>
     </message>
@@ -34163,19 +34169,19 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
 <context>
     <name>SuperRes</name>
     <message>
-        <location filename="../src/app/video/SuperRes.cpp" line="+162" />
+        <location filename="../src/app/video/SuperRes.cpp" line="+164" />
         <location line="+179" />
         <location line="+4" />
         <location line="+16" />
         <location line="+64" />
         <location line="+43" />
-        <location line="+348" />
+        <location line="+344" />
         <location line="+221" />
         <source>cancelada</source>
         <translation>annulée</translation>
     </message>
     <message>
-        <location line="-808" />
+        <location line="-804" />
         <source>ya hay un trabajo andando: «%1»</source>
         <translation>une tâche est déjà en cours : « %1 »</translation>
     </message>
@@ -34266,12 +34272,12 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
     </message>
     <message>
         <location line="+11" />
-        <location line="+348" />
+        <location line="+344" />
         <source>no está el laboratorio (falló su descarga): probá de nuevo</source>
         <translation>le laboratoire est absent (son téléchargement a échoué) : réessayez</translation>
     </message>
     <message>
-        <location line="-346" />
+        <location line="-342" />
         <source>Convertir SPAN</source>
         <translation>Convertir SPAN</translation>
     </message>
@@ -34309,12 +34315,12 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <location line="+14" />
         <location line="+49" />
         <location line="+75" />
-        <location line="+388" />
+        <location line="+384" />
         <source>no hay video</source>
         <translation>pas de vidéo</translation>
     </message>
     <message>
-        <location line="-498" />
+        <location line="-494" />
         <source>Red chica de «%1»</source>
         <translation>Petit modèle pour « %1 »</translation>
     </message>
@@ -34379,7 +34385,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>« %1 » est fourni avec le programme : inutile de l'installer</translation>
     </message>
     <message>
-        <location line="+22" />
+        <location line="+18" />
         <source>%1 (superresolución)</source>
         <translation>%1 (super-résolution)</translation>
     </message>
@@ -34500,17 +34506,17 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
     </message>
     <message>
         <location line="+13" />
-        <location line="+130" />
+        <location line="+132" />
         <source>id inválido</source>
         <translation>id invalide</translation>
     </message>
     <message>
-        <location line="-127" />
+        <location line="-129" />
         <source>no hay un plugin instalado «%1»</source>
         <translation>aucun plugin « %1 » installé</translation>
     </message>
     <message>
-        <location line="+97" />
+        <location line="+99" />
         <source>el plugin «%1» no está instalado (superres_plugins los lista)</source>
         <translation>le plugin « %1 » n'est pas installé (superres_plugins les liste)</translation>
     </message>
@@ -34546,7 +34552,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>impossible d'enregistrer %1</translation>
     </message>
     <message>
-        <location line="+29" />
+        <location line="+33" />
         <source>todas las cámaras del estudio ya tienen su variante</source>
         <translation>toutes les caméras du studio ont déjà leur variante</translation>
     </message>
@@ -35947,7 +35953,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
 <context>
     <name>VentanaLienzo</name>
     <message>
-        <location filename="../src/app/qml/VentanaLienzo.qml" line="+36" />
+        <location filename="../src/app/qml/VentanaLienzo.qml" line="+39" />
         <source>Broadcast Appliance — Distribución, monitor %1</source>
         <translation>Broadcast Appliance — Disposition, écran %1</translation>
     </message>
@@ -37462,12 +37468,12 @@ Escucha:
 <context>
     <name>VideoViewModel</name>
     <message>
-        <location filename="../src/app/ui/VideoViewModel.cpp" line="+161" />
+        <location filename="../src/app/ui/VideoViewModel.cpp" line="+219" />
         <source>Sin GStreamer: %1</source>
         <translation>Sans GStreamer : %1</translation>
     </message>
     <message>
-        <location line="+219" />
+        <location line="+225" />
         <source>«%1» no es una entrada de video</source>
         <translation>« %1 » n'est pas une entrée vidéo</translation>
     </message>
@@ -44566,7 +44572,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-886" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-891" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>démarrage : %1 a pris %2 ms</translation>
     </message>
@@ -50910,7 +50916,7 @@ Données (de %2) : %3</translation>
         <translation>mesure %1 : luminosité %2 dt %3 ms série %4</translation>
     </message>
     <message>
-        <location line="+50" />
+        <location line="+58" />
         <source>el motor no arranco</source>
         <translation>le moteur n'a pas démarré</translation>
     </message>
@@ -52125,7 +52131,7 @@ Données (de %2) : %3</translation>
         <translation>impossible de recadrer « %1 » dans « %2 » (recadrage plus grand que l'image ?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+187" />
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+188" />
         <source>todavía no se pueden crear escenas</source>
         <translation>il n'est pas encore possible de créer des scènes</translation>
     </message>
@@ -52150,7 +52156,7 @@ Données (de %2) : %3</translation>
         <translation>siège %1</translation>
     </message>
     <message>
-        <location line="+95" />
+        <location line="+114" />
         <source>sin canal: hay más de %1 grillas</source>
         <translation>pas de canal : il y a plus de %1 grilles</translation>
     </message>
@@ -52410,7 +52416,32 @@ Données (de %2) : %3</translation>
         <translation>Remplir l'espace</translation>
     </message>
     <message>
+        <location line="+2" />
+        <source>Recorte máximo</source>
+        <translation>Recadrage maximal</translation>
+    </message>
+    <message>
         <location line="+1" />
+        <source>Cuánto del video se puede recortar por lado para llenar el lugar (25 %: celdas entre 4:3 y 21:9). Más allá de eso la celda queda con bandas: nunca franjas finas con la cara cortada.</source>
+        <translation>Quelle part de la vidéo peut être recadrée de chaque côté pour remplir l'emplacement (25 % : cellules entre 4:3 et 21:9). Au-delà, la cellule a des bandes : jamais de fines bandes avec le visage coupé.</translation>
+    </message>
+    <message>
+        <location line="+5" />
+        <source>Celda mínima: ancho</source>
+        <translation>Cellule minimale : largeur</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Ninguna celda baja de este tamaño (medido en un lienzo de 1080 de lado corto; se escala al lienzo). Si no entran todos así, los que sobran van al cuadro «+N».</source>
+        <translation>Aucune cellule ne descend sous cette taille (mesurée sur un canevas de 1080 de petit côté ; mise à l'échelle du canevas). Si tout le monde n'entre pas ainsi, les autres vont dans la case « +N ».</translation>
+    </message>
+    <message>
+        <location line="+3" />
+        <source>Celda mínima: alto</source>
+        <translation>Cellule minimale : hauteur</translation>
+    </message>
+    <message>
+        <location line="+4" />
         <source>Separación</source>
         <translation>Espacement</translation>
     </message>
@@ -52800,7 +52831,7 @@ Données (de %2) : %3</translation>
         <translation>Pas encore de canal : il y a plus de 8 grilles, ou la conférence n'a pas démarré.</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+180" />
+        <location filename="../src/app/escenas/GrillaPersonas.cpp" line="+186" />
         <source>los ajustes van en un objeto</source>
         <translation>les réglages vont dans un objet</translation>
     </message>
@@ -52825,7 +52856,7 @@ Données (de %2) : %3</translation>
         <translation>« %1 » n'est pas un réglage de la grille de personnes</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+20" />
         <source>«grupo» es un texto (vacío = sola)</source>
         <translation>« grupo » est un texte (vide = seule)</translation>
     </message>
@@ -54114,7 +54145,7 @@ Données (de %2) : %3</translation>
         <translation>aucun tunnel WireGuard n'est configuré</translation>
     </message>
     <message>
-        <location line="+510" />
+        <location line="+514" />
         <source>salida inválida</source>
         <translation>sortie invalide</translation>
     </message>
@@ -54547,7 +54578,7 @@ Données (de %2) : %3</translation>
         <translation>Service « %1 » inconnu.</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Grillas.cpp" line="+230" />
+        <location filename="../src/gateway/Grillas.cpp" line="+246" />
         <source>falta «rotulos» (una lista)</source>
         <translation>« rotulos » manque (une liste)</translation>
     </message>
@@ -54572,7 +54603,7 @@ Données (de %2) : %3</translation>
         <translation>synthé « %1 » : le masque ne mesure pas w*h</translation>
     </message>
     <message>
-        <location line="+66" />
+        <location line="+83" />
         <source>falta «grillas» (una lista)</source>
         <translation>« grillas » manque (une liste)</translation>
     </message>
@@ -54627,7 +54658,7 @@ Données (de %2) : %3</translation>
         <translation>cellule de « %1 » sans taille</translation>
     </message>
     <message>
-        <location line="+675" />
+        <location line="+694" />
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>grilles : BA.Grilla.%1 prête (%2x%3)</translation>
     </message>
@@ -55333,7 +55364,7 @@ Données (de %2) : %3</translation>
         <translation>ws : message invalide de %1 (%2)</translation>
     </message>
     <message>
-        <location line="+446" />
+        <location line="+447" />
         <source>capas: a %1 no lo ve nadie (tarjeta: %2): se pausa su cámara</source>
         <translation>couches : personne ne voit %1 (vignette : %2) : sa caméra est mise en pause</translation>
     </message>
@@ -55373,7 +55404,7 @@ Données (de %2) : %3</translation>
         <translation>vidéo : charge du moteur vidéo %1 ; les ips de la couche basse passent du palier %2 au %3 (sur %4)</translation>
     </message>
     <message>
-        <location line="-3369" />
+        <location line="-3370" />
         <source>direcciones: red %1, afuera %2</source>
         <translation>adresses : réseau %1, extérieur %2</translation>
     </message>
@@ -56384,7 +56415,7 @@ Données (de %2) : %3</translation>
         <translation>non</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+920" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+925" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>« %1 » n'a pas démarré à l'ouverture : %2</translation>
     </message>
@@ -58698,12 +58729,12 @@ Les valeurs vides ne laissent pas de séparateurs orphelins : « {nombre} — 
 <context>
     <name>matriz</name>
     <message>
-        <location filename="../src/app/audio/Matriz.cpp" line="-411" />
+        <location filename="../src/app/audio/Matriz.cpp" line="-417" />
         <source>la salida del sistema</source>
         <translation>la sortie du système</translation>
     </message>
     <message>
-        <location line="+338" />
+        <location line="+344" />
         <source>no se pudo crear la entrada virtual «%1»</source>
         <translation>impossible de créer l'entrée virtuelle « %1 »</translation>
     </message>
@@ -60397,7 +60428,7 @@ CE QU'IL FAUT SAVOIR EN L'ACTIVANT : le garde-fou des approbations (`mcp.approv
         <translation>Un carton par-dessus tout ce qui sort ("Suspension de séance", "Nous revenons tout de suite", "Minute de silence"…), avec `texto`, une `imagen` facultative (chemin) et `ms` de fondu (600). Ne dépend pas des scènes. L'activer à l'antenne demande confirmation si un automatisme le demande ; le retirer, non. Survit à un plantage de l'application. Chaque sortie a son carton (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1328" />
+        <location filename="../src/app/mcp/McpService.cpp" line="+1329" />
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>Le chien de garde relance l'application si elle cesse de battre. Le battement vient de l'interface ET d'un thread qui surveille les images du moteur : si l'interface se bloque et que le moteur continue, l'antenne n'est PAS coupée. Avec l'interface bloquée plus de `espera_ui_s` (10 à 3600, par défaut 60) et `matar_si_ui_trabada_sin_aire` (par défaut true), elle n'est relancée que s'il n'y a ni diffusion ni enregistrement. L'interface bloquée AVEC antenne est une alarme qui part sans l'interface, vers la régie web et les notificateurs de `notificar` (« todos », par défaut, ou une liste d'ids de notificador_listar ; [] = aucun). Sans arguments, l'affiche (avec l'état : motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -66967,8 +66998,8 @@ Avec ce répertoire, on construit un graphique SANS écrire de code : c'est ce 
     </message>
     <message>
         <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+23" />
-        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; "" = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar ("#AARRGGBB"). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima | achicando), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador ("" = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; "" = la primera que tenga): la escena del orador.</source>
-        <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (cellules avec le « +N », 0 = sans limite), solo_con_camara, sin_al_aire (sans ceux qui sont déjà à l'antenne dans une autre source ou dans une autre grille visible, en comptant les scènes des couches DSK), resaltar (celui qui parle), grupo (les grilles du même groupe se répartissent les gens sans répétition ; "" = seule), orden_en_grupo (la première impose l'ordre et le mode), reparto (en_orden : remplit la première jusqu'à sa limite ; parejo : le même nombre dans chacune), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo et color_resaltar ("#AARRGGBB"). Quand quelqu'un parle : al_hablar (sin_cambios : la grille n'est pas touchée, seulement la caméra de l'intervenant en haute définition | resaltar : personne ne bouge, l'intervenant reçoit une bordure | destacar : l'intervenant en grand et les autres dans un bandeau, dans le même ordre | superponer : l'intervenant au-dessus dans un espace que la grille laisse | escena : la grille ne change pas et une autre grille avec muestra=orador le montre seul | nada : pas d'intervenant), agrandar (resaltar et escena : no | encima | achicando), pasar_a_escena (escena : a_mano | automatico | asistente : prévient toujours l'opérateur), salida_orador ("" = la principale), escena_orador (créée par grilla_personas_escena_orador), disparo (voz : voix soutenue voz_ms | palabra : la parole de l'assemblée | orador : l'intervenant à l'antenne de la conférence | manual : grilla_personas_destacar), voz_ms, minimo_ms (l'intervenant ne change pas avant : hystérésis), precarga (le suivant demande déjà la couche haute), destacar_lugar (centro|izquierda), destacar_tamano (% du canevas), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la basse à la HD). Noms : nombres (no|nombre|nombre_cargo), nombre_tamano (% de la hauteur de la cellule), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) et sigue (la grille dont elle montre l'intervenant ; "" = la première qui en a un) : la scène de l'intervenant.</translation>
+        <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; "" = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar ("#AARRGGBB"). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima: el orador crece | achicando: el orador crece y los demás se achican; animado en transicion_ms y el borde del orador aparece con un fundido), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador ("" = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; "" = la primera que tenga): la escena del orador.</source>
+        <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (cellules avec le « +N », 0 = sans limite), solo_con_camara, sin_al_aire (sans ceux déjà à l'antenne dans une autre source ou dans une autre grille visible, en comptant les scènes des couches DSK), resaltar (celui qui parle), grupo (les grilles d'un même groupe se partagent les gens sans répétition ; "" = seule), orden_en_grupo (la première fixe l'ordre et le mode), reparto (en_orden : remplit la première jusqu'à sa limite ; parejo : le même nombre dans chacune), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo et color_resaltar ("#AARRGGBB"). Quand quelqu'un parle : al_hablar (sin_cambios : la grille ne bouge pas, seule la caméra de l'orateur en haute | resaltar : personne ne bouge, l'orateur avec une bordure | destacar : l'orateur en grand et les autres dans une bande, dans le même ordre | superponer : l'orateur par-dessus dans un espace laissé par la grille | escena : la grille ne change pas et une autre grille avec muestra=orador le montre seul | nada : sans orateur), agrandar (resaltar et escena : non | encima : l'orateur grandit | achicando : l'orateur grandit et les autres rétrécissent ; animé sur transicion_ms et la bordure de l'orateur apparaît en fondu), pasar_a_escena (escena : a_mano | automatico | asistente : prévient toujours l'opérateur), salida_orador ("" = la principale), escena_orador (définie par grilla_personas_escena_orador), disparo (voz : voix soutenue voz_ms | palabra : la parole de l'assemblée | orador : l'orateur à l'antenne de la conférence | manual : grilla_personas_destacar), voz_ms, minimo_ms (l'orateur ne change pas avant : hystérésis), precarga (le suivant demande déjà la couche haute), destacar_lugar (centro|izquierda), destacar_tamano (% du canevas), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la basse à la HD). Noms : nombres (no|nombre|nombre_cargo), nombre_tamano (% de la hauteur de la cellule), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) et sigue (la grille dont elle montre l'orateur ; "" = la première qui en a un) : la scène de l'orateur.</translation>
     </message>
     <message>
         <location line="+19" />
@@ -66981,7 +67012,12 @@ Avec ce répertoire, on construit un graphique SANS écrire de code : c'est ce 
         <translation>alta_max (par défaut 4 ; de 1 à 64) : plafond strict, jamais plus de personnes que cela en haute à la fois, quel que soit le nombre d'invités. S'ils sont plus nombreux à la demander, par priorité : l'orateur (ou les orateurs), le présentateur, le suivant (préchargement), les épinglés et le reste selon la taille ; celui qui était déjà en haute ne la perd pas au profit d'un nouveau du même groupe. Avec plusieurs grilles, c'est le plus petit alta_max qui s'applique. grilla_personas_estado l'indique pour chaque grille.</translation>
     </message>
     <message>
-        <location line="+7" />
+        <location line="+4" />
+        <source>La forma de las celdas: la proporción del video (16:9) siempre cuenta. Con proporcion=llenar la celda puede recortar el video hasta recorte_max % por lado (de fábrica 25: celdas entre 4:3 y 21:9; 0 a 40); con una proporción fija, la celda exacta con bandas. celda_min_ancho y celda_min_alto (de fábrica 96×54, px en un lienzo de 1080 de lado corto, se escalan al lienzo): ninguna celda más chica; si no entran todos, el resto va al «+N». grilla_personas_estado dice en cada grilla «disposicion»: columnas, filas, la celda en px, su proporción efectiva, la del video, la mínima y la máxima, el mínimo escalado y cuántas celdas caben.</source>
+        <translation>La forme des cellules : le format de la vidéo (16:9) compte toujours. Avec proporcion=llenar la cellule peut recadrer la vidéo jusqu'à recorte_max % par côté (25 par défaut : cellules entre 4:3 et 21:9 ; 0 à 40) ; avec un format fixe, la cellule exacte avec des bandes. celda_min_ancho et celda_min_alto (96×54 par défaut, px sur un canevas de 1080 de petit côté, mis à l'échelle du canevas) : aucune cellule plus petite ; si tout le monde n'entre pas, les autres vont au « +N ». grilla_personas_estado indique pour chaque grille « disposicion » : colonnes, lignes, la cellule en px, son format effectif, celui de la vidéo, le minimum et le maximum, le minimum mis à l'échelle et combien de cellules tiennent.</translation>
+    </message>
+    <message>
+        <location line="+9" />
         <source>Qué muestra cada grilla de personas</source>
         <translation>Ce que montre chaque grille de personnes</translation>
     </message>
@@ -74526,7 +74562,7 @@ N'enregistre qu'après avoir vu le même visage trois passages d'affilée : un 
         <translation>Personne n'est visible sur les caméras d'attente.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4177" />
+        <location filename="../src/app/mcp/McpService.cpp" line="-4178" />
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>ATTENTION : REDÉMARRE LE MOTEUR. Pendant quelques secondes, TOUT ce qui sort est coupé (le programme, la salle, les écrans, ce que voient les invités) et les caméras sont rouvertes. Ne s'applique pas pendant une diffusion ou un enregistrement. Ne l'utilisez pas pour réparer une caméra : prévenez d'abord l'opérateur et demandez-lui de confirmer.</translation>
     </message>
@@ -88317,8 +88353,8 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
     </message>
     <message>
         <location line="+30" />
-        <location filename="../src/motor/Composicion.cpp" line="+1171" />
-        <location filename="../src/motor/Entrada.cpp" line="+1660" />
+        <location filename="../src/motor/Composicion.cpp" line="+1238" />
+        <location filename="../src/motor/Entrada.cpp" line="+1694" />
         <location line="+226" />
         <location filename="../src/motor/Mezcla.cpp" line="+451" />
         <location filename="../src/motor/OrigenRed.cpp" line="+233" />
@@ -88331,7 +88367,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
     </message>
     <message>
         <location line="+8" />
-        <location filename="../src/motor/Entrada.cpp" line="-631" />
+        <location filename="../src/motor/Entrada.cpp" line="-638" />
         <source>el pipeline no arrancó</source>
         <translation>le pipeline n'a pas démarré</translation>
     </message>
@@ -88397,7 +88433,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
     </message>
     <message>
         <location filename="../src/motor/Capturas.cpp" line="+148" />
-        <location filename="../src/motor/Composicion.cpp" line="-657" />
+        <location filename="../src/motor/Composicion.cpp" line="-724" />
         <source>falta %1</source>
         <translation>%1 manquant</translation>
     </message>
@@ -88482,17 +88518,22 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>composition %1 : calque « %2 » construit en %3 ms (création %4, propriétés (le producteur) %5, ajout et liaison %6, pad du mélangeur %7, démarrage %8)</translation>
     </message>
     <message>
-        <location line="+505" />
+        <location line="+511" />
+        <source>composición %1: «%2» salió sin imagen de %3 (no llegó en %4 ms)</source>
+        <translation>composition %1 : « %2 » est sortie sans l'image de %3 (elle n'est pas arrivée en %4 ms)</translation>
+    </message>
+    <message>
+        <location line="+61" />
         <source>composición %1 (%2): %3</source>
         <translation>composition %1 (%2) : %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-920" />
+        <location filename="../src/motor/Entrada.cpp" line="-944" />
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1 : impossible de construire le carton (%2) : sans carton</translation>
     </message>
     <message>
-        <location line="+76" />
+        <location line="+81" />
         <source>%1 — sin señal</source>
         <translation>%1 — pas de signal</translation>
     </message>
@@ -88512,21 +88553,21 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>%1 : quelqu'un est arrivé à sa place : actif en %2 ms</translation>
     </message>
     <message>
-        <location line="+285" />
+        <location line="+299" />
         <source>no hay un análisis en curso en esta entrada</source>
         <translation>aucune analyse en cours sur cette entrée</translation>
     </message>
     <message>
         <location line="+70" />
-        <location line="+190" />
+        <location line="+195" />
         <location line="+38" />
         <location line="+110" />
-        <location line="+1092" />
+        <location line="+1099" />
         <source>%1: %2</source>
         <translation>%1 : %2</translation>
     </message>
     <message>
-        <location line="-1423" />
+        <location line="-1435" />
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>microphone %1 : en attente de sa connexion</translation>
     </message>
@@ -88566,7 +88607,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>%1 : la fenêtre s'est ouverte, capture</translation>
     </message>
     <message>
-        <location line="+113" />
+        <location line="+118" />
         <source>el rack de audio todavía no está (la app no registró barack): se agrega cuando esté</source>
         <translation>le rack audio n'est pas encore là (l'application n'a pas enregistré barack) : il sera ajouté dès qu'il sera disponible</translation>
     </message>
@@ -88631,7 +88672,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>aucune donnée n'arrivait (reconstruction)</translation>
     </message>
     <message>
-        <location line="+53" />
+        <location line="+60" />
         <source>%1: placa en reposo (nadie la usa) en %2 ms</source>
         <translation>%1 : carton en veille (personne ne l'utilise) en %2 ms</translation>
     </message>
@@ -88697,7 +88738,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>« %1 » n'a pas de propriété « %2 »</translation>
     </message>
     <message>
-        <location filename="../src/motor/Escucha.cpp" line="+92" />
+        <location filename="../src/motor/Escucha.cpp" line="+82" />
         <source>no está «%1»: muda hasta que vuelva</source>
         <translation>« %1 » absent : muet jusqu'à son retour</translation>
     </message>
@@ -88794,7 +88835,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>mixage %1 (avertissement de %2) : %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Motor.cpp" line="+64" />
+        <location filename="../src/motor/Motor.cpp" line="+66" />
         <source>motor: %1 plugins de la composición cargados en %2 ms</source>
         <translation>moteur : %1 plugins de composition chargés en %2 ms</translation>
     </message>
@@ -88809,7 +88850,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>le bus PROGRAMME n'a pas démarré : %1</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+15" />
         <source>el video del PROGRAMA no arrancó: %1</source>
         <translation>la vidéo du PROGRAMME n'a pas démarré : %1</translation>
     </message>
@@ -88819,7 +88860,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>le programme pour la passerelle : %1</translation>
     </message>
     <message>
-        <location line="-125" />
+        <location line="-126" />
         <source>al apagar quedaron %1 órdenes sin correr</source>
         <translation>à l'arrêt, %1 commandes n'ont pas été exécutées</translation>
     </message>
@@ -88834,7 +88875,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>il n'y a pas de sortie « %1 »</translation>
     </message>
     <message>
-        <location line="+75" />
+        <location line="+76" />
         <source>la salida «%1» no tiene emisor aparte</source>
         <translation>la sortie « %1 » n'a pas d'émetteur séparé</translation>
     </message>
@@ -88874,12 +88915,12 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>latence du studio : %1 ms (fixée par « %2 »)</translation>
     </message>
     <message>
-        <location line="+810" />
+        <location line="+874" />
         <source>tic de la entrada «%1»</source>
         <translation>tic de l'entrée « %1 »</translation>
     </message>
     <message>
-        <location line="-630" />
+        <location line="-687" />
         <source>falta el id</source>
         <translation>l'id est manquant</translation>
     </message>
@@ -88894,15 +88935,15 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>il existe déjà une entrée « %1 »</translation>
     </message>
     <message>
-        <location line="+28" />
+        <location line="+37" />
         <location line="+35" />
         <location line="+20" />
         <location line="+8" />
         <location line="+22" />
         <location line="+10" />
         <location line="+19" />
-        <location line="+197" />
-        <location line="+668" />
+        <location line="+245" />
+        <location line="+669" />
         <location line="+126" />
         <location line="+23" />
         <location line="+36" />
@@ -88910,7 +88951,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>aucune entrée « %1 »</translation>
     </message>
     <message>
-        <location line="-1138" />
+        <location line="-1187" />
         <source>no se pudo publicar el reloj en el puerto %1</source>
         <translation>impossible de publier l'horloge sur le port %1</translation>
     </message>
@@ -88920,7 +88961,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>piste hors plage (1…6)</translation>
     </message>
     <message>
-        <location line="+24" />
+        <location line="+63" />
         <source>la escena tiene que ser un objeto {nombre, capas}</source>
         <translation>la scène doit être un objet {nombre, capas}</translation>
     </message>
@@ -88930,19 +88971,19 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>le nom de la scène est manquant</translation>
     </message>
     <message>
-        <location line="+35" />
+        <location line="+39" />
         <location line="+20" />
-        <location line="+56" />
+        <location line="+61" />
         <location line="+50" />
         <location line="+146" />
         <location line="+2" />
         <location line="+254" />
-        <location line="+957" />
+        <location line="+980" />
         <source>no hay una escena «%1»</source>
         <translation>aucune scène « %1 »</translation>
     </message>
     <message>
-        <location line="-1407" />
+        <location line="-1430" />
         <source>transición: corte, mezcla, empuje o cortina</source>
         <translation>transition : corte, mezcla, empuje ou cortina</translation>
     </message>
@@ -88969,7 +89010,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
     </message>
     <message>
         <location line="+80" />
-        <location line="+630" />
+        <location line="+631" />
         <source>el motor no está andando</source>
         <translation>le moteur ne fonctionne pas</translation>
     </message>
@@ -89021,7 +89062,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>aucune analyse en cours sur « %1 »</translation>
     </message>
     <message>
-        <location line="+209" />
+        <location line="+231" />
         <source>esperarCola desde el hilo de la interfaz: no tendría que esperar</source>
         <translation>esperarCola depuis le thread de l'interface : il ne devrait pas attendre</translation>
     </message>
@@ -89036,7 +89077,12 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>un bus de la Matrice sans id</translation>
     </message>
     <message>
-        <location line="+106" />
+        <location line="+111" />
+        <source>memoria: se fue gente, se devolvió lo libre del montón: %1 → %2 MB privados (%3 ms)</source>
+        <translation>mémoire : des gens sont partis, le tas libre a été rendu : %1 → %2 Mo privés (%3 ms)</translation>
+    </message>
+    <message>
+        <location line="+25" />
         <source>no se pudo poner el limitador</source>
         <translation>impossible d'appliquer le limiteur</translation>
     </message>
@@ -89813,9 +89859,12 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>`absoluta` est en pixels depuis le coin de l'écran : x et y à partir de 0, largeur et hauteur supérieures à 0.</translation>
     </message>
     <message numerus="yes">
-        <location line="+245" />
+        <location line="+249" />
         <source>%n ventana(s)</source>
-        <translation><numerusform>%n fenêtre</numerusform><numerusform>%n fenêtres</numerusform></translation>
+        <translation>
+            <numerusform>%n fenêtre</numerusform>
+            <numerusform>%n fenêtres</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+14" />
@@ -89903,20 +89952,20 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <location line="+15" />
         <location line="+11" />
         <location line="+14" />
-        <location line="+134" />
+        <location line="+135" />
         <location line="+91" />
         <source>No hay una distribución «%1».</source>
         <translation>Il n'y a pas de disposition « %1 ».</translation>
     </message>
     <message>
-        <location line="-386" />
+        <location line="-387" />
         <location line="+21" />
-        <location line="+370" />
+        <location line="+371" />
         <source>Ya hay una distribución que se llama «%1».</source>
         <translation>Une disposition nommée « %1 » existe déjà.</translation>
     </message>
     <message>
-        <location line="-375" />
+        <location line="-376" />
         <source>%1 (copia)</source>
         <translation>%1 (copie)</translation>
     </message>
@@ -89954,7 +90003,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>« %1 » : son écran n'est pas connecté ; il va sur le %2 (%3).</translation>
     </message>
     <message>
-        <location line="+29" />
+        <location line="+30" />
         <source>El monitor %1 también tiene algo fijo (Pantallas conectadas): se van a tapar. Quitalo ahí si manda la distribución.</source>
         <translation>L'écran %1 a aussi quelque chose de fixe (Écrans connectés) : ils vont se superposer. Retirez-le là-bas si la disposition est prioritaire.</translation>
     </message>
@@ -89964,7 +90013,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Choisissez quoi afficher.</translation>
     </message>
     <message>
-        <location filename="../src/app/pantallas/Distribuciones.cpp" line="-347" />
+        <location filename="../src/app/pantallas/Distribuciones.cpp" line="-348" />
         <location filename="../src/app/pantallas/Ventanas.cpp" line="+2" />
         <source>Como mucho %1 cosas en una ventana: más ya no se leen.</source>
         <translation>%1 éléments maximum dans une fenêtre : au-delà, ce n'est plus lisible.</translation>
@@ -94172,7 +94221,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>processeur</translation>
     </message>
     <message>
-        <location filename="../src/app/video/SuperRes.cpp" line="-1187" />
+        <location filename="../src/app/video/SuperRes.cpp" line="-1191" />
         <source>Verificando %1…</source>
         <translation>Vérification de %1…</translation>
     </message>
