@@ -8,10 +8,10 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 836,
+  "cuantas": 845,
   "por_clase": {
-    "lectura": 278,
-    "escritura": 492,
+    "lectura": 281,
+    "escritura": 498,
     "aire": 50,
     "ui": 16
   },
@@ -341,7 +341,14 @@
         "account_credentials_request",
         "account_open",
         "account_setup_guide",
-        "accounts_status"
+        "accounts_status",
+        "cuenta_agregar",
+        "cuenta_conectar",
+        "cuenta_quitar",
+        "cuenta_renombrar",
+        "cuentas_listar",
+        "vivo_crear",
+        "vivos_listar"
       ]
     },
     {
@@ -969,6 +976,8 @@
         "replay_guardar",
         "salida_borrar",
         "salida_crear",
+        "salida_destino_asignar",
+        "salida_destinos_estado",
         "salida_editar",
         "salida_limpia",
         "salidas_listar",
@@ -3960,7 +3969,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3558
+        "linea": 3559
       },
       "roles": [
         "asistente"
@@ -4283,7 +4292,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1467
+        "linea": 1468
       },
       "roles": [
         "asistente",
@@ -4386,7 +4395,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2291
+        "linea": 2292
       },
       "roles": [
         "asistente",
@@ -4419,7 +4428,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2485
+        "linea": 2486
       },
       "roles": [
         "asistente",
@@ -4475,7 +4484,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2518
+        "linea": 2519
       },
       "roles": [
         "asistente",
@@ -4509,7 +4518,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2503
+        "linea": 2504
       },
       "roles": [
         "asistente",
@@ -4599,7 +4608,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2402
+        "linea": 2403
       },
       "roles": [
         "asistente",
@@ -4646,7 +4655,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2254
+        "linea": 2255
       },
       "roles": [
         "asistente",
@@ -4692,7 +4701,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2426
+        "linea": 2427
       },
       "roles": [
         "asistente",
@@ -4733,7 +4742,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2372
+        "linea": 2373
       },
       "roles": [
         "asistente",
@@ -4814,7 +4823,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2218
+        "linea": 2219
       },
       "roles": [
         "asistente",
@@ -8802,7 +8811,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3511
+        "linea": 3512
       },
       "roles": [
         "asistente"
@@ -9745,7 +9754,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3494
+        "linea": 3495
       },
       "roles": [
         "asistente"
@@ -11011,7 +11020,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4262
+        "linea": 4263
       },
       "roles": [
         "asistente"
@@ -11037,7 +11046,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2572
+        "linea": 2573
       },
       "roles": [
         "asistente"
@@ -11070,7 +11079,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2589
+        "linea": 2590
       },
       "roles": [
         "asistente"
@@ -11100,7 +11109,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4140
+        "linea": 4141
       },
       "roles": [
         "asistente"
@@ -11135,7 +11144,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4174
+        "linea": 4175
       },
       "roles": [
         "asistente"
@@ -11732,6 +11741,345 @@
       "donde": {
         "archivo": "src/app/mcp/McpAccountTools.cpp",
         "linea": 88
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "cuenta_agregar",
+      "titulo": "Agregar una cuenta de una plataforma",
+      "categoria": "cuentas",
+      "descripcion": "Suma otra cuenta de YouTube, Twitch o Facebook (otro canal, otra Página) con el `nombre` que verá el operador. Usa la misma app de la plataforma que la principal. Con `conectar: true` abre ya el navegador para que la PERSONA elija esa cuenta y autorice (después, cuentas_listar dice si quedó conectada). Devuelve su `id`.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "plataforma"
+        ],
+        "properties": {
+          "plataforma": {
+            "type": "string",
+            "enum": [
+              "youtube",
+              "twitch",
+              "facebook"
+            ],
+            "description": "La plataforma."
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "conectar": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "agregar cuenta otra cuenta segundo canal otro canal de youtube otra pagina de facebook sumar cuenta",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpVivosTools.cpp",
+        "linea": 65
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "cuenta_conectar",
+      "titulo": "Conectar o reautorizar una cuenta",
+      "categoria": "cuentas",
+      "descripcion": "Abre el navegador de esta máquina para que la PERSONA elija esa cuenta y la autorice (también para reautorizar una vencida o sin permiso). En Twitch se abre twitch.tv/activate con el código ya cargado. Con `wait: true` espera a que termine (máx. 5 min); si no, vuelve enseguida y cuentas_listar dice cuándo quedó conectada.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "plataforma"
+        ],
+        "properties": {
+          "plataforma": {
+            "type": "string",
+            "enum": [
+              "youtube",
+              "twitch",
+              "facebook"
+            ],
+            "description": "La plataforma."
+          },
+          "cuenta": {
+            "type": "string",
+            "description": "El id de la cuenta (cuentas_listar); sin ella, la principal."
+          },
+          "wait": {
+            "type": "boolean",
+            "default": false
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "conectar cuenta reautorizar vencida autorizar permiso login otra cuenta iniciar sesion",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpVivosTools.cpp",
+        "linea": 132
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "cuenta_quitar",
+      "titulo": "Quitar una cuenta",
+      "categoria": "cuentas",
+      "descripcion": "Revoca el acceso de esa cuenta, borra su token y la saca de la lista. La principal no se quita (se desconecta con <plataforma>_logout). Si algún destino de este evento la usa, no se quita: quitá o reasigná ese destino antes. Preguntale al operador.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "plataforma",
+          "cuenta"
+        ],
+        "properties": {
+          "plataforma": {
+            "type": "string",
+            "enum": [
+              "youtube",
+              "twitch",
+              "facebook"
+            ],
+            "description": "La plataforma."
+          },
+          "cuenta": {
+            "type": "string",
+            "description": "El id de la cuenta (cuentas_listar); sin ella, la principal."
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": true,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "quitar cuenta borrar cuenta sacar canal revocar acceso olvidar cuenta",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpVivosTools.cpp",
+        "linea": 111
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "cuenta_renombrar",
+      "titulo": "Cambiar el nombre de una cuenta",
+      "categoria": "cuentas",
+      "descripcion": "Cambia el nombre con el que el operador ve una cuenta (no toca nada en la plataforma).",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "plataforma",
+          "cuenta",
+          "nombre"
+        ],
+        "properties": {
+          "plataforma": {
+            "type": "string",
+            "enum": [
+              "youtube",
+              "twitch",
+              "facebook"
+            ],
+            "description": "La plataforma."
+          },
+          "cuenta": {
+            "type": "string",
+            "description": "El id de la cuenta (cuentas_listar); sin ella, la principal."
+          },
+          "nombre": {
+            "type": "string"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": true,
+      "etiquetas": {
+        "propias": "renombrar cuenta nombre de la cuenta cambiar nombre canal",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpVivosTools.cpp",
+        "linea": 92
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "cuentas_listar",
+      "titulo": "Las cuentas de cada plataforma",
+      "categoria": "cuentas",
+      "descripcion": "Las cuentas de YouTube, Twitch y Facebook del aparato (puede haber varias por plataforma; la «principal» es la de la página de la plataforma), con su `estado`: conectada, sin_conectar, conectando, vencida (hay que reautorizarla con cuenta_conectar), sin_permiso (reautorizar) o sin_app (falta la app de la plataforma: account_setup_guide). Nunca devuelve secretos. `plataforma` filtra.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "plataforma": {
+            "type": "string",
+            "enum": [
+              "youtube",
+              "twitch",
+              "facebook"
+            ],
+            "description": "La plataforma."
+          }
+        }
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "cuentas varias cuentas canales paginas youtube twitch facebook conectada vencida otra cuenta segundo canal",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpVivosTools.cpp",
+        "linea": 49
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "vivo_crear",
+      "titulo": "Crear un vivo en una cuenta",
+      "categoria": "cuentas",
+      "descripcion": "Crea un vivo en la cuenta (YouTube: liveBroadcast + su stream, privado si no se dice; Facebook: un live_video en prueba, o público con privacidad «public»; Twitch: le pone el título al canal). No transmite nada. Con `salida` además lo asigna como destino de esa salida (como salida_destino_asignar).",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "plataforma",
+          "titulo"
+        ],
+        "properties": {
+          "plataforma": {
+            "type": "string",
+            "enum": [
+              "youtube",
+              "twitch",
+              "facebook"
+            ],
+            "description": "La plataforma."
+          },
+          "cuenta": {
+            "type": "string",
+            "description": "El id de la cuenta (cuentas_listar); sin ella, la principal."
+          },
+          "titulo": {
+            "type": "string"
+          },
+          "descripcion": {
+            "type": "string"
+          },
+          "privacidad": {
+            "type": "string",
+            "enum": [
+              "private",
+              "unlisted",
+              "public"
+            ],
+            "default": "private"
+          },
+          "inicio": {
+            "type": "string",
+            "description": "ISO 8601 (por omisión, ahora)."
+          },
+          "latencia": {
+            "type": "string",
+            "enum": [
+              "normal",
+              "low",
+              "ultraLow"
+            ]
+          },
+          "salida": {
+            "type": "string",
+            "description": "Id o nombre de la salida a la que asignarlo."
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "crear vivo nueva transmision programar directo evento en vivo en otra cuenta",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpVivosTools.cpp",
+        "linea": 189
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
+      "nombre": "vivos_listar",
+      "titulo": "Los vivos de una cuenta",
+      "categoria": "cuentas",
+      "descripcion": "Los vivos programados o activos de una cuenta (YouTube: liveBroadcasts; Facebook: los live_videos de la Página que todavía reciben señal): id, titulo, estado, privacidad, inicio, url. En Twitch el vivo es el canal (uno solo, id vacío). El `id` es el que pide salida_destino_asignar.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "plataforma"
+        ],
+        "properties": {
+          "plataforma": {
+            "type": "string",
+            "enum": [
+              "youtube",
+              "twitch",
+              "facebook"
+            ],
+            "description": "La plataforma."
+          },
+          "cuenta": {
+            "type": "string",
+            "description": "El id de la cuenta (cuentas_listar); sin ella, la principal."
+          }
+        }
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "vivos transmisiones programadas eventos en vivo de la cuenta liveBroadcasts directos programados",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpVivosTools.cpp",
+        "linea": 171
       },
       "roles": [
         "asistente"
@@ -13627,7 +13975,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1265
+        "linea": 1266
       },
       "roles": [
         "asistente",
@@ -13679,7 +14027,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1444
+        "linea": 1445
       },
       "roles": [
         "asistente",
@@ -13711,7 +14059,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1285
+        "linea": 1286
       },
       "roles": [
         "asistente",
@@ -13809,7 +14157,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1506
+        "linea": 1507
       },
       "roles": [
         "asistente",
@@ -13844,7 +14192,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1490
+        "linea": 1491
       },
       "roles": [
         "asistente",
@@ -13967,7 +14315,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1649
+        "linea": 1650
       },
       "roles": [
         "asistente",
@@ -14003,7 +14351,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1569
+        "linea": 1570
       },
       "roles": [
         "asistente",
@@ -14040,7 +14388,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1609
+        "linea": 1610
       },
       "roles": [
         "asistente",
@@ -14078,7 +14426,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1396
+        "linea": 1397
       },
       "roles": [
         "asistente",
@@ -14111,7 +14459,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1356
+        "linea": 1357
       },
       "roles": [
         "asistente",
@@ -14150,7 +14498,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1421
+        "linea": 1422
       },
       "roles": [
         "asistente",
@@ -14229,7 +14577,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1542
+        "linea": 1543
       },
       "roles": [
         "asistente",
@@ -14268,7 +14616,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1589
+        "linea": 1590
       },
       "roles": [
         "asistente",
@@ -14409,7 +14757,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1799
+        "linea": 1800
       },
       "roles": [
         "asistente",
@@ -14456,7 +14804,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1300
+        "linea": 1301
       },
       "roles": [
         "asistente",
@@ -14522,7 +14870,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1230
+        "linea": 1231
       },
       "roles": [
         "asistente",
@@ -14606,7 +14954,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1321
+        "linea": 1322
       },
       "roles": [
         "asistente",
@@ -14646,7 +14994,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3265
+        "linea": 3266
       },
       "roles": [
         "asistente",
@@ -14683,7 +15031,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3279
+        "linea": 3280
       },
       "roles": [
         "asistente",
@@ -14710,7 +15058,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3253
+        "linea": 3254
       },
       "roles": [
         "asistente",
@@ -14737,7 +15085,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3297
+        "linea": 3298
       },
       "roles": [
         "asistente",
@@ -16249,7 +16597,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3376
+        "linea": 3377
       },
       "roles": [
         "asistente",
@@ -16316,7 +16664,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3311
+        "linea": 3312
       },
       "roles": [
         "asistente",
@@ -16359,7 +16707,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3393
+        "linea": 3394
       },
       "roles": [
         "asistente",
@@ -16393,7 +16741,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3360
+        "linea": 3361
       },
       "roles": [
         "asistente",
@@ -16427,7 +16775,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3345
+        "linea": 3346
       },
       "roles": [
         "asistente",
@@ -16522,7 +16870,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3453
+        "linea": 3454
       },
       "roles": [
         "asistente",
@@ -16549,7 +16897,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3438
+        "linea": 3439
       },
       "roles": [
         "asistente",
@@ -17306,7 +17654,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1928
+        "linea": 1929
       },
       "roles": [
         "asistente",
@@ -17364,7 +17712,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1875
+        "linea": 1876
       },
       "roles": [
         "asistente",
@@ -17401,7 +17749,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1844
+        "linea": 1845
       },
       "roles": [
         "asistente",
@@ -17815,7 +18163,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2174
+        "linea": 2175
       },
       "roles": [
         "asistente",
@@ -17850,7 +18198,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2120
+        "linea": 2121
       },
       "roles": [
         "asistente",
@@ -17889,7 +18237,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1954
+        "linea": 1955
       },
       "roles": [
         "asistente",
@@ -17938,7 +18286,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2144
+        "linea": 2145
       },
       "roles": [
         "asistente",
@@ -17966,7 +18314,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1824
+        "linea": 1825
       },
       "roles": [
         "asistente",
@@ -18104,7 +18452,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1973
+        "linea": 1974
       },
       "roles": [
         "asistente",
@@ -22496,7 +22844,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2829
+        "linea": 2830
       },
       "roles": [
         "asistente",
@@ -22535,7 +22883,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2809
+        "linea": 2810
       },
       "roles": [
         "asistente",
@@ -22571,7 +22919,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2866
+        "linea": 2867
       },
       "roles": [
         "asistente",
@@ -22621,7 +22969,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3219
+        "linea": 3220
       },
       "roles": [
         "asistente",
@@ -22649,7 +22997,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3145
+        "linea": 3146
       },
       "roles": [
         "asistente",
@@ -22697,7 +23045,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3157
+        "linea": 3158
       },
       "roles": [
         "asistente",
@@ -22725,7 +23073,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3205
+        "linea": 3206
       },
       "roles": [
         "asistente",
@@ -22766,7 +23114,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3183
+        "linea": 3184
       },
       "roles": [
         "asistente",
@@ -22801,7 +23149,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3065
+        "linea": 3066
       },
       "roles": [
         "asistente",
@@ -22842,7 +23190,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3029
+        "linea": 3030
       },
       "roles": [
         "asistente",
@@ -22874,7 +23222,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2996
+        "linea": 2997
       },
       "roles": [
         "asistente",
@@ -22909,7 +23257,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2929
+        "linea": 2930
       },
       "roles": [
         "asistente",
@@ -22958,7 +23306,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2969
+        "linea": 2970
       },
       "roles": [
         "asistente",
@@ -22986,7 +23334,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2951
+        "linea": 2952
       },
       "roles": [
         "asistente",
@@ -23050,7 +23398,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3104
+        "linea": 3105
       },
       "roles": [
         "asistente",
@@ -23088,7 +23436,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3121
+        "linea": 3122
       },
       "roles": [
         "asistente",
@@ -23116,7 +23464,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2798
+        "linea": 2799
       },
       "roles": [
         "asistente",
@@ -23147,7 +23495,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3090
+        "linea": 3091
       },
       "roles": [
         "asistente",
@@ -23251,7 +23599,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2895
+        "linea": 2896
       },
       "roles": [
         "asistente",
@@ -23279,7 +23627,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2884
+        "linea": 2885
       },
       "roles": [
         "asistente",
@@ -28385,7 +28733,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2552
+        "linea": 2553
       },
       "roles": [
         "asistente",
@@ -28461,7 +28809,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3594
+        "linea": 3595
       },
       "roles": [
         "asistente",
@@ -29543,7 +29891,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3634
+        "linea": 3635
       },
       "roles": [
         "asistente"
@@ -29593,7 +29941,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4056
+        "linea": 4057
       },
       "roles": [
         "asistente"
@@ -29655,7 +30003,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3802
+        "linea": 3803
       },
       "roles": [
         "asistente"
@@ -29681,7 +30029,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3616
+        "linea": 3617
       },
       "roles": [
         "asistente"
@@ -29724,7 +30072,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3775
+        "linea": 3776
       },
       "roles": [
         "asistente"
@@ -29829,7 +30177,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3952
+        "linea": 3953
       },
       "roles": [
         "asistente"
@@ -29864,7 +30212,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3975
+        "linea": 3976
       },
       "roles": [
         "asistente"
@@ -29955,6 +30303,106 @@
       ]
     },
     {
+      "nombre": "salida_destino_asignar",
+      "titulo": "Asignar un vivo o un destino a una salida",
+      "categoria": "salidas",
+      "descripcion": "Un destino más de la salida (`salida`; sin ella, la de quien llama o la por omisión): el vivo `vivo` (vivos_listar) de la cuenta `cuenta` de `plataforma` (en Twitch, sin `vivo`: el canal), o uno genérico con `url` (rtmp://, rtmps://, srt://, rist://) y `clave` (va cifrada). Pide la ingesta a la plataforma (en YouTube enlaza un stream si el vivo no tiene) y queda guardado como los demás destinos (vuelve tras un corte de luz). No lo arranca: stream_start con `destino` (su id). Si otro destino (de esta u otra salida) ya manda a ese vivo, no se asigna y el error dice cuál. Con `id` reemplaza a ese destino.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "plataforma": {
+            "type": "string",
+            "enum": [
+              "youtube",
+              "twitch",
+              "facebook",
+              "rtmp",
+              "srt",
+              "rist"
+            ]
+          },
+          "cuenta": {
+            "type": "string",
+            "description": "El id de la cuenta (cuentas_listar); sin ella, la principal."
+          },
+          "vivo": {
+            "type": "string"
+          },
+          "vivo_titulo": {
+            "type": "string"
+          },
+          "nombre": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "clave": {
+            "type": "string"
+          },
+          "respaldo": {
+            "type": "boolean"
+          },
+          "id": {
+            "type": "string",
+            "description": "El destino a reemplazar (stream_destinos)."
+          },
+          "salida": {
+            "type": "string",
+            "description": "Salida (id o nombre; `salidas_listar`). Sin ella, la por omisión (o la de quien llama)."
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "asignar destino a la salida elegir vivo cuenta para la salida mandar salida a youtube twitch facebook rtmp srt",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpVivosTools.cpp",
+        "linea": 248
+      },
+      "roles": [
+        "asistente"
+      ],
+      "porSalida": true
+    },
+    {
+      "nombre": "salida_destinos_estado",
+      "titulo": "Estado de cada destino",
+      "categoria": "salidas",
+      "descripcion": "Cada destino (de todas las salidas, o de `salida`) con su plataforma, cuenta y vivo, su `estado` (detenido, conectando, en_vivo, reintentando), el bitrate que sale (`kbps`), la salud que informa la plataforma (`salud`: en YouTube estado_stream y salud good/ok/bad; espectadores en Twitch y Facebook) y `choque` si manda al mismo vivo que otro.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "salida": {
+            "type": "string",
+            "description": "Id o nombre de la salida (salidas_listar)."
+          }
+        }
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "estado destinos salud del vivo bitrate en vivo conectando reintentando por salida streamStatus healthStatus",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpVivosTools.cpp",
+        "linea": 296
+      },
+      "roles": [
+        "asistente"
+      ]
+    },
+    {
       "nombre": "salida_editar",
       "titulo": "Cambiar el nombre, el color o el codificador de una salida (o el tope)",
       "categoria": "salidas",
@@ -30030,7 +30478,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4001
+        "linea": 4002
       },
       "roles": [
         "asistente"
@@ -30083,7 +30531,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4031
+        "linea": 4032
       },
       "roles": [
         "asistente"
@@ -30145,7 +30593,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3867
+        "linea": 3868
       },
       "roles": [
         "asistente"
@@ -30179,7 +30627,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3934
+        "linea": 3935
       },
       "roles": [
         "asistente"
@@ -30235,7 +30683,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3905
+        "linea": 3906
       },
       "roles": [
         "asistente"
@@ -30262,7 +30710,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3850
+        "linea": 3851
       },
       "roles": [
         "asistente"
@@ -31232,7 +31680,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3745
+        "linea": 3746
       },
       "roles": [
         "asistente"
@@ -31270,7 +31718,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3675
+        "linea": 3676
       },
       "roles": [
         "asistente"
@@ -31305,7 +31753,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3720
+        "linea": 3721
       },
       "roles": [
         "asistente"
@@ -32494,7 +32942,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2629
+        "linea": 2630
       },
       "roles": [
         "asistente"
@@ -32520,7 +32968,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2654
+        "linea": 2655
       },
       "roles": [
         "asistente"
@@ -32546,7 +32994,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2617
+        "linea": 2618
       },
       "roles": [
         "asistente"
@@ -32579,7 +33027,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2668
+        "linea": 2669
       },
       "roles": [
         "asistente"
@@ -33210,7 +33658,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2683
+        "linea": 2684
       },
       "roles": [
         "asistente"
@@ -33255,7 +33703,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2700
+        "linea": 2701
       },
       "roles": [
         "asistente"
@@ -33288,7 +33736,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2751
+        "linea": 2752
       },
       "roles": [
         "asistente"
@@ -33321,7 +33769,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2735
+        "linea": 2736
       },
       "roles": [
         "asistente"
@@ -34010,7 +34458,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2768
+        "linea": 2769
       },
       "roles": [
         "asistente"

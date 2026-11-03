@@ -39,7 +39,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 
 <!-- registro: lo genera tools/docs/mcp-inventario.py --desde-codigo; no se edita a mano -->
 
-**836 herramientas** en 56 categorías: 278 de lectura, 492 de escritura, 50 de aire y 16 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
+**845 herramientas** en 56 categorías: 281 de lectura, 498 de escritura, 50 de aire y 16 de interfaz (la clase la declara cada una al registrarse; ver «Clases» más abajo).
 
 | Categoría | Herramientas | Lectura | Escritura | Aire | Interfaz |
 |---|---:|---:|---:|---:|---:|
@@ -56,7 +56,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Configuración (`config`) | 5 | 1 | 3 | 1 | 0 |
 | Configuraciones (cada una con lo suyo) (`configuraciones`) | 4 | 1 | 2 | 1 | 0 |
 | Control web (`control_web`) | 7 | 1 | 6 | 0 | 0 |
-| Cuentas (YouTube, Twitch, Facebook) (`cuentas`) | 5 | 3 | 2 | 0 | 0 |
+| Cuentas (YouTube, Twitch, Facebook) (`cuentas`) | 12 | 5 | 7 | 0 | 0 |
 | Documentación del evento (`documentos`) | 10 | 3 | 7 | 0 | 0 |
 | Capas (DSK) (`dsk`) | 3 | 1 | 1 | 1 | 0 |
 | Entradas de video (`entradas`) | 11 | 5 | 6 | 0 | 0 |
@@ -89,7 +89,7 @@ etiquetas de búsqueda, en qué archivo vive), y esta tabla. `test_mcp_registro`
 | Registro (`registro`) | 5 | 2 | 3 | 0 | 0 |
 | Personas y rostros (`rostros`) | 10 | 5 | 5 | 0 | 0 |
 | Conferencia (videollamada con invitados) (`sala`) | 53 | 21 | 28 | 4 | 0 |
-| Salidas (`salidas`) | 22 | 5 | 12 | 5 | 0 |
+| Salidas (`salidas`) | 24 | 6 | 13 | 5 | 0 |
 | Banca virtual (sesión remota) (`sesion`) | 15 | 3 | 12 | 0 | 0 |
 | Sistema (`sistema`) | 13 | 5 | 7 | 1 | 0 |
 | Tiempos del pipeline (`tiempos`) | 10 | 6 | 4 | 0 | 0 |
