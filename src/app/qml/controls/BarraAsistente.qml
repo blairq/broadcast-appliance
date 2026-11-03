@@ -190,6 +190,39 @@ Panel {
             }
         }
 
+        // En el tablero web no está la terminal del asistente al lado: lo que se ve en ella (sus
+        // últimas líneas), desplegable. En la app no hace falta (la respuesta está en el Asistente).
+        ColumnLayout {
+            visible: Theme.web && barra.listo
+            Layout.fillWidth: true
+            spacing: 4
+            property bool abierta: false
+            Text {
+                text: (parent.abierta ? "▾ " : "▸ ") + qsTr("Lo que responde el asistente")
+                color: Theme.textDim; font.pixelSize: 12
+                MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.parent.abierta = !parent.parent.abierta }
+            }
+            Rectangle {
+                visible: parent.abierta
+                Layout.fillWidth: true
+                implicitHeight: respuesta.implicitHeight + 12
+                radius: 6
+                color: Qt.rgba(0, 0, 0, 0.45)
+                Text {
+                    id: respuesta
+                    anchors { left: parent.left; right: parent.right; top: parent.top; margins: 6 }
+                    // Las últimas líneas de la pantalla de la terminal (lo de arriba es lo de antes).
+                    text: {
+                        const l = String(barra.ag.pantalla || "").split("\n")
+                        return l.slice(Math.max(0, l.length - 16)).join("\n")
+                    }
+                    color: Theme.text
+                    font { family: Theme.mono; pixelSize: 11 }
+                    wrapMode: Text.WrapAnywhere
+                }
+            }
+        }
+
         // Los pedidos ya escritos de esta página. Envuelven: son distintos en
         // cada una y no se sabe cuántos entran.
         Item {

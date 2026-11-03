@@ -5,6 +5,8 @@
 #include "ui/StudioViewModel.hpp"
 
 #include "agent/AgentViewModel.hpp"
+#include "audio/Calibracion.hpp"
+#include "audio/Mezclador.hpp"
 #include "agent/Despachador.hpp"
 #include "agent/FlujosTexto.hpp"
 #include "agent/Notificador.hpp"
@@ -801,7 +803,6 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                          "agenteAutomatizacion", "asistente", "descargas", "modelos", "accesoRemoto"});
         // Del asistente, solo si corre y mandarle un pedido (la barra del asistente de las
         // tarjetas y del Mezclador, desde el tablero web): nada de su sesión ni su configuración.
-        replica_->publicarSolo("agent", {"running", "send"});
         replica_->negarFunciones({"copiar", "quit", "quitRequested", "salir", "reiniciar", "abrirCarpeta", "abrirArchivo",
                                   "abrirUrl", "revelar", "mostrarEnFinder"});
         cuadrosWeb_ = std::make_unique<control::CuadrosWeb>(frames_.get());
@@ -829,6 +830,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         cw.ganchos().replica = [this](const std::string& cid, const std::string& ap, const nlohmann::json& perfil,
                                       const nlohmann::json& msg) { replica_->entrada(cid, ap, perfil, msg); };
         cw.ganchos().cerrada = [this](const std::string& cid) { replica_->cerrada(cid); };
+        replica_->publicarSolo("agent", {"running", "send", "pantalla"});
     }
     linea_ = std::make_unique<LineaViewModel>(*evento_, rt_, ventanilla_, frames_.get(), &control_->acciones(), bus_.get());
     connect(linea_.get(), &LineaViewModel::notify, this, &StudioViewModel::notify);
@@ -874,6 +876,25 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     mezcla_ = std::make_unique<MezclaViewModel>(MezclaViewModel::Partes{
         .rt = rt, .ventanilla = ventanilla_, .tiras = *mixer_, .salida = salidas_->activaId(), .alAire = [this] { return alAire(); }});
     connect(mezcla_.get(), &MezclaViewModel::notify, this, &StudioViewModel::notify);
+    // La calibración de sala le avisa al asistente al terminar cada medición (si la sesión lo
+    // tiene prendido): que la mire y le cuente al operador qué tiene la sala. Va como los
+    // avisos automáticos (en cola: no corta una respuesta ni lo que se está escribiendo).
+    if (auto* mz = qobject_cast<audio::Mezclador*>(mezcladorQml()); mz && mz->calibracion()) {
+        audio::Calibracion* cal = mz->calibracion();
+        connect(cal, &audio::Calibracion::medicionTerminada, this, [this, cal](const QString& id, const QString& error) {
+            auto* ag = qobject_cast<agent::AgentViewModel*>(agent());
+            if (id.isEmpty() || !error.isEmpty() || ag == nullptr || !cal->avisarAsistente()) return;
+            // La marca del principio es fija (no se traduce): el asistente la reconoce.
+            ag->avisoAutomatico(
+                "[CALIBRACION DE SALA] " +
+                QString::fromStdString(ba::i18n::llenar(
+                    ba::i18n::traducir("asistente",
+                                       "Terminó la medición «%1». Mirala (calibracion_medicion {\"id\": \"%1\"}) y el análisis "
+                                       "(calibracion_ver) y contale al operador, corto y en criollo, qué se nota de la sala y "
+                                       "qué conviene hacer después. No apliques nada ni midas de nuevo sin que te lo pida."),
+                    {id.toStdString()})));
+        });
+    }
     marca("audio");
     // La voz, las salidas de texto, las tarjetas «Texto a voz» y las traducciones, con los racks.
     asistente_->conRacks(mezcla_->racks());

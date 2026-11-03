@@ -268,6 +268,15 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Aler
     // El buscador de versiones nuevas es uno («agente»): lo registra el del evento.
     if (instancia_ == "evento") registrarActualizaciones();
     connect(session_.get(), &term::TerminalSession::runningChanged, this, &AgentViewModel::runningChanged);
+    // Lo que se ve en la terminal, para quien la mira de afuera: juntado (la terminal cambia
+    // muchas veces por segundo mientras el asistente escribe).
+    pantallaTanda_ = new QTimer(this);
+    pantallaTanda_->setSingleShot(true);
+    pantallaTanda_->setInterval(500);
+    connect(pantallaTanda_, &QTimer::timeout, this, &AgentViewModel::pantallaCambio);
+    connect(session_.get(), &term::TerminalSession::contentChanged, this, [this]() {
+        if (!pantallaTanda_->isActive()) pantallaTanda_->start();
+    });
     connect(session_.get(), &term::TerminalSession::finished, this, [this](int code) {
         const bool expected = expectedStop_;
         expectedStop_ = false;
@@ -2331,6 +2340,14 @@ void AgentViewModel::entregarAutomatico(const QString& texto) {
     // Los demás motores (y OpenCode sin sesión del evento): escrito en su terminal. Claude
     // Code y pi encolan lo que se les escribe mientras responden.
     session_->submit(texto);
+}
+
+QString AgentViewModel::pantalla() const {
+    if (!session_ || session_->rows() <= 0) return {};
+    // La pantalla visible, sin los renglones vacíos del final.
+    QString t = session_->text(0, 0, session_->rows() - 1, session_->cols() - 1, 0);
+    while (t.endsWith(QLatin1Char('\n')) || t.endsWith(QLatin1Char(' '))) t.chop(1);
+    return t;
 }
 
 SesionesEvento AgentViewModel::sesiones() const { return SesionesEvento::delEventoAbierto(rt_.dataRoot()); }

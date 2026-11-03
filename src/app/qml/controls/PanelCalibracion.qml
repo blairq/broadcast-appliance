@@ -976,6 +976,13 @@ Item {
         }
 
         // --- El asistente -----------------------------------------------------------
+        // Al terminar cada medición, que el asistente la mire solo y cuente qué tiene la sala.
+        CheckBox {
+            visible: !!c.cal && !!c.cal.sesion.id
+            text: qsTr("Avisarle al asistente al terminar cada medición")
+            checked: !!c.cal && c.cal.avisarAsistente
+            onToggled: if (c.cal) c.cal.avisarAsistente = checked
+        }
         BarraAsistente {
             Layout.fillWidth: true
             contexto: qsTr("[Ventana del Mezclador, pestaña Calibración de sala; todo está en calibracion_ver y se maneja con calibracion_*. Es de noche si no te digo lo contrario: preferí la sala simulada.]")

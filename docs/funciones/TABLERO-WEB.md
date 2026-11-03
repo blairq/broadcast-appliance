@@ -45,8 +45,14 @@ faders se mueven en vivo; mientras la pestaña está escondida la app no le mand
 
 En la calibración de sala, la barra del asistente también anda desde la web: lo que se le
 pide (o los pedidos ya escritos, como «Explicame la sala») le llega al asistente de la app
-con el contexto del panel, y la respuesta aparece en la pestaña Asistente de la app. El
-dictado por voz es solo en la app (usa su micrófono).
+con el contexto del panel. Lo que responde se ve ahí mismo, desplegando «Lo que responde el
+asistente» (las últimas líneas de su pantalla), y completo en la pestaña Asistente de la app.
+El dictado por voz es solo en la app (usa su micrófono).
+
+Con **«Avisarle al asistente al terminar cada medición»** (prendido de fábrica, se guarda con la
+sesión de calibración), al terminar cada barrido el asistente mira la medición y el análisis
+solo y le cuenta al operador qué se nota de la sala y qué conviene hacer. No aplica nada ni
+vuelve a medir sin que se lo pidan.
 
 ### Un tablero propio por aparato
 

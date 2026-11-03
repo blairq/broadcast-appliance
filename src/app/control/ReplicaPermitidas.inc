@@ -694,6 +694,12 @@ R"json([
  },
  {
   "o": "Studio.mezclador.calibracion",
+  "n": "avisarAsistente",
+  "tipo": "poner",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
   "n": "cancelar",
   "tipo": "llamar",
   "mcp": "calibracion_editar"

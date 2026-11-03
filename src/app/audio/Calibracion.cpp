@@ -118,6 +118,13 @@ void Calibracion::setVista(const QString& v) {
 
 QVariantMap Calibracion::sesion() const { return aMapa(sesionJson(false)); }
 
+void Calibracion::setAvisarAsistente(bool si) {
+    if (!s_.is_object() || si == avisarAsistente()) return;
+    s_["avisar_asistente"] = si;
+    guardar();
+    emit sesionCambio();
+}
+
 json Calibracion::sesionJson(bool conCurvas) const {
     if (!s_.is_object()) return json::object();
     json j = s_;

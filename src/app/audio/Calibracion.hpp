@@ -86,6 +86,9 @@ class Calibracion : public QObject {
     /// Lo que muestra la pestaña: respuesta, impulso, rt o propuesta (el asistente lo
     /// cambia para mostrarle al operador lo que le explica).
     Q_PROPERTY(QString vista READ vista WRITE setVista NOTIFY vistaCambio)
+    /// Al terminar cada medición, avisarle al asistente (para que mire y le cuente al operador
+    /// qué tiene la sala). Es de la sesión: se guarda con ella. De fábrica, sí.
+    Q_PROPERTY(bool avisarAsistente READ avisarAsistente WRITE setAvisarAsistente NOTIFY sesionCambio)
     /// Si ba-lspdsp está (sin ella no se puede medir).
     Q_PROPERTY(bool disponible READ disponible CONSTANT)
 
@@ -96,6 +99,8 @@ class Calibracion : public QObject {
 
     QVariantMap sesion() const;
     QVariantList sesiones() const;
+    bool avisarAsistente() const { return !s_.is_object() || s_.value("avisar_asistente", true); }
+    void setAvisarAsistente(bool si);
     QString estado() const { return estado_; }
     QString mensaje() const { return mensaje_; }
     bool mensajeAviso() const { return mensajeAviso_; }

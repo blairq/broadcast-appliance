@@ -112,6 +112,10 @@ class AgentViewModel : public QObject {
     Q_PROPERTY(bool usingChosenVersion READ usingChosenVersion NOTIFY configChanged)
     Q_PROPERTY(QString pinnedVersion READ pinnedVersion NOTIFY configChanged)
     Q_PROPERTY(bool running READ running NOTIFY runningChanged)
+    /// Lo que se ve ahora en la terminal del asistente (sus últimas líneas, sin el historial):
+    /// para quien lo mira desde otro lado (el tablero web, la barra del asistente). Avisa como
+    /// mucho dos veces por segundo.
+    Q_PROPERTY(QString pantalla READ pantalla NOTIFY pantallaCambio)
     /// OJO CON LA SEÑAL. Esto avisaba por `runningChanged`, que es de otra
     /// cosa: el servidor MCP arranca DESPUES de que la interfaz se dibuja, asi
     /// que el enlace de QML se evaluaba en false y se quedaba ahi hasta que el
@@ -162,6 +166,12 @@ class AgentViewModel : public QObject {
     void setSesionDeEncargos(std::function<SesionCompartida()> fn) { sesionDeEncargos_ = std::move(fn); }
 
     QObject* session() const { return session_.get(); }
+    QString pantalla() const;
+    /// Un aviso automático para la conversación del evento (como las alertas y las novedades,
+    /// en cola: no corta una respuesta ni lo que escribe el operador). Nada si no corre.
+    void avisoAutomatico(const QString& texto) {
+        if (running()) entregarAutomatico(texto);
+    }
     QVariantList providers() const;
     QString provider() const { return provider_; }
     QVariantMap current() const;
@@ -367,6 +377,7 @@ class AgentViewModel : public QObject {
     void installChanged();
     void latestChanged();
     void runningChanged();
+    void pantallaCambio();
     void mcpReadyChanged();
     void errorChanged();
     void alertsChanged();
@@ -391,6 +402,7 @@ class AgentViewModel : public QObject {
     /// API del servidor, a la sesión del evento y en cola (EnvioOpencode); si no, escrito en
     /// la terminal como antes.
     void entregarAutomatico(const QString& texto);
+    QTimer* pantallaTanda_ = nullptr; ///< junta los cambios de la terminal (pantallaCambio)
     /// Las conversaciones guardadas del evento abierto.
     SesionesEvento sesiones() const;
     /// El título de la sesión del evento en OpenCode («<evento> · Evento»).
