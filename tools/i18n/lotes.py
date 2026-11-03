@@ -29,8 +29,11 @@ aunque en el medio haya corrido lupdate (lo que ya no está se saltea y se cuent
 import argparse
 import hashlib
 import json
+import os
 import pathlib
+import platform
 import re
+import subprocess
 import sys
 import xml.etree.ElementTree as ET
 
@@ -134,6 +137,31 @@ def _ok(fuente: str, trad: str) -> str:
     return ""
 
 
+def lconvert() -> pathlib.Path | None:
+    """El lconvert del Qt vendoreado (extern/qt6-host), o LCONVERT=<ruta>."""
+    if os.environ.get("LCONVERT"):
+        return pathlib.Path(os.environ["LCONVERT"])
+    sub = {"Darwin": "macos", "Linux": "gcc_64"}.get(platform.system(), "msvc2019_64")
+    exe = "lconvert.exe" if platform.system() == "Windows" else "lconvert"
+    hay = sorted((RAIZ / "extern" / "qt6-host").glob(f"*/{sub}/bin/{exe}"))
+    return hay[-1] if hay else None
+
+
+def formato_lupdate(ts: pathlib.Path) -> None:
+    """Deja el .ts como lo escribe lupdate (DOCTYPE, comillas dobles, «/>», &apos;, sangría).
+
+    ElementTree lo escribe a su manera: sin esto, cada importar cambiaba el archivo entero (más
+    de cien mil líneas de diff por unas pocas traducciones). lconvert usa el mismo escritor que
+    lupdate y no toca nada más (leído y vuelto a escribir, un .ts de lupdate queda idéntico)."""
+    lc = lconvert()
+    if lc is None:
+        sys.exit("[lotes] no encuentro lconvert en extern/qt6-host ('make deps-qt-host'); o LCONVERT=<ruta>. "
+                 f"El .ts quedó con otro formato: corré tools/i18n/actualizar.py antes de commitear ({ts})")
+    tmp = ts.with_name(ts.name + ".lconvert")
+    subprocess.run([str(lc), "-i", str(ts), "-o", str(tmp)], check=True)
+    tmp.replace(ts)
+
+
 def importar(ts: pathlib.Path, carpeta: pathlib.Path) -> int:
     arbol = ET.parse(ts)
     raiz = arbol.getroot()
@@ -178,7 +206,7 @@ def importar(ts: pathlib.Path, carpeta: pathlib.Path) -> int:
                 t.attrib.pop("type", None)
             puestos += 1
     arbol.write(ts, encoding="utf-8", xml_declaration=True)
-    # El formato de lupdate (DOCTYPE, sangría): la próxima `make i18n-actualizar` lo deja igual.
+    formato_lupdate(ts)
     print(f"[lotes] {puestos} traducciones puestas, {rechazados} rechazadas, {faltan} que ya no están en el .ts")
     return 1 if rechazados else 0
 
