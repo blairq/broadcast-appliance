@@ -1461,7 +1461,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>Theme</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/Theme.qml" line="+63"/>
+        <location filename="../src/app/qml/Theme.qml" line="+66"/>
         <source>%n s</source>
         <comment>segundos, abreviado</comment>
         <translation>

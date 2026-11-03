@@ -1486,6 +1486,16 @@ endif()
     target_link_libraries(test_control_web PRIVATE ba_core Qt6::Core)
     set_target_properties(test_control_web PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_control_web COMMAND test_control_web)
+    # El tablero web (/control/app/): la réplica del modelo, la app y el navegador hablando
+    # por JSON sin red (control/ReplicaPublicador + src/tablero-web/ClienteReplica).
+    add_executable(test_replica tests/test_replica.cpp control/ReplicaPublicador.cpp control/ReplicaPublicador.hpp
+                   control/CuadrosWeb.cpp control/CuadrosWeb.hpp ui/ProveedorCuadros.hpp
+                   ${CMAKE_SOURCE_DIR}/src/tablero-web/ObjetoReplica.cpp ${CMAKE_SOURCE_DIR}/src/tablero-web/ObjetoReplica.hpp
+                   ${CMAKE_SOURCE_DIR}/src/tablero-web/ClienteReplica.cpp ${CMAKE_SOURCE_DIR}/src/tablero-web/ClienteReplica.hpp)
+    target_include_directories(test_replica PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/tablero-web")
+    target_link_libraries(test_replica PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::QmlPrivate)
+    set_target_properties(test_replica PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_replica COMMAND test_replica)
     add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp asamblea/SeguirMicrofono.cpp
                    asamblea/SeguirMicrofono.hpp asamblea/Bancas.cpp asamblea/Bancas.hpp asamblea/Cuerpo.cpp
                    control/BusEventos.cpp control/BusEventos.hpp sala/OradoresSalaReglas.cpp)

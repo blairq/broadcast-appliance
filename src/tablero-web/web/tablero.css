@@ -1,0 +1,19 @@
+html, body { margin: 0; padding: 0; height: 100%; background: #16161a; overflow: hidden; }
+#pantalla { position: fixed; inset: 0; }
+#aviso {
+  position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: #16161a; color: #e9e9ee; font: 15px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  z-index: 10;
+}
+#aviso.oculto, .oculto { display: none !important; }
+#aviso.encima { background: rgba(10, 10, 12, 0.72); }
+.caja { max-width: 440px; padding: 24px; text-align: center; }
+.caja h1 { font-size: 20px; font-weight: 600; margin: 12px 0 8px; }
+.caja p { color: #a4a4ad; margin: 0 0 14px; }
+.caja a { color: #ff8a4c; }
+.girando {
+  width: 28px; height: 28px; margin: 0 auto; border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.15); border-top-color: #ff6b2b;
+  animation: girar 0.9s linear infinite;
+}
+@keyframes girar { to { transform: rotate(360deg); } }

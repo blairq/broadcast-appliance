@@ -184,6 +184,27 @@ const json* ControlWeb::buscarAparato(const std::string& id) const {
     return nullptr;
 }
 
+json ControlWeb::autorizar(const std::string& aparato, const std::string& herramienta, bool lectura, bool confirmado) const {
+    const json* a = buscarAparato(aparato);
+    if (a == nullptr) return {{"ok", false}, {"error", traducir("control-web", "Este aparato no está emparejado (o fue quitado).")}};
+    if (core_ == nullptr) return {{"ok", false}, {"error", traducir("control-web", "La app todavía está arrancando.")}};
+    const std::string h = core_->nombreActual(herramienta);
+    const mcp::Tool* tool = core_->findTool(h);
+    if (tool == nullptr) return {{"ok", false}, {"error", llenar(traducir("control-web", "No existe la herramienta «%1»."), {h})}};
+    if (!permite(a->value("perfil", json::array()), tool->category, lectura || tool->readOnly))
+        return {{"ok", false},
+                {"error", llenar(traducir("control-web", "«%1» (categoría «%2») no está en el perfil de este aparato. "
+                                                         "Lo amplía una persona desde la app."),
+                                 {h, tool->category})}};
+    if (!lectura && !confirmado && core_->hayAire() && core_->aire().esDeAire(h, json::object()))
+        return {{"ok", false},
+                {"confirmar", true},
+                {"texto", llenar(traducir("control-web", "«%1» cambia lo que sale y hay aire (transmisión o "
+                                                         "grabación). ¿Lo hacés igual?"),
+                                 {tool->title.empty() ? h : tool->title})}};
+    return {{"ok", true}};
+}
+
 void ControlWeb::auditar(const std::string& aparato, const std::string& texto) const {
     const json* a = buscarAparato(aparato);
     const std::string quien = aparato + (a != nullptr ? " «" + a->value("nombre", std::string()) + "»" : std::string());
@@ -455,6 +476,7 @@ void ControlWeb::conexion(const std::string& cid, const std::string& aparato, bo
                           const std::string& lugar) {
     if (!conectado) {
         if (conns_.erase(cid) == 0) return;
+        if (g_.cerrada) g_.cerrada(cid);
         reacomodarSondeos();
         emit conexionesCambio();
         emit aparatosCambio();
@@ -552,7 +574,10 @@ void ControlWeb::entrada(const std::string& cid, const std::string& aparato, con
     else if (t == "mirar") mirar(cid, msg);
     else if (t == "hola") enviarAuth(cid);
     else if (t == "preferencias") preferencias(cid, msg);
-    else if (t == "salida") {
+    else if (t == "replica") {
+        const json* a = buscarAparato(conns_[cid].aparato);
+        if (g_.replica && a != nullptr) g_.replica(cid, conns_[cid].aparato, a->value("perfil", json::array()), msg);
+    } else if (t == "salida") {
         if (const std::string e = setSalida(conns_[cid].aparato, textoDe(msg, "salida")); !e.empty()) {
             json m = mensajeSalida(conns_[cid].aparato);
             m["error"] = e;

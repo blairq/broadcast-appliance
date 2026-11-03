@@ -54,6 +54,7 @@ install(PROGRAMS "${BA_WIN_MT_DIR}/src/gateway/ba-gateway.exe" DESTINATION bin/6
 # Las vistas web: assets/web/ entero, como en src/gateway (ver ahí por qué no
 # hay más una lista por vista: Windows se quedaba sin las nuevas).
 install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/" DESTINATION Web COMPONENT bundle)
+include("${CMAKE_SOURCE_DIR}/cmake/BaTableroWeb.cmake") # /control/app/ (el mismo .wasm)
 
 # Los tests de la parte /MT (ba_core, launcher, gateway) se corren desde su
 # propio arbol (en Windows): ctest --test-dir build/win/win-mt

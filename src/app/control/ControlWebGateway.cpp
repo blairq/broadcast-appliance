@@ -110,6 +110,27 @@ void ControlWebGateway::despachar() {
     });
 }
 
+void ControlWebGateway::enviarEnOrden(const std::string& cid, const json& msg) {
+    // La réplica del tablero web va por la cola en orden (el esquema de un objeto antes que lo
+    // que lo nombra), como el resto de lo que va a las conexiones.
+    encolar("/api/v1/control/enviar", {{"conexiones", json::array({cid})}, {"msg", msg}});
+}
+
+void ControlWebGateway::enviarCuadro(const std::string& cid, const json& msg) {
+    if (!gw_.online()) return;
+    int& n = cuadrosEnVuelo_[cid];
+    if (n >= kCuadrosEnVuelo) return;
+    ++n;
+    QPointer<ControlWebGateway> yo(this);
+    sala::pedir(gw_, "POST", "/api/v1/control/enviar", {{"conexiones", json::array({cid})}, {"msg", msg}},
+                [yo, cid](const std::string&, const json&) {
+                    if (!yo) return;
+                    auto it = yo->cuadrosEnVuelo_.find(cid);
+                    if (it == yo->cuadrosEnVuelo_.end()) return;
+                    if (--it->second <= 0) yo->cuadrosEnVuelo_.erase(it);
+                });
+}
+
 void ControlWebGateway::evento(const json& ev) {
     const std::string tipo = texto(ev, "tipo");
     if (tipo == "solicitud") {

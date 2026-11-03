@@ -20,6 +20,7 @@ Item {
     }
     // Sacar a una ventana aparte (sin cortes: mismo servicio de frames).
     Rectangle {
+        visible: !Theme.web // la ventana se abriría en la máquina de la app
         anchors { right: selector.left; top: parent.top; margins: 8 }
         radius: 10; height: 26; width: 30
         color: popMa.containsMouse ? Qt.rgba(1, 0.42, 0.17, 0.8) : Qt.rgba(0, 0, 0, 0.55)

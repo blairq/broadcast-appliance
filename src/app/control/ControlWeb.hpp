@@ -45,6 +45,9 @@
 //                                  contexto (CallContext::salida) y los temas que mira
 //                                  son los de ella. Elegir salida no amplía el perfil.
 //   {type:"ping"}                  lo contesta el gateway con {type:"pong"}.
+//   {type:"replica", op, …}        el tablero web (/control/app/, Qt para WebAssembly): la
+//                                  misma vista del dashboard con un Studio réplica. Lo
+//                                  atiende control/ReplicaPublicador (su protocolo está allá).
 //
 // app → aparato
 //   {type:"auth", ok:true, aparato, nombre, perfil, lugar, preferencias, categorias:[{id,titulo}],
@@ -149,6 +152,12 @@ class ControlWeb : public QObject {
         std::function<void(const std::string& tema, bool mirando)> mirando;
         /// Las salidas: [{id, nombre, color, por_omision}], la por omisión primera.
         std::function<json()> salidas;
+        /// El tablero web (Qt para WebAssembly, /control/app/, control/ReplicaPublicador): un
+        /// {type:"replica"} de esa conexión, con el perfil de su aparato.
+        std::function<void(const std::string& conexion, const std::string& aparato, const json& perfil, const json& msg)>
+            replica;
+        /// Esa conexión se fue (la réplica suelta lo que tenía).
+        std::function<void(const std::string& conexion)> cerrada;
     };
     struct Tema {
         std::string id;
@@ -222,6 +231,15 @@ class ControlWeb : public QObject {
     /// reconocer una conexión de antes de que la app arrancara de nuevo.
     void entrada(const std::string& conexion, const std::string& aparato, const json& msg);
     int conectados() const { return static_cast<int>(conns_.size()); }
+    /// Le manda `msg` a esa conexión (por el gateway). Para la réplica del tablero web.
+    void mandarA(const std::string& conexion, const json& msg) { mandar(conexion, msg); }
+    /// Para la réplica del tablero web: ¿ese aparato puede hacer lo que haría `herramienta`
+    /// (la equivalente de una función o propiedad del dashboard)? Las mismas reglas que llamar:
+    /// el perfil (`lectura`: si solo mira) y, si toca el aire y hay aire, pedir confirmación.
+    /// {ok:true} | {ok:false, error} | {ok:false, confirmar:true, texto}.
+    json autorizar(const std::string& aparato, const std::string& herramienta, bool lectura, bool confirmado) const;
+    /// Deja en el registro (componente «control-web») lo que hizo un aparato.
+    void anotar(const std::string& aparato, const std::string& texto) const { auditar(aparato, texto); }
 
     // --- Para la interfaz (QML): lo hace una persona ------------------------------------
     QVariantList aparatosUi() const;

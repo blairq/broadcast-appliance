@@ -12,6 +12,8 @@
 //
 // Aparato (puerto de invitados, 8787, o el HTTPS 8789):
 //   GET  /control/...                   la página (Web/control; CSP estricta). /control → /control/
+//   GET  /control/app/...               el tablero web (Qt para WebAssembly): la misma vista del
+//                                       dashboard de la app; .wasm/.js comprimidos (.br/.gz)
 //   POST /api/control/emparejar         {codigo, nombre} -> {solicitud}   (solo red local)
 //   GET  /api/control/emparejar?solicitud=  -> {estado, aparato?, token?}
 //                                       (el token se entrega UNA vez, a la misma IP que pidió)
@@ -99,6 +101,8 @@ class ControlWebBorde {
     void wsLoop(long long fd, const std::string& headers, std::uint32_t clientIp, bool remoto);
     void cortar(const std::shared_ptr<Conn>& c, const std::string& motivo);
     bool servir(long long fd, const std::string& rel);
+    /// /control/app/…: el tablero web (WebAssembly), con su CSP, caché por versión y comprimido.
+    bool servirTablero(long long fd, const std::string& rel, const std::string& query, const std::string& headers);
     bool intentoPermitido(std::uint32_t ip);
     bool bloqueada(std::uint32_t ip) const;
 

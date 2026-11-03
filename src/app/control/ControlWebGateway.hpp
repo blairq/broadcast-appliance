@@ -26,6 +26,7 @@
 
 #include <deque>
 #include <functional>
+#include <map>
 #include <string>
 
 namespace ba::app {
@@ -47,6 +48,13 @@ class ControlWebGateway : public QObject {
     /// Un código de un uso con `perfil` (null = todo) y la URL/QR que abre el
     /// navegador: {codigo, vence_ms, url, qr, huella?, aviso?} o {error}.
     void emparejar(const json& perfil, const std::string& nombre, std::function<void(const json&)> listo);
+    /// Para el tablero web: lo de la réplica, por la cola en orden (el esquema de un objeto
+    /// tiene que llegar antes que lo que lo nombra).
+    void enviarEnOrden(const std::string& conexion, const json& msg);
+    /// Un cuadro de video: APARTE de la cola (no frena a la réplica ni a los estados); como
+    /// mucho kCuadrosEnVuelo sin contestar por conexión; si no, se descarta (la red o el navegador no dan abasto: mejor el próximo que uno viejo).
+    void enviarCuadro(const std::string& conexion, const json& msg);
+    static constexpr int kCuadrosEnVuelo = 2;
     /// Lo que dice el gateway (conexiones vivas, credenciales, túnel), o "apagado" / "sin respuesta".
     void estado(std::function<void(const json&)> listo);
 
@@ -75,6 +83,7 @@ class ControlWebGateway : public QObject {
 
     ControlWeb& cw_;
     ConferenceClient& gw_;
+    std::map<std::string, int> cuadrosEnVuelo_;
 };
 
 } // namespace ba::app::control
