@@ -71,15 +71,22 @@ QJsonArray gente(int desde, int cuantos) {
     return a;
 }
 
-/// Los VideoItem que existen (visibles en la escena) y cuántos tienen enVista.
-void contarVideos(QObject* raiz, int& existen, int& enVista) {
-    existen = enVista = 0;
-    for (QQuickItem* it : raiz->findChildren<QQuickItem*>()) {
-        auto* v = qobject_cast<VideoItem*>(it);
-        if (v == nullptr || !v->isVisible()) continue;
+/// Recorre el árbol de la ESCENA (childItems), no el de QObject: los delegados de una vista
+/// (GridView, ListView) cuelgan del contentItem como ítems, pero su padre QObject no es la
+/// ventana, y findChildren no los encuentra.
+void recorrer(QQuickItem* it, int& existen, int& enVista) {
+    if (auto* v = qobject_cast<VideoItem*>(it); v != nullptr && v->isVisible()) {
         ++existen;
         if (v->enVista()) ++enVista;
     }
+    for (QQuickItem* h : it->childItems()) recorrer(h, existen, enVista);
+}
+
+/// Los VideoItem que existen (visibles en la escena) y cuántos tienen enVista.
+void contarVideos(QObject* raiz, int& existen, int& enVista) {
+    existen = enVista = 0;
+    auto* ventana = qobject_cast<QQuickWindow*>(raiz);
+    if (ventana != nullptr) recorrer(ventana->contentItem(), existen, enVista);
 }
 
 } // namespace
