@@ -33,6 +33,10 @@
 
 namespace ba::diag::acoples {
 
+namespace detalle {
+std::atomic<int> demoraMs{0};
+} // namespace detalle
+
 namespace {
 
 std::atomic<std::thread::id> g_hiloInterfaz{};

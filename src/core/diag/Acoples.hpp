@@ -56,8 +56,10 @@ constexpr int kVentanaMs = 5000;
 constexpr int kTopeVentanaMs = 3000;
 
 namespace detalle {
-/// La demora en ms (0 = apagado). Inline: el camino apagado es una lectura atómica.
-inline std::atomic<int> demoraMs{0};
+/// La demora en ms (0 = apagado): el camino apagado es una lectura atómica. Definida en
+/// Acoples.cpp, no `inline`: en el .exe de Windows (clang-cl) la copia inline que leían los
+/// ganchos no era la que encendía activar() y el detector no anotaba nada (2026-11-03).
+extern std::atomic<int> demoraMs;
 } // namespace detalle
 
 /// ¿Está encendido el sabotaje? (Desde cualquier hilo.)
