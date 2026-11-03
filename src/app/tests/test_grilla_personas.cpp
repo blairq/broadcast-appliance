@@ -37,6 +37,9 @@
 //  15. Alta definición como mucho N a la vez («alta_max», de fábrica 4): con 5, 10 y 40
 //      invitados y 0, 1 o 2 oradores, presentador y precargado, nunca más de 4 en alta; la
 //      prioridad (orador, presentador, precargado, fijado, tamaño) y sin parpadeo en el borde.
+//  16. Las entradas se juntan; el orador no se cuela delante de los que esperaban.
+//  17. Un grupo de dos grillas, 60 personas y el orador que rota: nadie cambia de grilla ni
+//      de lugar, cada grilla informa su orador, el orden de llegada en «en orden» y «parejo».
 // ============================================================================
 #include <algorithm>
 #include <cstdio>
@@ -780,21 +783,27 @@ void enLaGrilla() {
         const std::set<std::string> vis(res[0].personas.begin(), res[0].personas.end());
         CHECK(vis.count("sala:p5") && res[0].orador == "sala:p5", "el orador entra aunque llegó último");
     }
-    // En un grupo, el orador de una grilla queda en ESA grilla (no se lo lleva el reparto).
+    // En un grupo, el que habla se queda en SU grilla (2026-11-03): la que lo tiene lo muestra
+    // con su «al_hablar»; la otra no tiene orador. Antes el reparto lo llevaba a la grilla cuya
+    // máquina lo elegía y largaba a otro.
     {
         Repartidor rep;
         std::vector<Config> gs{grilla("A", 3, "g", 1), grilla("B", 3, "g", 2)};
         gs[1].canal = 2;
+        gs[0].alHablar = AlHablar::Nada;
         gs[1].alHablar = AlHablar::Destacar;
         gs[1].disparo = Disparo::Palabra;
-        gs[0].alHablar = AlHablar::Nada;
         auto v = gente(5);
-        v[0].palabra = true; // llegó primero: el reparto «en orden» lo pondría en A
-        auto res = rep.calcular(gs, v, {}, 0);
-        CHECK(res[1].orador == "sala:p0", "B tiene su orador");
-        CHECK(std::find(res[1].personas.begin(), res[1].personas.end(), "sala:p0") != res[1].personas.end() &&
-                  std::find(res[0].personas.begin(), res[0].personas.end(), "sala:p0") == res[0].personas.end(),
-              "y está en B, no en A");
+        auto antes = rep.calcular(gs, v, {}, 0);
+        v[0].palabra = true; // está en A (llegó primero): B no se lo lleva
+        auto res = rep.calcular(gs, v, {}, 1000);
+        CHECK(res[0].personas == antes[0].personas && res[1].personas == antes[1].personas,
+              "el que tiene la palabra no cambia de grilla");
+        CHECK(res[0].orador.empty() && res[1].orador.empty(), "A no muestra orador (al_hablar = nada) y B no lo tiene");
+        v[0].palabra = false;
+        v[4].palabra = true; // está en B
+        res = rep.calcular(gs, v, {}, 10000);
+        CHECK(res[1].orador == "sala:p4" && res[1].personas == antes[1].personas, "en B: destacado dentro de B, nadie se mueve");
     }
     // La escena del orador: otra grilla muestra solo al orador de esta.
     {
@@ -1271,7 +1280,12 @@ void entradasJuntas() {
         return std::find(x.personas.begin(), x.personas.end(), k) != x.personas.end();
     };
     CHECK(esta(y[0], "sala:c") && y[0].orador == "sala:c", "el orador entra en el acto");
-    CHECK(!esta(y[0], "sala:b") && y[0].entrando == 1, "el otro sigue esperando");
+    // Y con él los que llegaron antes (si no, se colaba: «…33, 35, 36, 34»).
+    CHECK(y[0].personas == std::vector<std::string>({"sala:a", "sala:b", "sala:c"}) && y[0].entrando == 0,
+          "b, que llegó antes que el orador, entra con él y en su orden");
+    u.push_back(sala("e", 4));
+    y = ro.calcular(go, u, {}, 250);
+    CHECK(!esta(y[0], "sala:e") && y[0].entrando == 1, "el que llega después del orador sigue esperando");
     Manual m;
     m.fijar("g", "sala:d");
     u.push_back(sala("d", 3));
@@ -1308,6 +1322,110 @@ void entradasJuntas() {
     CHECK(adentro == 64 && sueltos == 64, "sin el intervalo, un reacomodo por cada uno (como antes)");
 }
 
+// 17. Un grupo de dos grillas con 60 personas y el orador que rota (la prueba de la .177 del
+//     2026-11-03): entran de a uno con «las entradas se juntan» mientras va cambiando quién
+//     habla, y después el orador rota cada 10 s. Nadie cambia nunca de grilla ni de lugar; la
+//     grilla donde está el que habla dice que es su orador y la otra, nadie; el orden de
+//     llegada se respeta: «en orden», la primera con los 36 primeros y la segunda con el resto;
+//     «parejo», de a uno por turno (pares e impares), cada grilla en orden de llegada.
+void grupoConOradorQueRota() {
+    for (const Reparto modo : {Reparto::EnOrden, Reparto::Parejo})
+        for (const AlHablar al : {AlHablar::Resaltar, AlHablar::Destacar}) {
+            const std::string caso = std::string(modo == Reparto::EnOrden ? "en orden" : "parejo") +
+                                     (al == AlHablar::Resaltar ? ", resaltar" : ", destacar");
+            std::vector<Config> gs{grilla("Remotos 1", 36, "remotos", 1), grilla("Remotos 2", 36, "remotos", 2)};
+            gs[1].canal = 2;
+            for (Config& c : gs) {
+                c.reparto = modo;
+                c.alHablar = al;
+                c.disparo = Disparo::Voz;
+                c.vozMs = 1500;
+                c.minimoMs = 4000;
+            }
+            Repartidor rep;
+            rep.reacomodoMinMs(1500);
+            std::vector<Persona> v;
+            std::map<std::string, int> grillaDe;        // clave → 0 | 1, desde que entró
+            std::map<std::string, std::size_t> lugarDe; // clave → su lugar en esa grilla
+            bool quietos = true, oradorBien = true, unaSola = true;
+            int habla = -1;
+            const auto ponerHabla = [&](int i, std::int64_t t) {
+                for (Persona& p : v) {
+                    p.hablando = false;
+                    p.hablaDesdeMs = 0;
+                }
+                habla = i;
+                if (i >= 0) v[static_cast<std::size_t>(i)] = hablando(v[static_cast<std::size_t>(i)], t - 2000);
+            };
+            const auto revisar = [&](const std::vector<Resultado>& res, std::int64_t t) {
+                std::set<std::string> vistos;
+                for (int g = 0; g < 2; ++g)
+                    for (std::size_t j = 0; j < res[static_cast<std::size_t>(g)].personas.size(); ++j) {
+                        const std::string& k = res[static_cast<std::size_t>(g)].personas[j];
+                        unaSola = unaSola && vistos.insert(k).second;
+                        const auto it = grillaDe.find(k);
+                        if (it == grillaDe.end()) {
+                            grillaDe[k] = g;
+                            lugarDe[k] = j;
+                        } else if (it->second != g || lugarDe[k] != j) {
+                            quietos = false;
+                            std::printf("  %s: %s pasó de la grilla %d (lugar %zu) a la %d (lugar %zu) a los %lld ms\n",
+                                        caso.c_str(), k.c_str(), it->second + 1, lugarDe[k], g + 1, j,
+                                        static_cast<long long>(t));
+                        }
+                    }
+                // El orador: lo dice la grilla donde está; la otra, nadie.
+                CHECK(res[0].orador.empty() || res[1].orador.empty(), ("un orador por grupo, en una sola grilla: " + caso).c_str());
+                for (int g = 0; g < 2; ++g) {
+                    const Resultado& r = res[static_cast<std::size_t>(g)];
+                    if (!r.orador.empty())
+                        oradorBien = oradorBien && std::find(r.personas.begin(), r.personas.end(), r.orador) != r.personas.end();
+                }
+            };
+            // Entran de a uno cada 300 ms; cada 3 s habla el último que llegó (que todavía espera
+            // el reacomodo): entra en el acto, y con él los que llegaron antes.
+            std::int64_t t = 0;
+            for (; v.size() < 60 || t < 60 * 300 + 3000; t += 100) {
+                if (t % 300 == 0 && v.size() < 60) v.push_back(sala("p" + std::to_string(100 + v.size()), t));
+                if (t % 3000 == 0 && !v.empty()) ponerHabla(static_cast<int>(v.size()) - 1, t);
+                revisar(rep.calcular(gs, v, {}, t), t);
+            }
+            const auto fin = rep.calcular(gs, v, {}, t);
+            revisar(fin, t);
+            CHECK(fin[0].personas.size() + fin[1].personas.size() == 60 && fin[0].entrando == 0,
+                  ("entraron los 60: " + caso).c_str());
+            // El orden de llegada (las claves p100..p159 van en orden de llegada).
+            std::vector<std::string> esperado0, esperado1;
+            for (int i = 0; i < 60; ++i) {
+                const std::string k = "sala:p" + std::to_string(100 + i);
+                const bool primera = modo == Reparto::EnOrden ? i < 36 : i % 2 == 0;
+                (primera ? esperado0 : esperado1).push_back(k);
+            }
+            CHECK(fin[0].personas == esperado0, ("la primera grilla, en orden de llegada: " + caso).c_str());
+            CHECK(fin[1].personas == esperado1, ("la segunda grilla, en orden de llegada: " + caso).c_str());
+            // El orador rota cada 10 s por las dos grillas (13 y 60 coprimos).
+            for (int vuelta = 0; vuelta < 12; ++vuelta) {
+                t += 10000;
+                ponerHabla((vuelta * 13 + 5) % 60, t);
+                const auto res = rep.calcular(gs, v, {}, t);
+                revisar(res, t);
+                const std::string k = v[static_cast<std::size_t>(habla)].clave;
+                const std::size_t suya = static_cast<std::size_t>(grillaDe[k]);
+                CHECK(res[suya].orador == k, ("el que habla es el orador de SU grilla: " + caso).c_str());
+                CHECK(res[1 - suya].orador.empty(), ("la otra grilla no tiene orador: " + caso).c_str());
+                if (al == AlHablar::Destacar)
+                    CHECK(!res[suya].celdas.empty() && res[suya].celdas.front().clave == k,
+                          ("destacado dentro de su grilla: " + caso).c_str());
+                // Deja de hablar (con voz, el último que habló se queda): nada se mueve igual.
+                ponerHabla(-1, t + 5000);
+                revisar(rep.calcular(gs, v, {}, t + 5000), t + 5000);
+            }
+            CHECK(quietos, ("nadie cambia de grilla ni de lugar por hablar: " + caso).c_str());
+            CHECK(oradorBien, ("cada grilla informa su orador (o nadie): " + caso).c_str());
+            CHECK(unaSola, ("nadie en las dos grillas: " + caso).c_str());
+        }
+}
+
 int main() {
     disposicion();
     formaDeLasCeldas();
@@ -1327,6 +1445,7 @@ int main() {
     altaHasta();
     altaMax();
     entradasJuntas();
+    grupoConOradorQueRota();
     if (g_fallos == 0) std::printf("test_grilla_personas: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

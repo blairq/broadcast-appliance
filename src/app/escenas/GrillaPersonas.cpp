@@ -813,9 +813,14 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
         bool entro = false;
 
         // Lo que se decidió a mano para este grupo: fijada en la grilla i (-1 = en ninguna de
-        // este grupo) y sacada de alguna grilla del grupo.
-        // El orador de cada grilla (lo llena la máquina más abajo): en un grupo, va en la
-        // suya como si estuviera fijado ahí (si no, el reparto podía mandarlo a otra).
+        // este grupo) y sacada de alguna grilla del grupo. El orador elegido A MANO para una
+        // grilla («destacar») va en esa, como fijado: lo decidió el operador.
+        // EL QUE HABLA NO CAMBIA DE GRILLA (2026-11-03): el orador que decide el disparo (voz,
+        // palabra, orador al aire) NO cuenta como fijado. Antes sí («va en la suya como si
+        // estuviera fijado ahí») y, como en un grupo todas las grillas aceptan a la misma gente,
+        // la máquina de la PRIMERA lo elegía, el reparto lo llevaba a la primera y largaba al
+        // último de esa a la segunda; al dejar de hablar, al revés. Ahora se queda en su lugar y
+        // se lo muestra en la grilla donde está, según el «al_hablar» de esa.
         std::vector<std::string> oradorDe(static_cast<std::size_t>(G)), siguienteDe(static_cast<std::size_t>(G));
         const auto fijaEn = [&](const std::string& clave) {
             const auto it = manual.fijos.find(clave);
@@ -825,7 +830,7 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
                 return -1;
             }
             for (int i = 0; i < G; ++i)
-                if (!clave.empty() && oradorDe[static_cast<std::size_t>(i)] == clave) return i;
+                if (!clave.empty() && manual.destacado(gs[i]->fuente) == clave) return i;
             return -1;
         };
         const auto sacada = [&](const std::string& clave) {
@@ -864,12 +869,13 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
             siguienteDe[static_cast<std::size_t>(i)] = MaquinaOrador::siguiente(gi, suyos, m.actual(), ahora);
             if (!m.actual().empty()) oradoresGrupo.insert(m.actual());
         }
+        // EL ORDEN DE REPARTO: los fijados primero y después el orden de la grilla (llegada,
+        // quién habla o prioridad). El orador NO va adelante: si fuera, el reparto (que corta en
+        // este orden) lo mandaba a la primera grilla del grupo. Lo que el orador sí tiene es
+        // prioridad para ENTRAR (abajo, en los elegidos) y para la capa alta (CapasGrilla).
         std::sort(cands.begin(), cands.end(), [&](const Persona* a, const Persona* b) {
             const bool fa = fijaEn(a->clave) >= 0, fb = fijaEn(b->clave) >= 0;
             if (fa != fb) return fa;
-            // El orador entra aunque no haya lugar para todos (después de los fijados).
-            const bool oa = oradoresGrupo.count(a->clave) > 0, ob = oradoresGrupo.count(b->clave) > 0;
-            if (oa != ob) return oa;
             return antes(jefe.orden, *a, *b);
         });
 
@@ -890,6 +896,18 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
         const int n = std::min(static_cast<int>(cands.size()), capTotal);
         std::set<std::string> elegidos;
         for (int i = 0; i < n; ++i) elegidos.insert(cands[static_cast<std::size_t>(i)]->clave);
+        // El orador entra aunque no haya lugar para todos: le deja el lugar el último elegido
+        // que no es fijado ni orador (entra él, no se mueve nadie más de su sitio).
+        for (const Persona* p : cands) {
+            if (!oradoresGrupo.count(p->clave) || elegidos.count(p->clave)) continue;
+            for (int i = n - 1; i >= 0; --i) {
+                const std::string& k = cands[static_cast<std::size_t>(i)]->clave;
+                if (!elegidos.count(k) || fijaEn(k) >= 0 || oradoresGrupo.count(k)) continue;
+                elegidos.erase(k);
+                elegidos.insert(p->clave);
+                break;
+            }
+        }
 
         // Cuántos quiere cada grilla.
         std::vector<int> meta(G, 0);
@@ -915,8 +933,8 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
         // Una grilla quiere por lo menos a sus fijados: se los saca a las otras (de atrás para
         // adelante), así nadie larga gente que después tiene que volver a tomar.
         std::vector<int> fijados(G, 0);
-        for (int i = 0; i < n; ++i)
-            if (const int f = fijaEn(cands[static_cast<std::size_t>(i)]->clave); f >= 0) ++fijados[f];
+        for (const Persona* p : cands)
+            if (const int f = fijaEn(p->clave); f >= 0 && elegidos.count(p->clave)) ++fijados[f];
         for (int i = 0; i < G; ++i)
             while (meta[i] < std::min(fijados[i], cap[i])) {
                 int j = G - 1;
@@ -958,23 +976,45 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
         for (int i = 0; i < G; ++i)
             while (cuenta(i) > meta[i] && largarUno(i)) {
             }
-        // 3) Los nuevos, en orden: a la primera grilla que los acepta y quiere más; si ninguna
-        //    quiere, a la primera con lugar. Primero a los huecos, después al final. El fijado va
-        //    a la suya aunque esté llena: se le hace lugar largando al último que no está fijado.
-        for (int idx = 0; idx < n; ++idx) {
+        // 3) Los nuevos, en el orden de reparto. «En orden»: a la primera grilla que los acepta y
+        //    quiere más; «parejo»: a la que tiene menos de las que quieren más (a igualdad, la
+        //    primera), así cada grilla va recibiendo de a uno, por turno y en orden de llegada.
+        //    Si ninguna quiere, a la primera con lugar. Primero a los huecos, después al final. El
+        //    fijado va a la suya aunque esté llena: se le hace lugar largando al último que no
+        //    está fijado.
+        //    Los que esperan el próximo reacomodo: el orador y los fijados entran ya, y con ellos
+        //    TODOS los nuevos que van antes en el orden (si no, el orador se colaba delante de los
+        //    que llegaron antes que él y quedaba «…33, 35, 36, 34»).
+        const auto esNuevo = [&](const Persona& p) { return !previos.count(p.clave) && !ubicados.count(p.clave); };
+        int pasanHasta = -1; // los nuevos hasta este índice de cands no esperan
+        if (retener)
+            for (int idx = 0; idx < static_cast<int>(cands.size()); ++idx) {
+                const Persona& p = *cands[static_cast<std::size_t>(idx)];
+                if (elegidos.count(p.clave) && esNuevo(p) && (fijaEn(p.clave) >= 0 || oradoresGrupo.count(p.clave)))
+                    pasanHasta = idx;
+            }
+        for (int idx = 0; idx < static_cast<int>(cands.size()); ++idx) {
             const Persona& p = *cands[static_cast<std::size_t>(idx)];
-            if (ubicados.count(p.clave)) continue;
+            if (!elegidos.count(p.clave) || ubicados.count(p.clave)) continue;
             int dest = fijaEn(p.clave);
             if (dest >= 0 && cuenta(dest) >= cap[dest] && !largarUno(dest)) continue; // llena de fijados: «+N»
-            for (int i = 0; i < G && dest < 0; ++i)
-                if (cuenta(i) < meta[i] && aceptaAca(i, p)) dest = i;
+            for (int i = 0; i < G && dest < 0; ++i) {
+                if (cuenta(i) >= meta[i] || !aceptaAca(i, p)) continue;
+                if (jefe.reparto == Reparto::EnOrden) {
+                    dest = i;
+                    break;
+                }
+                int menos = i;
+                for (int j = i + 1; j < G; ++j)
+                    if (cuenta(j) < meta[j] && aceptaAca(j, p) && cuenta(j) < cuenta(menos)) menos = j;
+                dest = menos;
+            }
             for (int i = 0; i < G && dest < 0; ++i)
                 if (cuenta(i) < cap[i] && aceptaAca(i, p)) dest = i;
             if (dest < 0) continue; // ninguna lo acepta con lugar: cuenta en el «+N»
             const bool nuevo = !previos.count(p.clave);
-            // Recién llegado dentro del intervalo: espera al próximo reacomodo (salvo el
-            // orador y los fijados, que fijaEn devuelve: esos entran ya).
-            if (nuevo && retener && fijaEn(p.clave) < 0) {
+            // Recién llegado dentro del intervalo: espera al próximo reacomodo (salvo los de arriba).
+            if (nuevo && retener && idx > pasanHasta) {
                 ++retenidos;
                 continue;
             }
@@ -1013,7 +1053,8 @@ std::vector<Resultado> Repartidor::calcular(const std::vector<Config>& grillas, 
             for (const auto& k : lugares[i]) r.personas.push_back(*k);
             if (i == G - 1 && desborda) r.mas = std::max(0, mas);
             r.caben = cap[i] + (i == G - 1 && desborda ? 1 : 0); // con la del «+N»
-            // El orador de esta grilla, si quedó en ella (en un grupo pudo tocarle a otra).
+            // El orador de esta grilla, si está en ella: en un grupo, cada una muestra al orador
+            // solo si le tocó a ella (en las otras, nadie), cada una con su «al_hablar».
             const std::string& o = oradorDe[static_cast<std::size_t>(i)];
             if (!o.empty() && std::find(r.personas.begin(), r.personas.end(), o) != r.personas.end()) r.orador = o;
             r.siguiente = siguienteDe[static_cast<std::size_t>(i)];

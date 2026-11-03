@@ -57,9 +57,22 @@
 // una grilla reacomoda por entradas como mucho una vez cada reacomodoMinMs: el primero que
 // llega después de un rato entra en el acto; los que llegan dentro del intervalo esperan
 // («entrando» en el Resultado, sin contar en el «+N») y entran TODOS JUNTOS en el próximo
-// reacomodo, con una sola animación. No esperan el orador (ni el que va a serlo) ni los
-// fijados a mano: el fundido al dar la palabra sigue siendo inmediato. Los que se van salen
-// en el acto (su lugar no puede quedar con alguien que ya no está).
+// reacomodo, con una sola animación. No esperan el orador ni los fijados a mano (el fundido
+// al dar la palabra sigue siendo inmediato), y con ellos entran también los nuevos que van
+// ANTES en el orden (el orador no se cuela delante de los que llegaron antes que él). Los que
+// se van salen en el acto (su lugar no puede quedar con alguien que ya no está).
+//
+// EN UN GRUPO, EL QUE HABLA NO CAMBIA DE GRILLA (2026-11-03): se queda en su lugar, en la
+// grilla donde está, y se lo muestra ahí según el «al_hablar» de ESA grilla (resaltar,
+// destacar o superponer dentro de ella, agrandar…); las demás del grupo no tienen orador
+// (Resultado::orador vacío). Antes el orador contaba como fijado en la grilla cuya máquina lo
+// elegía (siempre la primera) y el reparto lo llevaba allá, largando al último de esa a la
+// siguiente: con cada orador nuevo, uno subía y otro bajaba. Hay dos órdenes distintos: el DE
+// REPARTO (fijados y después llegada / quién habla / prioridad; estable, el orador no va
+// adelante) y la PRIORIDAD para entrar y para la capa alta (ahí sí el orador primero: si no
+// hay lugar para todos, entra igual en lugar del último elegido). «Parejo» reparte a los que
+// llegan de a uno por turno, a la grilla con menos: cada grilla, en orden de llegada. Solo el
+// orador elegido A MANO («destacar» en una grilla) va a esa grilla, como un fijado.
 //
 // La misma fuente en dos escenas es LA MISMA IMAGEN: para repartir gente entre
 // escenas se usan instancias distintas con el mismo grupo.

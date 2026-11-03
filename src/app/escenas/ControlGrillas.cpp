@@ -478,7 +478,8 @@ void ControlGrillas::recalcular() {
                {"entrando", res[i].entrando},
                // Cuando alguien habla: cómo, quién es el orador, el que se precarga y si se eligió a mano.
                {"al_hablar", c.soloOrador ? "solo_orador" : nombreAlHablar(c.alHablar)},
-               {"orador", res[i].orador},
+               // El orador de ESTA grilla (null = nadie): en un grupo, solo la grilla donde está.
+               {"orador", res[i].orador.empty() ? json(nullptr) : json(res[i].orador)},
                {"siguiente", res[i].siguiente},
                {"orador_a_mano", !manual_.destacado(c.fuente).empty()}};
         // Cómo quedó la grilla: columnas × filas, la celda en px del lienzo y su proporción

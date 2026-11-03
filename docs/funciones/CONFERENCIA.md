@@ -155,7 +155,7 @@ lapso: el primero que llega después de un rato entra en el acto, los que llegan
 el medio esperan y entran **todos juntos** en el próximo reacomodo, con una sola
 animación. El orden sigue estable (nadie de los que ya están se mueve más que por el
 reacomodo) y el orador y los fijados a mano no esperan (el fundido al dar la palabra
-es inmediato). Los que se van salen en el acto. `grilla_personas_estado` dice en cada
+es inmediato; con ellos entran los que llegaron antes, para no colarse). Los que se van salen en el acto. `grilla_personas_estado` dice en cada
 grilla cuántos esperan (`entrando`). 0 = como antes, cada entrada reacomoda.
 
 ### La forma de las celdas (`proporcion`, `recorte_max`, `celda_min_ancho`, `celda_min_alto`)
@@ -204,8 +204,31 @@ fábrica 1,5 s: una tos no alcanza), el que tiene **la palabra** en la Asamblea,
 en la vista de la grilla: «Destacar como orador», o `grilla_personas_destacar`; lo
 elegido a mano gana a cualquier disparo, en el acto). **Tiempo mínimo en pantalla**
 (`minimo_ms`, 4 s): el orador no cambia antes (que no salte con cada tos); si se va, sí.
-Con voz, cuando nadie habla se queda el último que habló. En un grupo de grillas, el
-orador de una grilla queda en esa grilla (el reparto no se lo lleva a otra del grupo).
+Con voz, cuando nadie habla se queda el último que habló.
+
+**En un grupo de grillas, el que habla no cambia de grilla.** Se queda en su lugar, en
+la grilla (y la pantalla) donde está, y se lo muestra ahí según el `al_hablar` de **esa**
+grilla: resaltado en su lugar, agrandado, o destacado/superpuesto dentro de ella. Las
+demás grillas del grupo no tienen orador mientras tanto. `grilla_personas_estado` dice
+en cada grilla su `orador` (o `null`). Solo el orador elegido **a mano** para una grilla
+(«Destacar como orador») va a esa grilla, como un fijado.
+
+Antes (visto en la PC de pruebas el 2026-11-03, dos escenas con una grilla cada una del
+mismo grupo, 60 invitados): cada vez que cambiaba el orador, el que hablaba subía a la
+primera grilla del grupo y el último de esa bajaba a la segunda; al dejar de hablar, al
+revés. El orador contaba como «fijado» en la grilla cuya máquina lo elegía (la primera,
+porque todas aceptan a la misma gente) y además iba adelante en el orden que el reparto
+corta. Ahora hay dos órdenes separados: el **de reparto** (los fijados y después
+llegada, quién habla o prioridad; estable, el orador no va adelante) y la **prioridad
+para entrar y para la capa alta** (el orador primero: si no hay lugar para todos, entra
+igual en lugar del último elegido, y su cámara va en alta).
+
+El orden de llegada se respeta en los dos repartos: **en orden**, la primera grilla con
+los primeros que llegaron hasta su tope y la siguiente con los que siguen; **parejo**,
+cada uno que llega va a la grilla que tiene menos (a igualdad, la primera), así que se
+reparten por turno (1, 3, 5… en una y 2, 4, 6… en la otra) y cada grilla queda en orden
+de llegada. Con las entradas juntas, el orador que llega mientras otros esperan entra en
+el acto **y con él los que llegaron antes** (antes se colaba: «…33, 35, 36, 34»).
 
 ### La cámara del orador: alta definición con un fundido
 
