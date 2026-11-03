@@ -1,0 +1,263 @@
+"""El detector de acoples, la parte estática (docs/arquitectura/detector-de-acoples.md).
+
+La interfaz no espera a nadie y la vista se enlaza al modelo (memory causa-de-fondo-mvc,
+docs/planes/PLAN-MOTOR-SIN-ESPERAS.md). Esta prueba (con tools/diag/acoples.py, que hace la
+lectura) no deja sumar caminos que no pasan por el modelo:
+
+  - DEUDA_QML: por .qml, los bindings que llaman a una Q_INVOKABLE de C++ que devuelve algo
+    (la vista no se entera cuando cambia, y la evalúa en cada vuelta). Se arregla con una
+    propiedad con NOTIFY o un rol del modelo.
+  - DEUDA_CPP: por «archivo|clase», en el C++ que corre en el hilo de la interfaz, lo que
+    espera (bloqueante, red, proceso, disco) o entra directo (motor, runtime). Se arregla
+    pidiendo por la ventanilla / la cola / un hilo propio y leyendo la foto.
+  - GANCHOS: cuántos BA_ACOPLE hay por archivo (la parte dinámica, diag/Acoples.hpp): no
+    pueden bajar. Y toda Q_INVOKABLE no-void que llame un binding empieza con BA_ACOPLE.
+
+Lo nuevo falla; lo que ya estaba queda anotado con su cantidad, que SOLO PUEDE BAJAR: al
+arreglar uno, se baja (o se borra) su número. `tools/diag/acoples.py` lista cada uno con
+archivo:línea; `--deuda` reimprime las tablas.
+
+Si algo nuevo de verdad no es un acople (corre en otro hilo, es el arranque detrás del
+cartel), se suma a la tabla con un comentario que diga por qué.
+"""
+import pathlib
+import sys
+
+RAIZ = pathlib.Path(__file__).resolve().parent.parent
+sys.path.insert(0, str(RAIZ / "tools" / "diag"))
+import acoples  # noqa: E402
+
+# Bindings que llaman a una Q_INVOKABLE no-void, por .qml (relativo a src/app/). SOLO PUEDE BAJAR.
+DEUDA_QML = {
+    "qml/Main.qml": 2,
+    "qml/PantallaWindow.qml": 1,
+    "qml/cards/DireccionContent.qml": 2,
+    "qml/cards/GuestsContent.qml": 1,
+    "qml/cards/MixerContent.qml": 1,
+    "qml/cards/SpeakersContent.qml": 1,
+    "qml/controls/EditorDisparador.qml": 1,
+    "qml/controls/EditorFiltroAudio.qml": 1,
+    "qml/controls/MatrizAudio.qml": 1,
+    "qml/controls/PanelArchivos.qml": 1,
+    "qml/controls/PanelInformes.qml": 1,
+    "qml/controls/PanelMezclador.qml": 1,
+    "qml/controls/PanelSuperres.qml": 1,
+    "qml/controls/RielNavegacion.qml": 1,
+    "qml/controls/SelectorHerramientas.qml": 1,
+    "qml/controls/VistaVideo.qml": 1,
+    "qml/pages/ConferencePage.qml": 2,
+    "qml/pages/DashboardPage.qml": 6,
+    "qml/pages/FacebookPage.qml": 1,
+    "qml/pages/PantallasPage.qml": 1,
+    "qml/pages/PersonasPage.qml": 2,
+    "qml/pages/PrompterPage.qml": 1,
+    "qml/pages/SettingsPage.qml": 6,
+    "qml/pages/TwitchPage.qml": 1,
+    "qml/pages/YouTubePage.qml": 1,
+}
+
+# El C++ de la interfaz que espera o entra directo, por «archivo|clase» (relativo a src/app/).
+# SOLO PUEDE BAJAR. Muchos `join`/`wait` son de destructores o de hilos propios: igual se
+# cuentan (un destructor que espera un hilo traba la interfaz al cerrar una página).
+DEUDA_CPP = {
+    "agent/AgentViewModel.cpp|bloqueante": 6,
+    "agent/AgentViewModel.cpp|disco": 54,
+    "agent/AlarmaSonora.cpp|disco": 2,
+    "agent/Despachador.cpp|bloqueante": 1,
+    "agent/FlujosTexto.cpp|disco": 2,
+    "agent/ModelosLocales.cpp|bloqueante": 7,
+    "agent/ModelosLocales.cpp|disco": 39,
+    "agent/ModelosLocales.cpp|red": 2,
+    "agent/Traductor.cpp|disco": 5,
+    "agent/Voz.cpp|disco": 7,
+    "agent/VozPrompter.cpp|disco": 1,
+    "asamblea/ConferenciaDcn.cpp|disco": 3,
+    "asamblea/CuerpoViewModel.cpp|disco": 1,
+    "asamblea/InformesResultado.cpp|disco": 5,
+    "asamblea/SesionRemota.cpp|disco": 2,
+    "audio/AudioViewModel.cpp|disco": 2,
+    "audio/Calibracion.cpp|bloqueante": 2,
+    "audio/Calibracion.cpp|disco": 10,
+    "audio/Matriz.cpp|bloqueante": 2,
+    "control/Botonera.cpp|disco": 1,
+    "control/CarasBotonera.cpp|disco": 5,
+    "escenas/ControlGrillas.cpp|bloqueante": 2,
+    "escenas/ControlGrillas.cpp|motor": 1,
+    "medios/Playlist.cpp|disco": 3,
+    "medios/Playlist.cpp|motor": 10,
+    "medios/Playlist.cpp|runtime": 3,
+    "net/Descargas.cpp|bloqueante": 5,
+    "net/Descargas.cpp|disco": 7,
+    "net/Descargas.cpp|red": 2,
+    "plugins/Plugins.cpp|disco": 50,
+    "plugins/Plugins.cpp|motor": 7,
+    "plugins/Plugins.cpp|runtime": 2,
+    "red/Red.cpp|bloqueante": 1,
+    "term/TerminalSession.cpp|disco": 1,
+    "tiempos/TiemposModel.cpp|bloqueante": 2,
+    "ui/AlarmasViewModel.cpp|runtime": 2,
+    "ui/AppViewModel.cpp|disco": 3,
+    "ui/AppViewModel.cpp|runtime": 1,
+    "ui/AsambleaViewModel.cpp|disco": 1,
+    "ui/BitacoraEvento.cpp|bloqueante": 3,
+    "ui/BitacoraEvento.cpp|disco": 8,
+    "ui/CapacidadViewModel.cpp|disco": 2,
+    "ui/ConduccionLinea.cpp|disco": 1,
+    "ui/ConduccionLinea.cpp|runtime": 4,
+    "ui/ConferenceClient.cpp|bloqueante": 2,
+    "ui/ConferenceClient.cpp|disco": 1,
+    "ui/ControlViewModel.cpp|motor": 8,
+    "ui/ControlViewModel.cpp|runtime": 1,
+    "ui/CuentasViewModel.cpp|disco": 1,
+    "ui/Discursos.cpp|disco": 20,
+    "ui/DocumentosViewModel.cpp|disco": 4,
+    "ui/EjecucionLinea.cpp|disco": 2,
+    "ui/EjecucionLinea.cpp|motor": 2,
+    "ui/EjecucionLinea.cpp|runtime": 5,
+    "ui/EmisionViewModel.cpp|runtime": 1,
+    "ui/EscenasViewModel.cpp|motor": 2,
+    "ui/EscenasViewModel.cpp|runtime": 3,
+    "ui/EventoAbierto.cpp|disco": 3,
+    "ui/EventoViewModel.cpp|runtime": 1,
+    "ui/EventosListaViewModel.cpp|bloqueante": 2,
+    "ui/ExtensionesModel.cpp|disco": 3,
+    "ui/FrameService.cpp|bloqueante": 2,
+    "ui/GuionViewModel.cpp|bloqueante": 1,
+    "ui/GuionViewModel.cpp|disco": 1,
+    "ui/HistoricoConsulta.cpp|disco": 2,
+    "ui/HistoricoViewModel.cpp|bloqueante": 1,
+    "ui/InformeEventoViewModel.cpp|disco": 1,
+    "ui/InputsViewModel.cpp|bloqueante": 1,
+    "ui/InputsViewModel.cpp|motor": 1,
+    "ui/LectorDocumentos.cpp|bloqueante": 1,
+    "ui/ManualesViewModel.cpp|disco": 6,
+    "ui/PantallasViewModel.cpp|bloqueante": 1,
+    "ui/PantallasViewModel.cpp|red": 1,
+    "ui/PdfEscena.cpp|motor": 4,
+    "ui/PdfEscena.cpp|runtime": 2,
+    "ui/PersonasViewModel.cpp|disco": 1,
+    "ui/PrompterViewModel.cpp|disco": 1,
+    "ui/PropertiesModel.cpp|motor": 2,
+    "ui/PropertiesModel.cpp|runtime": 1,
+    "ui/PruebaSalaViewModel.cpp|bloqueante": 1,
+    "ui/PruebaSalaViewModel.cpp|disco": 2,
+    "ui/QrViewModel.cpp|disco": 1,
+    "ui/Reconocedor.cpp|bloqueante": 2,
+    "ui/RecursosViewModel.cpp|runtime": 1,
+    "ui/RegistroViewModel.cpp|bloqueante": 1,
+    "ui/SettingsModel.cpp|motor": 9,
+    "ui/SettingsModel.cpp|runtime": 6,
+    "ui/StudioViewModel.cpp|runtime": 7,
+    "ui/TemaEventoViewModel.cpp|disco": 2,
+    "ui/WebEventoViewModel.cpp|bloqueante": 1,
+    "ui/WebEventoViewModel.cpp|disco": 1,
+    "video/BancoSuperRes.cpp|bloqueante": 2,
+    "video/SuperRes.cpp|disco": 56,
+}
+
+# Los BA_ACOPLE por archivo (relativo a src/). NO PUEDEN BAJAR: sacar uno deja un camino sin
+# sabotaje (la parte dinámica no lo ve). Sumar uno no hace falta anotarlo, pero conviene.
+GANCHOS = {
+    "app/asamblea/InformesResultado.hpp": 1,
+    "app/control/Botonera.cpp": 2,
+    "app/emision/TurnoMotor.cpp": 1,
+    "app/net/AccesoRemoto.cpp": 1,
+    "app/net/HttpsClient.cpp": 3,
+    "app/pantallas/Monitores.cpp": 1,
+    "app/ui/ConferenceViewModel.cpp": 2,
+    "app/ui/CorridaViewModel.cpp": 1,
+    "app/ui/CuentasViewModel.cpp": 1,
+    "app/ui/DashboardModel.cpp": 1,
+    "app/ui/ExtensionesModel.cpp": 4,
+    "app/ui/GuionViewModel.cpp": 1,
+    "app/ui/JsonListModel.cpp": 1,
+    "app/ui/ListModels.cpp": 1,
+    "app/ui/ListaObjetos.cpp": 1,
+    "app/ui/MediosViewModel.cpp": 2,
+    "app/ui/MultiviewViewModel.cpp": 1,
+    "app/ui/PantallasViewModel.cpp": 1,
+    "app/ui/PersonasViewModel.cpp": 2,
+    "app/ui/PrompterViewModel.cpp": 1,
+    "app/ui/RielConfig.cpp": 3,
+    "app/ui/SettingsModel.cpp": 3,
+    "app/ui/VideoViewModel.cpp": 1,
+    "app/ui/Vumetro.cpp": 1,
+    "core/persist/Escritor.cpp": 4,
+    "motor/Candado.cpp": 1,
+}
+
+
+def _hallazgos():
+    nonvoid = acoples.invocables()
+    return nonvoid, acoples.acoples_qml(nonvoid), acoples.acoples_cpp()
+
+
+def _nuevos(cuenta, deuda, hallazgos, qml):
+    nuevos = {k: (n, deuda.get(k, 0)) for k, n in cuenta.items() if n > deuda.get(k, 0)}
+    if not nuevos:
+        return ""
+    lineas = []
+    for h in hallazgos:
+        a = h.archivo.removeprefix("src/app/")
+        if (a if qml else f"{a}|{h.tipo}") in nuevos:
+            lineas.append(str(h))
+    return "\n".join(f"{k}: {n} (deuda {d})" for k, (n, d) in nuevos.items()) + "\n\n" + "\n".join(lineas)
+
+
+def test_qml_sin_bindings_nuevos_a_funciones():
+    _, qml, _ = _hallazgos()
+    error = _nuevos(acoples.cuenta(qml, True), DEUDA_QML, qml, True)
+    assert not error, ("bindings nuevos que llaman a una Q_INVOKABLE que devuelve algo (enlazá a una propiedad con "
+                       "NOTIFY o a un rol; ver la cabecera):\n" + error)
+
+
+def test_cpp_de_la_interfaz_sin_esperas_nuevas():
+    _, _, cpp = _hallazgos()
+    error = _nuevos(acoples.cuenta(cpp, False), DEUDA_CPP, cpp, False)
+    assert not error, ("esperas o entradas directas nuevas en el C++ de la interfaz (ventanilla/foto, la cola de "
+                       "persist, un hilo propio; ver la cabecera):\n" + error)
+
+
+def test_la_deuda_solo_baja():
+    _, qml, cpp = _hallazgos()
+    cq, cc = acoples.cuenta(qml, True), acoples.cuenta(cpp, False)
+    sobra = {k: (n, cq.get(k, 0)) for k, n in DEUDA_QML.items() if cq.get(k, 0) < n}
+    sobra |= {k: (n, cc.get(k, 0)) for k, n in DEUDA_CPP.items() if cc.get(k, 0) < n}
+    assert not sobra, f"ya se arreglaron (bajá su número en DEUDA_QML/DEUDA_CPP): {sobra}"
+
+
+def test_los_ganchos_no_bajan():
+    hay = acoples.ganchos()
+    faltan = {f: (n, hay.get(f, 0)) for f, n in GANCHOS.items() if hay.get(f, 0) < n}
+    assert not faltan, f"se sacaron ganchos BA_ACOPLE (el detector dinámico deja de verlos): {faltan}"
+
+
+def test_cada_invocable_de_un_binding_tiene_su_gancho():
+    nonvoid, qml, _ = _hallazgos()
+    faltan = acoples.invocables_sin_gancho(qml, nonvoid)
+    assert not faltan, ("Q_INVOKABLE que devuelven algo, llamadas desde un binding, sin BA_ACOPLE(\"invocable\", "
+                        "\"Clase::metodo\") en la primera línea del cuerpo:\n" + "\n".join(faltan))
+
+
+def test_el_lector_qml_ve_un_binding_y_no_un_manejador():
+    t = acoples.limpiar_js('''
+Item {
+    property var vm: Studio.sala
+    width: vm.ancho(3)              // binding: cuenta
+    onClicked: vm.ancho(4)          // manejador: no
+    property var f: () => vm.ancho(5)   // función guardada: no
+    model: [1, 2].filter(x => Studio.sala.ancho(x) > 0)  // corre ya: cuenta
+    function g() { return vm.ancho(6) }
+    height: g()                     // indirecto (lo arma acoples_qml)
+}
+''')
+    lec = acoples.LectorQml(t).leer()
+    nonvoid = {"ancho": [{"clase": "X", "devuelve": "int", "archivo": "x.hpp", "linea": 1}]}
+    vistos = []
+    for prop, a, b in lec.bindings:
+        for tipo, _q in acoples._llamadas_cpp(acoples.sin_funciones(t[a:b]), lec.alias, nonvoid, set(lec.funciones)):
+            vistos.append((prop, tipo))
+    assert ("width", "directo") in vistos
+    assert ("model", "directo") in vistos
+    assert all(p not in ("f", "onClicked") for p, _ in vistos)
+    assert "g" in lec.funciones
