@@ -20,6 +20,7 @@ archivo:línea; `--deuda` reimprime las tablas.
 Si algo nuevo de verdad no es un acople (corre en otro hilo, es el arranque detrás del
 cartel), se suma a la tabla con un comentario que diga por qué.
 """
+import functools
 import pathlib
 import sys
 
@@ -187,7 +188,9 @@ GANCHOS = {
 }
 
 
+@functools.lru_cache(maxsize=1)
 def _hallazgos():
+    """Una sola lectura del árbol para todas las pruebas (tarda unos segundos)."""
     nonvoid = acoples.invocables()
     return nonvoid, acoples.acoples_qml(nonvoid), acoples.acoples_cpp()
 
