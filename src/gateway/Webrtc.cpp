@@ -44,6 +44,7 @@
 #include "Webrtc.hpp"
 #include "AudioCompartido.hpp"
 #include "AudioCompartidoRtc.hpp"
+#include "CargaVideo.hpp"
 #include "RetornoCompartido.hpp"
 #include "RetornoRtc.hpp"
 #include "ajustes/Ajustes.hpp"
@@ -196,6 +197,10 @@ struct EstadoCapas {
     Capa pedida() const {
         std::lock_guard<std::mutex> l(mu);
         return sel.pedida();
+    }
+    CapasActivas activas() const {
+        std::lock_guard<std::mutex> l(mu);
+        return sel.activas();
     }
 };
 } // namespace
@@ -919,13 +924,32 @@ struct Feed {
 
 /// Entre el depacketizador y el decodificador del video de un invitado: copia
 /// al Feed y deja pasar el cuadro original (A lo sigue recibiendo decodificado).
+/// También cuenta los cuadros que llegan armados (CargaVideo.hpp: los que después no
+/// llegan a un Decode() se perdieron porque el decodificador no daba abasto) y, después
+/// de un hueco (una capa que se reanuda), pide un cuadro clave si el primero no lo es
+/// (VigiaReanudar, Capas.hpp).
+///
+/// NO descarta cuadros para aliviar al decodificador (evaluado el 2026-11-03): el H.264 de
+/// los navegadores es todo de referencia (nal_ref_idc ≠ 0, sin capas temporales) y, aunque
+/// hubiera alguno descartable, el que arma la cadena de referencias (RtpSeqNumOnlyRefFinder)
+/// trabaja ANTES de este punto: el cuadro siguiente quedaría esperando al que se tiró y la
+/// imagen se congelaría hasta el próximo cuadro clave. Lo que se hace es pedirle menos al
+/// navegador (CpsSegunCarga.hpp): no se codifica ni viaja lo que no se va a decodificar.
 class TapTransformer : public webrtc::FrameTransformerInterface {
    public:
     explicit TapTransformer(std::shared_ptr<Feed> feed) : feed_(std::move(feed)) {}
     void Transform(std::unique_ptr<webrtc::TransformableFrameInterface> f) override {
         if (!f) return;
         if (f->GetDirection() == webrtc::TransformableFrameInterface::Direction::kReceiver) {
-            feed_->forward(*static_cast<webrtc::TransformableVideoFrameInterface*>(f.get()));
+            auto& v = *static_cast<webrtc::TransformableVideoFrameInterface*>(f.get());
+            cargavideo::alRecibir();
+            bool pedirClave = false;
+            {
+                std::lock_guard<std::mutex> lock(m_);
+                pedirClave = vigia_.llego(steadyMs(), v.IsKeyFrame());
+            }
+            if (pedirClave) feed_->requestKey();
+            feed_->forward(v);
         }
         rtc::scoped_refptr<webrtc::TransformedFrameCallback> cb;
         {
@@ -962,6 +986,7 @@ class TapTransformer : public webrtc::FrameTransformerInterface {
    private:
     std::shared_ptr<Feed> feed_;
     std::mutex m_;
+    VigiaReanudar vigia_; ///< con m_
     rtc::scoped_refptr<webrtc::TransformedFrameCallback> any_;
     std::map<uint32_t, rtc::scoped_refptr<webrtc::TransformedFrameCallback>> sinks_;
 };
@@ -1842,6 +1867,9 @@ void WebrtcSession::setFundidoMs(int ms) {
 bool WebrtcSession::conCapas() const { return impl_ != nullptr && impl_->capas.con(); }
 Capa WebrtcSession::capaSale() const { return impl_ != nullptr ? impl_->capas.sale() : Capa::Nada; }
 Capa WebrtcSession::capaPedida() const { return impl_ != nullptr ? impl_->capas.pedida() : Capa::Nada; }
+CapasActivas WebrtcSession::capasActivas() const {
+    return impl_ != nullptr ? impl_->capas.activas() : CapasActivas{};
+}
 void WebrtcSession::pushLocalAudio(const float* s, size_t n, int rate) {
     if (impl_ != nullptr) impl_->pushLocalAudio(s, n, rate);
 }
@@ -2506,6 +2534,19 @@ int WebrtcHub::espectadoresDe(int session) const {
     return static_cast<int>(std::count_if(st->viewers.begin(), st->viewers.end(),
                                           [session](const auto& v) { return v.second->feedKey == session * 2; }));
 }
+
+WebrtcHub::EntradaCamara WebrtcHub::entradaCamara(int session) const {
+    EntradaCamara out;
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr || session < 1) return out;
+    std::lock_guard<std::mutex> lock(st->feedsM);
+    // Las claves de los Feed (OnTrack): la alta (o la única cámara) es session*2; la baja, -session.
+    if (const auto it = st->feeds.find(session * 2); it != st->feeds.end() && it->second)
+        out.alta = it->second->bytesEntrada.load(std::memory_order_relaxed);
+    if (const auto it = st->feeds.find(-session); it != st->feeds.end() && it->second)
+        out.baja = it->second->bytesEntrada.load(std::memory_order_relaxed);
+    return out;
+}
 #else
 // Backend NULL: sin RTP no hay nada que reenviar.
 int WebrtcHub::openViewer(int, bool, const std::string&, std::string&) { return 0; }
@@ -2517,6 +2558,7 @@ WebrtcHub::Trafico WebrtcHub::trafico() const { return {}; }
 
 int WebrtcHub::viewerCount() const { return 0; }
 int WebrtcHub::espectadoresDe(int) const { return 0; }
+WebrtcHub::EntradaCamara WebrtcHub::entradaCamara(int) const { return {}; }
 #endif
 
 } // namespace ba::gateway

@@ -17,11 +17,13 @@
 #include "Canal.hpp"
 #include "security/Comparar.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "platform/Hilo.hpp"
 
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cctype>
 #include <chrono>
+#include <cmath>
 #include <cstdio>
 #include <cstring>
 #include <deque>
@@ -344,6 +346,8 @@ bool SignalingServer::start() {
                 }
         }
     });
+    // F3: quién se decodifica (según lo que se ve) y los cps de la capa baja (según la carga).
+    cargaThread_ = std::thread(&SignalingServer::bucleCarga, this);
     log_.info(llenar(traducir("gateway", "señalización: escuchando en %1:%2 (webroot=%3)"),
                      {cfg_.bindAddress, std::to_string(guestBoundPort_), cfg_.webroot}));
 
@@ -712,7 +716,7 @@ void SignalingServer::stop() {
     if (listenFd_ < 0 && adminListenFd_ < 0 && tunnelListenFd_ < 0 && controlListenFd_ < 0 && puertaHttpFd_ < 0 &&
         activeConns_.load() == 0 && !acceptThread_.joinable() && !adminAcceptThread_.joinable() &&
         !tunnelAcceptThread_.joinable() && !controlAcceptThread_.joinable() && !puertaHttpThread_.joinable() &&
-        !statsThread_.joinable()) {
+        !statsThread_.joinable() && !cargaThread_.joinable()) {
         return;
     }
     stop_.store(true);
@@ -720,6 +724,7 @@ void SignalingServer::stop() {
     // 1) Los threads de accept salen por `stop_` (su espera es acotada).
     if (acceptThread_.joinable()) acceptThread_.join();
     if (statsThread_.joinable()) statsThread_.join();
+    if (cargaThread_.joinable()) cargaThread_.join();
     if (adminAcceptThread_.joinable()) adminAcceptThread_.join();
     if (tunnelAcceptThread_.joinable()) tunnelAcceptThread_.join();
     if (controlAcceptThread_.joinable()) controlAcceptThread_.join();
@@ -2658,6 +2663,12 @@ void SignalingServer::handleOffer(const std::string& pid, uint64_t gen, const st
         };
         cb.onSinPuerto = avisoSinPuerto(pid, [this, pid](const json& m) { sendToGuest(pid, m); });
         sess->configure(cb, hub_.rtcFactory());
+        // Conexión nueva (quizá una página recargada, que arranca en 15 cps): los cps de su
+        // capa baja se le vuelven a decir en la próxima vuelta del controlador.
+        {
+            std::lock_guard<std::mutex> lc(cpsMu_);
+            cpsEnviado_.erase(pid);
+        }
         // El tope de su video de retorno, si el operador le puso uno (sobrevive a reconectar).
         std::lock_guard<std::mutex> l(sessLock_);
         const auto t = topeRetorno_.find(pid);
@@ -3600,15 +3611,38 @@ void SignalingServer::revisarCapas(const std::string& pid) {
         n.siguiente = !entrada.empty() && capasSiguiente_.count(entrada) > 0;
     }
     n.espectadores = hub_.espectadoresDe(idx);
+    // F3: la tarjeta de la interfaz, si se ve. Apagado, como antes: baja para todos.
+    if (ba::ajustes::siNo("gateway.pausarSinVer", true)) n.vista = pump_->vistaDe(idx);
     const Capa c = capaNecesaria(n);
-    if (c != s->capaPedida()) {
-        log_.info(llenar(traducir("gateway", "capas: a %1 se le pide la %2"), {pid, nombreCapa(c)}));
-        // Desde cuándo se espera la HD (para medir cuánto tarda en llegar: alLlegarHd).
-        std::lock_guard<std::mutex> l(capasMu_);
-        if (c == Capa::Alta)
-            pedidoAltaMs_[pid] = Grillas::reloj();
+    // Nadie lo ve: sin placa «sin señal» en su lugar (queda la última imagen).
+    pump_->pausarCamara(idx, c == Capa::Nada && n.ruta.kind == MediaRoute::Kind::Program);
+    // La media es la alta topada a 360p: el tope va ANTES del pedido (que arranque chica).
+    bool cambioMedia = false;
+    {
+        std::lock_guard<std::mutex> l(calidadMu_);
+        const bool media = c == Capa::Media;
+        if (media != (mediaDe_.count(pid) > 0)) {
+            cambioMedia = true;
+            if (media)
+                mediaDe_.insert(pid);
+            else
+                mediaDe_.erase(pid);
+        }
+    }
+    if (cambioMedia) enviarCalidadGrilla(pid);
+    if (transceptorDe(c) != s->capaPedida() || cambioMedia) {
+        if (c == Capa::Nada && n.ruta.kind == MediaRoute::Kind::Program)
+            log_.info(llenar(traducir("gateway", "capas: a %1 no lo ve nadie (tarjeta: %2): se pausa su cámara"),
+                             {pid, nombreMirada(n.vista)}));
         else
+            log_.info(llenar(traducir("gateway", "capas: a %1 se le pide la %2"), {pid, nombreCapa(c)}));
+        // Desde cuándo se espera la HD (para medir cuánto tarda en llegar: alLlegarHd). Solo
+        // al cambiar de transceptor (entre la media y la alta no hay fundido: es el mismo).
+        std::lock_guard<std::mutex> l(capasMu_);
+        if (transceptorDe(c) != Capa::Alta)
             pedidoAltaMs_.erase(pid);
+        else if (s->capaPedida() != Capa::Alta)
+            pedidoAltaMs_[pid] = Grillas::reloj();
     }
     s->pedirCapa(c);
 }
@@ -3795,6 +3829,159 @@ void SignalingServer::revisarCapasTodas() {
     for (const std::string& pid : pids) revisarCapas(pid);
 }
 
+// --- F3: lo que cuesta decodificar ---------------------------------------------------------
+
+void SignalingServer::bucleCarga() {
+    ba::platform::nombrarHilo("ba-gw-carga");
+    cargavideo::Medidor medidor;
+    int vuelta = 0;
+    while (!stop_.load()) {
+        for (int i = 0; i < 5 && !stop_.load(); ++i) std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        if (stop_.load()) break;
+        // Cada 250 ms: ¿cambió cómo mira la interfaz la tarjeta de alguien? (una tarjeta que
+        // aparece en pantalla vuelve a pedir su cámara enseguida, no a los 2 s del otro hilo).
+        if (pump_ != nullptr) {
+            std::vector<std::pair<std::string, int>> sesiones;
+            {
+                std::lock_guard<std::mutex> l(sessLock_);
+                for (const auto& [pid, idx] : sessionOf_) sesiones.emplace_back(pid, idx);
+            }
+            std::map<int, Mirada> ahora;
+            for (const auto& [pid, idx] : sesiones) {
+                const Mirada m = pump_->vistaDe(idx);
+                ahora[idx] = m;
+                const auto it = vistas_.find(idx);
+                if (it == vistas_.end() || it->second != m) revisarCapas(pid);
+            }
+            vistas_ = std::move(ahora);
+        }
+        // Cada segundo: la carga y los cps de la capa baja.
+        if (++vuelta >= 4) {
+            vuelta = 0;
+            ajustarCps(medidor);
+        }
+    }
+}
+
+void SignalingServer::ajustarCps(cargavideo::Medidor& medidor) {
+    AjustesCps a;
+    a.activo = ba::ajustes::siNo("gateway.cps.segunCarga", true);
+    a.subir = ba::ajustes::numero("gateway.cps.subirPct", 85);
+    a.bajar = std::min(a.subir - 1, ba::ajustes::numero("gateway.cps.bajarPct", 70));
+    a.sostenerBajarMs = ba::ajustes::sAMs("gateway.cps.recuperarS", 10);
+    a.perdidosTope = ba::ajustes::numero("gateway.cps.perdidosPct", 5);
+    const double minimo = std::clamp(ba::ajustes::numero("gateway.cps.minimo", 7.5), 1.0, 15.0);
+    a.niveles = minimo < 10 ? std::vector<double>{15, 10, minimo} : std::vector<double>{15, minimo};
+    if (minimo >= 15) a.niveles = {15};
+
+    const MedidaCarga m = medidor.medir();
+    const std::int64_t ahora = Grillas::reloj();
+
+    // Los que mandan la baja ahora (los de la alta no se tocan; los pausados no mandan nada).
+    std::vector<CandidatoCps> candidatos;
+    int pausados = 0, enBaja = 0, enAlta = 0;
+    std::vector<std::pair<std::string, int>> sesiones;
+    {
+        std::lock_guard<std::mutex> l(sessLock_);
+        for (const auto& [pid, idx] : sessionOf_) sesiones.emplace_back(pid, idx);
+    }
+    std::set<std::string> media;
+    {
+        std::lock_guard<std::mutex> l(calidadMu_);
+        media = mediaDe_;
+    }
+    std::set<std::string> presentes;
+    // Por invitado: qué capas manda (las que se le pidió prender) y cuánto entra de cada una.
+    // Fuera del instante de un cambio, nadie tendría que mandar las dos.
+    json invitados = json::array();
+    int mandanDos = 0, enMedia = 0;
+    double kbpsAlta = 0, kbpsBaja = 0;
+    std::map<int, std::pair<WebrtcHub::EntradaCamara, std::int64_t>> entrada;
+    {
+        for (const auto& [pid, idx] : sesiones) {
+            presentes.insert(pid);
+            WebrtcSession* s = hub_.session(idx);
+            if (s == nullptr) continue;
+            const WebrtcHub::EntradaCamara e = hub_.entradaCamara(idx);
+            double ka = 0, kb = 0;
+            if (const auto it = entradaAntes_.find(idx); it != entradaAntes_.end() && ahora > it->second.second) {
+                const double seg = static_cast<double>(ahora - it->second.second) / 1000.0;
+                if (e.alta >= it->second.first.alta) ka = static_cast<double>(e.alta - it->second.first.alta) * 8 / 1000 / seg;
+                if (e.baja >= it->second.first.baja) kb = static_cast<double>(e.baja - it->second.first.baja) * 8 / 1000 / seg;
+            }
+            entrada[idx] = {e, ahora};
+            kbpsAlta += ka;
+            kbpsBaja += kb;
+            if (!s->conCapas()) continue;
+            const CapasActivas act = s->capasActivas();
+            if (act.alta && act.baja) ++mandanDos;
+            const bool esMedia = media.count(pid) > 0;
+            if (esMedia) ++enMedia;
+            invitados.push_back({{"id", pid},
+                                 {"capa", esMedia ? "media" : nombreCapa(s->capaPedida())},
+                                 {"activas", act.alta && act.baja ? "alta+baja" : act.alta ? "alta" : act.baja ? "baja" : "nada"},
+                                 {"kbps_alta", std::lround(ka)},
+                                 {"kbps_baja", std::lround(kb)}});
+            const Capa c = s->capaPedida();
+            if (c == Capa::Nada) ++pausados;
+            if (c == Capa::Alta) ++enAlta;
+            if (c != Capa::Baja) continue;
+            ++enBaja;
+            if (pid.rfind("remoto:", 0) == 0) continue; // la asamblea: con la palabra va en alta
+            CandidatoCps k;
+            k.id = pid;
+            k.alto = grillas_ != nullptr ? grillas_->altoDe("sala:" + pid) : 0;
+            candidatos.push_back(std::move(k));
+        }
+    }
+    entradaAntes_ = std::move(entrada);
+
+    std::vector<std::pair<std::string, double>> enviar;
+    {
+        std::lock_guard<std::mutex> l(cpsMu_);
+        cps_.ajustes(a);
+        const int antes = cps_.escalon();
+        const double carga = ControlCps::carga(m, a.presupuestoMs, a.perdidosTope);
+        if (cps_.medir(carga, m, ahora))
+            log_.info(llenar(traducir("gateway", "video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)"),
+                             {carga < 0 ? std::string("?") : std::to_string(static_cast<int>(carga)), std::to_string(antes),
+                              std::to_string(cps_.escalon()), std::to_string(cps_.escalonMax())}));
+        const std::map<std::string, double> reparto = cps_.repartir(candidatos);
+        std::map<std::string, int> porCps;
+        for (const auto& [pid, cps] : reparto) {
+            const auto it = cpsEnviado_.find(pid);
+            const double tenia = it != cpsEnviado_.end() ? it->second : 15.0; // la página arranca en 15
+            if (std::abs(tenia - cps) > 0.01) {
+                cpsEnviado_[pid] = cps;
+                enviar.emplace_back(pid, cps);
+            }
+            char k[16];
+            std::snprintf(k, sizeof(k), "%g", cps);
+            ++porCps[k];
+        }
+        // Los que se fueron, fuera de la cuenta.
+        for (auto it = cpsEnviado_.begin(); it != cpsEnviado_.end();)
+            it = presentes.count(it->first) > 0 ? std::next(it) : cpsEnviado_.erase(it);
+        const cargavideo::Decodificadores dec = cargavideo::decodificadores();
+        estadoCarga_ = {{"pausarSinVer", ba::ajustes::siNo("gateway.pausarSinVer", true)},
+                        // `alta` cuenta también a los de la media (mismo transceptor, topado a 360p).
+                        {"capas", {{"nada", pausados}, {"baja", enBaja}, {"media", enMedia}, {"alta", enAlta},
+                                   {"mandan_dos", mandanDos}}},
+                        {"entra_kbps", {{"alta", std::lround(kbpsAlta)}, {"baja", std::lround(kbpsBaja)}}},
+                        {"invitados", std::move(invitados)},
+                        {"decodificadores", {{"trabajando", dec.trabajando}, {"en_pausa", dec.enPausa}}},
+                        {"cpsBaja", porCps},
+                        {"control", cps_.estado()},
+                        {"medidor", medidor.estado()}};
+    }
+    for (const auto& [pid, cps] : enviar) sendToGuest(pid, json{{"type", "cps-baja"}, {"cps", cps}});
+}
+
+json SignalingServer::estadoCargaVideo() const {
+    std::lock_guard<std::mutex> l(cpsMu_);
+    return estadoCarga_;
+}
+
 void SignalingServer::enviarCalidadGrilla(const std::string& pid, bool forzar) {
     if (grillas_ == nullptr) return;
     // Qué calidad según dónde se lo ve (al aire, en una grilla, en la fila sin grilla:
@@ -3803,7 +3990,9 @@ void SignalingServer::enviarCalidadGrilla(const std::string& pid, bool forzar) {
     const MediaRoute r = room_.routeOf(pid);
     std::lock_guard<std::mutex> l(calidadMu_);
     const auto it = altoGrilla_.find(pid);
-    const std::string nivel = nivelCalidad(r, it != altoGrilla_.end() ? it->second : 0);
+    std::string nivel = nivelCalidad(r, it != altoGrilla_.end() ? it->second : 0);
+    // La capa MEDIA (Capas.hpp): la alta topada a 360p, también en el programa.
+    if (mediaDe_.count(pid) > 0 && nivel == "libre") nivel = "360p";
     std::string& antes = calidadPedida_[pid];
     if (!forzar && antes == nivel) return;
     if (antes.empty() && nivel == "libre") {

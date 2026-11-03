@@ -246,6 +246,8 @@ class WebrtcSession {
     /// La capa que va hoy a la salida y la pedida (diagnostico, estadisticas).
     Capa capaSale() const;
     Capa capaPedida() const;
+    /// Las capas que se le pidió al navegador tener prendidas (las que codifica y manda).
+    CapasActivas capasActivas() const;
 
     /// Agrega un candidato ICE remoto del invitado.
     ///
@@ -399,6 +401,14 @@ class WebrtcHub {
         uint64_t salida = 0;
     };
     Trafico trafico() const;
+    /// Los bytes de cámara que entraron de la sesión `session` desde que conectó, por capa
+    /// (la alta —o la única cámara de un navegador de antes— y la baja; mismo lugar de
+    /// medida que trafico()). Para ver que cada invitado manda SOLO la capa que se usa.
+    struct EntradaCamara {
+        uint64_t alta = 0;
+        uint64_t baja = 0;
+    };
+    EntradaCamara entradaCamara(int session) const;
     static int kMaxViewers() { return ba::ajustes::entero("room.maxVisores", 48); }
 
     // --- Las capas de la red (PLAN-GATEWAY-FRAGMENTOS.md F1/F2) -----------------------------

@@ -9,6 +9,7 @@ namespace ba::gateway {
 const char* nombreCapa(Capa c) {
     switch (c) {
         case Capa::Alta: return "alta";
+        case Capa::Media: return "media";
         case Capa::Baja: return "baja";
         case Capa::Nada: break;
     }
@@ -28,6 +29,7 @@ bool SelectorCapas::poner(CapasActivas a) {
 }
 
 bool SelectorCapas::pedir(Capa c) {
+    c = transceptorDe(c); // la media viaja por el transceptor de la alta (topado a 360p)
     if (c == pedida_ && retenerHasta_ != 0) return false; // lo mismo, en pleno fundido: que termine
     pedida_ = c;
     retenerHasta_ = 0; // otro pedido: el fundido que hubiera ya no retiene nada
@@ -88,11 +90,27 @@ bool SelectorCapas::llego(Capa c, bool& pasa, bool& anterior, bool& empieza, std
     return poner({c == Capa::Alta, c == Capa::Baja}) || cambio;
 }
 
+const char* nombreMirada(Mirada m) {
+    switch (m) {
+        case Mirada::Todos: return "todos";
+        case Mirada::DeVezEnCuando: return "de_vez_en_cuando";
+        case Mirada::Nadie: break;
+    }
+    return "nadie";
+}
+
 Capa capaNecesaria(const NecesidadCapa& n) {
     using K = MediaRoute::Kind;
     Capa c = Capa::Nada;
     switch (n.ruta.kind) {
-        case K::Program: c = !n.appDijo || n.alAire || n.siguiente ? Capa::Alta : Capa::Baja; break;
+        case K::Program:
+            if (!n.appDijo || n.alAire || n.siguiente)
+                c = Capa::Alta;
+            else
+                // Fuera del aire: la tarjeta de la interfaz, si se ve. La que no se ve («de vez
+                // en cuando») se queda con la última imagen: no vale un decodificador.
+                c = n.vista == Mirada::Todos ? Capa::Baja : Capa::Nada;
+            break;
         case K::Remoto: c = Capa::Alta; break;
         case K::Lobby: c = Capa::Baja; break;
         case K::Backstage: c = n.ruta.index > 0 ? Capa::Baja : Capa::Nada; break;

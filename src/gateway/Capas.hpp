@@ -49,11 +49,22 @@
 
 namespace ba::gateway {
 
-/// Qué capa de la cámara necesita la sala de alguien.
-enum class Capa : uint8_t { Nada = 0, Baja = 1, Alta = 2 };
+/// Qué capa de la cámara necesita la sala de alguien. En orden (std::max elige la mayor).
+///
+/// MEDIA (360p, pedido del usuario el 2026-11-03: dos pantallas con grillas enlazadas, una con
+/// pocas personas y celdas de 640x360 que se veían pixeladas con la baja estirada, porque las
+/// 4 de la alta las ocupaba la otra pantalla): NO es un tercer transceptor. Es el de la ALTA
+/// topado a 360p (el tope `calidad-grilla-360p` que ya entiende la página: escala y bitrate del
+/// encoding, sin renegociar). Así el navegador sigue codificando a lo sumo UNA capa por vez
+/// (salvo el instante del cambio), y la sala recibe y decodifica solo esa. La grilla la pide
+/// para las celdas grandes que no entran en el tope de la alta (CapasGrilla en la app).
+enum class Capa : uint8_t { Nada = 0, Baja = 1, Media = 2, Alta = 3 };
 
-/// "nada" | "baja" | "alta" (para el registro, las estadísticas y los tests).
+/// "nada" | "baja" | "media" | "alta" (para el registro, las estadísticas y los tests).
 const char* nombreCapa(Capa c);
+
+/// El transceptor que lleva la capa `c`: la media va por el de la alta (topado a 360p).
+inline Capa transceptorDe(Capa c) { return c == Capa::Media ? Capa::Alta : c; }
 
 /// Las capas que el navegador tiene prendidas (lo que se le pidió).
 struct CapasActivas {
@@ -69,7 +80,8 @@ class SelectorCapas {
     /// Conexión nueva: el navegador arranca con las dos capas prendidas y todavía no pasó
     /// nada a la salida.
     void reiniciar();
-    /// La sala necesita `c`. true si cambió lo que hay que pedirle al navegador (activas()).
+    /// La sala necesita `c` (la media se pide como la alta: es su transceptor, transceptorDe).
+    /// true si cambió lo que hay que pedirle al navegador (activas()).
     /// Si es otra capa que la que sale, quedan las dos prendidas hasta que llegue la nueva.
     bool pedir(Capa c);
     /// Llegó un cuadro de la capa `c` en `ahoraMs`. `pasa`: si va a la salida (la que sale,
@@ -100,6 +112,13 @@ class SelectorCapas {
     std::int64_t retenerHasta_ = 0; ///< hasta cuándo sigue prendida la baja (0 = no se retiene)
 };
 
+/// Cómo mira la interfaz de la app la tarjeta de alguien (BA.GuestUi.N; SpoutSender::demanda):
+/// nadie la lee, la lee una vez por segundo (la tarjeta que no se ve) o la lee entera.
+enum class Mirada : uint8_t { Nadie = 0, DeVezEnCuando = 1, Todos = 2 };
+
+/// "nadie" | "de_vez_en_cuando" | "todos".
+const char* nombreMirada(Mirada m);
+
 /// Lo que se sabe de alguien para decidir su capa (SignalingServer lo junta).
 struct NecesidadCapa {
     MediaRoute ruta;
@@ -120,11 +139,21 @@ struct NecesidadCapa {
     bool siguiente = false;
     /// Vistas web que lo miran (tablero de oradores, presidencia): se les reenvía la alta.
     int espectadores = 0;
+    /// F3 (no decodificar a quien nadie ve): cómo mira la interfaz de la app su tarjeta
+    /// (BA.GuestUi.N). De fábrica «todos»: si no se sabe, como antes (la baja). Con
+    /// «nadie» o «de vez en cuando» (la tarjeta no se ve: FrameService la refresca una vez
+    /// por segundo y alcanza con la última imagen), el invitado del programa que no está al
+    /// aire, ni armado, ni en una grilla, ni lo mira una vista web, no manda nada: no se
+    /// decodifica. No se mira BA.Guest.N (el entero): el motor de la app lee todos siempre
+    /// (las entradas de las escenas están abiertas), y lo que sale al aire o va a salir ya lo
+    /// dice `alAire`/`siguiente`.
+    Mirada vista = Mirada::Todos;
 };
 
 /// La capa que la sala le pide a alguien:
-///   - en el programa (invitado admitido): alta si está al aire o armado; si no, baja (la
-///     vista chica de la app y el multiview);
+///   - en el programa (invitado admitido): alta si está al aire o armado; si no, baja si la
+///     interfaz mira su tarjeta (`vista` «todos»), y nada si no la mira nadie de verdad
+///     (F3: no se decodifica a quien nadie ve; la app ya dijo qué está al aire);
 ///   - remoto de la asamblea con la palabra (canal 1..2) o el siguiente (canal 0): alta;
 ///   - lobby y fila con vista previa: baja (un cuadrito del operador);
 ///   - en la fila sin vista previa, una pantalla, la atención: nada;
@@ -132,5 +161,38 @@ struct NecesidadCapa {
 ///   - precargado por una grilla (el siguiente orador): alta;
 ///   - si una vista web lo mira: alta (el reenvío es de la alta).
 Capa capaNecesaria(const NecesidadCapa& n);
+
+/// Al reanudar una capa pausada (o después de cualquier hueco), el decodificador tiene que
+/// arrancar de un cuadro clave. El navegador manda uno solo al prender el codificador, pero
+/// si se pierde (o la capa se reanudó sin reiniciarse: un navegador que «pausa» bajando los
+/// cps a 0), lo que llega son cuadros P que no se pueden decodificar y la celda se queda
+/// congelada hasta que el decodificador se queje. Esto lo ve en el cuadro codificado, antes
+/// del decodificador (TapTransformer): el primer cuadro después de un hueco de `huecoMs` o
+/// más que no es clave pide uno (PLI). Sin hilos: lo usa el transformador con su candado.
+class VigiaReanudar {
+   public:
+    explicit VigiaReanudar(std::int64_t huecoMs = 400) : huecoMs_(huecoMs) {}
+    /// Llegó un cuadro (`clave`: es IDR) en `ahoraMs`. true si hay que pedir un cuadro clave.
+    bool llego(std::int64_t ahoraMs, bool clave) {
+        const bool hueco = ultimoMs_ == 0 || ahoraMs - ultimoMs_ >= huecoMs_;
+        ultimoMs_ = ahoraMs;
+        if (clave) {
+            esperandoClave_ = false;
+            return false;
+        }
+        if (hueco) esperandoClave_ = true;
+        // Mientras no llega, se sigue pidiendo (Feed lo limita a uno cada 500 ms).
+        if (esperandoClave_) ++pedidos_;
+        return esperandoClave_;
+    }
+    bool esperandoClave() const { return esperandoClave_; }
+    std::uint64_t pedidos() const { return pedidos_; }
+
+   private:
+    std::int64_t huecoMs_;
+    std::int64_t ultimoMs_ = 0;
+    bool esperandoClave_ = false;
+    std::uint64_t pedidos_ = 0;
+};
 
 } // namespace ba::gateway

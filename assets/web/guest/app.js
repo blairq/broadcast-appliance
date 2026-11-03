@@ -404,6 +404,11 @@
         // Qué calidad de la cámara viaja: la sala elige según dónde se lo ve.
         if (state.capas) state.capas.pedido(msg);
         break;
+      case "cps-baja":
+        // La placa de video de la sala va cargada: la calidad baja con menos cuadros por
+        // segundo. Una conexión nueva arranca en 15 y la sala lo vuelve a decir.
+        if (state.capas) state.capas.cps(msg.cps);
+        break;
       case "ice":
         if (state.pc && msg.candidate) {
           const c = typeof msg.candidate === "string" ? { candidate: msg.candidate, sdpMLineIndex: 0 } : msg.candidate;

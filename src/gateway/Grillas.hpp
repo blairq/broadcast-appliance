@@ -40,7 +40,8 @@
 // CUANDO ALGUIEN HABLA (2026-11-01): cómo se lo muestra (resaltar en su lugar, destacar
 // con los demás en una franja, superponer dejándole el hueco, la escena del orador) lo
 // decide la app y llega acá como rectángulos, igual que siempre. Lo propio de este lado:
-//   - la CAPA de cada celda («capa»: alta|baja, con histéresis en la app: solo el que pasa
+//   - la CAPA de cada celda («capa»: alta|media|baja —media: 360p, la alta topada—, con
+//     histéresis en la app: solo el que pasa
 //     a grande sube) y los PRECARGADOS (el siguiente orador: alta de antemano). Se los
 //     junta por persona (alta si alguna grilla la pide) y se avisa (alCambiarCapa);
 //   - el FUNDIDO de la baja a la HD (Fundido.hpp): cuando llega el primer cuadro de la alta
