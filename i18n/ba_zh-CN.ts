@@ -39419,6 +39419,46 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Conferencia: hilos de red</source>
+        <translation>会议：网络线程</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos atienden la red de los invitados (sus conexiones y el TURN), cada uno con su parte. 0: automático según la máquina (un tercio de los núcleos de un bloque de caché, entre 1 y 4). 1: como antes, para comparar.</source>
+        <translation>处理嘉宾网络（其连接和 TURN）的线程数，每个线程负责一部分。0：根据本机自动设定（一个缓存块核心数的三分之一，1 到 4 之间）。1：与以前相同，用于比较。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: hilos de trabajo</source>
+        <translation>会议：工作线程</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cuántos hilos arman el audio y el video que llega de los invitados (paquetes, cuadros, el búfer del audio). 0: automático (la mitad de los núcleos de un bloque de caché, entre 1 y 6).</source>
+        <translation>组装嘉宾传来的音频和视频（数据包、帧、音频缓冲）的线程数。0：自动（一个缓存块核心数的一半，1 到 6 之间）。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: combinar hilos de red y de trabajo</source>
+        <translation>会议：组合网络线程与工作线程</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cada invitado va al hilo de red y al de trabajo menos cargados, en cualquier combinación. Apagado, cada hilo de red tiene su hilo de trabajo fijo (por si algo falla con la combinación).</source>
+        <translation>每位嘉宾分配到负载最低的网络线程和工作线程，可任意组合。关闭时，每个网络线程固定搭配自己的工作线程（以防组合出现问题）。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Conferencia: el TURN entrega en memoria</source>
+        <translation>会议：TURN 在内存中传递</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo que llega por el TURN (los invitados de afuera) pasa a la conferencia sin dar la vuelta por el sistema. Apagado, como antes (para comparar).</source>
+        <translation>通过 TURN 进来的内容（外部嘉宾）直接进入会议，不经过系统绕一圈。关闭时与以前相同（用于比较）。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: decodificar H.264 con la placa</source>
         <translation type="unfinished"></translation>
     </message>
@@ -39653,7 +39693,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不是可选项之一</translation>
     </message>
     <message>
-        <location line="-220"/>
+        <location line="-224"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>保留的聊天消息数</translation>
     </message>
@@ -39783,7 +39823,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>操作员控制台、发言人看板和手机：每个都是一个连接。</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+10"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -53854,12 +53894,12 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+296"/>
+        <location line="+302"/>
         <source>https: no arrancó; los invitados solo tienen http (sin cámara fuera de localhost)</source>
         <translation>https：未启动；嘉宾只能使用 http（localhost 以外无法使用摄像头）</translation>
     </message>
     <message>
-        <location line="-253"/>
+        <location line="-259"/>
         <source>túnel: sin clave privada WireGuard; túnel deshabilitado</source>
         <translation>隧道：没有 WireGuard 私钥；隧道已禁用</translation>
     </message>
@@ -53879,7 +53919,7 @@ Datos (de %2): %3</source>
         <translation>隧道：WireGuard 连接到 %1，身份为 %2（密钥 %3；公钥 %4）</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+5"/>
         <source>túnel: no arrancó WireGuard/pila IP</source>
         <translation>隧道：WireGuard/IP 协议栈未启动</translation>
     </message>
@@ -53914,7 +53954,7 @@ Datos (de %2): %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+267"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>隧道：--tunnel-token 在进程列表中可见；建议使用 %1</translation>
     </message>
@@ -53934,7 +53974,7 @@ Datos (de %2): %3</source>
         <translation>隧道：已在配置中停用（仅限本地访问）</translation>
     </message>
     <message>
-        <location line="-637"/>
+        <location line="-645"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>网络：本机 IP %1；二维码中：%2</translation>
     </message>
@@ -53944,7 +53984,7 @@ Datos (de %2): %3</source>
         <translation>代理：未启动（原因见上方）</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location line="+81"/>
         <source>entropia</source>
         <translation>熵</translation>
     </message>
@@ -53964,7 +54004,7 @@ Datos (de %2): %3</source>
         <translation>Broadcast Appliance（本设备）</translation>
     </message>
     <message>
-        <location line="+98"/>
+        <location line="+102"/>
         <source>turn: escuchando en el puerto %1 (TCP y UDP)</source>
         <translation>turn：正在监听端口 %1（TCP 和 UDP）</translation>
     </message>
@@ -53984,7 +54024,7 @@ Datos (de %2): %3</source>
         <translation>https：ba-web 不处理；启动自带的终结器</translation>
     </message>
     <message>
-        <location line="+213"/>
+        <location line="+215"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>会场入口：https 位于 %1:%2</translation>
     </message>
@@ -54039,7 +54079,7 @@ Datos (de %2): %3</source>
         <translation>正在停止：关闭各组件...</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+25"/>
         <source>cierre ordenado: BA.Health slot 0 = Terminated; exito</source>
         <translation>有序关闭：BA.Health slot 0 = Terminated；成功</translation>
     </message>
@@ -54280,7 +54320,7 @@ Datos (de %2): %3</source>
         <translation>服务未运行</translation>
     </message>
     <message>
-        <location filename="../src/gateway/turn/Servidor.cpp" line="+923"/>
+        <location filename="../src/gateway/turn/Servidor.cpp" line="+1182"/>
         <source>turn: falta el secreto (16 bytes o más)</source>
         <translation>turn：缺少密钥（16 字节或以上）</translation>
     </message>
@@ -85354,7 +85394,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>断开后回到原位的嘉宾</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-134"/>
+        <location filename="../src/gateway/main.cpp" line="-135"/>
         <source>Edad de lo leído de A (p50 de la última ventana), ms</source>
         <translation>从 A 读取的数据帧龄（最近窗口 p50），ms</translation>
     </message>
