@@ -65,8 +65,9 @@ std::vector<std::string> campos(const std::string& linea, char sep) {
 }
 
 // (preset_ptz no: es la toma de la banca, ver Cuerpo::guardar.)
-const char* kCampos[] = {"persona_id", "nombre", "cargo_oficial", "bloque",    "distrito",
-                         "banca",      "foto",   "microfono",     "dcn_unidad", "prioridad"};
+// `prueba`: lo creó la «Prueba de asamblea» (Cuerpo::esDePrueba); la interfaz no lo edita.
+const char* kCampos[] = {"persona_id", "nombre",    "cargo_oficial", "bloque", "distrito", "banca",
+                         "foto",       "microfono", "dcn_unidad",    "prioridad", "prueba"};
 
 } // namespace
 
@@ -397,6 +398,20 @@ std::string Cuerpo::guardar(const json& c, std::string* error) {
     }
     guardarArchivo();
     return id;
+}
+
+void Cuerpo::enLote(const std::function<void()>& f) {
+    const bool antes = importando_;
+    importando_ = true;
+    f();
+    importando_ = antes;
+    guardarArchivo();
+}
+
+void Cuerpo::restaurarRecinto(const json& r) {
+    if (r.is_object()) datos_["recinto"] = r;
+    else datos_.erase("recinto");
+    guardarArchivo();
 }
 
 bool Cuerpo::borrar(const std::string& id) {

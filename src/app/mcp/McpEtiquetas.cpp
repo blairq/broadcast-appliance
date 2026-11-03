@@ -857,6 +857,14 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"prueba_sala_arrancar", QT_TRANSLATE_NOOP("mcp-etiquetas", "prueba de sala simulacro prueba de carga ensayo con gente participantes de prueba hinchada aguanta la maquina la red")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_asamblea_arrancar", QT_TRANSLATE_NOOP("mcp-etiquetas", "prueba de asamblea simular integrantes consejeros de prueba remotos sesion remota celulares probar la sesion votacion simulada hinchada carga")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_asamblea_estado", QT_TRANSLATE_NOOP("mcp-etiquetas", "como va la prueba de asamblea integrantes simulados conectados esperando habilitados votaron bloqueados")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_asamblea_terminar", QT_TRANSLATE_NOOP("mcp-etiquetas", "terminar parar cortar prueba de asamblea limpiar borrar integrantes de prueba revocar")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_asamblea_informe", QT_TRANSLATE_NOOP("mcp-etiquetas", "informe resultado de la prueba de asamblea latencias espera votos integrantes simulados")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"prueba_sala_parar", QT_TRANSLATE_NOOP("mcp-etiquetas", "terminar parar cortar prueba de sala simulacro limpiar participantes de prueba")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"prueba_sala_entrada_directa", QT_TRANSLATE_NOOP("mcp-etiquetas", "entrada directa para todos sin lobby dejar entrar a todos prueba de sala")},

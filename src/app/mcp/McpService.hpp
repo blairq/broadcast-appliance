@@ -73,6 +73,7 @@ class McpService : public QObject {
     void registerImageTools();
     void registerRoomTools();
     void registerPruebaSalaTools(); ///< prueba_sala_* (McpPruebaSalaTools.cpp)
+    void registerPruebaAsambleaTools(); ///< prueba_asamblea_* (McpPruebaAsambleaTools.cpp)
     void registerEnlaceTools();     ///< enlace_* (McpEnlaceTools.cpp)
     void registerCapacidadTools();  ///< capacidad_* (McpCapacidadTools.cpp)
     void registerUiTools();

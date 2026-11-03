@@ -274,6 +274,36 @@ int main() {
         CHECK(r.value("ok", false) && !r.contains("aparato"), "después: entra con el token, sin el PIN");
         r = entrar({{"type", "auth"}, {"i", "leg-9"}, {"t", tok}, {"aparato", std::string(64, 'f')}});
         CHECK(!r.value("ok", true) && r.value("error_codigo", "") == "aparato", "un token que no vale: «aparato» (la página pide el PIN)");
+
+        // Los integrantes de PRUEBA (la «Prueba de asamblea»): todos salen de la máquina del
+        // probador, así que no cuentan para el tope de intentos por IP; pueden decir dónde
+        // simulan estar. Los reales, no: ni lo uno ni lo otro.
+        nlohmann::json deprueba = cred("prueba-1", nlohmann::json::array());
+        deprueba["prueba"] = true;
+        w.ponerCredenciales(nlohmann::json::array({cred("leg-9", nlohmann::json::array()), deprueba}));
+        CHECK(w.credencialDePrueba("prueba-1") && !w.credencialDePrueba("leg-9") && !w.credencialDePrueba("nadie"),
+              "la marca de prueba viene de la app, credencial por credencial");
+        int entraron = 0;
+        for (int k = 0; k < 14; ++k)
+            entraron += entrar({{"type", "auth"}, {"i", "prueba-1"}, {"t", tok}, {"pin", pin}}).value("ok", false) ? 1 : 0;
+        CHECK(entraron == 14, "un integrante de prueba entra todas las veces (sin el tope de 10 por IP)");
+        r = entrar({{"type", "auth"}, {"i", "prueba-1"}, {"t", tok}, {"pin", pin}, {"lugar_prueba", "afuera"}});
+        CHECK(r.value("ok", false) && r.value("lugar", "") == "afuera", "el de prueba puede simular que está afuera");
+        r = entrar({{"type", "auth"}, {"i", "prueba-1"}, {"t", tok}, {"pin", pin}, {"lugar_prueba", "la luna"}});
+        CHECK(r.value("ok", false) && r.value("lugar", "") != "la luna", "solo «sala» o «afuera»");
+        const std::string lugarReal = r.value("lugar", "");
+        r = entrar({{"type", "auth"}, {"i", "leg-9"}, {"t", tok}, {"pin", pin}, {"lugar_prueba", "afuera"}});
+        CHECK(r.value("ok", false) && r.value("lugar", "") == lugarReal, "un integrante real no elige su lugar");
+        for (int k = 0; k < 5; ++k) entrar({{"type", "auth"}, {"i", "prueba-1"}, {"t", tok}, {"pin", "000000"}});
+        r = entrar({{"type", "auth"}, {"i", "prueba-1"}, {"t", tok}, {"pin", pin}});
+        CHECK(!r.value("ok", true) && r.value("error", "").find("bloqueado") != std::string::npos,
+              "al de prueba el PIN errado lo bloquea igual (se puede probar el bloqueo)");
+        int frenados = 0;
+        for (int k = 0; k < 12; ++k) {
+            const nlohmann::json x = entrar({{"type", "auth"}, {"i", "leg-9"}, {"t", tok}, {"pin", pin}});
+            frenados += x.value("error", "").find("Demasiados intentos") != std::string::npos ? 1 : 0;
+        }
+        CHECK(frenados > 0, "a los reales el tope por IP les sigue valiendo");
 #endif
     }
 

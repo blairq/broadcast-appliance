@@ -48,6 +48,7 @@
 #include "ui/AlarmasViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
 #include "ui/PruebaSalaViewModel.hpp"
+#include "ui/PruebaAsambleaViewModel.hpp"
 #include "ui/EnlaceViewModel.hpp"
 #include "ui/CapacidadViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
@@ -979,6 +980,12 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         conference_->client(), cupoSala(), *recursos_, *evento_, *enlace_, rt.dataRoot()});
     connect(pruebaSala_.get(), &PruebaSalaViewModel::notify, this, &StudioViewModel::notify);
     marca("prueba_sala");
+    // La prueba de asamblea (integrantes simulados por la sesión remota): la sala, la sesión,
+    // el Cuerpo y el evento (su carpeta Pruebas/ y su lista de chequeo).
+    pruebaAsamblea_ = std::make_unique<PruebaAsambleaViewModel>(PruebaAsambleaViewModel::Partes{
+        conference_->client(), asamblea_->sesionRemota(), asamblea_->cuerpo(), *evento_, rt.dataRoot()});
+    connect(pruebaAsamblea_.get(), &PruebaAsambleaViewModel::notify, this, &StudioViewModel::notify);
+    marca("prueba_asamblea");
     crearCapacidad();
     marca("capacidad");
     // Sin un reloj de la interfaz a 10 Hz: cada cosa por su aviso.
@@ -1588,6 +1595,10 @@ void StudioViewModel::publicarSegundo() {
 }
 
 QObject* StudioViewModel::botoneraQml() const { return control_->botoneraQml(); }
+QObject* StudioViewModel::pruebaAsambleaQml() const {
+    QQmlEngine::setObjectOwnership(pruebaAsamblea_.get(), QQmlEngine::CppOwnership);
+    return pruebaAsamblea_.get();
+}
 QObject* StudioViewModel::pruebaSalaQml() const {
     QQmlEngine::setObjectOwnership(pruebaSala_.get(), QQmlEngine::CppOwnership);
     return pruebaSala_.get();

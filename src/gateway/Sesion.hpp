@@ -86,6 +86,15 @@
 // errados seguidos bloquean al integrante 15 min (la app se entera); Origin
 // igual a Host; una conexión por integrante (la nueva corta la vieja); 20
 // mensajes por segundo; latido de 30 s; fotos de hasta 96 KB.
+//
+// INTEGRANTES DE PRUEBA (la «Prueba de asamblea» de la app, docs/funciones/PRUEBA-ASAMBLEA.md):
+// la app marca su credencial con `prueba: true`. Entran por el mismo camino que los reales
+// (link + PIN o usuario + contraseña, el bloqueo por PIN errado incluido), con dos
+// diferencias, solo para ellos: (1) no cuentan para el tope de intentos por IP (todos los
+// simulados salen de una o pocas máquinas: con el tope, el undécimo no entraría) y (2) el
+// primer mensaje puede traer `lugar_prueba` ("sala" | "afuera") para simular dónde está (desde
+// la máquina del probador todos serían «sala»). Una credencial real nunca tiene la marca: la
+// pone la app solo a los integrantes que creó la prueba, que borra al terminar.
 // ============================================================================
 #pragma once
 
@@ -205,6 +214,12 @@ class SesionBorde {
     int conectados() const;
     bool bloqueado(const std::string& id) const;
     void anotarPinMal(const std::string& id);
+    /// ¿La credencial de `id` (o la del usuario `usuario`, si `id` está vacío) es de un
+    /// integrante de prueba? Ver «INTEGRANTES DE PRUEBA» arriba.
+    bool credencialDePrueba(const std::string& id, const std::string& usuario = {}) const;
+    /// El lugar que dice un integrante de prueba («lugar_prueba»: "sala" | "afuera"), o
+    /// `real` si no es de prueba o no dijo nada que valga.
+    std::string lugarDePrueba(const std::string& id, const nlohmann::json& pedido, const std::string& real) const;
 
    private:
     struct Conn : canal::Salida {
@@ -217,6 +232,8 @@ class SesionBorde {
     };
     struct Credencial {
         std::string nombre, banca, sal, hashToken, hashPin, usuario, hashClave;
+        /// Un integrante de PRUEBA (la «Prueba de asamblea» de la app, ver arriba).
+        bool prueba = false;
         std::vector<Aparato> aparatos;
         int fallas = 0;
         std::int64_t bloqueadoHastaMs = 0;

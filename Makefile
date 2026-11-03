@@ -1174,7 +1174,7 @@ deps-pinggy:
 deps-pinggy-win:
 	tools/deps/pinggy.sh windows-x86_64
 
-# hinchada: el probador de carga WebRTC (prueba de sala, docs/funciones/PRUEBA-SALA.md).
+# hinchada: el probador de carga WebRTC (prueba de sala y de asamblea, docs/funciones/PRUEBA-SALA.md y PRUEBA-ASAMBLEA.md).
 # Es un proyecto hermano (../hinchada, o HINCHADA_DIR): se toman sus paquetes ya armados
 # (`make -C ../hinchada paquete`) y quedan en extern/hinchada/<plataforma>; el bundle lo
 # lleva en bin/64bit/hinchada/. La Mac copia la carpeta del paquete; Linux y Windows, sus .tar.gz.
@@ -1182,10 +1182,11 @@ HINCHADA_DIR ?= $(abspath $(CURDIR)/../hinchada)
 deps-hinchada:
 	@test -d "$(HINCHADA_DIR)/dist" || { echo "[deps] ERROR hinchada: no está $(HINCHADA_DIR)/dist ('make -C $(HINCHADA_DIR) paquete' o HINCHADA_DIR=…)" >&2; exit 1; }
 	@mkdir -p "$(EXTERNS_DIR)/hinchada"
-	@# La prueba de sala usa --modo grabado y --hablan: un paquete viejo no los conoce.
+	@# La prueba de sala usa --modo grabado y --hablan; la de asamblea, --servidor integrantes
+	@# (--integrantes): un paquete viejo no los conoce.
 	@if [ -x "$(HINCHADA_DIR)/dist/hinchada-macos-arm64/hinchada" ] && [ "$$(uname -s)" = Darwin ] && \
-	   ! "$(HINCHADA_DIR)/dist/hinchada-macos-arm64/hinchada" ayuda 2>&1 | grep -q -- "--hablan"; then \
-	  echo "[deps] ERROR hinchada: el paquete es viejo (sin --hablan): 'make -C $(HINCHADA_DIR) paquete'" >&2; exit 1; fi
+	   ! "$(HINCHADA_DIR)/dist/hinchada-macos-arm64/hinchada" ayuda 2>&1 | grep -q -- "--integrantes"; then \
+	  echo "[deps] ERROR hinchada: el paquete es viejo (sin --servidor integrantes): 'make -C $(HINCHADA_DIR) paquete'" >&2; exit 1; fi
 	@if [ -d "$(HINCHADA_DIR)/dist/hinchada-macos-arm64" ]; then \
 	  rm -rf "$(EXTERNS_DIR)/hinchada/macos-arm64" && cp -R "$(HINCHADA_DIR)/dist/hinchada-macos-arm64" "$(EXTERNS_DIR)/hinchada/macos-arm64" && \
 	  echo "[deps] hinchada macos-arm64: $$(cat "$(EXTERNS_DIR)/hinchada/macos-arm64/VERSION" 2>/dev/null)"; fi

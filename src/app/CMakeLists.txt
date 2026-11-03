@@ -1494,6 +1494,15 @@ endif()
     target_link_libraries(test_sesion_remota PRIVATE ba_core Qt6::Core)
     set_target_properties(test_sesion_remota PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_sesion_remota COMMAND test_sesion_remota)
+    # La prueba de asamblea: no toca un padrón real, los de prueba marcados, su acceso al
+    # gateway, el archivo del probador y la limpieza (asamblea/PruebaAsambleaReglas).
+    add_executable(test_prueba_asamblea_reglas tests/test_prueba_asamblea_reglas.cpp asamblea/PruebaAsambleaReglas.cpp
+                   asamblea/SesionRemota.cpp asamblea/SesionRemota.hpp asamblea/Cuerpo.cpp asamblea/VotacionUnificada.cpp
+                   ui/FotosPersonas.cpp ui/FotosPersonas.hpp "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
+    target_include_directories(test_prueba_asamblea_reglas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
+    target_link_libraries(test_prueba_asamblea_reglas PRIVATE ba_core Qt6::Core)
+    set_target_properties(test_prueba_asamblea_reglas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_prueba_asamblea_reglas COMMAND test_prueba_asamblea_reglas)
     add_executable(test_debate tests/test_debate.cpp asamblea/Debate.cpp asamblea/Debate.hpp asamblea/Cuerpo.cpp)
     target_include_directories(test_debate PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_debate PRIVATE ba_core Qt6::Core)
