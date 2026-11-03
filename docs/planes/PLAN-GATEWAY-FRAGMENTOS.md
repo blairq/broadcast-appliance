@@ -327,7 +327,8 @@ Escrito (2026-11-02, noche; **sin compilar ni medir**, como F1):
 - #4 (red → trabajo) y #12/#13 (retorno → oyentes) quedan como los arma libwebrtc: el pase
   red → trabajo es un `PostTask` de libwebrtc (despierta solo si el hilo dormía) y los
   codificadores de paso corren en las colas compartidas «rtc» (ya en lote: 733 despertadas
-  para 7,6 mil tareas/s con 40). Medir antes de tocar más.
+  para 7,6 mil tareas/s con 40). Medir antes de tocar más. (La #4 se midió en la .177 y se
+  hizo en lote: ver «La frontera #4» abajo.)
 - `gateway_estado` → `capas`: cada hilo de red y de trabajo con su carga y sus sesiones, las
   fábricas y el conmutador (directos, encolados, cruzados, despertadas, descartes); `turn` →
   `fragmentos`.
@@ -337,6 +338,74 @@ Escrito (2026-11-02, noche; **sin compilar ni medir**, como F1):
   `WebrtcHub::conectarTunel` lo enchufa (main, al arrancar la pila y antes de pararla).
 - Afinidad (F4, de HL): los hilos de red, de trabajo, de las colas, el reloj de audio y los
   del TURN sin libwebrtc llaman `nucleos::alGrupoGateway()` al empezar.
+
+#### La frontera #4 (red → trabajo) en lote
+
+Escrito (2026-11-02, noche; **sin compilar ni medir**). Lo que lo pidió: en la .177 con 40,
+29 mil cambios de contexto/s en el gateway y el primero es `ba-rtc-work-#` (×3): 13,5 mil/s,
+20-26 % de un núcleo cada uno. En libwebrtc cada paquete que llega al hilo de red pasa al de
+trabajo con un `PostTask` (`WebRtcVideoReceiveChannel` / `WebRtcVoiceReceiveChannel::OnPacketReceived`,
+siempre, aunque los dos hilos sean el mismo), y `rtc::Thread::PostTaskImpl` encola y llama
+SIEMPRE a `WakeUp()` del socket server del destino: el de trabajo (más rápido que el de red)
+atiende el paquete en µs, se vuelve a dormir y el siguiente lo despierta otra vez. Una
+despertada por paquete (~4 mil/s con 40).
+
+Sin tocar libwebrtc, con lo que M123 deja enganchar (`rtc_base/thread.h`, `socket_server.h`:
+el socket server de cada hilo, `Run()`, `PostTaskImpl`/`PostDelayedTaskImpl`/`BlockingCallImpl`
+virtuales; `Get()`/`Dispatch()` son privados):
+
+- `rtc/LoteTrabajo.{hpp,cpp}` (sin libwebrtc, `test_lote_trabajo`): un `Destino` (la espera
+  del hilo de trabajo: mutex + condvar, con «aviso pendiente» para no perder ninguno) y un
+  `Remitente` por hilo de red (en un `thread_local`). El aviso que hace un hilo de red no
+  despierta: anota al destino. Se suelta (una despertada por destino y por tanda): al entrar
+  a esperar (antes de dormirse, siempre), al terminar cada tarea o vuelta de E/S si la primera
+  anotada ya esperó `gateway.loteTrabajoUs` (500 µs de fábrica; 0 = al terminar cada una),
+  antes de un `BlockingCall` a otro hilo y al cerrar. Desde cualquier otro hilo (señalización,
+  colas, `webrtc-playout`, el cierre) el aviso es en el acto, como siempre; el propio hilo de
+  trabajo avisándose a sí mismo, nada (está corriendo y mira su cola antes de dormir).
+- `rtc/HilosLote.{hpp,cpp}`: `HiloTrabajo` (un `rtc::Thread` con `EsperaTrabajo`, socket
+  server sin sockets como `NullSocketServer`; un `BlockingCall` hacia él es **urgente**: el
+  que llama queda esperando y no puede esperar al lote) y `HiloRed` (un `rtc::Thread` con
+  `ServidorRed`, que ES un `PhysicalSocketServer`: BucleRtc y las fábricas lo usan igual).
+  Las tareas del hilo de red van envueltas (al terminar: `soltarSiVencio`); si anota algo
+  procesando E/S ADENTRO de `PhysicalSocketServer::Wait` (que no sale hasta que lo
+  despierten), se despierta a sí mismo (sin cambio de contexto) para soltar al terminar esa
+  vuelta. Además, un `PostTask` del hilo de red a sí mismo fuera de la espera no llama al
+  `WakeUp` de verdad (pipe/evento de Windows): `rtc::Thread::Get` mira la cola antes de
+  volver a esperar.
+- **Por qué no se pierde precisión ni orden:** los `PostTask` ya están en la cola del de
+  trabajo (libwebrtc encola antes de avisar): la tanda corre en el orden de llegada. Si el de
+  trabajo está despierto, anotar no cambia nada. Las diferidas: el de trabajo duerme con el
+  plazo de la próxima (lo calcula `rtc::Thread` en ms, igual que antes). El control de
+  congestión no lo ve: la hora de llegada de cada paquete la toma el hilo de red al leerlo,
+  antes de la frontera. El audio (NetEq) recibe el paquete a lo sumo `loteTrabajoUs` + lo que
+  dure la tarea en curso del de red más tarde, y nunca más tarde de cuando el de red se
+  desocupa.
+- `gateway.redYTrabajo` (reinicia el gateway): `lote` (de fábrica), `juntos` (cada hilo de
+  red es también el de trabajo de su grupo: tantos como el mayor de `hilosRed`/`hilosTrabajo`,
+  sin cruzar; la frontera desaparece como despertada, aunque libwebrtc sigue haciendo el
+  `PostTask` a sí mismo, que ahora no escribe en el pipe; de yapa, el envío
+  `MediaChannelUtil::TransportForMediaChannels::DoSendPacket` de M123 manda directo, sin
+  `PostTask`, cuando ya está en el hilo de red — eso lo dice el código de M123, no los headers:
+  verificarlo con `rtc.red.propias` y los cambios de contexto) o `separados` (como venía:
+  una despertada por paquete; usa la misma espera, solo cuenta, para comparar).
+- Contadores: fronteras `rtc.red-trabajo[-j]` (#4: pases/s = `PostTask` del de red al de
+  trabajo j, despertadas/s, pases por despertada, espera = desde la primera anotada hasta la
+  despertada, o sea la latencia agregada) y `rtc.red.propias` (#4 con `juntos`: los `PostTask`
+  a sí mismo sin despertar). `gateway_estado` → `capas.redYTrabajo`: el modo, `loteUs` y por
+  hilo de trabajo los avisos, los de red, anotados, urgentes, despertadas y `despierto_pct`.
+- Tests: `test_lote_trabajo` (orden, una despertada por tanda, separados, urgente, diferidas,
+  el dueño, el tope del lote, cierre, la frontera) y `test_webrtc_lote` (con `rtc::Thread` de
+  verdad: orden y tandas lote contra separados, `BlockingCall` del de red con una tanda
+  anotada, diferidas, E/S por sockets UDP del `PhysicalSocketServer`, `juntos`, cierre).
+
+Qué mirar al medir (40 por TURN, `lote` contra `separados` y `juntos`): cambios de
+contexto/s de `ba-rtc-work*` (la meta: de 13,5 mil a ≤ 4 mil), pases por despertada de
+`rtc.red-trabajo*` (≥ 4), `espera_us` (≤ 500, máx. ≤ 1000), CPU de `ba-rtc-net*` (no debería
+subir más que unos puntos: envolver cada tarea y el autodespertar de la E/S), edad del audio
+p50 y lo que recibe el invitado (sin cambios). Con `juntos`: CPU y cambios de contexto de
+`ba-rtc-net*` y si la red de un grupo se atrasa (ráfaga de 40 entrando: los DTLS y los
+`SetRemoteDescription` en el mismo hilo que la red).
 
 Medición (pendiente: se hace con todo junto; `medir-sala.py`, Mac, `--camino turn-mezcla:10`
 con `--turn-prueba` y `--camino directo`, 10 y 40, después 80; grabado, habla 1, decodificar
