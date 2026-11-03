@@ -24,6 +24,12 @@ la campaña»): con 40 el gateway gasta 220 % directo y 231-242 % por TURN, con 
 138 % directo y 162 % por TURN mezcla, con **204 hilos** y **28-29 mil cambios/s**; con 10 en
 720p, 82 %. Detalle en «Lo que dijo la campaña» → «Después del rewrite».
 
+**Con todo integrado (2026-11-03, .177, master `5e405912`)**: con 40 el gateway gasta 169 % directo
+y 185 % por TURN mezcla (más que la noche anterior), con 231-234 hilos y **23,6-23,7 mil cambios/s**;
+ba-app baja a 92-102 %. **El techo pasó de ~80 a ~160 invitados**; con 200 se llenan el motor de
+video de la placa (desde 120) y los dos `ba-rtc-net`. Detalle en «Lo que dijo la campaña» → «Con
+todo integrado».
+
 **Lo que todavía no medimos (antes de la campaña): el camino de producción.** Los invitados entran por los
 puertos TCP y UDP que abre pinggy, que llegan al TURN propio (`127.0.0.1:3478`,
 [TURN.md](../funciones/TURN.md)). hinchada entra directo a WebRTC por UDP y se saltea el
@@ -248,6 +254,66 @@ rewrite de hilos».
    casi libre. Por decisión del usuario quedó apagada de fábrica (`gateway.afinidad` y
    `procesador.mediosJuntos`), y para medir también `procesador.prioridad`. La tarea programada de
    las pruebas en la .177 lanzaba la app en BelowNormal: medir con `start /NORMAL`.
+
+### Con todo integrado (2026-11-03, .177)
+
+Paquete de master `5e405912`: además de F1-F5, #4 en lote, #10 repartido (3 hilos, sin mezcla ni
+APM), video según demanda con la celda en la placa, la interfaz desacoplada de la foto, la foto
+del motor por partes, el reacomodo agrupado y la entrada escalonada (2/s de fábrica; 10/s en la
+escalera). Mismas condiciones que la noche anterior. Crudas en
+`~/Proyectos/mediciones-carga/2026-11-03-n2/`; ficha en
+[pc-ryzen9-5900x-rx5700xt.md](../hardware/pc-ryzen9-5900x-rx5700xt.md) «Con todo integrado».
+
+| | 40 directo noche 11-02 | 40 directo ahora | 40 TURN mezcla noche 11-02 | 40 TURN mezcla ahora |
+|---|---|---|---|---|
+| CPU del gateway p50 | 138 % | **169 %** | 162 % | **185 %** |
+| Hilos del gateway (máx.) | 204 | 234 | 205 | 231 |
+| Cambios de contexto/s | 29,2 mil | **23,7 mil** | 28,1 mil | **23,6 mil** |
+| ba-app | 109 % | **92 %** | 120 % | **102 %** |
+| Grilla (mosaico / celda baja) | 30 / 15,0 | 30 / 15,0 | 30 / 15,0 | 30 / 15,2 |
+| Edad del audio | 14,8 ms | 15,0 ms | 14,7 ms | 15,1 ms |
+| Faltantes del retorno | 691 (la entrada) | **0** | — | **0** |
+| `webrtc-playout`, µs por pase | 1390 (1 hilo) | 447 el más cargado (3 hilos) | — | 455 |
+
+| Escalera (TURN mezcla) | antes: 80 / 120 (noche 11-02, sin afinidad) | ahora: 80 / 120 / 160 / 200 |
+|---|---|---|
+| ba-app | 190 / 323 % | 178 / 264 / 378 / 496 % |
+| gateway | 313 / 540 % | 348 / 493 / 615 / 707 % |
+| Trabas de la interfaz (máx.) | 6,3 / 24,9 s | 0,9 / 0,7 / 1,3 / 2,7 s |
+| «llega tarde» | 212 / 645 | 0 / 0 / 0 / 0 |
+| Playout, hilo más cargado | 2,7 / 9,0 ms de 10 | 1,0 / 2,4 / 3,0 / 3,2 ms de 10 |
+| Grilla, celda baja p50 | 15,0 / 15,0 (p5 7,0) | 15,0 / 13,2 / 9,9 / 7,5 |
+
+1. **El techo pasó de ~80 a ~160 invitados.** Con 200 entran todos (a 10/s, en 103 s) y anda, con
+   trabas de 2,5-2,7 s mientras entran. Ni el audio (11,6-15,2 ms), ni «llega tarde» (0), ni el
+   playout (0 vueltas perdidas) se rompen en ningún escalón.
+2. **Lo primero que corta es la guardia de `medir-sala`, con 200: ba-app pasa de 1200 hilos** (con
+   108-112 adentro). ba-app prepara ~3 hilos por lugar del cupo antes de que entre nadie (770-870
+   con cupo 200) y suma ~1 por invitado. Con el tope en 3000 entran los 200.
+3. **El primer recurso que se llena es el motor de video de la placa**: 48 % con 40, 82 % con 80 y
+   **96-99 % desde 120** (decodificar H.264 720p30, ~1,2 % por cámara; `enteros` `todos` = N:
+   cada cámara se decodifica entera). Con eso la celda baja de la grilla cae a 13,2 / 9,9 / 7,5 cps
+   (120 / 160 / 200), aunque el mosaico siga en 30. Siguiente paso para F3: decodificar en menos
+   resolución (o pedir la capa baja) las cámaras que solo están en la grilla.
+4. **El primer hilo del gateway que se llena es `ba-rtc-net`** (×2): ~89 % cada uno con 120 y
+   97-98 % con 200 (ETW). Para pasar de ~200 hace falta R ≥ 3 en la capa de red.
+5. **#4 en lote anda**: ~2-3 mil despertadas/s por hilo de trabajo de 40 a 200 y lo que crece son
+   los pases por despertada (7 → 20), con 0 urgentes; espera p50 222 µs (40) → 557 µs (200).
+   **#10 repartido anda**, pero el costo por invitado no es plano: ~33 µs con 40-80 y 47-58 µs
+   desde 120.
+6. **Con 40 el gateway gasta más CPU que la noche anterior** (+15-22 %) aunque con -19 % de cambios
+   de contexto: suben `ba-colas-dec`, `ba-rtc-net`, `ba-rtc-work` y los sin nombre, con la celda ya
+   achicada en la placa (`celdas_placa` > 0, `celdas_cpu` 0). No está separado qué parte es la
+   entrega D3D11 de la celda. ba-app bajó 15-17 %.
+7. **Las trabas que quedan son de la interfaz con la foto del motor**: lo que tarda cada foto crece
+   más que lineal (33 ms con 40 → 245-278 ms con 200), casi todo en `VideoViewModel`. Pilas (3 de 5):
+   `SuperRes::tamanosSinVariante` llama a `VideoViewModel::estadoEntrada` por cada entrada y esta
+   copia el mapa entero de estados cada vez (O(N²)). Las otras dos: `Matriz::filas()` reevaluado
+   por QML y `setGuestNames` de todos los lugares en cada `roomChanged`. El turno del motor no se
+   perdió nunca (`ba_motor_vueltas_sin_turno_total` 0).
+8. **La Mac generadora es el límite desde 160** (83-87 % p50, 100 % de pico, carga 40 con 200): los
+   congelamientos y la bajada de resolución del lado del invitado con 120-200 son en buena parte
+   de la Mac. 256-512 quedan para generar desde dos máquinas.
 
 ## Etapas
 

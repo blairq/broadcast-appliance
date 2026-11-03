@@ -1,8 +1,12 @@
 # PC Ryzen 9 5900X + Radeon RX 5700 XT (Windows 11)
 
-La PC de pruebas de Windows (`192.168.1.177`, `ssh windows`). Medida tres veces el **2026-11-02**:
+La PC de pruebas de Windows (`192.168.1.177`, `ssh windows`). Medida el **2026-11-03** (la
+vigente) y tres veces el **2026-11-02**:
 
-- **A la noche (la vigente)**: el gateway reescrito (hilos F1-F5, placa D3D11, colas
+- **2026-11-03 (la vigente)**: master `5e405912` con todo integrado (red→trabajo en lote, playout
+  repartido, celda en la placa, interfaz desacoplada de la foto, entrada escalonada): 40 contra la
+  noche anterior y la escalera hasta 200: «Con todo integrado (2026-11-03)» abajo.
+- **A la noche**: el gateway reescrito (hilos F1-F5, placa D3D11, colas
   compartidas, 4 en alta, tope 512), 10 y 40 contra la campaña de la tarde y la escalera hasta
   que se rompe: «Después del rewrite de hilos» abajo.
 - **A la tarde**: campaña completa con el paquete de master `b792325d`
@@ -44,6 +48,203 @@ La app corre en la PC y **hinchada genera los invitados desde la Mac por la LAN*
 - La red de la prueba: la Mac está por **Wi-Fi 5** (802.11ac, 5 GHz/80 MHz, 866 Mbps de enlace,
   -41 dBm) y la PC por cable a 1 Gbps; ping ~5 ms. Internet de la casa (para pinggy):
   195 Mbps de bajada y 42,8 Mbps de subida (`networkQuality`, RTT base 73 ms).
+
+## Con todo integrado (2026-11-03, master 5e405912)
+
+Paquete de master `5e405912` (`make dist-win-docker`): sobre el rewrite de la noche anterior, la
+frontera #4 red→trabajo en lote, el playout repartido en 3 hilos y sin mezcla/APM, video según
+demanda y la celda achicada en la placa, la interfaz desacoplada de la foto de la sala, la foto
+del motor por partes y el turno por llamada, la vista de conferencia liviana, el reacomodo
+agrupado de la grilla y la entrada escalonada. Mismas condiciones que la noche anterior: evento
+«prueba linea L0» con `gateway.afinidad`, `procesador.mediosJuntos` y `procesador.prioridad`
+apagados, app arrancada en clase Normal con `--test --gw-arg=--turn-prueba`, hinchada desde la
+Mac (`--modo grabado --hablan 1 --decodificar todo`), `--regimen 45 --medir-grilla-s 15
+--remoto-cada 5`, cada corrida 2 minutos como mucho. **Entrada escalonada**: de fábrica
+`room.entradaPorSegundo` = 2 (40 tardan 20 s en entrar); para la escalera se subió a **10/s** en el
+evento de prueba (y se volvió a 2 al terminar); una corrida de 120 se hizo a 2/s. Crudas en
+`~/Proyectos/mediciones-carga/2026-11-03-n2/` (fuera del repo: `tabla.md`, cada corrida con
+`contadores.txt` y las métricas de ba-app antes y después, `franjas/`, `trabas/analisis.txt`).
+
+### 40: antes y después
+
+| | ba-app | gateway CPU | gateway hilos | gateway cambios/s | motor de video de la placa |
+|---|---|---|---|---|---|
+| 40 directo, noche 11-02 | 109 % | 138 % | 204 | 29,2k | 46 % |
+| **40 directo, ahora** | **92 %** | **169 %** | **234** | **23,7k** | 48 % |
+| 40 TURN mezcla 10 %, noche 11-02 | 120 % | 162 % | 205 | 28,1k | 47 % |
+| **40 TURN mezcla 10 %, ahora** | **102 %** | **185 %** | **231** | **23,6k** | 49 % |
+
+- Igual de bien que antes: mosaico 30 cps sin perdidos, las 40 miniaturas en baja a 15,0-15,2 cps y
+  2-3 en alta a 30; edad del audio 15,0 ms; el invitado recibe 720p sin congelamientos. **Faltantes
+  del retorno 0** (antes 691 durante la entrada, que caían en el régimen); 0 «llega tarde»; la
+  interfaz, 8-12 demoras de 60-190 ms y ninguna de más de 1 s.
+- **ba-app baja 15-17 %; el gateway gasta un 15-22 % MÁS** con menos cambios de contexto (-19 %).
+  Suben `ba-colas-dec` ×6 (19 → 34 %), `ba-rtc-net` ×2 (38 → 47 %), `ba-rtc-work` ×3 (20 → 28 %) y
+  los sin nombre (14 → 17 %). `DecodingQueue` sigue en ~3,0 ms por cuadro y el motor de video de la
+  placa casi igual (46 → 48 %). La celda ahora se achica en la placa (`celdas_placa` > 0,
+  `celdas_cpu` = 0); lo que suma parece ser el lado CPU de esa entrega (copias/espera de D3D11 en
+  los hilos del decodificador), no está medido aparte.
+
+### Contadores nuevos (40 → 200)
+
+| Invitados | #4 red→trabajo: pases por despertada, espera p50 (máx.) | hilos de trabajo despiertos | playout: µs por pase del hilo más cargado (suma / invitado) | vueltas, perdidas | celdas en la placa / CPU | foto del motor en la interfaz (ms por foto) |
+|---|---|---|---|---|---|---|
+| 40 | 7,2-8,3, 222 µs (3,1 ms) | 3 % | 447 (32 µs) | 100/s, 0 | sí / 0 | 33 |
+| 80 | 9,0-11,0, 305 µs (5,9 ms) | 5 % | 981 (34 µs) | 100/s, 0 | sí / 0 | 72 |
+| 120 | 13,0-13,9, 370 µs (6,9 ms) | 7 % | 2381 (58 µs) | 100/s, 0 | sí / 0 | 120 |
+| 160 | 18,4-20,2, 500 µs (10,2 ms) | 35 % | 3005 (55 µs) | 100/s, 0 | sí / 0 | 181 |
+| 200 | 16,1-17,1, 557 µs (7,0 ms) | 46 % | 3164 (47 µs) | 100/s, 0 | sí / 0 | 245-278 |
+
+- **#4 en lote anda**: las despertadas por hilo de trabajo quedan en ~2-3 mil/s de 40 a 200 y lo que
+  crece son los pases por despertada (7 → 20); `urgentes` 0 siempre. Modo `lote`, 500 µs.
+- **Playout**: 3 hilos × 2 fábricas, 100 vueltas/s y **0 perdidas** en todas. El costo por invitado
+  NO es plano: ~33 µs con 40-80 y 47-58 µs desde 120 (a 2/s con 120, 37 µs). El hilo más cargado
+  usa 0,45 ms de cada 10 con 40 y 3,2 ms con 200: lejos de llenarse (antes, uno solo, 9 ms con 120).
+- **Video según demanda** (`uso.codecsVideo.entrega`): `celdas_placa` > 0 y `celdas_cpu` = 0 en
+  todas (la noche anterior era al revés). Cámaras: `enteros` `todos` = N siempre (cada cámara se
+  decodifica entera), `vistas` `de_vez_en_cuando` = N (16-24 en `todos` desde 120: las de alta).
+  `sin_lector` 0 salvo 9 en una de 200 cortada a mitad de la entrada.
+- **ba-app**: ninguna línea «la interfaz tuvo el turno N ms» ni «tardó N ms con una foto del motor»
+  (esa sale una vez por clase cuando un oyente pasa de 1 s: ninguno llegó solo) y
+  `ba_motor_vueltas_sin_turno_total` = 0 en todas: el motor nunca perdió el turno. Pero lo que tarda
+  la interfaz con cada foto del motor (`ba_ventanilla_llegada_ms`) crece más que lineal: 33 ms con
+  40 → 245-278 ms con 200, y el oyente lento es casi siempre **`VideoViewModel`**
+  (`ba_ventanilla_oyente_ms`: 30 s de 62 s en la corrida de 200; después `Matriz`,
+  `ConferenceViewModel` y `StudioViewModel`). Ver «Trabas» abajo.
+
+### La escalera (TURN mezcla 10 %, entrada 10/s)
+
+| Invitados | entran | ba-app | gateway | gw hilos / cambios/s | grilla en la app (baja p50/p5, mosaico) | audio | interfaz: trabas > 2 s (máx.) | «llega tarde» | invitado | Mac generadora p50/máx |
+|---|---|---|---|---|---|---|---|---|---|---|
+| 40 | 40 | 102 % | 185 % | 231 / 23,6k | 15,2 / 15,1, 30 | 15,1 ms | 0 (188 ms) | 0 | 0 congel., 720p | 30 / 53 % |
+| 80 | 80 | 178 % | 348 % | 249 / 37,4k | 15,0 / 15,0, 30 | 15,1 ms | 0 (937 ms) | 0 | 0 congel., 720p | 52 / 64 % |
+| 120 | 120 | 264 % | 493 % | 293 / 41,0k | 13,2 / 11,0, 30 | 11,6 ms | 0 (652 ms) | 0 | 4407 congel., 49 de 120 bajados | 75 / 88 % |
+| 120 a 2/s | 120 (en ~60 s) | 292 % | 471 % | 314 / 38,4k | 9,4 / 7,2, 21,8 (48 perdidos) | 15,2 ms | 0 (562 ms) | 0 | 6663 congel. | 63 / 94 % |
+| 160 | 160 | 378 % | 615 % | 340 / 40,8k | 9,9 / 7,8, 30 | 12,8 ms | 0 (1,3 s; 7 de más de 1 s) | 0 | 4222 congel., 101 bajados | **83 / 100 %** |
+| 200 | 108-112 | 235-419 % | — | 333 | — | 13,5-14,5 ms | 3-4 (**2,5 s**) | 0 | — | 40-43 / 81-91 % |
+| 200, guardia de hilos en 3000 | 200 (todos con medios a los 103 s) | 496 % | 707 % | 387 / 40,1k | 7,5 / 7,3, 29,3 (6 perdidos) | 12,5 ms | 2 (**2,7 s**) | 0 | 14240 congel., 159 bajados | **87 / 100 %** |
+
+(La de 120 a 2/s quedó afectada por las capturas de la ventana cada 10 s que se sacaron durante la
+entrada; ver «Franjas» abajo. Memoria de la PC sin problema: 10 GB disponibles como mínimo con 200;
+ba-app con 8,4 GB privados y la máquina con 41 GB comprometidos.)
+
+**Antes y después de la escalera** (la noche anterior, sin afinidad): con 80, la interfaz se trababa
+6,3 s al irse la gente y había 212 «llega tarde»; ahora, 0,9 s como máximo y 0. Con 120: antes
+trabas de 25 s, 645 «llega tarde» y `webrtc-playout` lleno (9 ms de 10); ahora ninguna traba de más
+de 0,7 s, 0 «llega tarde» y el playout repartido al 24 % del hilo más cargado.
+
+**Qué se rompe primero**, con los criterios de la campaña (invitados que no entran, grilla < 20 cps,
+audio > 50 ms, interfaz trabada > 5 s, «llega tarde», memoria, guardia):
+
+1. **Con 200, la guardia de `medir-sala` (ba-app > 1200 hilos)**, en las dos corridas, con 108-112
+   adentro. No es una traba: con el cupo en 200, ba-app ya arranca con 770-870 hilos (unos 3 por
+   lugar de la sala; con cupo 40 eran ~200, con 160 ~610) y suma ~1 por invitado que entra.
+   La guardia se puso por el pánico de la Mac del 2026-11-01 y acá ba-app corre en la PC. Con el
+   tope en 3000 entran los 200; la corrida la corta la carga de la **Mac** (40) a los 142 s.
+2. **Antes, desde 120, el motor de video de la placa** (decodificar H.264) llega al 96-99 % y queda
+   lleno con 160 y 200 (abajo). Con eso la miniatura en baja cae de 15 cps a 13,2 (120), 9,9 (160) y
+   7,5 (200). El mosaico sigue en 30 y no pasa el umbral de 20, pero cada celda se ve a menos de la
+   mitad de su ritmo.
+3. **Los dos hilos de red del gateway (`ba-rtc-net`)**: 89 % cada uno con 120 (ETW) y 97-98 % con
+   200 (ETW: 197 % entre los dos). Es el primer hilo del gateway que se llena.
+4. La interfaz: trabas de 2,0-2,7 s mientras entran 200 a 10/s (el umbral de la campaña es 5 s);
+   con 160, siete de 1,0-1,3 s.
+
+Lo que no se rompe en ningún escalón: el audio (11,6-15,2 ms), «llega tarde» (0), el playout
+(0 perdidas) y la entrada de los invitados (con 160, todos en 52 s a 10/s; con 200, en 103 s).
+
+**La Mac generadora es el límite desde 160** (83 % p50 y 100 % de pico; con 200, 87/100 % y carga
+40): los congelamientos y la bajada a 360p/180p del lado del invitado con 120-200 son en buena parte
+de hinchada decodificando todos los retornos en la Mac, no del sistema. No se subió de 200
+(256/320/400/512 quedan para generar desde dos máquinas o con `--decodificar 5%`).
+
+**El techo nuevo de la .177 es ~160 invitados** en régimen sin trabas de más de 1,3 s (antes ~80);
+200 entra y anda, con trabas de 2,5-2,7 s al entrar y las miniaturas a 7,5 cps.
+
+### La placa por escalón
+
+`muestrear-win.ps1`: el motor más ocupado de cada tipo de los procesos `ba-*`. En la Radeon, «Video
+Codec 0» es el motor de video (decodifica y codifica: el contador no los separa).
+
+| Invitados | 3D p50/máx | Video Codec 0 p50/máx | Copy | memoria dedicada p50/máx | compartida máx | decodificadores activos |
+|---|---|---|---|---|---|---|
+| 40 | 17 / 18 % | 48 / 50 % | 2-3 % | 1,1-1,3 / 1,6 GB | 0,26 GB | 54-56 |
+| 80 | 23 / 24 % | 82 / 84 % | 3-4 % | 1,9 / 2,1 GB | 0,39 GB | 94 |
+| 120 | 26 / 27 % | **96 / 99 %** | 4 % | 2,4 / 2,9 GB | 0,96 GB | 132 |
+| 160 | 26 / 26 % | **98 / 99 %** | 4 % | 2,9 / 3,1 GB | 0,85 GB | 178 |
+| 200 | 27 / 31 % | **98 / 99 %** | 4 % | 3,4 / 3,6 GB | 0,69 GB | 224 |
+
+**La placa se satura en el motor de video desde ~120 invitados** (~1,2 % por cámara a 720p30); el
+3D, la copia y la memoria sobran. Como `enteros` `todos` = N, cada cámara se decodifica entera
+aunque la grilla la muestre chica: bajar la resolución que se decodifica de las que solo están en
+la grilla (o pedirles la capa baja) es lo que movería este techo.
+
+### Hilos por núcleo (ETW 20 s)
+
+- **120**: `ba-rtc-net-#` 179 % (×2, ~89 % cada uno), `ba-rtc-work-#` 81 %, gateway sin nombre 54 %,
+  `ba-colas-dec/#` 52 %, ba-app sin nombre 49 %, `webrtc-playout` ×3 65 % (~22 % cada uno),
+  `ba-app/interfaz` 29 %, `anillos-video` 29 %, `control` 26 %. La máquina entera a 16-63 % por
+  núcleo; DPC 9 % en el núcleo 1 (la placa de red).
+- **200**: `ba-rtc-net-#` **197 %** (×2: llenos), `ba-rtc-work-#` 138 %, ba-app sin nombre 116 %,
+  gateway sin nombre 95 %, `ba-colas-rtc/#` 88 %, `ba-colas-dec/#` 67 %, `webrtc-playout` ×3 ~93 %,
+  `control` 59 %, `mx:src` 56 %, `interfaz` 56 %.
+
+### Trabas de la interfaz (pilas)
+
+Cinco volcados de traba de esta tanda (`Logs/dumps/A-20261103-*-traba-*.dmp` en la PC; 2,0-2,1 s al
+capturar, 3,6-6,5 s en total; uno al entrar 160 y cuatro con 200), analizados con
+`tools/caidas/analizar.py` (con símbolos: Docker prendido). En los cinco, el hilo de render de Qt
+(2 hilos QSG sin nombre) espera quieto en `QWaitCondition::wait` a la interfaz: no es el render. La
+interfaz estaba en:
+
+1. **3 de 5**: `VentanillaMotor::alLlegar` → `VideoViewModel::releer` (`VideoViewModel.cpp:129`) →
+   `SuperRes::armarVariantes` (`SuperRes.cpp:1271`) → `tamanosSinVariante` (`SuperRes.cpp:1188`,
+   un ciclo por entrada de video) → `VideoViewModel::estadoEntrada` (`VideoViewModel.cpp:375`)
+   copiando json. `v().value("estados", json::object())` copia el mapa **entero** de estados por
+   cada entrada: O(N²) en cada foto del motor. Es el `VideoViewModel` de las métricas de arriba.
+2. `VentanillaMotor::alLlegar` → `audio::Matriz::alCambiarFoto` → `refrescar` (`Matriz.cpp:349`) →
+   los bindings de QML vuelven a llamar `Matriz::filas()` (`Matriz.cpp:358`), que arma la lista
+   entera en cada llamada.
+3. `ConferenceClient::tomarFoto` → `ConferenceViewModel::aplicarPaquete`
+   (`ConferenceViewModel.cpp:414`) → `StudioViewModel.cpp:828`: `frames_->setGuestNames(...)` con
+   todos los lugares en cada `roomChanged`.
+
+### Franjas en la grilla (lo que vio el usuario)
+
+«Al ir agregando gente, una división que parte la pantalla al medio horizontalmente y muchas
+franjas de video de 1-2 cm de ancho y 10 de alto». Es el **programa** (la Grilla de personas al
+aire), que también se ve de fondo en el Dashboard. Capturas cada 10 s mientras entraban 120 a 2/s:
+con 22 adentro, 11 columnas × 2 filas; con 43, 11 × 4, con celdas verticales y el video recortado
+al centro (no se ven los números). Con 25 (5 × 5) y 64 (8 × 8) se ve bien. La causa: el elemento
+Grilla del evento de prueba tiene `"proporcion": "llenar"` («Principal» usa 16:9 de fábrica). Con
+«llenar», `disponer()` (`src/app/escenas/GrillaPersonas.cpp`) elige las columnas que dan la celda de
+más área sin mirar la proporción del video, y para algunos N gana una grilla de celdas verticales.
+`grilla_personas_estado` no informa columnas, filas ni tamaño de celda.
+
+![Programa con 43 en «llenar»: 11 × 4 franjas](img/pc177-n2-programa-franjas-43.jpg)
+
+### Capturas
+
+![Sala con 40](img/pc177-n2-sala-40.jpg)
+
+![Sala con 160 (160/160 lugares)](img/pc177-n2-sala-160.jpg)
+
+Con la entrada escalonada a 2/s, a los 10 s: 5 en la conferencia y en el lobby «0 esperando · 21
+entrando», cada uno con su «entrando…»:
+
+![Entrando de a 2 por segundo](img/pc177-n2-entrando.jpg)
+
+### Otras cosas vistas
+
+- A mitad de la entrada de 120 la app pasó sola de la página Conferencia (donde la había puesto la
+  medición) al Dashboard.
+- ba-app no vuelve a su memoria del arranque: 1,9 GB privados al empezar y 5,7 GB con la sala vacía
+  después de la escalera, con ~290-340 hilos (al arrancar, ~200 con cupo 40).
+- Herramientas: `medir-sala.py` ahora guarda `capas.redYTrabajo` y `capas.playout` en cada muestra;
+  `analizar.py` avisa cuando el `llvm-symbolizer` por Docker falla (con colima apagado daba las pilas
+  de ba-app sin nombres y sin aviso). El `make dist-win-docker` dio bajo Wine, además de los de
+  siempre, `test_vigia_traba` (resumirPila), `test_tiempo_real`, `test_plano_control` (rc=133) y
+  `test_sse_epoch` (rc=133); no se corrieron en la PC.
 
 ## Después del rewrite de hilos (2026-11-02 noche, paquete 3824d1f5)
 
