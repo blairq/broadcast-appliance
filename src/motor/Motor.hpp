@@ -592,6 +592,13 @@ class Motor {
     void soltarEscenaYa(const std::string& nombre, bool mini = false);
     std::string retornoYa(int n, const std::string& modo, const std::string& propia);
     std::map<std::string, bool> lugares_; ///< bajo mu_: ponerLugares
+    /// Devolver lo libre del montón cuando la sala se vacía (Memoria.hpp). Con mu_ tomado.
+    void revisarCompactar();
+    /// {entradas, placas_armadas, en_reposo, sin_gente, andando, hilos_trabajo, memoria_privada_mb}.
+    nlohmann::json recursosYa(const nlohmann::json& entradas) const;
+    void compactarSiToca();
+    int conGenteMax_ = 0;          ///< los que llegó a haber desde la última compactación
+    std::int64_t compactarEnUs_ = 0; ///< cuándo compactar (0: no toca)
     /// Le dice a la entrada si en su canal hay alguien (con mu_ tomado).
     void aplicarLugar(Entrada& e) const;
     std::string escucharYa(const std::string& modo, const std::string& id, const std::string& salida);
@@ -649,6 +656,8 @@ class Motor {
     /// Qué entradas está mostrando alguien (composiciones y vistas): las demás
     /// van a 2 cuadros/s (Entrada::ponerEnUso). Con mu_ tomado.
     void actualizarUso();
+    /// Las entradas en uso (lo que reparte actualizarUso), sin tocar ninguna. Con mu_ tomado.
+    std::set<std::string> entradasEnUsoYa() const;
     std::map<std::string, Escena> escenas_;
     std::string escuchaModo_ = "apagado";
     std::string escuchaId_; ///< la entrada (pfl, afl) o la salida (programa; "" = la por omisión)

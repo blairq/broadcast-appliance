@@ -232,11 +232,18 @@ std::string conComillas(const std::string& v) {
 
 } // namespace
 
-Entrada::Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const json& ajustes)
+Entrada::Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const json& ajustes, const Inicio& inicio)
     : reloj_(reloj), lienzo_(lienzo), id_(std::move(id)) {
     {
         std::lock_guard<std::timed_mutex> l(mu_);
         leer(ajustes);
+        // Cómo nace (Inicio): sin uso, la placa no se arma; un lugar vacío, en READY.
+        enUso_ = inicio.enUso;
+        if (!inicio.enUso) sinUsoDesdeUs_ = g_get_monotonic_time();
+        if (inicio.sinGente) {
+            const std::string canal = canalAnillo();
+            if (!canal.empty()) sinGente_ = inicio.sinGente(canal);
+        }
     }
     // Armarla (cientos de ms; segundos con una cámara de red) va al trabajador:
     // quien la crea (el hilo del motor) no espera.
@@ -245,33 +252,27 @@ Entrada::Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const json&
             armarSalida();
             armar();
         },
-        [this]() { rotularPlaca(); });
+        // La placa se rotula si se va a armar ya: la de una que nace sin uso, cuando la usen
+        // (ponerEnUsoYa). Con 200 lugares eran 200 placas dibujadas (el caché guarda 64).
+        [this]() {
+            if (enUso_.load()) rotularPlaca();
+        });
 }
 
 void Entrada::trabajar(std::function<void()> f, std::function<void()> sinCandado) {
-    std::lock_guard<std::mutex> l(trabajoM_);
     ++ocupadas_;
-    std::shared_future<void> antes = trabajo_;
-    trabajo_ = std::async(std::launch::async, [this, antes, f = std::move(f), sinCandado = std::move(sinCandado)]() {
-                   ba::platform::nombrarHilo("entrada-trabajo");
-                   if (antes.valid()) antes.wait(); // en orden: de a uno por entrada
-                   if (sinCandado) sinCandado();
-                   {
-                       std::lock_guard<std::timed_mutex> lm(mu_);
-                       f();
-                   }
-                   --ocupadas_;
-               }).share();
+    // En orden y de a uno por entrada, en los hilos compartidos (Trabajos.hpp).
+    fila_.encargar([this, f = std::move(f), sinCandado = std::move(sinCandado)]() {
+        if (sinCandado) sinCandado();
+        {
+            std::lock_guard<std::timed_mutex> lm(mu_);
+            f();
+        }
+        --ocupadas_;
+    });
 }
 
-void Entrada::esperarTrabajos() {
-    std::shared_future<void> f;
-    {
-        std::lock_guard<std::mutex> l(trabajoM_);
-        f = trabajo_;
-    }
-    if (f.valid()) f.wait();
-}
+void Entrada::esperarTrabajos() { fila_.esperar(); }
 
 Entrada::~Entrada() {
     esperarTrabajos();
@@ -961,7 +962,12 @@ void Entrada::armar() {
     // La toma entera, antes del recorte del PTZ digital (productorEntera).
     Derivacion entera{"ptz", id_ + ":entera:video", ""};
     const std::string cadenaV = cadenaDe(filtrosV, "videoconvert", "ba_f_", avisos_, usaGpu, &entera);
-    const std::string cola = "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
+    // La cola que descarta lo viejo antes de los filtros (un hilo por entrada que anda). Si la
+    // cadena EMPIEZA con la derivación de la toma entera (el PTZ primero: el video de cada
+    // invitado), el tee ya trae esa misma cola en cada rama: otra delante era un hilo más por
+    // invitado sin cambiar nada (con 200, 3 colas por invitado: ~600 hilos).
+    const bool empiezaConTee = cadenaV.rfind("tee name=", 0) == 0;
+    const std::string cola = empiezaConTee ? std::string() : "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
     if (!cadenaV.empty() && !usaGpu) {
         // ANTES de `videorate` (no se procesa cada cuadro repetido), con una cola que
         // descarta lo viejo (si un filtro tarda, no se acumula demora). Si el primer
@@ -1604,6 +1610,8 @@ bool Entrada::vigilarDatos() {
 
 namespace {
 std::atomic<std::int64_t> g_reposoPlacaUs{120'000'000};
+/// La placa de un lugar vacío que nadie mira: a los 5 s (no a los 2 minutos de las demás).
+constexpr std::int64_t kReposoPlacaLugarUs = 5'000'000;
 } // namespace
 
 void ponerReposoPlaca(int segundos) { g_reposoPlacaUs = static_cast<std::int64_t>(std::clamp(segundos, 5, 3600)) * 1'000'000; }
@@ -1641,7 +1649,12 @@ void Entrada::tic() {
     // Eran 15 s: cada ida y vuelta entre dos escenas la desarmaba y rearmaba (con
     // su negociación D3D12), y justo ahí se rompía el heap el 2026-10-10 21:14 en
     // la PC de pruebas. Con 2 minutos, cambiar de escena no la toca.
-    if (salidaV_ != nullptr && !enUso_ && sinUsoDesdeUs_ != 0 && g_get_monotonic_time() - sinUsoDesdeUs_ > g_reposoPlacaUs.load()) {
+    // UN LUGAR VACÍO no espera los 2 minutos: nadie la mira y no hay nadie (su cadena ya está
+    // en READY); sus dos hilos, de vuelta a los pocos segundos (kReposoPlacaLugarUs). Con cupo
+    // 200 eran ~530 hilos los primeros 2 minutos después de cada cambio de cupo.
+    const std::int64_t reposoPlaca =
+        sinGente_.load() ? std::min(g_reposoPlacaUs.load(), kReposoPlacaLugarUs) : g_reposoPlacaUs.load();
+    if (salidaV_ != nullptr && !enUso_ && sinUsoDesdeUs_ != 0 && g_get_monotonic_time() - sinUsoDesdeUs_ > reposoPlaca) {
         trabajar([this]() {
             const std::int64_t t0 = g_get_monotonic_time();
             desarmarSalida();

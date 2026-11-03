@@ -21,6 +21,8 @@
 // ============================================================================
 #pragma once
 
+#include "Trabajos.hpp"
+
 #include <gst/gst.h>
 
 #include <nlohmann/json.hpp>
@@ -91,8 +93,7 @@ class Escucha {
     Margen margen_ = Margen::Programa;
     nlohmann::json dispositivoBuffers_ = nlohmann::json::array(); ///< lo que quedó fijado en el sink
     std::int64_t margenNs() const;
-    std::mutex trabajoM_;
-    std::shared_future<void> trabajo_;
+    FilaDeTrabajo fila_; ///< sus trabajos, en orden, en los hilos compartidos (Trabajos.hpp)
     mutable std::mutex guardadoM_;
     mutable nlohmann::json guardado_ = nlohmann::json::object();
 };

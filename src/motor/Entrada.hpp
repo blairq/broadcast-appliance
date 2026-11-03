@@ -61,6 +61,7 @@
 #include "Piezas.hpp"
 #include "ReglasEntrada.hpp"
 #include "Sondas.hpp"
+#include "Trabajos.hpp"
 
 #include <gst/gst.h>
 
@@ -103,9 +104,20 @@ void ponerAjustesEntradas(int sinSenalMs, int rearmarSinDatosS, int reintentoMax
 
 class Reloj;
 
+/// Cómo nace una Entrada (lo decide el motor ANTES de que se arme, en el trabajador): sin
+/// esto una entrada nacía «en uso» y armaba su placa (dos hilos: intersrc e imagefreeze) y
+/// su cadena andando, aunque fuera un lugar vacío que nadie mira; el motor la ponía sin uso
+/// a los 200 ms, y la placa recién se desarmaba a los 2 minutos (con cupo 200, ~530 hilos al
+/// arrancar). `sinGente(canal)`: ¿el canal de anillo que lee es un lugar vacío?
+struct InicioEntrada {
+    bool enUso = true;
+    std::function<bool(const std::string& canal)> sinGente;
+};
+
 class Entrada {
    public:
-    Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const nlohmann::json& ajustes);
+    using Inicio = InicioEntrada;
+    Entrada(Reloj& reloj, const Lienzo& lienzo, std::string id, const nlohmann::json& ajustes, const Inicio& inicio = {});
     ~Entrada();
     Entrada(const Entrada&) = delete;
     Entrada& operator=(const Entrada&) = delete;
@@ -229,8 +241,9 @@ class Entrada {
     std::string id_;
     /// timed: leerPropiedades no espera más de un instante (ver ahí).
     mutable std::timed_mutex mu_;
-    std::mutex trabajoM_;
-    std::shared_future<void> trabajo_;
+    /// Sus trabajos, en orden, en los hilos compartidos del motor (Trabajos.hpp): sin un
+    /// hilo por entrada (eran std::async encadenados).
+    FilaDeTrabajo fila_;
     std::atomic<int> ocupadas_{0};
     std::atomic<bool> usoPendiente_{false}; ///< ponerEnUso llegó con la entrada ocupada: lo hace tic
     void ponerEnUsoYa();                     ///< con mu_ tomado
