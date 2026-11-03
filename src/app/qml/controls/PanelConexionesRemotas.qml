@@ -17,6 +17,10 @@ ColumnLayout {
     readonly property int esperando: parts.filter(p => p.estado === "esperando").length
     /// Lo pide la página para ir al Recinto (a habilitar).
     signal irAlRecinto()
+    /// Alto de lo que se ve (la página pone el de su ScrollView): la lista del acceso de cada
+    /// integrante ocupa hasta una pantalla entera y adentro se desplaza; lo de arriba se
+    /// desplaza con la página para dejarla a la vista.
+    property real altoVista: 600
 
     // Lo de cada integrante, por id (se rearma cuando cambian los participantes).
     readonly property var porId: {
@@ -248,7 +252,8 @@ ColumnLayout {
     }
     ListView {
         Layout.fillWidth: true
-        Layout.fillHeight: true
+        // Antes llenaba lo que sobraba abajo y con lo de arriba quedaba en un par de filas.
+        Layout.preferredHeight: Math.max(320, Math.min(contentHeight + 8, cr.altoVista - 40))
         clip: true
         spacing: 3
         model: Studio.cuerpo.integrantes

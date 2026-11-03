@@ -154,7 +154,10 @@ Rectangle {
             Panel { PanelOrdenDelDia { anchors.fill: parent } }
             Panel { PanelInformes { anchors.fill: parent } }
             Panel { PanelVotacion { anchors.fill: parent } }
-            Panel { PanelConexionesRemotas { anchors.fill: parent; anchors.margins: 12; onIrAlRecinto: tabs.currentIndex = 1 } }
+            Panel { ScrollView { id: conexScroll; anchors.fill: parent; contentWidth: availableWidth; clip: true
+                                 PanelConexionesRemotas { width: conexScroll.availableWidth - 24; x: 12; y: 12
+                                                          altoVista: conexScroll.height
+                                                          onIrAlRecinto: tabs.currentIndex = 1 } } }
             Panel { ScrollView { anchors.fill: parent; contentWidth: availableWidth; clip: true
                                  PanelDebate { width: parent.width - 24; x: 12; y: 12 } } }
         }
