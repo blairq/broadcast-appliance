@@ -525,6 +525,84 @@ R"json([
   "mcp": "linea_go"
  },
  {
+  "o": "Studio.matriz",
+  "n": "agregarEntradaVirtual",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_equipo"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "agregarSalidaVirtual",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_equipo"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "ajustar",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_cruce"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "alternar",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_cruce"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "quitarBus",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_equipo"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "refrescar",
+  "tipo": "llamar",
+  "mcp": "audio_matriz"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "renombrar",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_equipo"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "setAjustes",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_equipo"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "setCruce",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_cruce"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "setDispositivo",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_equipo"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "setSalida",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_equipo"
+ },
+ {
+  "o": "Studio.matriz",
+  "n": "setVisibleDispositivo",
+  "tipo": "llamar",
+  "mcp": "audio_matriz_equipo"
+ },
+ {
+  "o": "Studio.mezcla",
+  "n": "aflUi",
+  "tipo": "llamar",
+  "mcp": "audio_set"
+ },
+ {
   "o": "Studio.mezcla",
   "n": "balistica",
   "tipo": "poner",
@@ -550,9 +628,93 @@ R"json([
  },
  {
   "o": "Studio.mezcla",
+  "n": "salidaEscucha",
+  "tipo": "poner",
+  "mcp": "audio_set"
+ },
+ {
+  "o": "Studio.mezcla",
   "n": "setRetardoUi",
   "tipo": "llamar",
   "mcp": "audio_set"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "abrir",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "agregarMicrofono",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "agregarParlante",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "agregarPunto",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "aplicar",
+  "tipo": "llamar",
+  "mcp": "calibracion_aplicar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "cancelar",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "medir",
+  "tipo": "llamar",
+  "mcp": "calibracion_medir"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "mover",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "nueva",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "quitar",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "revertir",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "setObjetivo",
+  "tipo": "llamar",
+  "mcp": "calibracion_editar"
+ },
+ {
+  "o": "Studio.mezclador.calibracion",
+  "n": "vista",
+  "tipo": "poner",
+  "mcp": "calibracion_editar"
  },
  {
   "o": "Studio.mixer",
@@ -681,6 +843,12 @@ R"json([
   "mcp": "salida_editar"
  },
  {
+  "o": "Studio.salidas.lista",
+  "n": "fila",
+  "tipo": "llamar",
+  "mcp": "salida_editar"
+ },
+ {
   "o": "Studio.seguidor",
   "n": "seguir",
   "tipo": "llamar",
@@ -727,5 +895,11 @@ R"json([
   "n": "setVisible",
   "tipo": "llamar",
   "mcp": "source_update"
+ },
+ {
+  "o": "Studio.voz",
+  "n": "setAuriculares",
+  "tipo": "llamar",
+  "mcp": "audio_set"
  }
 ])json"

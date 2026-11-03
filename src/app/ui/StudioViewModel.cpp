@@ -809,6 +809,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         replica_->ganchos().salidaDe = [&cw](const std::string& ap) { return cw.salidaDe(ap); };
         replica_->ganchos().setSalida = [&cw](const std::string& ap, const std::string& s) { return cw.setSalida(ap, s); };
         replica_->ganchos().contexto = [this](const std::string& s) { return salidas_->contexto(s); };
+        // El aire, la placa y el tally avisan por la salida activa de la app: los de la salida de
+        // cada aparato se releen una vez por segundo (y van solo si cambiaron).
+        replica_->refrescarCadaSegundo({"Studio.salidas"});
         // Cada cosa de la lista permitida, con las reglas de su herramienta MCP equivalente.
         replica_->ganchos().autorizar = [&cw](const std::string& ap, const std::string& h, bool lectura, bool confirmado) {
             return cw.autorizar(ap, h, lectura, confirmado);

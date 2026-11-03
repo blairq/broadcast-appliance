@@ -14324,12 +14324,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>时间线</translation>
     </message>
     <message>
-        <location line="+9" />
+        <location line="+24" />
         <source>Vista: %1</source>
         <translation>视图：%1</translation>
     </message>
     <message>
-        <location line="+75" />
+        <location line="+85" />
         <source>No hay un evento abierto: la línea es la del guion del evento.</source>
         <translation>没有打开的活动：时间线即活动的串联单。</translation>
     </message>
@@ -14504,7 +14504,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
 <context>
     <name>LineaMultipista</name>
     <message>
-        <location filename="../src/app/qml/controls/LineaMultipista.qml" line="+46" />
+        <location filename="../src/app/qml/controls/LineaMultipista.qml" line="+36" />
         <source>Bloque</source>
         <translation>段落</translation>
     </message>
@@ -14524,7 +14524,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>1 分钟</translation>
     </message>
     <message>
-        <location line="+10" />
+        <location line="+11" />
         <source>ancho: %1</source>
         <translation>宽度：%1</translation>
     </message>
@@ -14534,7 +14534,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>当前</translation>
     </message>
     <message numerus="yes">
-        <location line="+7" />
+        <location line="+26" />
         <source>%n cambio sin confirmar</source>
         <translation>
             <numerusform>%n 处更改未确认</numerusform>
@@ -16239,12 +16239,22 @@ La matriz no cambia lo que entra: decide a qué salidas va (las columnas: el pro
         <translation>「音频」选项卡：每个输入的处理链和滤镜、矩阵和输出。</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+9" />
         <source>⧉ Mezclador</source>
         <translation>⧉ 调音台</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+0" />
+        <source>↗ Mezclador</source>
+        <translation>↗ 调音台</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Abre el Mezclador entero en una pestaña nueva del navegador.</source>
+        <translation>在浏览器新标签页中打开完整的调音台。</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>Abre el Mezclador en su propia ventana: lo que sale de cada entrada, las salidas y la matriz.</source>
         <translation>在独立窗口中打开调音台：每个输入的输出、各路输出和矩阵。</translation>
     </message>
@@ -34426,7 +34436,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+137" />
+        <location line="+140" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>会议已使用新设置重启。</translation>
     </message>
@@ -34997,9 +35007,37 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
     </message>
 </context>
 <context>
+    <name>TableroPestana</name>
+    <message>
+        <location filename="../src/tablero-web/qml/TableroPestana.qml" line="+35" />
+        <source>Mezclador</source>
+        <translation>调音台</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Cambia el aire</source>
+        <translation>这会改变正在播出的内容</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Sí, hacelo</source>
+        <translation>是，执行</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cancelar</source>
+        <translation>取消</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>No hay una vista «%1».</source>
+        <translation>没有“%1”视图。</translation>
+    </message>
+</context>
+<context>
     <name>TableroWeb</name>
     <message>
-        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+48" />
+        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+49" />
         <source>¿Cortar la transmisión?</source>
         <translation>停止直播？</translation>
     </message>
@@ -45076,7 +45114,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-936" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-939" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -55000,7 +55038,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+194" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>仅限本地网络</translation>
@@ -55116,7 +55154,7 @@ Datos (de %2): %3</source>
         <translation>连接的设备过多</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+27" />
         <source>control web: token o PIN inválido desde %1</source>
         <translation>网页控制：来自 %1 的令牌或 PIN 无效</translation>
     </message>
@@ -57113,7 +57151,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+970" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+973" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -96913,7 +96951,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     <name>web/comun</name>
     <message>
         <location filename="../src/gateway/Botonera.cpp" line="-113" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="-156" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-164" />
         <source>demasiados intentos; esperá 10 minutos</source>
         <translation>尝试次数过多；请等待 10 分钟</translation>
     </message>
@@ -96939,7 +96977,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>此设备已被撤销（或外部访问已关闭）。</translation>
     </message>
     <message>
-        <location line="+134" />
+        <location line="+132" />
+        <source>La app todavía está arrancando.</source>
+        <translation>应用仍在启动中。</translation>
+    </message>
+    <message>
+        <location line="+10" />
         <source>Demasiados intentos: esperá 10 minutos.</source>
         <translation>尝试次数过多：请等待 10 分钟。</translation>
     </message>

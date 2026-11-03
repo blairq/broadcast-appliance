@@ -83,14 +83,17 @@ Item {
     }
     GlassButton {
         id: mezBtn
-        visible: !Theme.web // la ventana se abriría en la máquina de la app
         anchors { top: parent.top; right: parent.right }
         z: 10
         compact: true
-        text: qsTr("⧉ Mezclador")
-        onClicked: ApplicationWindow.window.sacarPanel("mezclador", "Mezclador")
+        // En la app, a su propia ventana; en el tablero web, a una pestaña nueva del navegador
+        // (la misma vista entera: TableroPestana.qml, ?vista=mezclador).
+        text: Theme.web ? qsTr("↗ Mezclador") : qsTr("⧉ Mezclador")
+        onClicked: Theme.web ? ApplicationWindow.window.abrirPestana("mezclador")
+                             : ApplicationWindow.window.sacarPanel("mezclador", "Mezclador")
         ToolTip.visible: hovered; ToolTip.delay: 400
-        ToolTip.text: qsTr("Abre el Mezclador en su propia ventana: lo que sale de cada entrada, las salidas y la matriz.")
+        ToolTip.text: Theme.web ? qsTr("Abre el Mezclador entero en una pestaña nueva del navegador.")
+                                : qsTr("Abre el Mezclador en su propia ventana: lo que sale de cada entrada, las salidas y la matriz.")
     }
 
     RowLayout {

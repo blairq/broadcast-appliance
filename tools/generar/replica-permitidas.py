@@ -69,6 +69,20 @@ EQUIVALENTES = {
     "Studio.linea.*": "linea_go",
     "Studio.evento.corridaVm.*": "linea_go",
     "Studio.evento.*": "guion_bloque",
+    # La matriz de audio y la escucha (el Mezclador en su pestaña)
+    "Studio.matriz.setCruce": "audio_matriz_cruce",
+    "Studio.matriz.alternar": "audio_matriz_cruce",
+    "Studio.matriz.ajustar": "audio_matriz_cruce",
+    "Studio.matriz.setDispositivo": "audio_matriz_equipo",
+    "Studio.matriz.setVisibleDispositivo": "audio_matriz_equipo",
+    "Studio.matriz.mostrarEquipo": "audio_matriz",
+    "Studio.matriz.pistasPlegadas": "audio_matriz",
+    "Studio.matriz.refrescar": "audio_matriz",
+    "Studio.matriz.*": "audio_matriz_equipo",
+    "Studio.voz.setAuriculares": "audio_set",
+    "Studio.mezclador.calibracion.medir": "calibracion_medir",
+    "Studio.mezclador.calibracion.aplicar": "calibracion_aplicar",
+    "Studio.mezclador.calibracion.*": "calibracion_editar",
     # Alarmas y salud
     "Studio.alarmas.*": "alert_reconocer",
     "Studio.latido.*": "supervisor_politica",
@@ -86,13 +100,23 @@ NUNCA = {"Studio.ventanas", "Studio.escritorio", "Studio.copiar", "Studio.catalo
          # no existe (la página de configuración, el riel, el foco, el diario de extensiones,
          # los avisos en la pantalla de la app).
          "Studio.dashboard", "Studio.seccionConfig", "Studio.riel", "Studio.focoEnTexto", "Studio.extensiones",
-         "Studio.notify"}
+         "Studio.notify",
+         # El dictado al asistente (la barra del asistente): es de la máquina de la app.
+         "Studio.voz.alAsistente", "Studio.voz.apretar", "Studio.voz.cancelar", "Studio.voz.confirmar",
+         "Studio.voz.descartar", "Studio.voz.soltar",
+         # Abre el análisis del LSP en una ventana de la app.
+         "Studio.mezclador.abrirAnalisisLsp",
+         # Qué pestaña o qué está desplegado en el Mezclador: en la web es de la pestaña del
+         # navegador (propiedades locales, src/tablero-web/main.cpp), no de la ventana de la app.
+         "Studio.mezclador.pestana", "Studio.mezclador.matrizAbierta", "Studio.matriz.pistasPlegadas",
+         "Studio.matriz.mostrarEquipo"}
 # Funciones de JavaScript sobre un valor (una lista, un texto, un número), no del modelo.
 DE_JS = {"indexOf", "lastIndexOf", "map", "filter", "some", "every", "slice", "splice", "startsWith", "endsWith",
          "join", "toUpperCase", "toLowerCase", "toFixed", "includes", "find", "findIndex", "forEach", "reduce",
          "concat", "split", "replace", "trim", "toString", "push", "sort", "arg", "length"}
 
-RE_ALIAS = re.compile(r"property\s+\w+\s+(\w+)\s*:\s*(Studio(?:\.\w+)+)\s*$", re.M)
+# «property var x: Studio.a.b» y «property var x: Studio.a ? Studio.a.b : null».
+RE_ALIAS = re.compile(r"property\s+\w+\s+(\w+)\s*:\s*(?:Studio(?:\.\w+)*\s*\?\s*)?(Studio(?:\.\w+)+)\s*(?::\s*(?:null|undefined))?\s*$", re.M)
 RE_LLAMADA = re.compile(r"\b(Studio(?:\.\w+)+)\s*\(")
 RE_ESCRITURA = re.compile(r"\b(Studio(?:\.\w+)+)\s*(?:=|\+=|-=)(?!=)")
 # Las suscripciones (controls/Suscripcion.qml): «miro esto», para que la app lo mida o lo pida
@@ -106,7 +130,9 @@ def archivos():
     controles = {os.path.splitext(f)[0]: os.path.join(QML, "controls", f)
                  for f in os.listdir(os.path.join(QML, "controls")) if f.endswith(".qml")}
     raiz = [os.path.join(QML, "pages", "DashboardPage.qml"),
-            os.path.join(RAIZ, "src", "tablero-web", "qml", "TableroWeb.qml")]
+            os.path.join(RAIZ, "src", "tablero-web", "qml", "TableroWeb.qml"),
+            # Las vistas que se abren en su pestaña (?vista=…, src/tablero-web/qml/TableroPestana.qml).
+            os.path.join(RAIZ, "src", "tablero-web", "qml", "TableroPestana.qml")]
     raiz += [os.path.join(QML, "cards", f) for f in sorted(os.listdir(os.path.join(QML, "cards"))) if f.endswith(".qml")]
     vistos, pila = set(), list(raiz)
     while pila:

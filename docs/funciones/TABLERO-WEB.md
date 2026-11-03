@@ -35,6 +35,14 @@ par de segundos. Cuando sale una versión nueva de la app, la baja de nuevo una 
   invitados, salidas, salud, PTZ, línea, dirección, PDF, carrusel y lobby), compactas: el
   título aparece al pasar el mouse o tocar la tarjeta.
 
+### El Mezclador en su pestaña
+
+En la tarjeta Mezclador, **↗ Mezclador** abre en una pestaña nueva del navegador el Mezclador
+entero, el mismo que la app abre en su ventana: las tiras con sus faders y vúmetros, mute,
+escucha (PFL/AFL), AFV, retardos, los grupos (VCA), las salidas y buses, la matriz y la
+calibración. Usa el mismo aparato (sin volver a emparejar) y la misma salida elegida. Los
+faders se mueven en vivo; mientras la pestaña está escondida la app no le manda nada.
+
 ### Un tablero propio por aparato
 
 El tablero web **no es el de la app**: las tarjetas que se abren, cierran, mueven o achican, y

@@ -22,6 +22,8 @@ class Pagina : public QObject {
     Q_INVOKABLE QString alternarPantallaCompleta();
     Q_INVOKABLE QString preferencia(const QString& clave) const;
     Q_INVOKABLE void guardarPreferencia(const QString& clave, const QString& valor);
+    /// Abre una vista sola en una pestaña nueva del navegador (?vista=…, TableroPestana.qml).
+    Q_INVOKABLE void abrirPestana(const QString& vista);
     /// Lo avisa la página (fullscreenchange).
     void setPantallaCompleta(bool si) {
         if (si == completa_) return;

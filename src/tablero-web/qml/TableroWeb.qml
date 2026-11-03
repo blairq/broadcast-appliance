@@ -42,6 +42,7 @@ ApplicationWindow {
     // (los botones que lo hacen no se muestran en la web).
     function confirm(opts) { confirmDlg.ask(opts) }
     function toast(message, level) { avisos.mostrar(message, level) }
+    function abrirPestana(vista) { Pagina.abrirPestana(vista) }
     function openStreamDialog() { Studio.emision.startStreaming("", "") }
     function confirmStopStream() {
         confirm({

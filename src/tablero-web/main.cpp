@@ -49,6 +49,7 @@
 namespace {
 ClienteReplica* g_cliente = nullptr;
 ba::app::DashboardModel* g_tablero = nullptr;
+QString g_vista; ///< ?vista=… : una vista sola en su pestaña (TableroPestana.qml); vacío = el tablero
 QQmlApplicationEngine* g_motor = nullptr;
 
 void avisarPagina(const char* que, const QString& detalle) {
@@ -66,7 +67,7 @@ void cargarVista() {
     if (cargada || g_cliente->raiz() == nullptr) return;
     cargada = true;
     qmlRegisterSingletonInstance("BA", 1, 0, "Studio", g_cliente->raiz());
-    g_motor->load(QUrl(QStringLiteral("qrc:/web/TableroWeb.qml")));
+    g_motor->load(QUrl(g_vista.isEmpty() ? QStringLiteral("qrc:/web/TableroWeb.qml") : QStringLiteral("qrc:/web/TableroPestana.qml")));
     avisarPagina(g_motor->rootObjects().isEmpty() ? "error" : "listo",
                  g_motor->rootObjects().isEmpty() ? QStringLiteral("no se pudo cargar la vista") : QString());
 }
@@ -81,6 +82,10 @@ void baConectado() {
     if (g_cliente) g_cliente->hola();
 }
 void baPantallaCompleta(bool si) { Pagina::la().setPantallaCompleta(si); }
+/// La pestaña del navegador se ve (o se escondió): sin verse, la app no manda nada.
+void baVisible(bool si) {
+    if (g_cliente && g_cliente->listo()) g_cliente->pausar(!si);
+}
 /// Un cuadro que descomprimió el navegador (RGBA): una sola copia de JS a la memoria del módulo.
 void baCuadro(std::string clave, emscripten::val pixeles, int w, int h, double t, double serial) {
     if (!g_cliente || w <= 0 || h <= 0) return;
@@ -102,6 +107,7 @@ EMSCRIPTEN_BINDINGS(ba_tablero) {
     emscripten::function("baPedirWebrtc", &baPedirWebrtc);
     emscripten::function("baCuadro", &baCuadro);
     emscripten::function("baPantallaCompleta", &baPantallaCompleta);
+    emscripten::function("baVisible", &baVisible);
 }
 #endif
 
@@ -147,6 +153,24 @@ int main(int argc, char** argv) {
     hud = emscripten::val::global("location")["search"].as<std::string>().find("hud=1") != std::string::npos;
 #endif
     g_motor->rootContext()->setContextProperty(QStringLiteral("HudWeb"), hud);
+#ifdef __EMSCRIPTEN__
+    {
+        const std::string q = emscripten::val::global("location")["search"].as<std::string>();
+        const auto i = q.find("vista=");
+        if (i != std::string::npos) {
+            std::string v = q.substr(i + 6);
+            v = v.substr(0, v.find('&'));
+            g_vista = QString::fromStdString(v);
+        }
+    }
+#endif
+    g_motor->rootContext()->setContextProperty(QStringLiteral("VistaWeb"), g_vista);
+    // Lo que en la pantalla de la app es de la VISTA (qué pestaña del Mezclador, qué está
+    // desplegado): en el navegador es de esta pestaña, no de la ventana de la app.
+    g_cliente->propiedadDeLaVista(QStringLiteral("Studio.mezclador"), QStringLiteral("pestana"));
+    g_cliente->propiedadDeLaVista(QStringLiteral("Studio.mezclador"), QStringLiteral("matrizAbierta"));
+    g_cliente->propiedadDeLaVista(QStringLiteral("Studio.matriz"), QStringLiteral("pistasPlegadas"));
+    g_cliente->propiedadDeLaVista(QStringLiteral("Studio.matriz"), QStringLiteral("mostrarEquipo"));
 
     // Los mismos tipos que registra la app (arranque/GuiMode.cpp); los de video y los que
     // no tienen con qué andar en el navegador, con su versión web.

@@ -76,6 +76,7 @@ class ObjetoReplica : public QAbstractListModel {
     QVector<QPair<QString, bool>> metodos_;  ///< nombre, devuelve algo
     QSet<QByteArray> nombresMetodos_;
     QSet<QByteArray> locales_;               ///< propiedades que en el navegador son locales
+    QSet<QByteArray> vistaEscrita_;          ///< de la vista, ya escritas acá (la app no las pisa)
     QList<QByteArray> roles_;
     QVector<QVariantList> filas_;
     QHash<QString, QVariant> cache_;          ///< «nombre(args)» → lo último que contestó

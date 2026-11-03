@@ -94,6 +94,8 @@
   const enCompleta = () => !!(document.fullscreenElement || document.webkitFullscreenElement);
   const avisarCompleta = () => { if (modulo) modulo.baPantallaCompleta(enCompleta()); };
   document.addEventListener("fullscreenchange", avisarCompleta);
+  // Escondida (otra pestaña al frente, el teléfono bloqueado): la app deja de mandar.
+  document.addEventListener("visibilitychange", () => { if (modulo && pedido) modulo.baVisible(!document.hidden); });
   document.addEventListener("webkitfullscreenchange", avisarCompleta);
 
   window.baPuente = {
@@ -114,6 +116,11 @@
       } catch (e) {
         return String(e && e.message ? e.message : e);
       }
+    },
+    // Una vista sola en una pestaña nueva (el mismo .wasm; el token sale del localStorage).
+    abrirPestana(vista) {
+      if (!/^[a-z0-9-]{1,32}$/.test(vista)) return;
+      window.open(location.pathname + "?vista=" + vista, "ba-" + vista);
     },
     leerLocal(k) { try { return localStorage.getItem(PREF_LOCAL + k) || ""; } catch (_) { return ""; } },
     guardarLocal(k, v) { try { localStorage.setItem(PREF_LOCAL + k, v); } catch (_) {} },

@@ -16,6 +16,7 @@
 #pragma once
 
 #include <QHash>
+#include <QSet>
 #include <QImage>
 #include <QJsonArray>
 #include <QJsonObject>
@@ -59,6 +60,13 @@ class ClienteReplica : public QObject {
     /// Studio.dashboard → la disposición propia de este aparato (nunca la de la app).
     void reemplazar(const QString& objeto, const QString& propiedad, QObject* local) { locales_.insert(objeto + QLatin1Char('.') + propiedad, local); }
     QObject* local(const QString& objeto, const QString& propiedad) const { return locales_.value(objeto + QLatin1Char('.') + propiedad); }
+    /// Una propiedad que en el navegador es de la VISTA (qué pestaña del Mezclador se ve):
+    /// empieza con el valor de la app, pero escribirla no va a la app y, una vez escrita, lo
+    /// que mande la app no la pisa.
+    void propiedadDeLaVista(const QString& objeto, const QString& propiedad) { deLaVista_.insert(objeto + QLatin1Char('.') + propiedad); }
+    bool esDeLaVista(const QString& objeto, const QString& propiedad) const { return deLaVista_.contains(objeto + QLatin1Char('.') + propiedad); }
+    /// La pestaña del navegador se escondió (o volvió): la app deja de mandar (o manda todo de nuevo).
+    void pausar(bool si);
     ObjetoReplica* objeto(const QString& id) const { return objs_.value(id); }
     bool listo() const { return raiz() != nullptr && listo_; }
     QString error() const { return error_; }
@@ -109,6 +117,7 @@ class ClienteReplica : public QObject {
     QJSEngine* motor_ = nullptr;
     QHash<QString, ObjetoReplica*> objs_;
     QHash<QString, QObject*> locales_;
+    QSet<QString> deLaVista_;
     QString raiz_;
     bool listo_ = false, escribe_ = false;
     QString error_;

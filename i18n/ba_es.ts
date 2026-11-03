@@ -624,7 +624,7 @@
 <context>
     <name>LineaMultipista</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/LineaMultipista.qml" line="+70"/>
+        <location filename="../src/app/qml/controls/LineaMultipista.qml" line="+80"/>
         <source>%n cambio sin confirmar</source>
         <translation>
             <numerusform>%n cambio sin confirmar</numerusform>
@@ -709,7 +709,7 @@
 <context>
     <name>MixerContent</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/cards/MixerContent.qml" line="+305"/>
+        <location filename="../src/app/qml/cards/MixerContent.qml" line="+308"/>
         <source>Compactar %1: sin faders, una casilla por tira (%n tira)</source>
         <translation>
             <numerusform>Compactar %1: sin faders, una casilla por tira (%n tira)</numerusform>

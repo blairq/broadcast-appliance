@@ -9,6 +9,7 @@
 //   «todo» no ve nada; lo negado no sale; un cuadro de video se comprime y se descomprime.
 
 #include <QAbstractListModel>
+#include <QMap>
 #include <QBuffer>
 #include <QEventLoop>
 #include <QGuiApplication>
@@ -119,6 +120,13 @@ class Raiz : public QObject {
     }
     Q_INVOKABLE QString titulo(const QString& k) const { return "título de " + k + " (" + QString::number(c) + ")"; }
     Q_INVOKABLE void copiar(const QString&) { ++copias; }
+    // Como Studio.mixer.setVolumeDb(tira, dB): un fader arrastrado.
+    Q_INVOKABLE void setNivel(const QString& tira, double db) {
+        ++llamadasNivel;
+        niveles[tira] = db;
+    }
+    int llamadasNivel = 0;
+    QMap<QString, double> niveles;
     Q_INVOKABLE void restar(int k) {
         c -= k;
         emit contadorCambio();
@@ -152,6 +160,7 @@ int main(int argc, char** argv) {
     pub.setPermitidas({{"Studio", "sumar", false, "herr_aire"},
                        {"Studio", "nombre", true, ""},
                        {"Studio", "titulo", false, "herr_lectura"},
+                       {"Studio", "setNivel", false, "herr_audio"},
                        {"Studio.lista", "quitarPrimera", false, ""}});
     bool hayAire = false;
     std::vector<std::string> autorizadas;
@@ -227,6 +236,7 @@ int main(int argc, char** argv) {
             }
             function hacer() { Studio.sumar(5); Studio.nombre = "desde la web"; Studio.lista.quitarPrimera() }
             function sumarUno() { Studio.sumar(1) }
+            function arrastrar() { for (let i = 0; i <= 60; ++i) { Studio.setNivel("a", -60 + i); Studio.setNivel("b", -i) } }
         })",
                  QUrl("qrc:/prueba.qml"));
     std::unique_ptr<QObject> vista(comp.create());
@@ -307,6 +317,33 @@ int main(int argc, char** argv) {
     cli.enviar(QByteArray(R"({"type":"replica","op":"poner","o":"Studio","p":"contador","v":99})"));
     bombear(pub, cli);
     CHECK(raiz.c == 9, "una propiedad de solo lectura no se escribe");
+
+    // --- Un fader arrastrado (como el Mezclador en su pestaña): el último valor gana.
+    {
+        std::size_t errores = 0;
+        const std::size_t desde = recibidos.size();
+        QMetaObject::invokeMethod(vista.get(), "arrastrar");
+        bombear(pub, cli);
+        for (std::size_t i = desde; i < recibidos.size(); ++i)
+            for (const auto& m : recibidos[i].value("m", json::array()))
+                if (m.value("op", "") == "resultado" && !m.value("ok", true)) ++errores;
+        CHECK(raiz.niveles.value("a") == 0 && raiz.niveles.value("b") == -60, "el fader llega con su último valor");
+        CHECK(raiz.llamadasNivel <= 4, "122 movimientos juntados en pocas llamadas (una por tira por lote)");
+        CHECK(errores == 0, "sin «demasiadas órdenes»");
+    }
+
+    // --- Pestaña escondida: no se manda nada; al volver, lo que cambió.
+    {
+        cli.pausar(true);
+        bombear(pub, cli);
+        const std::size_t desde = recibidos.size();
+        raiz.sumar(1);
+        bombear(pub, cli);
+        CHECK(recibidos.size() == desde, "escondida, la app no manda nada");
+        cli.pausar(false);
+        bombear(pub, cli);
+        CHECK(vista->property("c").toInt() == raiz.c, "al volver llega lo que cambió");
+    }
 
     // --- Video.
     cli.pedirVideo(&cli, "program", 640, 25);

@@ -176,6 +176,41 @@ QJsonValue ClienteReplica::aJson(const QVariant& vOriginal) const {
 }
 
 void ClienteReplica::encolar(const QJsonObject& m) {
+    // Un fader que se arrastra manda decenas de setVolumeDb(«tira», dB): de lo que todavía no
+    // salió, la última gana (misma función «set…», mismo objeto, mismos argumentos menos el
+    // último). Así la app recibe un valor por tira y por lote, y nunca «demasiadas órdenes».
+    // Solo las «set…»: fijan un valor; una que suma o avanza (irA, acercar) no se junta.
+    if (m.value(QStringLiteral("op")).toString() == QLatin1String("llamar") && !m.value(QStringLiteral("confirmado")).toBool() &&
+        m.value(QStringLiteral("m")).toString().startsWith(QLatin1String("set"))) {
+        const QJsonArray a = m.value(QStringLiteral("a")).toArray();
+        if (!a.isEmpty() && pendientes_.value(m.value(QStringLiteral("id")).toInt()).second.isEmpty()) {
+            for (int i = cola_.size() - 1; i >= 0; --i) {
+                const QJsonObject x = cola_.at(i).toObject();
+                if (x.value(QStringLiteral("op")) != m.value(QStringLiteral("op")) || x.value(QStringLiteral("o")) != m.value(QStringLiteral("o")) ||
+                    x.value(QStringLiteral("m")) != m.value(QStringLiteral("m")))
+                    continue;
+                const QJsonArray b = x.value(QStringLiteral("a")).toArray();
+                if (b.size() != a.size() || !pendientes_.value(x.value(QStringLiteral("id")).toInt()).second.isEmpty()) continue;
+                bool iguales = true;
+                for (int k = 0; k + 1 < a.size() && iguales; ++k) iguales = a.at(k) == b.at(k);
+                if (!iguales) continue;
+                pendientes_.remove(x.value(QStringLiteral("id")).toInt());
+                enviados_.remove(x.value(QStringLiteral("id")).toInt());
+                cola_.removeAt(i);
+                break;
+            }
+        }
+    } else if (m.value(QStringLiteral("op")).toString() == QLatin1String("poner")) {
+        for (int i = cola_.size() - 1; i >= 0; --i) {
+            const QJsonObject x = cola_.at(i).toObject();
+            if (x.value(QStringLiteral("op")) == m.value(QStringLiteral("op")) && x.value(QStringLiteral("o")) == m.value(QStringLiteral("o")) &&
+                x.value(QStringLiteral("p")) == m.value(QStringLiteral("p"))) {
+                enviados_.remove(x.value(QStringLiteral("id")).toInt());
+                cola_.removeAt(i);
+                break;
+            }
+        }
+    }
     cola_.push_back(m);
     if (!reloj_.isActive()) reloj_.start();
 }
@@ -248,6 +283,12 @@ void ClienteReplica::pedirVideo(QObject* quien, const QString& clave, int ancho,
 
 void ClienteReplica::soltarVideo(QObject* quien) {
     if (video_.remove(quien) && !relojVideo_.isActive()) relojVideo_.start();
+}
+
+void ClienteReplica::pausar(bool si) {
+    encolar({{QStringLiteral("op"), QStringLiteral("pausa")}, {QStringLiteral("si"), si}});
+    if (!si) ultimoVideo_.clear(); // al volver, el pedido de video otra vez
+    if (!si && !relojVideo_.isActive()) relojVideo_.start();
 }
 
 void ClienteReplica::pedirWebrtc() { encolar({{QStringLiteral("op"), QStringLiteral("webrtc")}}); }

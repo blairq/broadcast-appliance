@@ -93,6 +93,19 @@ ReplicaPublicador::ReplicaPublicador(QObject* raiz, const QString& nombreRaiz, Q
     reloj_.setInterval(kLoteMs);
     connect(&reloj_, &QTimer::timeout, this, &ReplicaPublicador::vaciar);
     funcionesNegadas_ = {QStringLiteral("deleteLater"), QStringLiteral("destroyed"), QStringLiteral("objectNameChanged")};
+    // Lo que depende de la salida del aparato y la app avisa solo para SU salida activa (el
+    // aire, la placa…): una vez por segundo se vuelve a leer y va solo si cambió.
+    lento_.setInterval(1000);
+    connect(&lento_, &QTimer::timeout, this, [this]() {
+        for (auto& [cid, c] : cons_)
+            for (const QString& id : refrescoLento_)
+                if (c.abiertos.count(id)) {
+                    const auto it = objs_.find(id);
+                    if (it != objs_.end()) c.sucios[id].insert(it->second.props.begin(), it->second.props.end());
+                }
+        if (!cons_.empty()) programar();
+    });
+    lento_.start();
 }
 
 ReplicaPublicador::~ReplicaPublicador() = default;
@@ -211,7 +224,11 @@ json ReplicaPublicador::simple(const QVariant& v) {
     case QMetaType::Double:
     case QMetaType::Float: {
         const double d = v.toDouble();
-        return std::isfinite(d) ? json(d) : json(nullptr);
+        if (!std::isfinite(d)) return nullptr;
+        // Cuatro decimales alcanzan para cualquier cosa de la vista (dB, fracciones, segundos)
+        // y achican mucho los niveles de los vúmetros, que van 20 veces por segundo.
+        if (std::fabs(d) < 1e9) return std::round(d * 1e4) / 1e4;
+        return d;
     }
     case QMetaType::QString:
         return v.toString().toStdString();
@@ -431,10 +448,21 @@ void ReplicaPublicador::abrir(Con& c, const QString& id) {
     const QMetaObject* mo = ob.o->metaObject();
     for (int i : ob.props) {
         const QMetaProperty p = mo->property(i);
-        v[p.name()] = valor(p.read(ob.o), c, esquemas, id + QLatin1Char('.') + QLatin1String(p.name()));
+        const QString camino = id + QLatin1Char('.') + QLatin1String(p.name());
+        v[p.name()] = valor(p.read(ob.o), c, esquemas, camino);
+        c.enviado[camino.toStdString()] = v[p.name()].dump();
     }
     encolar(c, {{"op", "valores"}, {"o", id.toStdString()}, {"v", std::move(v)}}, esquemas);
     if (ob.modelo) encolar(c, {{"op", "filas"}, {"o", id.toStdString()}, {"filas", filas(ob, c, esquemas)}}, esquemas);
+}
+
+bool ReplicaPublicador::anotarAhora(Con& c, const std::string& que) {
+    // Un fader arrastrado son decenas de cambios: al registro, el primero y uno cada 2 s.
+    const std::int64_t ahora = ahoraMs();
+    std::int64_t& ultima = c.anotado[que];
+    if (ahora - ultima < 2000) return false;
+    ultima = ahora;
+    return true;
 }
 
 bool ReplicaPublicador::tope(Con& c, bool lectura) {
@@ -538,7 +566,7 @@ void ReplicaPublicador::llamar(const std::string& cid, Con& c, const json& m) {
         argv[k + 1] = vals[k].data();
     }
     QPointer<QObject> o = ob.o;
-    if (!conValor && g_.anotar)
+    if (!conValor && g_.anotar && anotarAhora(c, oid.toStdString() + "." + nombre.toStdString()))
         g_.anotar(c.aparato, "tablero web: " + oid.toStdString() + "." + nombre.toStdString() + "(" + args.dump().substr(0, 200) + ")");
     QMetaObject::metacall(o.data(), QMetaObject::InvokeMetaMethod, elegido, argv);
     // Lo que devuelve (puede traer objetos: van con su esquema).
@@ -560,6 +588,8 @@ void ReplicaPublicador::poner(Con& c, const json& m) {
     if (i < 0 || std::find(ob.props.begin(), ob.props.end(), i) == ob.props.end()) return;
     const QMetaProperty mp = mo->property(i);
     if (!mp.isWritable() || mp.isConstant()) return;
+    // La vista ya cambió su copia: lo que diga la app después va sí o sí (aunque sea lo de antes).
+    c.enviado.erase((oid + QLatin1Char('.') + p).toStdString());
     if (p == QLatin1String("activa") && ob.o == resolver(g_.objetoSalidas)) {
         // Elegir la salida que maneja ESTE aparato: la de la app no cambia.
         const std::string pedida = m.value("v", std::string());
@@ -583,7 +613,8 @@ void ReplicaPublicador::poner(Con& c, const json& m) {
     QVariant v = aVariant(m.contains("v") ? m["v"] : json(nullptr));
     if (mp.metaType().id() != QMetaType::QVariant && v.isValid() && v.metaType() != mp.metaType() && !v.convert(mp.metaType()))
         return;
-    if (g_.anotar) g_.anotar(c.aparato, "tablero web: " + oid.toStdString() + "." + p.toStdString() + " = " + m.value("v", json()).dump().substr(0, 200));
+    if (g_.anotar && anotarAhora(c, oid.toStdString() + "." + p.toStdString()))
+        g_.anotar(c.aparato, "tablero web: " + oid.toStdString() + "." + p.toStdString() + " = " + m.value("v", json()).dump().substr(0, 200));
     mp.write(ob.o, v);
     // Si el modelo no lo aceptó (o lo corrigió), que la réplica vuelva a lo de verdad.
     cambio(oid, {i});
@@ -622,6 +653,12 @@ void ReplicaPublicador::procesar(const std::string& cid, Con& c, const json& m, 
                                   {"fps", std::clamp(k.value("fps", 15), 1, 30)}});
             }
         if (g_.video) g_.video(cid, claves);
+    } else if (op == "pausa") {
+        // La pestaña del navegador se escondió: no se le manda nada (ni video) hasta que vuelva;
+        // al volver, todo lo abierto de nuevo (lo que cambió mientras tanto).
+        c.pausada = m.value("si", false);
+        if (c.pausada && g_.video) g_.video(cid, json::array());
+        if (!c.pausada) todoSucio(c);
     } else if (op == "webrtc" && c.escribe && g_.enlaceCast) {
         QPointer<ReplicaPublicador> yo(this);
         g_.enlaceCast([yo, cid](const std::string& url, const std::string& error) {
@@ -696,6 +733,7 @@ void ReplicaPublicador::cerrada(const std::string& cid) {
 void ReplicaPublicador::vaciar() {
     reloj_.stop();
     for (auto& [cid, c] : cons_) {
+        if (c.pausada && c.cola.empty()) continue; // escondida: lo sucio espera
         const std::function<void()> volver = enSuSalida(c);
         struct Volver {
             const std::function<void()>& f;
@@ -709,11 +747,18 @@ void ReplicaPublicador::vaciar() {
             json v = json::object();
             for (int i : props) {
                 const QMetaProperty p = it->second.o->metaObject()->property(i);
-                v[p.name()] = valor(p.read(it->second.o), c, esquemas, id + QLatin1Char('.') + QLatin1String(p.name()));
+                const QString camino = id + QLatin1Char('.') + QLatin1String(p.name());
+                json x = valor(p.read(it->second.o), c, esquemas, camino);
+                // Lo que no cambió desde la última vez que se le mandó, no se manda.
+                std::string texto = x.dump();
+                std::string& antes = c.enviado[camino.toStdString()];
+                if (antes == texto) continue;
+                antes = std::move(texto);
+                v[p.name()] = std::move(x);
             }
             for (auto& e : esquemas) c.cola.push_back(std::move(e));
             esquemas = json::array();
-            c.cola.push_back({{"op", "valores"}, {"o", id.toStdString()}, {"v", std::move(v)}});
+            if (!v.empty()) c.cola.push_back({{"op", "valores"}, {"o", id.toStdString()}, {"v", std::move(v)}});
         }
         c.sucios.clear();
         for (const QString& id : c.filasSucias) {

@@ -14390,12 +14390,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Linha</translation>
     </message>
     <message>
-        <location line="+9" />
+        <location line="+24" />
         <source>Vista: %1</source>
         <translation>Vista: %1</translation>
     </message>
     <message>
-        <location line="+75" />
+        <location line="+85" />
         <source>No hay un evento abierto: la línea es la del guion del evento.</source>
         <translation>Não há um evento aberto: a linha é a do roteiro do evento.</translation>
     </message>
@@ -14572,7 +14572,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
 <context>
     <name>LineaMultipista</name>
     <message>
-        <location filename="../src/app/qml/controls/LineaMultipista.qml" line="+46" />
+        <location filename="../src/app/qml/controls/LineaMultipista.qml" line="+36" />
         <source>Bloque</source>
         <translation>Bloco</translation>
     </message>
@@ -14592,7 +14592,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>1 min</translation>
     </message>
     <message>
-        <location line="+10" />
+        <location line="+11" />
         <source>ancho: %1</source>
         <translation>largura: %1</translation>
     </message>
@@ -14602,7 +14602,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Agora</translation>
     </message>
     <message numerus="yes">
-        <location line="+7" />
+        <location line="+26" />
         <source>%n cambio sin confirmar</source>
         <translation>
             <numerusform>%n alteração não confirmada</numerusform>
@@ -16315,12 +16315,22 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
         <translation>A aba Áudio: o rack e os filtros de cada entrada, a matriz e as saídas.</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+9" />
         <source>⧉ Mezclador</source>
         <translation>⧉ Mixer</translation>
     </message>
     <message>
-        <location line="+3" />
+        <location line="+0" />
+        <source>↗ Mezclador</source>
+        <translation>↗ Mixer</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Abre el Mezclador entero en una pestaña nueva del navegador.</source>
+        <translation>Abre o Mixer inteiro em uma nova aba do navegador.</translation>
+    </message>
+    <message>
+        <location line="+1" />
         <source>Abre el Mezclador en su propia ventana: lo que sale de cada entrada, las salidas y la matriz.</source>
         <translation>Abre o Mixer em sua própria janela: o que sai de cada entrada, as saídas e a matriz.</translation>
     </message>
@@ -34580,7 +34590,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>não respondeu</translation>
     </message>
     <message>
-        <location line="+137" />
+        <location line="+140" />
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conferência reiniciada com a configuração nova.</translation>
     </message>
@@ -35151,9 +35161,37 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
     </message>
 </context>
 <context>
+    <name>TableroPestana</name>
+    <message>
+        <location filename="../src/tablero-web/qml/TableroPestana.qml" line="+35" />
+        <source>Mezclador</source>
+        <translation>Mixer</translation>
+    </message>
+    <message>
+        <location line="+11" />
+        <source>Cambia el aire</source>
+        <translation>Isso muda o que está no ar</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Sí, hacelo</source>
+        <translation>Sim, faça</translation>
+    </message>
+    <message>
+        <location line="+1" />
+        <source>Cancelar</source>
+        <translation>Cancelar</translation>
+    </message>
+    <message>
+        <location line="+13" />
+        <source>No hay una vista «%1».</source>
+        <translation>Não há uma vista «%1».</translation>
+    </message>
+</context>
+<context>
     <name>TableroWeb</name>
     <message>
-        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+48" />
+        <location filename="../src/tablero-web/qml/TableroWeb.qml" line="+49" />
         <source>¿Cortar la transmisión?</source>
         <translation>Encerrar a transmissão?</translation>
     </message>
@@ -45247,7 +45285,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
     </message>
     <message>
         <location line="-57" />
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-936" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-939" />
         <source>arranque: %1 tardó %2 ms</source>
         <translation>inicialização: %1 levou %2 ms</translation>
     </message>
@@ -55175,7 +55213,7 @@ Dados (de %2): %3</translation>
     </message>
     <message>
         <location line="+3" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="+194" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="+195" />
         <location filename="../src/gateway/proxy/ProxyNombres.cpp" line="+430" />
         <source>solo desde la red local</source>
         <translation>só pela rede local</translation>
@@ -55291,7 +55329,7 @@ Dados (de %2): %3</translation>
         <translation>dispositivos conectados demais</translation>
     </message>
     <message>
-        <location line="+19" />
+        <location line="+27" />
         <source>control web: token o PIN inválido desde %1</source>
         <translation>controle web: token ou PIN inválido de %1</translation>
     </message>
@@ -57288,7 +57326,7 @@ Dados (de %2): %3</translation>
         <translation>não</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+970" />
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+973" />
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” não iniciou ao abrir: %2</translation>
     </message>
@@ -97143,7 +97181,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     <name>web/comun</name>
     <message>
         <location filename="../src/gateway/Botonera.cpp" line="-113" />
-        <location filename="../src/gateway/ControlWeb.cpp" line="-156" />
+        <location filename="../src/gateway/ControlWeb.cpp" line="-164" />
         <source>demasiados intentos; esperá 10 minutos</source>
         <translation>tentativas demais; aguarde 10 minutos</translation>
     </message>
@@ -97169,7 +97207,12 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>Este dispositivo foi revogado (ou o acesso de fora foi desligado).</translation>
     </message>
     <message>
-        <location line="+134" />
+        <location line="+132" />
+        <source>La app todavía está arrancando.</source>
+        <translation>O aplicativo ainda está iniciando.</translation>
+    </message>
+    <message>
+        <location line="+10" />
         <source>Demasiados intentos: esperá 10 minutos.</source>
         <translation>Tentativas demais: aguarde 10 minutos.</translation>
     </message>

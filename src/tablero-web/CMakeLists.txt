@@ -53,7 +53,7 @@ foreach(f ${_ba_qml})
 endforeach()
 qt_add_resources(ba-tablero "ba_qml" PREFIX "/" BASE "${BA_APP}" FILES ${_ba_qml_abs})
 qt_add_resources(ba-tablero "ba_web" PREFIX "/web" BASE "${CMAKE_CURRENT_SOURCE_DIR}/qml" FILES
-                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/TableroWeb.qml")
+                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/TableroWeb.qml" "${CMAKE_CURRENT_SOURCE_DIR}/qml/TableroPestana.qml")
 # Los íconos de la app (qrc:/icons, como en ba-app).
 file(GLOB _ba_iconos CONFIGURE_DEPENDS "${BA_RAIZ}/assets/icons/*.svg" "${BA_RAIZ}/assets/icons/*.png")
 if(_ba_iconos)

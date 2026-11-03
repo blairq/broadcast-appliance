@@ -138,13 +138,18 @@ void ObjetoReplica::leida(int indice) {
 void ObjetoReplica::escrita(int indice) {
     const QByteArray nombre = meta_->name(indice); // relativo a las propiedades dinámicas
     if (nombre == kRev || nombresMetodos_.contains(nombre) || !tipos_.contains(nombre) || locales_.contains(nombre)) return;
+    if (cliente_->esDeLaVista(id_, QString::fromUtf8(nombre))) {
+        vistaEscrita_.insert(nombre);
+        return;
+    }
     cliente_->poner(id_, QString::fromUtf8(nombre), meta_->value(nombre));
 }
 
 void ObjetoReplica::ponerValores(const QVariantMap& v) {
     abierto_ = true;
     for (auto it = v.cbegin(); it != v.cend(); ++it)
-        if (!locales_.contains(it.key().toUtf8())) meta_->setValue(it.key().toUtf8(), it.value());
+        if (!locales_.contains(it.key().toUtf8()) && !vistaEscrita_.contains(it.key().toUtf8()))
+            meta_->setValue(it.key().toUtf8(), it.value());
     pedirOtraVez();
 }
 

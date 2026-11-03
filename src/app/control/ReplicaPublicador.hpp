@@ -39,6 +39,7 @@
 //   afuera se rechaza y queda en el registro.
 //   {op:"video", claves:[{clave, ancho, fps}]}  qué videos quiere (control/CuadrosWeb).
 //   {op:"webrtc"}                   el enlace del programa por WebRTC (/cast/?token=…).
+//   {op:"pausa", si}                la pestaña se escondió (no se manda nada) o volvió (todo de nuevo).
 //   Salidas múltiples: cada aparato maneja SU salida (la de ControlWeb, como la superficie
 //   HTML). Escribir `Studio.salidas.activa` desde la web la elige (no cambia la de la app) y
 //   todo lo que se lee o se hace por esa conexión es «como si» la activa fuera esa.
@@ -121,7 +122,9 @@ class ReplicaPublicador : public QObject {
     /// Cada cuánto se junta lo que cambió (ms).
     static constexpr int kLoteMs = 50;
     /// Cuántas llamadas y escrituras por segundo por conexión.
-    static constexpr int kLlamadasPorSegundo = 40;
+    /// (El navegador ya junta los cambios de un fader: el último de cada lote gana. Con varios
+    /// faders a la vez, 25 lotes por segundo × unos pocos.)
+    static constexpr int kLlamadasPorSegundo = 100;
     /// Cuántas lecturas (funciones que devuelven algo) por segundo por conexión.
     static constexpr int kLecturasPorSegundo = 300;
 
@@ -130,6 +133,9 @@ class ReplicaPublicador : public QObject {
     Ganchos& ganchos() { return g_; }
     /// Propiedades de la raíz (QObject*) que no se publican nunca (credenciales, ventanas…).
     void negar(const QStringList& propiedadesDeLaRaiz);
+    /// Objetos que se vuelven a leer una vez por segundo (lo que depende de la salida de cada
+    /// aparato y la app avisa solo por la suya); van solo si cambió.
+    void refrescarCadaSegundo(const QStringList& objetos) { refrescoLento_ = objetos; }
     /// Funciones que no se llaman nunca desde la web (en cualquier objeto: «copiar», «quit»…).
     void negarFunciones(const QStringList& nombres);
 
@@ -172,6 +178,9 @@ class ReplicaPublicador : public QObject {
         std::set<std::string> rechazosAnotados; ///< una línea en el registro por cosa rechazada
         std::string salida;                     ///< la que maneja este aparato ("" = la por omisión)
         std::shared_ptr<QObject> vista;         ///< la «vista» de este aparato en las suscripciones
+        std::map<std::string, std::int64_t> anotado; ///< la última vez que algo fue al registro
+        bool pausada = false;                   ///< la pestaña del navegador está escondida
+        std::map<std::string, std::string> enviado; ///< «objeto.prop» → lo último que se le mandó
     };
     friend class AvisoReplica;
 
@@ -190,6 +199,7 @@ class ReplicaPublicador : public QObject {
     void poner(Con& c, const json& m);
     QVariant aVariant(const json& j) const;
     bool tope(Con& c, bool lectura);
+    bool anotarAhora(Con& c, const std::string& que);
     /// ¿Se puede? "" si sí; si no, el error (y ya se contestó/anotó); `confirmar`: se pidió confirmación.
     std::string permiso(Con& c, QObject* o, const QString& oid, const QString& nombre, bool poner, bool lectura,
                         const json& m, bool& confirmar);
@@ -212,6 +222,8 @@ class ReplicaPublicador : public QObject {
     std::vector<Permitida> permitidas_ = permitidasDeLaApp();
     std::map<std::string, Con> cons_;
     QTimer reloj_;
+    QTimer lento_;
+    QStringList refrescoLento_;
     int siguiente_ = 1;
 };
 

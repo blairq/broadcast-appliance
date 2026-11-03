@@ -43,3 +43,12 @@ void Pagina::guardarPreferencia(const QString& clave, const QString& valor) {
     Q_UNUSED(valor);
 #endif
 }
+
+void Pagina::abrirPestana(const QString& vista) {
+#ifdef __EMSCRIPTEN__
+    emscripten::val puente = emscripten::val::global("baPuente");
+    if (!puente.isUndefined()) puente.call<void>("abrirPestana", vista.toStdString());
+#else
+    Q_UNUSED(vista);
+#endif
+}
