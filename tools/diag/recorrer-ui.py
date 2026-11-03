@@ -264,7 +264,11 @@ def main() -> int:
             fin = time.time() + a.espera_sala_s
             con = 0
             while time.time() < fin:
-                ps = mcp.llamar("room_status", {}).get("participants", [])
+                try:
+                    ps = mcp.llamar("room_status", {}).get("participants", [])
+                except RuntimeError as e:  # la sala se reinicia (el que pone la carga sube los topes)
+                    print(f"  sala: {e}", flush=True)
+                    ps = []
                 con = sum(1 for x in ps if x.get("mediaUp"))
                 print(f"  con medios: {con}/{a.sala_externa}", flush=True)
                 if con >= a.sala_externa:

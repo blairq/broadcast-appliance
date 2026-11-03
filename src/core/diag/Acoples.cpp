@@ -36,6 +36,10 @@ namespace ba::diag::acoples {
 namespace {
 
 std::atomic<std::thread::id> g_hiloInterfaz{};
+std::atomic<bool> g_hayInterfaz{false};
+/// Los pasos encendidos que no se anotaron: de otro hilo, o adentro de una anotación. Para ver
+/// en el informe que el detector de verdad mira (y desde qué hilo).
+std::atomic<std::uint64_t> g_deOtroHilo{0}, g_reentradas{0};
 /// Adentro de tocar (lo que anota no vuelve a entrar: una métrica, el registro).
 thread_local bool t_adentro = false;
 
@@ -157,13 +161,24 @@ void activar(int ms) {
 
 int demoraMs() { return detalle::demoraMs.load(); }
 
-void marcarHiloInterfaz() { g_hiloInterfaz.store(std::this_thread::get_id()); }
+void marcarHiloInterfaz() {
+    g_hiloInterfaz.store(std::this_thread::get_id());
+    g_hayInterfaz.store(true);
+}
 
 bool enHiloInterfaz() { return g_hiloInterfaz.load() == std::this_thread::get_id(); }
 
 bool tocar(const char* clase, std::string_view lugar, const std::source_location& donde) {
     const int demora = detalle::demoraMs.load(std::memory_order_relaxed);
-    if (demora <= 0 || t_adentro || !enHiloInterfaz()) return false;
+    if (demora <= 0) return false;
+    if (t_adentro) {
+        g_reentradas.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
+    if (!enHiloInterfaz()) {
+        g_deOtroHilo.fetch_add(1, std::memory_order_relaxed);
+        return false;
+    }
     t_adentro = true;
     const std::string k = clave(clase, lugar, donde);
     bool primera = false;
@@ -256,6 +271,9 @@ nlohmann::json informe() {
             {"total", g_total},
             {"dormido_ms", static_cast<double>(g_dormidoUs) / 1000.0},
             {"sin_dormir", g_sinDormir},
+            {"hilo_interfaz_marcado", g_hayInterfaz.load()},
+            {"de_otro_hilo", g_deOtroHilo.load()},
+            {"reentradas", g_reentradas.load()},
             {"lugares", std::move(lugares)}};
 }
 
@@ -267,6 +285,8 @@ void reiniciar() {
     g_dormidoUs = 0;
     g_ventanaDesdeUs = 0;
     g_ventanaDormidoUs = 0;
+    g_deOtroHilo = 0;
+    g_reentradas = 0;
 }
 
 } // namespace ba::diag::acoples
