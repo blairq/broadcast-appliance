@@ -23,6 +23,15 @@
 // monitor por nombre del sistema se traduce a su id estable apenas se lo ve
 // conectado—, y se guarda ventanas.json en el acto.
 //
+// LAS FIJAS (las de una distribución de pantallas, pantallas/Distribuciones.hpp) son
+// otra cosa para el operador: SIN MARCO (ni barra de título, ni botones, ni bordes
+// para redimensionar) y quietas. No se mueven, no se agrandan ni se cierran con el
+// mouse ni con los atajos del sistema; su lugar lo cambia solo el menú Pantallas
+// (el editor de distribuciones) o el MCP. Para salir de una emergencia:
+// `cerrarFijas` (Pantallas → Distribuciones → «Cerrar las ventanas de la
+// distribución», el atajo Ctrl+Shift+F12 desde cualquier ventana, o
+// pantallas_distribucion_cerrar por MCP).
+//
 // Persistencia: <datos>/Config/ventanas.json.
 // ============================================================================
 #pragma once
@@ -55,6 +64,12 @@ struct FilaVentana {
     bool pantallaCompleta = false;
     /// Vacía = que la ventana elija (centrada en su monitor, o en uno libre).
     QRect geometria;
+    /// Cómo la llamó quien armó la distribución (vacío = el título de lo que muestra).
+    QString nombre;
+    /// De una distribución: sin marco y quieta (ver la cabecera).
+    bool fija = false;
+    /// Siempre encima de las demás ventanas.
+    bool encima = false;
     bool operator==(const FilaVentana&) const = default;
 };
 
@@ -64,6 +79,8 @@ class VentanasModel : public QAbstractListModel {
     /// el «traer» de las páginas, enlazado: cambia cuando se abre o se cierra).
     Q_PROPERTY(QStringList afuera READ afuera NOTIFY cambio)
     Q_PROPERTY(int cantidad READ cantidad NOTIFY cambio)
+    /// Cuántas son de una distribución (sin marco y quietas).
+    Q_PROPERTY(int fijas READ fijas NOTIFY cambio)
 
    public:
     enum Roles {
@@ -75,6 +92,9 @@ class VentanasModel : public QAbstractListModel {
         PantallaCompletaRole,
         GeometriaRole,
         TituloRole,
+        NombreRole,
+        FijaRole,
+        EncimaRole,
     };
 
     /// `archivo` vacío = no se guarda (modo seguro, tests). `catalogo` y
@@ -118,14 +138,29 @@ class VentanasModel : public QAbstractListModel {
     /// La fila como mapa (los nombres de los roles), o vacío.
     Q_INVOKABLE QVariantMap ventana(int id) const;
 
+    /// Deja EXACTAMENTE estas ventanas (las de una distribución): las que ya hay con
+    /// las mismas cosas se reusan (se mueven en su lugar, sin cerrarse y abrirse:
+    /// no parpadean), las que sobran se cierran y las que faltan se abren. Todas
+    /// quedan `fija`. Dos veces lo mismo no cambia nada (no avisa). Las que no se
+    /// pueden mostrar (una escena borrada) se saltean: vuelve por qué, una por línea.
+    QStringList ponerExactas(std::vector<FilaVentana> deseadas);
+    /// La salida de emergencia: cierra todas las fijas. Devuelve cuántas cerró.
+    Q_INVOKABLE int cerrarFijas();
+
     QStringList afuera() const;
     int cantidad() const { return rowCount(); }
+    int fijas() const;
     const std::vector<FilaVentana>& ventanas() const { return filas_; }
 
    signals:
     void cambio();
     /// Se pidió abrir algo que ya estaba abierto: la ventana se trae al frente.
     void traerAlFrente(int id);
+    /// Una distribución la puso en otro lugar (monitor, geometría o pantalla
+    /// completa): la ventana se lleva ahí. Es una orden y no un rol porque la
+    /// ventana no avisa cada pixel que se mueve (setGeometria no avisa) y el rol
+    /// podría no cambiar aunque la ventana esté en otro lado.
+    void ubicar(int id, const QRect& geometria);
 
    private:
     int filaDe(int id) const;
@@ -136,6 +171,8 @@ class VentanasModel : public QAbstractListModel {
     /// Los monitores migrados por nombre del sistema, a su id estable.
     void traducirMonitores();
     void insertar(FilaVentana f);
+    /// Saca la fila sin avisar `cambio` ni guardar (quien llama lo hace una vez).
+    void quitarFila(int fila);
     void cargar();
     void guardar() const;
 
