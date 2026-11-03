@@ -7,6 +7,8 @@
 //   3. El «+N» se dibuja (sin fuentes del sistema) adentro de su cuadro.
 //   4. Los lugares se animan: a mitad de la transición la cara está a mitad de
 //      camino; la que sale se achica y después se va.
+//  4b. La interpolación: el viaje con la curva suave, el borde que aparece y se va
+//      fundiendo, y el mismo lugar repetido a mitad de viaje no lo rearranca.
 //   5. La calidad: avisa el alto del lugar más grande de cada uno (y 0 al salir).
 //   6. Quién habla: entra con voz sostenida, sale después del silencio.
 //   7. Solo se guardan cuadros de quien está en alguna grilla.
@@ -162,6 +164,71 @@ int main() {
         g.pintar(1, 6100, l, w, h);
         CHECK(pixel(l, w, 350, 50) != verde, "ya se fue");
         CHECK(Grillas::suavizar(0) == 0 && Grillas::suavizar(1) == 1 && Grillas::suavizar(0.5f) == 0.5f, "la curva");
+    }
+    // 4b. La interpolación (2026-11-03): el viaje y el fundido del borde con la curva suave;
+    //     el mismo lugar otra vez no rearranca el viaje; el borde aparece y se va fundiendo.
+    {
+        using R = Grillas::Rect;
+        const R a{0, 0, 100, 100}, b{300, 20, 120, 80};
+        const R m = Grillas::interpolar(a, b, 1000, 400, 1200);
+        CHECK(std::fabs(m.x - 150) < 0.01f && std::fabs(m.y - 10) < 0.01f && std::fabs(m.w - 110) < 0.01f &&
+                  std::fabs(m.h - 90) < 0.01f,
+              "a mitad del tiempo, a mitad de camino (en 0,5 la curva vale 0,5)");
+        const R q = Grillas::interpolar(a, b, 1000, 400, 1100);
+        CHECK(q.x > 0 && q.x < 150 * 0.5f, "al principio va lento (curva suave: a un cuarto del tiempo, menos de un cuarto)");
+        const R f = Grillas::interpolar(a, b, 1000, 400, 1400);
+        CHECK(Grillas::mismoLugar(f, b) && Grillas::mismoLugar(Grillas::interpolar(a, b, 1000, 400, 9000), b), "llega y se queda");
+        CHECK(Grillas::mismoLugar(Grillas::interpolar(a, b, 1000, 0, 1000), b), "sin transición: en el acto");
+        CHECK(Grillas::mismoLugar(a, R{0.4f, 0, 100, 100.3f}) && !Grillas::mismoLugar(a, R{1, 0, 100, 100}), "mismo lugar: medio píxel");
+        // El borde: de 0 a 1 y de vuelta, desde donde esté.
+        CHECK(Grillas::alfaBorde(0, true, 1000, 400, 1000) == 0 && Grillas::alfaBorde(0, true, 1000, 400, 1400) == 1,
+              "el borde aparece en transicion_ms");
+        CHECK(std::fabs(Grillas::alfaBorde(0, true, 1000, 400, 1200) - 0.5f) < 0.001f, "a mitad, medio borde");
+        CHECK(std::fabs(Grillas::alfaBorde(0.5f, false, 2000, 400, 2200) - 0.25f) < 0.001f,
+              "se va desde donde estaba (de 0,5 a 0: a mitad, 0,25)");
+        CHECK(Grillas::alfaBorde(0, true, 1000, 0, 1000) == 1, "sin transición: el borde en el acto");
+
+        // Con el mosaico: la app vuelve a mandar lo mismo a mitad del viaje y la celda llega a tiempo.
+        Grillas g(log);
+        const auto pedido = [](int x, bool resaltar) {
+            return json{{"grillas",
+                         {{{"canal", 1},
+                           {"ancho", 400},
+                           {"alto", 100},
+                           {"transicion_ms", 1000},
+                           {"resaltar_color", "#FF0000"},
+                           {"celdas", {celda("p", x, 0, 100, 100, resaltar), celda("q", 300, 0, 100, 100)}}}}}};
+        };
+        const std::uint32_t verde = 0xFF00FF00u, rojo = 0xFFFF0000u;
+        CHECK(g.aplicar(pedido(0, false), 0).empty(), "aplica");
+        const auto px = liso(100, 100, verde);
+        g.cuadro("p", px.data(), 100, 100, 0);
+        std::vector<std::uint8_t> l;
+        int w = 0, h = 0;
+        g.pintar(1, 2000, l, w, h);
+        CHECK(pixel(l, w, 1, 50) == verde, "sin borde");
+        // El borde funde: a mitad, mezcla; al final, el color entero.
+        CHECK(g.aplicar(pedido(0, true), 3000).empty(), "con borde");
+        g.pintar(1, 3000, l, w, h);
+        CHECK(pixel(l, w, 1, 50) == verde, "al empezar, todavía sin borde");
+        g.pintar(1, 3500, l, w, h);
+        const std::uint32_t medio = pixel(l, w, 1, 50);
+        CHECK(medio != verde && medio != rojo && ((medio >> 16) & 0xFF) > 100 && ((medio >> 8) & 0xFF) > 100,
+              "a mitad, el borde a medio fundir (rojo y verde mezclados)");
+        g.pintar(1, 4100, l, w, h);
+        CHECK(pixel(l, w, 1, 50) == rojo && pixel(l, w, 50, 50) == verde, "terminó: el borde entero, la cara adentro");
+        // Se muda a x=200 (q no se mueve): a mitad del viaje la app manda lo mismo otra vez.
+        CHECK(g.aplicar(pedido(200, true), 5000).empty(), "se muda");
+        CHECK(g.aplicar(pedido(200, true), 5500).empty(), "lo mismo otra vez, a mitad de camino");
+        g.pintar(1, 6050, l, w, h);
+        CHECK(pixel(l, w, 290, 50) == verde && pixel(l, w, 205, 50) == verde,
+              "llegó a tiempo: el pedido repetido no rearrancó el viaje (si no, estaría en x≈157 y no llegaría a 290)");
+        // Deja de tener borde: se va fundiendo.
+        CHECK(g.aplicar(pedido(200, false), 7000).empty(), "sin borde");
+        g.pintar(1, 7500, l, w, h);
+        CHECK(pixel(l, w, 201, 50) != rojo && pixel(l, w, 201, 50) != verde, "a mitad, se va fundiendo");
+        g.pintar(1, 8100, l, w, h);
+        CHECK(pixel(l, w, 201, 50) == verde, "se fue");
     }
     // 6. Quién habla.
     {

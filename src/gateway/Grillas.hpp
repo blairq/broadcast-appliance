@@ -31,7 +31,13 @@
 // grande que ocupa (nunca agrandado), así componer es escalar poco y el costo
 // por cuadro que llega es chico. Los lugares se ANIMAN: si la app manda otra
 // disposición, cada cara viaja de donde estaba a donde va (transicion_ms); la
-// que entra crece desde el centro de su lugar y la que sale se achica.
+// que entra crece desde el centro de su lugar y la que sale se achica. Solo viaja la
+// celda cuyo lugar CAMBIÓ: la que ya iba (o estaba) donde dice el pedido nuevo sigue su
+// viaje sin rearrancar (2026-11-03: antes cada pedido rearrancaba el de todas desde
+// velocidad cero, y con un orador que empieza a hablar se frenaba la grilla entera). El
+// borde (resaltar) aparece y se va con un FUNDIDO en el mismo tiempo y con la misma
+// curva: así, cuando alguien toma la palabra con «agrandar» o «destacar», su celda
+// crece, las demás se achican y el borde se enciende, todo a la vez y suave.
 //
 // Además mide quién HABLA (nivel del audio de cada sesión, con histéresis) y
 // avisa a la app los cambios (alCambiarHablan → SSE «hablan»): la app ordena por
@@ -219,6 +225,13 @@ class Grillas {
     static std::int64_t reloj();
     /// La curva de la animación (0..1 → 0..1, suave al salir y al llegar).
     static float suavizar(float t);
+    /// Un viaje de `desde` a `hasta` que empezó en `t0` y dura `durMs`, en `ahoraMs` (con la curva).
+    static Rect interpolar(const Rect& desde, const Rect& hasta, std::int64_t t0, int durMs, std::int64_t ahoraMs);
+    /// ¿Es el mismo lugar? (medio píxel de tolerancia): la app que vuelve a mandar la misma
+    /// disposición no rearranca el viaje de esa celda.
+    static bool mismoLugar(const Rect& a, const Rect& b);
+    /// La opacidad del borde (0..1): de `desde` hacia 1 (`con`) o 0, desde `t0`, en `durMs`.
+    static float alfaBorde(float desde, bool con, std::int64_t t0, int durMs, std::int64_t ahoraMs);
     /// Cuándo pintar el próximo mosaico (ns del reloj monotónico). Con el ritmo del lienzo
     /// (`envioNs`: su último cuadro, `periodoNs`: cada cuánto publica; los dos de la cabecera
     /// de su canal): a mitad de camino entre dos cuadros del lienzo, el primero después de
@@ -282,7 +295,11 @@ class Grillas {
         Rect desde, hasta;
         std::int64_t t0 = 0;
         bool sale = false;
-        bool resaltar = false;
+        bool resaltar = false; ///< a dónde va el borde (con o sin)
+        /// El fundido del borde: de `bordeDesde` (0..1, lo que se veía al cambiar) a 1 o 0
+        /// (resaltar) desde `bordeT0`, con la misma curva y duración que el viaje.
+        float bordeDesde = 0;
+        std::int64_t bordeT0 = 0;
         std::string rotulo;
     };
     /// La máscara de un nombre (A8, la dibuja la app).

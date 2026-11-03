@@ -150,6 +150,22 @@ inline void sobre(std::uint8_t* p, std::uint32_t color, unsigned a) {
     p[3] = static_cast<std::uint8_t>(a + p[3] * na / 255);
 }
 
+/// El borde a medio fundir: `a` (0..255) de opacidad sobre lo pintado.
+void bordeMezcla(std::uint8_t* lienzo, int W, const Caja& c, int grosor, std::uint32_t color, unsigned a) {
+    const int g = std::min({grosor, c.w / 2, c.h / 2});
+    if (g <= 0 || a == 0) return;
+    const auto banda = [&](const Caja& b) {
+        for (int y = b.y; y < b.y + b.h; ++y) {
+            std::uint8_t* p = lienzo + (static_cast<std::size_t>(y) * W + b.x) * 4;
+            for (int x = 0; x < b.w; ++x) sobre(p + x * 4, color, a);
+        }
+    };
+    banda({c.x, c.y, c.w, g});
+    banda({c.x, c.y + c.h - g, c.w, g});
+    banda({c.x, c.y + g, g, c.h - 2 * g}); // los costados sin las esquinas (no se pintan dos veces)
+    banda({c.x + c.w - g, c.y + g, g, c.h - 2 * g});
+}
+
 std::uint32_t leerColor(const json& j, const char* k, std::uint32_t def) {
     std::uint32_t c = def;
     if (j.contains(k) && j[k].is_string() && Grillas::color(j[k].get<std::string>(), c)) return c;
@@ -290,11 +306,28 @@ float Grillas::suavizar(float t) {
     return t * t * (3 - 2 * t);
 }
 
+Grillas::Rect Grillas::interpolar(const Rect& desde, const Rect& hasta, std::int64_t t0, int durMs, std::int64_t ahora) {
+    if (durMs <= 0) return hasta;
+    const float e = suavizar(static_cast<float>(ahora - t0) / static_cast<float>(durMs));
+    return {desde.x + (hasta.x - desde.x) * e, desde.y + (hasta.y - desde.y) * e, desde.w + (hasta.w - desde.w) * e,
+            desde.h + (hasta.h - desde.h) * e};
+}
+
 Grillas::Rect Grillas::animado(const Anim& a, int durMs, std::int64_t ahora) {
-    if (durMs <= 0) return a.hasta;
-    const float e = suavizar(static_cast<float>(ahora - a.t0) / static_cast<float>(durMs));
-    return {a.desde.x + (a.hasta.x - a.desde.x) * e, a.desde.y + (a.hasta.y - a.desde.y) * e,
-            a.desde.w + (a.hasta.w - a.desde.w) * e, a.desde.h + (a.hasta.h - a.desde.h) * e};
+    return interpolar(a.desde, a.hasta, a.t0, durMs, ahora);
+}
+
+bool Grillas::mismoLugar(const Rect& a, const Rect& b) {
+    constexpr float kTol = 0.5f;
+    return std::fabs(a.x - b.x) <= kTol && std::fabs(a.y - b.y) <= kTol && std::fabs(a.w - b.w) <= kTol &&
+           std::fabs(a.h - b.h) <= kTol;
+}
+
+float Grillas::alfaBorde(float desde, bool con, std::int64_t t0, int durMs, std::int64_t ahora) {
+    const float hasta = con ? 1.0f : 0.0f;
+    if (durMs <= 0) return hasta;
+    const float e = suavizar(static_cast<float>(ahora - t0) / static_cast<float>(durMs));
+    return std::clamp(desde + (hasta - desde) * e, 0.0f, 1.0f);
 }
 
 // ---------------------------------------------------------------------------
@@ -389,19 +422,30 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
                 quedan.insert(c.persona);
                 auto a = g.anim.find(c.persona);
                 if (a != g.anim.end()) {
-                    // Viaja desde donde está AHORA (aunque estuviera a mitad de otro viaje).
-                    a->second.desde = animado(a->second, g.transicionMs, ahora);
-                    a->second.hasta = c.r;
-                    a->second.t0 = ahora;
-                    a->second.sale = false;
-                    a->second.resaltar = c.resaltar;
-                    a->second.rotulo = c.rotulo;
+                    Anim& x = a->second;
+                    // Viaja desde donde está AHORA (aunque estuviera a mitad de otro viaje), pero
+                    // solo si su lugar cambió: si ya iba (o estaba) ahí, sigue sin rearrancar.
+                    if (x.sale || !mismoLugar(x.hasta, c.r)) {
+                        x.desde = animado(x, g.transicionMs, ahora);
+                        x.hasta = c.r;
+                        x.t0 = ahora;
+                    }
+                    x.sale = false;
+                    // El borde funde desde lo que se ve ahora hacia lo nuevo (si cambió).
+                    if (x.resaltar != c.resaltar) {
+                        x.bordeDesde = alfaBorde(x.bordeDesde, x.resaltar, x.bordeT0, g.transicionMs, ahora);
+                        x.bordeT0 = ahora;
+                        x.resaltar = c.resaltar;
+                    }
+                    x.rotulo = c.rotulo;
                 } else {
                     Anim x;
                     x.desde = encoger(c.r, 0.3f); // la que entra crece desde el centro de su lugar
                     x.hasta = c.r;
                     x.t0 = ahora;
                     x.resaltar = c.resaltar;
+                    x.bordeDesde = 0; // y su borde, si lo lleva, aparece a la vez
+                    x.bordeT0 = ahora;
                     x.rotulo = c.rotulo;
                     g.anim[c.persona] = x;
                 }
@@ -413,6 +457,8 @@ std::string Grillas::aplicar(const json& pedido, std::int64_t ahora) {
                 a.hasta = encoger(ahoraR, 0.01f); // la que sale se achica hasta desaparecer
                 a.t0 = ahora;
                 a.sale = true;
+                a.bordeDesde = alfaBorde(a.bordeDesde, a.resaltar, a.bordeT0, g.transicionMs, ahora);
+                a.bordeT0 = ahora;
                 a.resaltar = false;
                 a.rotulo.clear();
             }
@@ -907,7 +953,12 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
                 pintarRotulo(g.lienzo.data(), W, H,
                              {static_cast<float>(c.x), static_cast<float>(c.y), static_cast<float>(c.w), static_cast<float>(c.h)},
                              *rt->second, g.estiloRotulo);
-        if (a.resaltar) borde(g.lienzo.data(), W, c, std::max(3, c.h / 30), g.resaltar);
+        // El borde, con su fundido (aparece y se va en transicion_ms).
+        const float alfa = alfaBorde(a.bordeDesde, a.resaltar, a.bordeT0, g.transicionMs, ahora);
+        if (alfa >= 0.999f)
+            borde(g.lienzo.data(), W, c, std::max(3, c.h / 30), g.resaltar);
+        else if (alfa > 0.004f)
+            bordeMezcla(g.lienzo.data(), W, c, std::max(3, c.h / 30), g.resaltar, static_cast<unsigned>(alfa * 255.0f + 0.5f));
     };
     for (const auto& [p, a] : g.anim)
         if (a.sale) dibujar(p, a); // abajo de las que quedan
@@ -998,7 +1049,8 @@ void Grillas::bucle() {
                 // nuevo de alguien que se ve; si no, se repite cada medio segundo (el
                 // motor pone «sin señal» a los 3 s sin cuadros).
                 bool hace = g.sucia || ahora - g.enviadoMs >= 500;
-                for (const auto& [p, a] : g.anim) hace = hace || ahora - a.t0 < g.transicionMs;
+                for (const auto& [p, a] : g.anim)
+                    hace = hace || ahora - a.t0 < g.transicionMs || ahora - a.bordeT0 < g.transicionMs;
                 if (!hace)
                     for (const Celda& c : g.celdas)
                         if (const auto r = retrato(c.persona)) {
