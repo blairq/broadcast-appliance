@@ -8,7 +8,8 @@
 // de los plugins), con las guías para conectar cada plataforma (net/AccountGuides).
 //
 // En QML las cuentas siguen en Studio (Studio.youtube, Studio.twitch, Studio.facebook);
-// lo propio del área en Studio.cuentas (accountGuide, saveAccountCredential).
+// lo propio del área en Studio.cuentas (accountGuide, saveAccountCredential) y las cuentas
+// de cada plataforma y los vivos de cada salida en Studio.cuentas.vivos (ui/VivosViewModel).
 // ============================================================================
 #pragma once
 
@@ -29,6 +30,8 @@ class TwitchViewModel;
 class FacebookViewModel;
 class GrabacionesModel;
 class PlataformaViewModel;
+class EmisionViewModel;
+class VivosViewModel;
 } // namespace ba::app
 namespace ba::app::control {
 class BusEventos;
@@ -44,6 +47,8 @@ namespace ba::app {
 
 class CuentasViewModel : public QObject {
     Q_OBJECT
+    /// Varias cuentas por plataforma y los vivos de cada salida (ui/VivosViewModel).
+    Q_PROPERTY(QObject* vivos READ vivosQml CONSTANT)
    public:
     /// Lo que se arma después de las cuentas se pide cada vez.
     struct Partes {
@@ -52,6 +57,7 @@ class CuentasViewModel : public QObject {
         std::function<control::BusEventos*()> bus;  ///< cada vivo, al bus
         std::function<red::Red*()> red;             ///< las credenciales de las cámaras de la red
         std::function<plugins::Plugins*()> plugins; ///< las claves de los plugins
+        std::function<EmisionViewModel*()> emision; ///< el bitrate de cada destino (los vivos de las salidas)
     };
     explicit CuentasViewModel(Partes p, QObject* parent = nullptr);
     ~CuentasViewModel() override;
@@ -59,6 +65,8 @@ class CuentasViewModel : public QObject {
     YouTubeViewModel& youtube() { return *youtube_; }
     TwitchViewModel& twitch() { return *twitch_; }
     FacebookViewModel& facebook() { return *facebook_; }
+    VivosViewModel& vivos() { return *vivos_; }
+    QObject* vivosQml() const;
     QObject* youtubeQml() const;
     QObject* twitchQml() const;
     QObject* facebookQml() const;
@@ -104,6 +112,7 @@ class CuentasViewModel : public QObject {
     std::unique_ptr<YouTubeViewModel> youtube_;
     std::unique_ptr<TwitchViewModel> twitch_;
     std::unique_ptr<FacebookViewModel> facebook_;
+    std::unique_ptr<VivosViewModel> vivos_; ///< las cuentas de cada plataforma y los vivos de cada salida
 };
 
 } // namespace ba::app

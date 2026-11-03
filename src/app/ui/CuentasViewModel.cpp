@@ -14,6 +14,7 @@
 #include "ui/GrabacionesModel.hpp"
 #include "ui/PlataformaViewModel.hpp"
 #include "ui/TwitchViewModel.hpp"
+#include "ui/VivosViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
 
 #include <QCoreApplication>
@@ -63,6 +64,10 @@ CuentasViewModel::CuentasViewModel(Partes p, QObject* parent) : QObject(parent),
         connect(pl, &PlataformaViewModel::stateChanged, this, &CuentasViewModel::webCambio);
         connect(pl, &PlataformaViewModel::vivo, this, alVivo);
     }
+    // Varias cuentas por plataforma (la principal es la de cada página) y los vivos de cada salida.
+    vivos_ = std::make_unique<VivosViewModel>(
+        VivosViewModel::Partes{p_.rt, p_.ventanilla, *youtube_, *twitch_, *facebook_, p_.emision});
+    connect(vivos_.get(), &VivosViewModel::notify, this, &CuentasViewModel::notify);
     connect(twitch_.get(), &TwitchViewModel::channelChanged, this, &CuentasViewModel::webCambio);
     connect(twitch_.get(), &TwitchViewModel::streamChanged, this, &CuentasViewModel::webCambio);
 }
@@ -72,6 +77,7 @@ CuentasViewModel::~CuentasViewModel() = default;
 QObject* CuentasViewModel::youtubeQml() const { return deCpp(youtube_.get()); }
 QObject* CuentasViewModel::twitchQml() const { return deCpp(twitch_.get()); }
 QObject* CuentasViewModel::facebookQml() const { return deCpp(facebook_.get()); }
+QObject* CuentasViewModel::vivosQml() const { return deCpp(vivos_.get()); }
 
 PlataformaViewModel* CuentasViewModel::plataforma(const QString& id) {
     const std::string p = accounts::normalize(id.toStdString());
