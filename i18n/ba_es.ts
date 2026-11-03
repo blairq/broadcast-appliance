@@ -268,8 +268,8 @@
 <context>
     <name>ConferencePage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/ConferencePage.qml" line="+233"/>
-        <location line="+474"/>
+        <location filename="../src/app/qml/pages/ConferencePage.qml" line="+237"/>
+        <location line="+477"/>
         <source>%n esperando</source>
         <translation>
             <numerusform>%n esperando</numerusform>
@@ -277,7 +277,15 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="-376"/>
+        <location line="-476"/>
+        <source>%n entrando (%1 por segundo)</source>
+        <translation>
+            <numerusform>%n entrando (%1 por segundo)</numerusform>
+            <numerusform>%n entrando (%1 por segundo)</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+99"/>
         <source>Anotado sin nombre · %n cara</source>
         <translation>
             <numerusform>Anotado sin nombre · %n cara</numerusform>
@@ -285,7 +293,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+370"/>
+        <location line="+371"/>
         <source>%n con video</source>
         <translation>
             <numerusform>%n con video</numerusform>
@@ -342,7 +350,7 @@
 <context>
     <name>EnlaceViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+110"/>
+        <location filename="../src/app/ui/EnlaceViewModel.cpp" line="+113"/>
         <source>Hay %n invitados conectados: la medición carga el enlace y se les puede cortar la imagen unos segundos.</source>
         <translation>
             <numerusform>Hay %n invitado conectado: la medición carga el enlace y se le puede cortar la imagen unos segundos.</numerusform>
@@ -1156,7 +1164,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+170"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+173"/>
         <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
         <translation>
             <numerusform>Ojo: según la última medición, el enlace no alcanza para %n invitado por el túnel.</numerusform>
