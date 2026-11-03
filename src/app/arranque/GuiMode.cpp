@@ -68,6 +68,10 @@
 #include "ui/ChatHilo.hpp"
 #include "pantallas/BuscadorCatalogo.hpp"
 #include "ui/FiltroCatalogo.hpp"
+#include "ui/FilaViva.hpp"
+#include "net/AccesoRemoto.hpp"
+#include "ui/PantallasViewModel.hpp"
+#include "ui/VideoViewModel.hpp"
 #include "ui/ListaObjetos.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/InputsViewModel.hpp"
@@ -471,6 +475,11 @@ int runGui(int argc, char** argv) {
         qmlRegisterType<FiltroCatalogo>("BA", 1, 0, "FiltroCatalogo");
         qmlRegisterType<BuscadorCatalogo>("BA", 1, 0, "BuscadorCatalogo");
         qmlRegisterType<ChatHilo>("BA", 1, 0, "ChatHilo");
+        // Lo que la vista arma con lo que se está editando: el modelo lo calcula y avisa.
+        qmlRegisterType<FilaViva>("BA", 1, 0, "FilaViva");
+        qmlRegisterType<InstruccionesDns>("BA", 1, 0, "InstruccionesDns");
+        qmlRegisterType<UrlDePantalla>("BA", 1, 0, "UrlDePantalla");
+        qmlRegisterType<EditorModulo>("BA", 1, 0, "EditorModulo");
         // Fuente de la terminal del Asistente (viaja en el bundle: data/fonts).
         for (const QString& dir :
              {QString::fromStdWString((ba::platform::bundleRoot() / "data" / "fonts").wstring()),
@@ -624,6 +633,7 @@ int runGui(int argc, char** argv) {
             };
             g.catalogo = [&mcpService]() { return mcpService.core().catalogo(); };
             g.buscar = [&mcpService](const std::string& q) { return mcpService.core().buscarHerramientas(q); };
+            vm.botonera().herramientasListas();
         }
         // Los atajos de teclado: una persona apretando una tecla (como la botonera).
         vm.acciones().ganchos().ejecutar = [&mcpService, &vm](const std::string& h, const nlohmann::json& args,

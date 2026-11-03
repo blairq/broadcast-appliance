@@ -511,6 +511,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // Lo que se corta al cerrar cambia también con quiénes están conectados (la sala; la
     // sesión remota se conecta al armarse la asamblea).
     connect(conference_.get(), &ConferenceViewModel::roomChanged, app_.get(), &AppViewModel::revisar);
+    // En vivo no se cargan extensiones nuevas: al entrar o salir cambia lo que se puede cargar.
+    if (extensiones_)
+        connect(app_.get(), &AppViewModel::vivoCambio, extensiones_.get(), &ExtensionesModel::alCambiarVivo);
     marca("system");
     chatOverlay_ = std::make_unique<ChatOverlayRenderer>(cuentas_->youtube(), *conference_, cuentas_->twitch(),
                                                          cuentas_->facebook());

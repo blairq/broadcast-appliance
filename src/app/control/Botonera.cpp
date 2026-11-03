@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "control/Botonera.hpp"
 
-#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 #include <QJsonArray>
@@ -2275,19 +2274,35 @@ QVariantList Botonera::catalogoUi() const {
 }
 
 QVariantList Botonera::buscarUi(const QString& texto) const {
-    BA_ACOPLE("invocable", "Botonera::buscarUi");
     if (!g_.buscar) return {};
     return QJsonDocument::fromJson(QByteArray::fromStdString(g_.buscar(texto.toStdString()).dump(-1, ' ', false, nlohmann::json::error_handler_t::replace))).array().toVariantList();
 }
 
-QStringList Botonera::herramientasUi(const QString& filtro) const {
-    BA_ACOPLE("invocable", "Botonera::herramientasUi");
+void Botonera::setBusquedaHerramientas(const QString& texto) {
+    if (texto == busqueda_) return;
+    busqueda_ = texto;
+    // El índice del asistente está en memoria: se busca en el acto (lo escrito y lo
+    // encontrado llegan juntos, sin un resultado viejo en el medio).
+    QVariantMap m;
+    if (!texto.trimmed().isEmpty())
+        for (const QVariant& r : buscarUi(texto.trimmed())) m.insert(r.toMap().value("nombre").toString(), r);
+    puntajes_ = m;
+    emit busquedaCambio();
+}
+
+QStringList Botonera::nombresHerramientas() const {
     QStringList out;
     if (!g_.herramientas) return out;
-    for (const auto& h : g_.herramientas())
-        if (filtro.isEmpty() || QString::fromStdString(h).contains(filtro, Qt::CaseInsensitive))
-            out << QString::fromStdString(h);
+    for (const auto& h : g_.herramientas()) out << QString::fromStdString(h);
     return out;
+}
+
+void Botonera::herramientasListas() {
+    emit herramientasCambio();
+    // Lo buscado se vuelve a buscar con el índice nuevo.
+    const QString b = busqueda_;
+    busqueda_.clear();
+    setBusquedaHerramientas(b);
 }
 
 } // namespace ba::app::control

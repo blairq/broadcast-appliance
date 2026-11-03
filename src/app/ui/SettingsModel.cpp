@@ -4,7 +4,6 @@
 
 #include "arranque/AjustesMotor.hpp"
 
-#include "diag/Acoples.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "ui/SettingsModel.hpp"
@@ -46,7 +45,7 @@ QString qs(const std::string& s) { return QString::fromStdString(s); }
 QString traducir(const char* contexto, const char* texto) { return qs(ba::i18n::traducir(contexto, texto)); }
 
 /// Las secciones (su nombre es la CLAVE: la página las compara y el MCP las busca por
-/// nombre). Se traducen solo al mostrarlas (seccionVisible).
+/// nombre). Se traducen solo al mostrarlas (titulosSecciones).
 constexpr const char* kSecciones[] = {
     QT_TRANSLATE_NOOP("ajustes", "Video"),
     QT_TRANSLATE_NOOP("ajustes", "Cámaras y entradas"),
@@ -573,14 +572,12 @@ QStringList SettingsModel::sections() const {
     return out;
 }
 
-QString SettingsModel::seccionVisible(const QString& seccion) const {
-    BA_ACOPLE("invocable", "SettingsModel::seccionVisible");
+QVariantMap SettingsModel::titulosSecciones() const {
+    QVariantMap out;
+    for (const char* k : kSecciones) out.insert(QString::fromUtf8(k), traducir("ajustes", k));
     // La del idioma, también en inglés: la encuentra quien lo cambió sin querer a uno que no lee.
-    if (seccion == QLatin1String("Idioma")) return etiquetaIdioma();
-    const QByteArray s = seccion.toUtf8();
-    for (const char* k : kSecciones)
-        if (s == k) return traducir("ajustes", k);
-    return seccion;
+    out.insert(QStringLiteral("Idioma"), etiquetaIdioma());
+    return out;
 }
 
 int SettingsModel::rowOfKey(const QString& key) const {
@@ -637,18 +634,11 @@ void SettingsModel::revert() {
     emit draftChanged();
 }
 
-bool SettingsModel::tieneBasicos(const QString& section) const {
-    BA_ACOPLE("invocable", "SettingsModel::tieneBasicos");
+QStringList SettingsModel::seccionesCon(bool avanzados) const {
+    QStringList out;
     for (const Field& f : fields_)
-        if (f.section == section && !f.avanzado) return true;
-    return false;
-}
-
-bool SettingsModel::tieneAvanzados(const QString& section) const {
-    BA_ACOPLE("invocable", "SettingsModel::tieneAvanzados");
-    for (const Field& f : fields_)
-        if (f.section == section && f.avanzado) return true;
-    return false;
+        if (f.avanzado == avanzados && !out.contains(f.section)) out << f.section;
+    return out;
 }
 
 QString SettingsModel::alcance(const QString& key) const {

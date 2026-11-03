@@ -1,6 +1,8 @@
 // test_informes_resultado.cpp — plantillas del resultado de la sesión: rellenar, varias, PDF.
 #include <QCoreApplication>
+#include <QElapsedTimer>
 #include <QTemporaryDir>
+#include <QThread>
 
 #include <cstdio>
 #include <filesystem>
@@ -60,6 +62,27 @@ int main(int argc, char** argv) {
     CHECK(inf.crear("Acta corta", "x", &err) == "acta-corta-2", "mismo nombre: otro id");
     CHECK(inf.crear("  ", "x", &err).empty() && !err.empty(), "sin nombre: error");
     CHECK(inf.vista(id) == "# Concejo\n- Presupuesto\n- Tasas\n", "la vista rellena con lo de ahora");
+    {
+        // La de la página: se pide y llega por `vistas` (se arma en el fondo: lee el disco).
+        int llegadas = 0;
+        QObject::connect(&inf, &InformesResultado::vistasCambio, [&]() { ++llegadas; });
+        inf.pedirVista(QString::fromStdString(id));
+        QElapsedTimer t;
+        t.start();
+        while (llegadas == 0 && t.elapsed() < 5000) {
+            QCoreApplication::processEvents();
+            QThread::msleep(5);
+        }
+        CHECK(inf.vistas().value(QString::fromStdString(id)).toString() == "# Concejo\n- Presupuesto\n- Tasas\n",
+              "pedirVista: la rellenada llega por vistas");
+        inf.pedirVista("no-existe");
+        t.restart();
+        while (!inf.vistas().contains("no-existe") && t.elapsed() < 5000) {
+            QCoreApplication::processEvents();
+            QThread::msleep(5);
+        }
+        CHECK(inf.vistas().value("no-existe").toString().isEmpty(), "pedirVista: una que no existe, vacía");
+    }
     CHECK(inf.guardar(id, "{{cuerpo}}!", "Breve").empty() && inf.texto(id) == "{{cuerpo}}!",
           "guardar cambia el texto");
     CHECK(inf.plantillas()[1].value("nombre", std::string()) == "Breve", "y el nombre");

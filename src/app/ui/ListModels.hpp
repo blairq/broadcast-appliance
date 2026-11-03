@@ -182,6 +182,9 @@ class MixerModel : public QAbstractListModel {
     /// mezclador rearma su consola con esto (con `grupos` titilaría y cortaría el arrastre
     /// de un fader de VCA).
     Q_PROPERTY(QVariantList estructuraGrupos READ estructuraGrupos NOTIFY estructuraCambio)
+    /// Las tiras de cada grupo como modelo propio (los mismos roles; se actualiza solo):
+    /// {grupo: modelo}. La grilla del grupo compactado. Cambia con los grupos que hay.
+    Q_PROPERTY(QVariantMap tirasPorGrupo READ tirasPorGrupo NOTIFY estructuraCambio)
     /// El pico (dBFS, con caída suave) de cada tira: {nombre: dB}. Avisa solo cuando alguno
     /// se movió (en silencio, nunca): lo usan los vúmetros chicos (el muro de video).
     Q_PROPERTY(QVariantMap picos READ picos NOTIFY picosCambio)
@@ -227,9 +230,8 @@ class MixerModel : public QAbstractListModel {
     /// Compactar un grupo: sus tiras sin fader, solo con los botones (con muchos invitados
     /// no entran). Lo ven todas las vistas del modelo (la tarjeta y la ventana del mezclador).
     Q_INVOKABLE void setCompacto(const QString& grupo, bool compacto);
-    /// Las tiras de un grupo, como modelo propio (los mismos roles; se actualiza solo): la
-    /// grilla del grupo compactado. Es del MixerModel, uno por grupo.
-    Q_INVOKABLE QAbstractItemModel* delGrupo(const QString& grupo);
+    /// Las tiras de cada grupo (ver `tirasPorGrupo`): un filtro por grupo, del MixerModel.
+    QVariantMap tirasPorGrupo() const;
     /// Silenciar (o no) todas las tiras de un grupo (en la salida que muestra).
     Q_INVOKABLE void setMutedGrupo(const QString& grupo, bool muted);
     /// Lo mismo en la mezcla de `salida` ("" = la por omisión): el MCP va a la que pide.
@@ -292,7 +294,7 @@ class MixerModel : public QAbstractListModel {
     bool mudoEn(std::size_t i, const std::string& salida) const;
     std::map<std::string, std::string> nombresGrupo_; ///< clave -> lo que se muestra
     std::set<std::string> compactos_; ///< los grupos compactados (Config/mezclador-vista.json)
-    std::map<QString, QAbstractItemModel*> delGrupo_; ///< los filtros por grupo (hijos de este)
+    mutable std::map<QString, QAbstractItemModel*> delGrupo_; ///< los filtros por grupo (hijos de este)
     QVariantList grupos_cache_, estructura_;
     /// Lo pedido que todavía no volvió (en la salida que se muestra): se muestra esto.
     struct Pendiente {

@@ -3,7 +3,6 @@
 // ============================================================================
 #include "ui/ExtensionesModel.hpp"
 
-#include "diag/Acoples.hpp"
 #include "i18n/I18n.hpp"
 
 #include <vector>
@@ -128,33 +127,30 @@ QHash<int, QByteArray> ExtensionesModel::roleNames() const {
             {VistaRole, "vista"}, {ProblemaRole, "problema"}, {ApagadaRole, "apagada"}};
 }
 
-QVariantMap ExtensionesModel::ficha(const QString& id) const {
-    BA_ACOPLE("invocable", "ExtensionesModel::ficha");
-    for (const Impl::Ext& e : d_->ext)
-        if (e.id == id)
-            return QVariantMap{{"id", e.id},
-                               {"nombre", e.nombre},
-                               {"descripcion", e.descripcion},
-                               {"vista", e.vista},
-                               {"problema", e.problema},
-                               {"apagada", ba::diag::diario().apagado((kPrefijo + id).toStdString())}};
-    return {};
+QVariantMap ExtensionesModel::ficha(const QString& id) const { return fichas().value(id).toMap(); }
+
+QString ExtensionesModel::cargable(const QString& id, const QString& vista) const {
+    // Una apagada NO se carga aunque alguien pida su vista: si no, el diario
+    // apagaría algo que igual se vuelve a cargar y el programa vuelve a morir
+    // en el mismo lugar.
+    if (ba::diag::diario().apagado((kPrefijo + id).toStdString())) return {};
+    // En vivo, nada nuevo: solo las que ya andaban en esta sesión.
+    if (enVivo_ && enVivo_() && !yaCargadas_.count(id)) return {};
+    return vista;
 }
 
-QString ExtensionesModel::vista(const QString& id) const {
-    BA_ACOPLE("invocable", "ExtensionesModel::vista");
+QVariantMap ExtensionesModel::fichas() const {
+    QVariantMap out;
     for (const Impl::Ext& e : d_->ext)
-        if (e.id == id) {
-            // Una apagada NO se carga aunque alguien pida su vista: si no, el
-            // diario apagaría algo que igual se vuelve a cargar y el programa
-            // vuelve a morir en el mismo lugar.
-            if (ba::diag::diario().apagado((kPrefijo + id).toStdString())) return {};
-            // En vivo, nada nuevo: solo las que ya andaban en esta sesión.
-            if (enVivo_ && enVivo_() && !yaCargadas_.count(id)) return {};
-            yaCargadas_.insert(id);
-            return e.vista;
-        }
-    return {};
+        out.insert(e.id, QVariantMap{{"id", e.id},
+                                     {"nombre", e.nombre},
+                                     {"descripcion", e.descripcion},
+                                     {"vista", e.vista},
+                                     {"problema", e.problema},
+                                     {"apagada", ba::diag::diario().apagado((kPrefijo + e.id).toStdString())},
+                                     {"cargable", cargable(e.id, e.vista)},
+                                     {"motivoNoCarga", motivoNoCarga(e.id)}});
+    return out;
 }
 
 QStringList ExtensionesModel::kinds() const {
@@ -165,19 +161,20 @@ QStringList ExtensionesModel::kinds() const {
     return out;
 }
 
-QString ExtensionesModel::tituloDeKind(const QString& kind) const {
-    BA_ACOPLE("invocable", "ExtensionesModel::tituloDeKind");
-    if (!kind.startsWith(kPrefijo)) return kind;
-    const QString id = kind.mid(static_cast<int>(std::char_traits<char>::length(kPrefijo)));
-    for (const Impl::Ext& e : d_->ext)
-        if (e.id == id) return e.nombre;
-    return id;
+QVariantMap ExtensionesModel::titulos() const {
+    QVariantMap out;
+    for (const Impl::Ext& e : d_->ext) out.insert(kPrefijo + e.id, e.nombre);
+    return out;
 }
 
 void ExtensionesModel::cargando(const QString& id) {
     // Se anota ANTES de que el QML se evalúe. Si eso cuelga la interfaz, el
     // arranque no termina y la próxima vez esta extensión queda apagada.
     ba::diag::diario().empieza((kPrefijo + id).toStdString());
+    // La que se puede cargar ahora queda como cargada en esta sesión: en vivo se sigue
+    // cargando (no cambia nada que se vea: su `cargable` ya era su vista).
+    for (const Impl::Ext& e : d_->ext)
+        if (e.id == id && !cargable(id, e.vista).isEmpty()) yaCargadas_.insert(id);
 }
 
 void ExtensionesModel::cargada(const QString& id, bool bien, const QString& error) {
@@ -194,7 +191,6 @@ void ExtensionesModel::cargada(const QString& id, bool bien, const QString& erro
 }
 
 QString ExtensionesModel::motivoNoCarga(const QString& id) const {
-    BA_ACOPLE("invocable", "ExtensionesModel::motivoNoCarga");
     if (enVivo_ && enVivo_() && !yaCargadas_.count(id))
         return tr("En vivo no se cargan extensiones nuevas: se carga al salir del modo en vivo.");
     return {};

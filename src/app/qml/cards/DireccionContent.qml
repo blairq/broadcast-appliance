@@ -35,8 +35,8 @@ Item {
     }
     readonly property var guionVm: Studio.evento.guionVm
     readonly property var corridaVm: Studio.evento.corridaVm
-    // El reloj del guion: las marcas del modelo con la hora del Reloj de las vistas.
-    readonly property var reloj: corridaVm.relojEn(corridaVm.marcasReloj, visible ? Reloj.ahora : 0)
+    // El reloj del guion: lo lleva el modelo (al segundo, solo mientras se lo lee: sin verse, no).
+    readonly property var reloj: visible ? corridaVm.relojVivo : ({})
     readonly property bool corriendo: corridaVm.estado === "corriendo"
 
 

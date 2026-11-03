@@ -566,7 +566,14 @@ Rectangle {
                             Text {
                                 Layout.fillWidth: true
                                 visible: !page.modoCarrusel && page.elegida !== ""
-                                text: page.p.urlDe(page.tipo, page.datos, page.elegida)
+                                text: urlElegida.url
+                                UrlDePantalla {
+                                    id: urlElegida
+                                    pantallas: page.p
+                                    tipo: page.tipo
+                                    datos: page.datos
+                                    destino: page.elegida
+                                }
                                 color: Theme.textFaint; font { pixelSize: 9; family: "JetBrains Mono" }
                                 wrapMode: Text.WrapAnywhere
                                 maximumLineCount: 2

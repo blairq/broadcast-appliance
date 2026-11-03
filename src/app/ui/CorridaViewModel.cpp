@@ -3,12 +3,14 @@
 // ============================================================================
 #include "ui/CorridaViewModel.hpp"
 
-#include "diag/Acoples.hpp"
-
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QMetaMethod>
+#include <QThread>
+
+#include <algorithm>
 
 #include "comun/Restante.hpp"
 #include "evento/LineaEdicion.hpp"
@@ -51,6 +53,54 @@ CorridaViewModel::CorridaViewModel(EventoAbierto& abierto, GuionViewModel& guion
     connect(&n_, &ConduccionLinea::notify, this, &CorridaViewModel::notify);
     // Las marcas del reloj cambian con cada cambio de estado (no con la hora).
     connect(this, &CorridaViewModel::correChanged, this, &CorridaViewModel::relojChanged);
+    // El reloj de ahora: con las marcas y una vez por segundo (mientras alguien lo lee).
+    connect(this, &CorridaViewModel::relojChanged, this, &CorridaViewModel::relojVivoCambio);
+    segundero_.setInterval(1000);
+    connect(&segundero_, &QTimer::timeout, this, &CorridaViewModel::relojVivoCambio);
+}
+
+QVariantMap CorridaViewModel::relojVivo() const {
+    // Al segundo (como Reloj.ahora): entre avisos, quien lo relee ve lo mismo.
+    const qint64 ms = QDateTime::currentMSecsSinceEpoch();
+    return relojEn(marcasReloj(), static_cast<double>(ms - ms % 1000));
+}
+
+void CorridaViewModel::connectNotify(const QMetaMethod& signal) {
+    if (signal == QMetaMethod::fromSignal(&CorridaViewModel::relojVivoCambio)) {
+        ++lectoresReloj_;
+        revisarSegundero();
+    }
+}
+
+void CorridaViewModel::disconnectNotify(const QMetaMethod& signal) {
+    // (Con un método inválido se desconectó todo: se recuenta con lo que queda conectado.)
+    if (!signal.isValid())
+        lectoresReloj_ = isSignalConnected(QMetaMethod::fromSignal(&CorridaViewModel::relojVivoCambio)) ? std::max(lectoresReloj_, 1) : 0;
+    else if (signal == QMetaMethod::fromSignal(&CorridaViewModel::relojVivoCambio))
+        lectoresReloj_ = std::max(0, lectoresReloj_ - 1);
+    else
+        return;
+    revisarSegundero();
+}
+
+void CorridaViewModel::revisarSegundero() {
+    // El temporizador es de este hilo; connectNotify puede llegar de otro (raro): allá se encola.
+    if (thread() != QThread::currentThread()) {
+        QMetaObject::invokeMethod(this, &CorridaViewModel::revisarSegundero, Qt::QueuedConnection);
+        return;
+    }
+    if (lectoresReloj_ > 0 && !segundero_.isActive() && !alineando_) {
+        // Alineado al segundo, para que cambie junto con los demás relojes de la pantalla.
+        alineando_ = true;
+        QTimer::singleShot(1000 - static_cast<int>(QDateTime::currentMSecsSinceEpoch() % 1000) + 2, this, [this]() {
+            alineando_ = false;
+            if (lectoresReloj_ == 0) return;
+            emit relojVivoCambio();
+            segundero_.start();
+        });
+    } else if (lectoresReloj_ == 0 && segundero_.isActive()) {
+        segundero_.stop();
+    }
 }
 
 CorridaViewModel::~CorridaViewModel() = default;
@@ -132,7 +182,6 @@ QVariantMap CorridaViewModel::marcasReloj() const {
 }
 
 QVariantMap CorridaViewModel::relojEn(const QVariantMap& m, double ahora) {
-    BA_ACOPLE("invocable", "CorridaViewModel::relojEn");
     if (m.isEmpty()) return QVariantMap{{"desvioSeg", 0}, {"enCueSeg", 0}, {"restanteSeg", 0}};
     ln::MarcasReloj x;
     x.marcaMs = static_cast<int64_t>(m.value("marcaMs").toDouble());

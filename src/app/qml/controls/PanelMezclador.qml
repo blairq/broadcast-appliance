@@ -184,15 +184,16 @@ Item {
                     rmsL: m.nv(m.nE, t.index, 2); rmsR: m.nv(m.nE, t.index, 3)
                     retencionL: m.nv(m.nE, t.index, 4); retencionR: m.nv(m.nE, t.index, 5)
                     apagado: !!t.st.mute
+                    escalaDb: [0, -6, -12, -24, -36, -48]
                 }
-                // La escala (cada 12 dB y el 0).
+                // La escala (cada 12 dB y el 0): dónde cae cada marca lo dice el vúmetro.
                 Repeater {
-                    model: [0, -6, -12, -24, -36, -48]
+                    model: vu.marcasEscala
                     delegate: Text {
                         required property var modelData
                         x: vu.width + 2
-                        y: vu.y + (1 - vu.fraccion(modelData)) * vu.height - height / 2
-                        text: modelData === 0 ? "0" : String(modelData)
+                        y: vu.y + (1 - modelData.fraccion) * vu.height - height / 2
+                        text: modelData.db === 0 ? "0" : String(modelData.db)
                         color: Theme.textFaint
                         font { family: Theme.font; pixelSize: 8 }
                     }

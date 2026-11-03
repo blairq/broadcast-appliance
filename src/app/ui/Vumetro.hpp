@@ -12,6 +12,7 @@
 
 #include <QColor>
 #include <QQuickItem>
+#include <QVariantList>
 
 namespace ba::app {
 
@@ -37,6 +38,11 @@ class Vumetro : public QQuickItem {
     Q_PROPERTY(bool horizontal READ horizontal WRITE setHorizontal NOTIFY cambio)
     /// LED por segmentos (como los de una consola; se encienden con el pico): 0 = barra continua.
     Q_PROPERTY(int segmentos READ segmentos WRITE setSegmentos NOTIFY cambio)
+    /// Las marcas de la escala que se dibuja al lado (en QML), en dB: [0, -6, -12…].
+    Q_PROPERTY(QVariantList escalaDb READ escalaDb WRITE setEscalaDb NOTIFY escalaCambio)
+    /// Dónde cae cada marca: [{db, fraccion}] (0 abajo … 1 arriba). Cambia con las marcas
+    /// y el rango, no con los niveles (que se mueven todo el tiempo).
+    Q_PROPERTY(QVariantList marcasEscala READ marcasEscala NOTIFY escalaCambio)
 
    public:
     explicit Vumetro(QQuickItem* parent = nullptr);
@@ -70,11 +76,16 @@ class Vumetro : public QQuickItem {
     int segmentos() const { return segmentos_; }
     void setSegmentos(int n);
 
-    /// Dónde cae un nivel (0 abajo … 1 arriba): para la escala dibujada en QML.
-    Q_INVOKABLE qreal fraccion(qreal db) const;
+    QVariantList escalaDb() const { return escalaDb_; }
+    void setEscalaDb(const QVariantList& e);
+    QVariantList marcasEscala() const;
+
+    /// Dónde cae un nivel (0 abajo … 1 arriba).
+    qreal fraccion(qreal db) const;
 
    signals:
     void cambio();
+    void escalaCambio();
 
    protected:
     QSGNode* updatePaintNode(QSGNode* viejo, UpdatePaintNodeData*) override;
@@ -88,6 +99,7 @@ class Vumetro : public QQuickItem {
     bool apagado_ = false;
     bool horizontal_ = false;
     int segmentos_ = 0;
+    QVariantList escalaDb_;
 };
 
 } // namespace ba::app

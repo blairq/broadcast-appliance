@@ -468,7 +468,7 @@ Item {
                         flow: GridView.FlowTopToBottom
                         cellWidth: 34; cellHeight: 24
                         interactive: false
-                        model: tira.bloque ? Studio.mixer.delGrupo(tira.grupo) : null
+                        model: tira.bloque ? (Studio.mixer.tirasPorGrupo[tira.grupo] || null) : null
                         delegate: Rectangle {
                             id: casilla
                             required property int index

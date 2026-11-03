@@ -84,7 +84,7 @@ Rectangle {
                     text: qsTr("Para que la app (y el asistente por MCP) pueda crear transmisiones en vivo y administrar tus videos, Google pide que cada instalación tenga su propia credencial. Se hace una sola vez, en unos 5 minutos:")
                 }
                 Repeater {
-                    model: Studio.cuentas.accountGuide("youtube").steps
+                    model: (Studio.cuentas.guias.youtube || {}).steps || []
                     delegate: Rectangle {
                         required property var modelData
                         Layout.fillWidth: true

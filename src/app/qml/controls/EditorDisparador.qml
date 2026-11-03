@@ -90,7 +90,7 @@ Popup {
                     }
                 }
                 Text { text: qsTr("Acción al dispararse (opcional)"); color: Theme.textDim; font.pixelSize: 12 }
-                ComboBox { id: accionHerr; Layout.fillWidth: true; editable: true; model: Studio.botonera.herramientasUi("") }
+                ComboBox { id: accionHerr; Layout.fillWidth: true; editable: true; model: Studio.botonera.nombresHerramientas }
                 TextField { id: accionArgs; Layout.fillWidth: true; color: Theme.text; placeholderText: qsTr("Argumentos en JSON: {\"name\": \"Placa\"}") }
             }
         }

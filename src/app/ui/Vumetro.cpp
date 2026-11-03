@@ -1,8 +1,6 @@
 // src/app/ui/Vumetro.cpp — ver el .hpp
 #include "ui/Vumetro.hpp"
 
-#include "diag/Acoples.hpp"
-
 #include <QSGFlatColorMaterial>
 #include <QSGGeometry>
 #include <QSGGeometryNode>
@@ -75,13 +73,28 @@ void Vumetro::setMinDb(qreal x) {
     if (x == min_) return;
     min_ = x;
     emit cambio();
+    emit escalaCambio();
     update();
 }
 void Vumetro::setMaxDb(qreal x) {
     if (x == max_) return;
     max_ = x;
     emit cambio();
+    emit escalaCambio();
     update();
+}
+void Vumetro::setEscalaDb(const QVariantList& e) {
+    if (e == escalaDb_) return;
+    escalaDb_ = e;
+    emit escalaCambio();
+}
+QVariantList Vumetro::marcasEscala() const {
+    QVariantList out;
+    for (const QVariant& v : escalaDb_) {
+        const qreal db = v.toDouble();
+        out.append(QVariantMap{{"db", db}, {"fraccion", fraccion(db)}});
+    }
+    return out;
 }
 void Vumetro::setAmarilloDb(qreal x) {
     if (x == amarillo_) return;
@@ -116,7 +129,6 @@ void Vumetro::setApagado(bool a) {
 }
 
 qreal Vumetro::fraccion(qreal db) const {
-    BA_ACOPLE("invocable", "Vumetro::fraccion");
     if (max_ <= min_) return 0;
     return std::clamp((db - min_) / (max_ - min_), 0.0, 1.0);
 }

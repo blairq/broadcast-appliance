@@ -10,14 +10,19 @@
 //     SOLO esas filas (sin reset: con 60 invitados, rehacer era recrear 60 delegados
 //     con video por cada uno que entraba);
 //   - sin ids (o repetidos) y otra cantidad, se rehace.
+// Y FilaViva (ui/FilaViva), la fila que mira la vista (las cifras de red de un invitado en
+// la ayuda de su «⋯»): avisa cuando cambia ESA fila (también la red, que es rol del modelo
+// aunque la celda no la declare), no con las otras, y se relee si las filas se mueven.
 #include <QCoreApplication>
 
+#include "ui/FilaViva.hpp"
 #include "ui/JsonListModel.hpp"
 
 #include <thread>
 
 #include <cstdio>
 
+using ba::app::FilaViva;
 using ba::app::JsonListModel;
 using ba::app::PlanFilas;
 
@@ -157,6 +162,35 @@ int main(int argc, char** argv) {
         a.aplicar(JsonListModel::planear(a.items(), QJsonArray{fila("a", "Ana", 10)}, QStringList{"name", "semaforo"}));
         CHECK(cambios == 0 && a.items().at(0).toObject().value("red").toObject().value("kbps_in").toInt() == 10,
               "plan con un cambio que no es rol: se guarda callado");
+    }
+
+    {
+        // FilaViva: la fila 1 de una lista con la red como rol (como los lugares de la sala).
+        const QStringList claves{"name", "semaforo", "red"};
+        JsonListModel m(claves);
+        m.setItems(QJsonArray{fila("a", "Ana", 1), fila("b", "Beto", 2)});
+        FilaViva f;
+        int avisos = 0;
+        QObject::connect(&f, &FilaViva::datosCambio, [&]() { ++avisos; });
+        f.setModelo(&m);
+        f.setFila(1);
+        CHECK(f.datos().value("name").toString() == "Beto" && f.datos().value("red").toMap().value("kbps_in").toInt() == 2,
+              "FilaViva: los roles de la fila, por su nombre");
+        avisos = 0;
+        m.setItems(QJsonArray{fila("a", "Ana", 5), fila("b", "Beto", 2)});
+        CHECK(avisos == 0, "FilaViva: lo que cambia en otra fila no la despierta");
+        m.setItems(QJsonArray{fila("a", "Ana", 5), fila("b", "Beto", 7)});
+        CHECK(avisos == 1 && f.datos().value("red").toMap().value("kbps_in").toInt() == 7,
+              "FilaViva: la red de su fila cambia y avisa una vez");
+        // Otro orden: la vista le da el índice nuevo de su delegado; con el mismo índice, la
+        // fila que ahora está ahí.
+        m.setItems(QJsonArray{fila("b", "Beto", 7), fila("a", "Ana", 5)});
+        CHECK(f.datos().value("name").toString() == "Ana", "FilaViva: con las filas movidas, se relee");
+        f.setFila(9);
+        CHECK(f.datos().isEmpty(), "FilaViva: una fila que no existe, vacía");
+        f.setFila(0);
+        f.setModelo(nullptr);
+        CHECK(f.datos().isEmpty(), "FilaViva: sin modelo, vacía");
     }
 
     std::printf(fallos ? "\n%d FALLAS\n" : "\nTODO OK\n", fallos);

@@ -4,7 +4,6 @@
 
 #include "ui/ConferenceViewModel.hpp"
 
-#include "diag/Acoples.hpp"
 #include <QMetaObject>
 #include <QPointer>
 #include "ajustes/Ajustes.hpp"
@@ -337,12 +336,6 @@ void ConferenceViewModel::guardarFicha(const QString& id, const QString& name, c
     if (tiempo.trimmed().isEmpty()) return;
     // Lo escrito, sobre lo que ya tiene (el suyo o el general): la misma lectura que el MCP.
     if (const std::string e = oradores_->tiempo(ss(id), nlohmann::json(ss(tiempo))); !e.empty()) emit notify(frase(e), "error");
-}
-
-QVariantMap ConferenceViewModel::reloj(int asignadoS, double desdeMs, double ahoraMs) const {
-    BA_ACOPLE("invocable", "ConferenceViewModel::reloj");
-    const sala::OradoresSala::Reloj r = sala::OradoresSala::reloj(asignadoS, desdeMs, ahoraMs);
-    return {{"restanteMs", r.restanteMs}, {"estado", QString::fromStdString(r.estado)}, {"texto", QString::fromStdString(r.texto)}};
 }
 
 void ConferenceViewModel::setTiempoGeneral(const QString& texto) {

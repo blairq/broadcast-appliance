@@ -18,10 +18,10 @@
 
 #include <nlohmann/json.hpp>
 
+#include <map>
 #include <filesystem>
 #include <functional>
 #include <string>
-#include "diag/Acoples.hpp"
 #include "ui/CapturaError.hpp"
 
 namespace ba::app::asamblea {
@@ -43,6 +43,9 @@ class InformesResultado : public QObject {
     Q_PROPERTY(QVariantList plantillas READ plantillasUi NOTIFY cambio)
     /// [{campo, que}]: lo que se puede poner en una plantilla.
     Q_PROPERTY(QVariantList campos READ camposUi CONSTANT)
+    /// Cómo queda cada plantilla rellenada con lo de ahora (Markdown), por id: las que se
+    /// pidieron con `pedirVista`. Se arman en el fondo (leen la plantilla del disco).
+    Q_PROPERTY(QVariantMap vistas READ vistas NOTIFY vistasCambio)
    public:
     using json = nlohmann::json;
     /// Markdown a PDF: (texto, título, destino) -> "" o el error (APdf::texto).
@@ -76,10 +79,9 @@ class InformesResultado : public QObject {
     Q_INVOKABLE QVariantMap crearUi(const QString& nombre);
     Q_INVOKABLE bool guardarUi(const QString& id, const QString& texto, const QString& nombre);
     Q_INVOKABLE void quitarUi(const QString& id) { avisarError(QString::fromStdString(quitar(id.toStdString()))); }
-    Q_INVOKABLE QString vistaUi(const QString& id) const {
-        BA_ACOPLE("invocable", "InformesResultado::vistaUi");
-        return QString::fromStdString(vista(id.toStdString()));
-    }
+    QVariantMap vistas() const { return vistas_; }
+    /// Rellena la plantilla `id` con lo de ahora, en el fondo: llega por `vistas`.
+    Q_INVOKABLE void pedirVista(const QString& id);
     /// {archivo} o {error}.
     Q_INVOKABLE QVariantMap generarUi(const QString& id);
 
@@ -87,6 +89,7 @@ class InformesResultado : public QObject {
     /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
     void notify(const QString& texto, const QString& tipo);
     void cambio();
+    void vistasCambio();
 
    private:
     std::filesystem::path carpeta() const { return carpeta_; }
@@ -100,6 +103,10 @@ class InformesResultado : public QObject {
     std::function<json()> contenido_;
     std::function<std::filesystem::path()> salida_;
     APdf aPdf_;
+    QVariantMap vistas_;
+    /// El último pedido de cada vista: lo que vuelve de uno anterior se descarta.
+    std::map<QString, unsigned> pedidoVista_;
+    unsigned pedidos_ = 0;
 };
 
 } // namespace ba::app::asamblea

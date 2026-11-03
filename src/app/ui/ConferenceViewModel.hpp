@@ -233,10 +233,6 @@ class ConferenceViewModel : public QObject {
     /// (cada 5 s) o "bloqueos" (los de PIN, cada 3 s). La cuenta es por vista
     /// (comun/UsoPorVistas); sin nadie mirando no se pregunta.
     Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {});
-    /// La regla del reloj de quien habla (sala::OradoresSala::reloj), para un reloj que no
-    /// es de la sala (las bancas del recinto): {restanteMs, estado, texto}. Pura: no lee
-    /// estado; la hora la pone quien la llama (el Reloj).
-    Q_INVOKABLE QVariantMap reloj(int asignadoS, double desdeMs, double ahoraMs) const;
     /// Enlace + QR del tablero de oradores (tablet). Responde con qrReady,
     /// target "board-local" / "board-remote".
     Q_INVOKABLE void requestBoardLink(const QString& target);

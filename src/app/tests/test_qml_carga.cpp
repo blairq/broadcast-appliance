@@ -11,6 +11,7 @@
 #include "ui/ChatHilo.hpp"
 #include "pantallas/BuscadorCatalogo.hpp"
 #include "ui/FiltroCatalogo.hpp"
+#include "ui/FilaViva.hpp"
 #include "ui/FotosPersonas.hpp"
 #include "ui/ListaObjetos.hpp"
 #include "ui/Reloj.hpp"
@@ -113,6 +114,50 @@ class ScopeFalso : public QObject { // ui/ScopeVista.hpp
     QVariantMap dato_;
 };
 
+class InstruccionesDnsFalsa : public QObject { // net/AccesoRemoto.hpp
+    Q_OBJECT
+    Q_PROPERTY(QString host MEMBER host_ NOTIFY cambio)
+    Q_PROPERTY(QString destino MEMBER destino_ NOTIFY cambio)
+    Q_PROPERTY(QString texto MEMBER texto_ NOTIFY cambio)
+   signals:
+    void cambio();
+
+   private:
+    QString host_, destino_, texto_;
+};
+
+class UrlDePantallaFalsa : public QObject { // ui/PantallasViewModel.hpp
+    Q_OBJECT
+    Q_PROPERTY(QObject* pantallas MEMBER pantallas_ NOTIFY cambio)
+    Q_PROPERTY(QString tipo MEMBER tipo_ NOTIFY cambio)
+    Q_PROPERTY(QVariantMap datos MEMBER datos_ NOTIFY cambio)
+    Q_PROPERTY(QString destino MEMBER destino_ NOTIFY cambio)
+    Q_PROPERTY(QString url MEMBER url_ NOTIFY cambio)
+   signals:
+    void cambio();
+
+   private:
+    QObject* pantallas_ = nullptr;
+    QString tipo_, destino_, url_;
+    QVariantMap datos_;
+};
+
+class EditorModuloFalso : public QObject { // ui/VideoViewModel.hpp
+    Q_OBJECT
+    Q_PROPERTY(QObject* video MEMBER video_ NOTIFY cambio)
+    Q_PROPERTY(QString elemento MEMBER elemento_ NOTIFY cambio)
+    Q_PROPERTY(QVariantMap valores MEMBER valores_ NOTIFY cambio)
+    Q_PROPERTY(QVariantList propiedades MEMBER propiedades_ NOTIFY cambio)
+   signals:
+    void cambio();
+
+   private:
+    QObject* video_ = nullptr;
+    QString elemento_;
+    QVariantMap valores_;
+    QVariantList propiedades_;
+};
+
 class ImagenVivaFalsa : public QQuickItem { // ui/ImagenViva.hpp
     Q_OBJECT
     Q_PROPERTY(QImage imagen MEMBER imagen_ NOTIFY cambio)
@@ -147,6 +192,10 @@ int main(int argc, char** argv) {
     qmlRegisterType<ba::app::FiltroCatalogo>("BA", 1, 0, "FiltroCatalogo");
     qmlRegisterType<ba::app::BuscadorCatalogo>("BA", 1, 0, "BuscadorCatalogo");
     qmlRegisterType<ba::app::ChatHilo>("BA", 1, 0, "ChatHilo");
+    qmlRegisterType<ba::app::FilaViva>("BA", 1, 0, "FilaViva");
+    qmlRegisterType<InstruccionesDnsFalsa>("BA", 1, 0, "InstruccionesDns");
+    qmlRegisterType<UrlDePantallaFalsa>("BA", 1, 0, "UrlDePantalla");
+    qmlRegisterType<EditorModuloFalso>("BA", 1, 0, "EditorModulo");
     qmlRegisterSingletonType(QUrl::fromLocalFile(dir + "/Theme.qml"), "BA", 1, 0, "Theme");
 
     QQmlEngine engine;

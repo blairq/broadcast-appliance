@@ -3,7 +3,6 @@
 // ============================================================================
 #include "ui/PantallasViewModel.hpp"
 
-#include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "ajustes/Ajustes.hpp"
 
@@ -269,7 +268,10 @@ PantallasViewModel::PantallasViewModel(AppRuntime& rt, VentanillaMotor& ventanil
 
     // Las direcciones de esta máquina, para armar URLs que el televisor pueda
     // alcanzar. Se pregunta una vez al arrancar y en cada búsqueda.
-    d_->pedirDirecciones([this]() { emit cambio(); });
+    d_->pedirDirecciones([this]() {
+        emit direccionesCambio();
+        emit cambio();
+    });
 }
 
 PantallasViewModel::~PantallasViewModel() {
@@ -330,11 +332,52 @@ int PantallasViewModel::mostrando() const { return d_->destinos.mostrando(); }
 // --- URLs ----------------------------------------------------------------------------
 
 QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos, const QString& idDestino) {
-    BA_ACOPLE("invocable", "PantallasViewModel::urlDe");
     const std::string t = tipo.toStdString();
     // `url` va tal cual y lo que va en vivo lo pide el gateway: no hace falta la dirección.
     const std::string base = t == "url" || pt::esEnVivo(t) ? std::string() : d_->base(idDestino.toStdString());
     return qs(pt::url(t, aJson(datos), base));
+}
+
+void UrlDePantalla::setPantallas(QObject* p) {
+    auto* vm = qobject_cast<PantallasViewModel*>(p);
+    if (vm == pantallas_) return;
+    if (pantallas_) disconnect(pantallas_, nullptr, this, nullptr);
+    pantallas_ = vm;
+    if (vm != nullptr) {
+        // Lo que sabe el modelo: las pantallas (su dirección) y las direcciones de esta máquina.
+        connect(vm, &PantallasViewModel::cambio, this, &UrlDePantalla::armar);
+        connect(vm, &PantallasViewModel::direccionesCambio, this, &UrlDePantalla::armar);
+    }
+    emit entradaCambio();
+    armar();
+}
+
+void UrlDePantalla::setTipo(const QString& t) {
+    if (t == tipo_) return;
+    tipo_ = t;
+    emit entradaCambio();
+    armar();
+}
+
+void UrlDePantalla::setDatos(const QVariantMap& d) {
+    if (d == datos_) return;
+    datos_ = d;
+    emit entradaCambio();
+    armar();
+}
+
+void UrlDePantalla::setDestino(const QString& d) {
+    if (d == destino_) return;
+    destino_ = d;
+    emit entradaCambio();
+    armar();
+}
+
+void UrlDePantalla::armar() {
+    const QString u = pantallas_ ? pantallas_->urlDe(tipo_, datos_, destino_) : QString();
+    if (u == url_) return;
+    url_ = u;
+    emit urlCambio();
 }
 
 // --- Buscar --------------------------------------------------------------------------
@@ -342,7 +385,7 @@ QString PantallasViewModel::urlDe(const QString& tipo, const QVariantMap& datos,
 void PantallasViewModel::buscar() {
     if (d_->buscando.exchange(true)) return; // ya hay una en curso
     emit cambio();
-    d_->pedirDirecciones({});
+    d_->pedirDirecciones([this]() { emit direccionesCambio(); });
     std::thread([this, puerta = d_->puerta]() {
         ba::platform::nombrarHilo("tv-buscar");
         std::string err;

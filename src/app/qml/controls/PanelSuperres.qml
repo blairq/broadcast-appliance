@@ -668,6 +668,13 @@ ColumnLayout {
                 text: qsTr("Propiedades del elemento. En un texto, {dir} es la carpeta del plugin (para un modelo o un .engine que dejes ahí).")
                 color: Theme.textFaint; font.pixelSize: 11
             }
+            // El formulario del elemento con lo que cambió: lo arma el modelo en el fondo.
+            EditorModulo {
+                id: modeloPropio
+                video: panel.vg
+                elemento: editorPropio.elemento
+                valores: editorPropio.valores
+            }
             ScrollView {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
@@ -675,7 +682,7 @@ ColumnLayout {
                 clip: true
                 FormularioPropiedades {
                     width: parent ? parent.width : 400
-                    props: editorPropio.elemento !== "" && panel.vg ? panel.vg.propiedadesModuloCon(editorPropio.elemento, editorPropio.valores) : []
+                    props: modeloPropio.propiedades
                     onCambio: (n, v) => { const x = Object.assign({}, editorPropio.valores); x[n] = String(v); editorPropio.valores = x }
                 }
             }

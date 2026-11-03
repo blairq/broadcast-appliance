@@ -39,11 +39,25 @@ QVariantMap herr(const char* nombre, const char* titulo, const char* desc, const
 }
 } // namespace
 
-/// Lo que el selector le pide a Studio.botonera.
+/// Lo que el selector le pide a Studio.botonera: el catálogo y, para lo escrito, la
+/// búsqueda del modelo (la vista escribe `busquedaHerramientas` y lee lo encontrado).
 class BotoneraFalsa : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString busquedaHerramientas READ busqueda WRITE setBusqueda NOTIFY busquedaCambio)
+    Q_PROPERTY(QVariantMap puntajesHerramientas READ puntajes NOTIFY busquedaCambio)
    public:
     bool buscadorVacio = false;
+    int busquedas = 0; ///< cuántas veces buscó el modelo
+    QString busqueda() const { return busqueda_; }
+    QVariantMap puntajes() const { return puntajes_; }
+    void setBusqueda(const QString& t) {
+        if (t == busqueda_) return;
+        busqueda_ = t;
+        ++busquedas;
+        puntajes_.clear();
+        for (const QVariant& r : buscarUi(t)) puntajes_.insert(r.toMap().value("nombre").toString(), r);
+        emit busquedaCambio();
+    }
     Q_INVOKABLE QVariantList catalogoUi() const {
         return {QVariantMap{{"id", "escenas"}, {"titulo", "Escenas"}, {"resumen", ""},
                             {"herramientas", QVariantList{herr("scene_switch", "Poner una escena al aire", "Corte directo"),
@@ -53,12 +67,19 @@ class BotoneraFalsa : public QObject {
                                                           herr("playlist_crear", "Armar una lista", "Videos y temas", "musica de fondo"),
                                                           herr("media_find", "Buscar un archivo", "Por nombre")}}}};
     }
-    Q_INVOKABLE QVariantList buscarUi(const QString& texto) const {
+    QVariantList buscarUi(const QString& texto) const {
         if (buscadorVacio || !texto.contains("sica")) return {};
         // Como el índice: la mejor primero y por qué.
         return {QVariantMap{{"nombre", "medio_poner"}, {"puntaje", 9.5}, {"porque", QVariantList{"musica"}}},
                 QVariantMap{{"nombre", "playlist_crear"}, {"puntaje", 4.0}, {"porque", QVariantList{"musica"}}}};
     }
+
+   signals:
+    void busquedaCambio();
+
+   private:
+    QString busqueda_;
+    QVariantMap puntajes_;
 };
 
 class StudioFalso : public QObject {
@@ -141,6 +162,17 @@ int main(int argc, char** argv) {
     CHECK(nombres(sel) == "scene_switch", "sin el buscador: la búsqueda simple (todas las palabras)");
     abrir(sel, "cancion");
     CHECK(nombres(sel) == "medio_poner", "sin el buscador: también en las etiquetas");
+
+    // Lo escrito va al modelo (la búsqueda es suya) y vuelve lo encontrado: nada de llamarlo
+    // desde un enlace. Abrir con lo mismo que dejó otro selector vuelve a buscar.
+    studio.b.buscadorVacio = false;
+    studio.b.setBusqueda("otra cosa");
+    abrir(sel, "cancion");
+    CHECK(studio.b.busqueda() == "cancion", "abrir: lo escrito queda en el modelo aunque no haya cambiado en la vista");
+    const int antes = studio.b.busquedas;
+    abrir(sel, "música");
+    CHECK(studio.b.busquedas == antes + 1 && studio.b.busqueda() == "música", "escribir: una búsqueda en el modelo");
+    CHECK(nombres(sel) == "medio_poner,playlist_crear", "lo que encontró el modelo es lo que se ve");
 
     delete win;
     std::printf(fallos ? "\n%d fallas\n" : "\ntodo ok\n", fallos);
