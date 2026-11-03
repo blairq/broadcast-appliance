@@ -60,7 +60,8 @@ std::vector<motor::AnalisisCeldas::Celda> celdasAMedir(const json& g) {
     if (W <= 0 || H <= 0) return out;
     for (const auto& c : g.value("celdas", json::array())) {
         const std::string capa = c.value("capa", std::string());
-        const double ref = capa == "baja" ? 15.0 : capa == "alta" ? 30.0 : 0.0;
+        // La media es la alta topada a 360p: los cps de la cámara, como la alta.
+        const double ref = capa == "baja" ? 15.0 : capa == "alta" || capa == "media" ? 30.0 : 0.0;
         out.push_back({c.value("persona", std::string()), capa, c.value("x", 0.0) / W, c.value("y", 0.0) / H,
                        c.value("w", 0.0) / W, c.value("h", 0.0) / H, ref});
     }
