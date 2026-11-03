@@ -89,6 +89,7 @@ const char* nombreOrden(grilla::Orden o) {
 const char* nombreAlHablar(grilla::AlHablar a) {
     switch (a) {
         case grilla::AlHablar::Nada: return "nada";
+        case grilla::AlHablar::SinCambios: return "sin_cambios";
         case grilla::AlHablar::Destacar: return "destacar";
         case grilla::AlHablar::Superponer: return "superponer";
         case grilla::AlHablar::Escena: return "escena";
