@@ -9,7 +9,13 @@
 //   - Al volver el gateway (o al arrancar la app con el gateway andando), las
 //     conexiones que ya tenía se reconocen (GET /api/v1/control/estado).
 //   - Eventos del gateway («control»): solicitud, conexion, entrada.
-//   - Lo que ControlWeb le manda a una conexión, o la orden de cortarla, sale por el gateway.
+//   - Lo que ControlWeb le manda a una conexión, o la orden de cortarla, sale por el gateway
+//     EN ORDEN: una cola con un solo pedido en vuelo, y lo que se juntó mientras tanto va en
+//     uno ({envios:[…]}). Antes cada mensaje era un POST suelto y el cliente HTTP abre varias
+//     conexiones a la vez: las tandas del catálogo llegaban desordenadas (una antes del
+//     «auth») y el aparato se quedaba con medio catálogo (tarjetas que no aparecían). Un
+//     «estado» de un tema que todavía espera en la cola se reemplaza por el nuevo (con el
+//     gateway lento no se apilan los cuadros de los monitores).
 //   - Emparejar: código de un uso + URL de la red local (/control/#p=…) + QR.
 #pragma once
 
@@ -18,6 +24,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <deque>
 #include <functional>
 #include <string>
 
@@ -49,8 +56,22 @@ class ControlWebGateway : public QObject {
 
    private:
     void evento(const json& ev);
+    /// Por la cola, en orden (lo que va a las conexiones y la orden de cortar).
+    void encolar(const std::string& ruta, json cuerpo);
+    /// Manda lo que espera en la cola si no hay otro pedido en vuelo.
+    void despachar();
+    /// Un pedido suelto, fuera de la cola (credenciales, resolver: no dependen del orden).
     void enviar(const std::string& ruta, const json& cuerpo);
     void reconocerConexiones();
+
+    struct Envio {
+        std::string ruta;
+        json cuerpo;
+        std::size_t bytes = 0;
+        std::string tema; ///< el de un «estado» (para reemplazarlo por uno más nuevo), o ""
+    };
+    std::deque<Envio> cola_;
+    bool enVuelo_ = false;
 
     ControlWeb& cw_;
     ConferenceClient& gw_;

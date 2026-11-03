@@ -218,6 +218,20 @@ int main() {
         r = pedir("POST", "/api/v1/control/enviar", "", "", json{{"todas", true}, {"msg", {{"type", "alarma"}, {"id", "ui_trabada"}}}}.dump(), 0, false, true);
         CHECK(cuerpoDe(r).value("entregado", 0) == 1, "enviar a todas: entregado");
         CHECK(leer(10).find("ui_trabada") != std::string::npos, "ws: el aparato recibe la alarma");
+        // Varios en un pedido (la cola de la app): llegan en ese orden.
+        r = pedir("POST", "/api/v1/control/enviar", "", "",
+                  json{{"envios",
+                        {{{"conexiones", {conexion}}, {"msg", {{"type", "auth"}, {"n", "uno-primero"}}}},
+                         {{"conexiones", {conexion}}, {"msg", {{"type", "herramientas"}, {"n", "dos-segundo"}}}},
+                         {{"conexiones", {"otra"}}, {"msg", {{"type", "x"}}}}}}}
+                      .dump(),
+                  0, false, true);
+        CHECK(cuerpoDe(r).value("entregado", 0) == 2, "envios: entregados los dos de la conexión (y no el de otra)");
+        {
+            const std::string llegado = leer(60);
+            const auto p1 = llegado.find("uno-primero"), p2 = llegado.find("dos-segundo");
+            CHECK(p1 != std::string::npos && p2 != std::string::npos && p1 < p2, "envios: en el orden en que vinieron");
+        }
         r = pedir("POST", "/api/v1/control/cortar", "", "", json{{"todas", true}}.dump(), 0, false, true);
         CHECK(cuerpoDe(r).value("entregado", 1) == 0, "cortar a todas: no (solo enviar)");
         mandarWs("", 0x8);
