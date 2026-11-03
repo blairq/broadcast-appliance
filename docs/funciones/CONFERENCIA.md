@@ -234,6 +234,57 @@ las vistas web que la miran.
 B anota en su registro cada pedido («capas: a <pid> se le pide la alta») y cada llegada
 («capas: llegó la HD de <pid> (N ms desde el pedido); fundido de M ms»).
 
+7. **La capa media (360p)** para las celdas grandes que no entran en la alta (pedido del
+   2026-11-03: dos pantallas con grillas enlazadas, una con pocas personas en celdas de
+   640×360 que se veían pixeladas con la baja estirada, porque las 4 de la alta las ocupaba
+   la otra). `CapasGrilla` pone `media` a quien no quedó en alta y cuya celda pasa 200 px de
+   alto (vuelve a la baja recién por debajo de 150). No cuenta para `alta_max` ni espera
+   turno: **no es un tercer video**, es el transceptor de la alta topado a 360p (el mismo
+   tope `calidad-grilla-360p` de siempre: escala y bitrate del codificador, sin renegociar).
+   De la media a la alta (pasa a orador) solo se levanta el tope.
+
+### Cada invitado manda solo lo que se usa
+
+El navegador publica la cámara en dos transceptores (alta y baja), pero **solo codifica y
+manda los que la sala le pide** (`encodings[0].active`): fuera del instante de un cambio
+(las dos prendidas hasta que llega el primer cuadro de la nueva) va una sola capa por
+invitado, y lo pausado no viaja ni se decodifica. Las capas posibles: baja (180p, 15 cps),
+media (360p) y alta (720p). Se ve en `gateway_estado` → `videoSegunCarga`:
+`capas` (`nada`/`baja`/`media`/`alta`, y `mandan_dos`: cuántos tienen las dos prendidas
+ahora; tendría que ser 0 o casi), `entra_kbps` (`alta`, `baja`: lo que entra de cada capa)
+e `invitados` (por cada uno: `capa`, `activas` y los kbps de cada capa).
+
+### Lo que cuesta decodificar (muchos invitados)
+
+Medido en la PC de pruebas (RX 5700 XT): el motor de video de la placa, que decodifica las
+cámaras, va al 48 % con 40 invitados, al 82 % con 80 y **saturado desde 120**; saturado,
+las celdas de la grilla caen solas de 15 a 7,5 cps. Dos cosas lo evitan:
+
+1. **No se recibe a quien nadie ve** (`gateway.pausarSinVer`, de fábrica sí). Un invitado
+   del programa que no está al aire ni en el preview, ni en una celda de una grilla (los
+   del «+N» no tienen celda), ni lo mira una vista web, ni tiene su tarjeta **a la vista**
+   en la interfaz, no manda la cámara: se le pausan las dos capas. La tarjeta que no se ve
+   (la interfaz la refresca una vez por segundo) se queda con la última imagen: no vale un
+   decodificador. Cuando vuelve a hacer falta (aparece su tarjeta, entra a una celda, lo
+   arman en el preview) la sala lo nota en ¼ s y el navegador la vuelve a mandar empezando
+   por un cuadro clave (si el primero no lo es, la sala pide uno). Mientras está pausado su
+   lugar del programa no muestra «sin señal»: queda la última imagen. Con 200 invitados y
+   64 en la grilla, se decodifican los ~70 que se ven y no 224.
+2. **Menos cuadros por segundo si la placa no da** (`gateway.cps.segunCarga`, de fábrica
+   sí). Cada segundo B mira la carga del motor de video (Windows: los contadores del
+   Administrador de tareas, todos los procesos; en todas: los cuadros que se pierden antes
+   de decodificar). Con la carga en `gateway.cps.subirPct` (85 %) o más durante 2 s, les
+   pide a los invitados en la baja menos cuadros: primero a la mitad de las celdas más
+   chicas (y las tarjetas de la interfaz), después a todos; 15 → 10 → `gateway.cps.minimo`
+   (7,5). Con la carga en `gateway.cps.bajarPct` (70 %) o menos durante
+   `gateway.cps.recuperarS` (10 s), sube de a un escalón. La alta y la media no se tocan. Se
+   ve en `gateway_estado` → `videoSegunCarga.control` (escalón, carga, medidas y las últimas
+   decisiones) y `cpsBaja` (cuántos van a cada cps); el registro anota cada cambio de escalón.
+
+Descartar cuadros antes de decodificar no sirve: el H.264 de los navegadores es todo de
+referencia y la cadena de referencias se arma antes del decodificador (el siguiente quedaría
+esperando al que se tiró). Lo que no se va a decodificar, mejor que no se mande.
+
 ### Nombres
 
 **Nombre en cada celda** (`nombres`): sin nombre, el nombre, o el nombre y el cargo o
