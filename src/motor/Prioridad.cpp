@@ -189,7 +189,7 @@ void prioridadDelProceso() {
 #endif
         }
         topo["prioridad"] = activa;
-        topo["grupo_medios"] = ajustes::siNo("procesador.mediosJuntos", true) ? ba::platform::nucleos::armarGrupoMedios()
+        topo["grupo_medios"] = ajustes::siNo("procesador.mediosJuntos", false) ? ba::platform::nucleos::armarGrupoMedios()
                                                                                 : std::string("apagado");
         registrar(Nivel::Info, llenar(activa ? traducir("motor", "procesador: %1; prioridad del video y el audio: sí; video y "
                                                                  "audio juntos: %2")

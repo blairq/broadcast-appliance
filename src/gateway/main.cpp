@@ -449,7 +449,7 @@ int main(int argc, char** argv) {
     // (nucleos::alGrupoGateway). Una línea como la de ba-app («procesador: …»).
     {
         const nlohmann::json topo = ba::platform::nucleos::topologia();
-        const std::string grupo = ba::ajustes::siNo("gateway.afinidad", true)
+        const std::string grupo = ba::ajustes::siNo("gateway.afinidad", false)
                                       ? ba::platform::nucleos::armarGrupoGateway(ba::ajustes::texto("gateway.afinidadEvitar", "auto"))
                                       : traducir("gateway", "apagado");
         log.info(llenar(traducir("gateway", "procesador: %1; hilos del gateway: %2"), {ba::platform::nucleos::resumen(topo), grupo}));
