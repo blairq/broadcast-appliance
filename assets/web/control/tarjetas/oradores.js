@@ -5,12 +5,12 @@
   BA.tarjetas.push(
   {
     id: "oradores", get titulo() { return t("Oradores"); }, temas: ["oradores"],
-    herramientas: ["speaker_next", "banca_terminar"],
+    herramientas: ["speaker_next", "recinto_orador_terminar"],
     crear(c, api) {
       this.quien = el("div", "orador-actual");
       const acc = el("div", "fila");
       acc.append(boton(t("Siguiente ▶"), () => api.hacer("speaker_next", {}), { variante: "acento" }),
-                 boton(t("Terminar"), () => api.hacer("banca_terminar", {}), { variante: "aire" }));
+                 boton(t("Terminar"), () => api.hacer("recinto_orador_terminar", {}), { variante: "aire" }));
       // El modo oradores de la sala (lo que estaba en la consola vieja): prenderlo y el tiempo general.
       const modo = el("div", "fila");
       this.modo = el("ba-toggle"); this.modo.setAttribute("etiqueta", t("Modo oradores"));
@@ -27,7 +27,10 @@
       this.fila.append(el("li", "vacio", t("Nadie pidió la palabra.")));
       c.append(this.quien, acc, this.modoFila, this.tiempo, el("h3", "", t("En la fila")), this.fila);
     },
-    actualizar(_, d) {
+    actualizar(_, datos) {
+      // remotos_fila_ver: {config: {enabled, defaultSec, …}, order: […]}; lo de antes, plano.
+      const d = Object.assign({}, datos || {}, (datos && datos.config) || {});
+      if (d.defaultTime === undefined && typeof d.defaultSec === "number") d.defaultTime = d.defaultSec;
       if (d.enabled !== undefined || d.speakerMode !== undefined) this.modo.encendido = !!(d.enabled ?? d.speakerMode);
       if (typeof d.defaultTime === "number") this.tiempo.valor = d.defaultTime;
       const actual = d.al_aire || d.onAir || d.actual || (d.speakersOnAir || [])[0];

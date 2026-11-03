@@ -6432,7 +6432,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWeb</name>
     <message>
-        <location filename="../src/app/control/ControlWeb.cpp" line="+388" />
+        <location filename="../src/app/control/ControlWeb.cpp" line="+391" />
         <source>Este aparato fue quitado.</source>
         <translation>此设备已被移除。</translation>
     </message>
@@ -6440,7 +6440,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWebGateway</name>
     <message>
-        <location filename="../src/app/control/ControlWebGateway.cpp" line="+94" />
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+158" />
         <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
         <translation>gateway 未运行：浏览器将无处可连。</translation>
     </message>
@@ -9035,7 +9035,9 @@ Se prende desde el Registro.</source>
         <location line="+46" />
         <location line="+32" />
         <source>No se pudieron mandar %n aviso(s) al asistente: %1</source>
-        <translation><numerusform>无法向助手发送 %n 条通知：%1</numerusform></translation>
+        <translation>
+            <numerusform>无法向助手发送 %n 条通知：%1</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -23280,7 +23282,9 @@ Agregale imágenes desde la pestaña Archivos.</source>
     <message numerus="yes">
         <location line="+8" />
         <source>Borrar los %n integrantes de prueba que quedaron</source>
-        <translation><numerusform>删除遗留的 %n 名测试成员</numerusform></translation>
+        <translation>
+            <numerusform>删除遗留的 %n 名测试成员</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+11" />
@@ -28228,7 +28232,9 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     <message numerus="yes">
         <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="+177" />
         <source>Prueba de asamblea: %n integrantes de prueba con su acceso, en el Recinto.</source>
-        <translation><numerusform>大会测试：%n 名测试成员已获得访问权限，在会场中。</numerusform></translation>
+        <translation>
+            <numerusform>大会测试：%n 名测试成员已获得访问权限，在会场中。</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+65" />
@@ -28238,7 +28244,9 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     <message numerus="yes">
         <location line="+40" />
         <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
-        <translation><numerusform>大会测试：%n 名测试成员正在进入（首次运行时，测试器会花几分钟录制其视频）。</numerusform></translation>
+        <translation>
+            <numerusform>大会测试：%n 名测试成员正在进入（首次运行时，测试器会花几分钟录制其视频）。</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+145" />
@@ -28248,12 +28256,16 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     <message numerus="yes">
         <location line="+22" />
         <source>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</source>
-        <translation><numerusform>已删除遗留的 %n 名测试成员（及其访问权限）。</numerusform></translation>
+        <translation>
+            <numerusform>已删除遗留的 %n 名测试成员（及其访问权限）。</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <location line="+18" />
         <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
-        <translation><numerusform>有一次未结束的大会测试（程序中途关闭）：已删除 %n 名测试成员及其访问权限。</numerusform></translation>
+        <translation>
+            <numerusform>有一次未结束的大会测试（程序中途关闭）：已删除 %n 名测试成员及其访问权限。</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -49844,7 +49856,7 @@ Datos (de %2): %3</source>
         <translation>已从 %1 连接</translation>
     </message>
     <message>
-        <location line="+102" />
+        <location line="+108" />
         <source>La app no está lista para recibir órdenes.</source>
         <translation>应用尚未准备好接收指令。</translation>
     </message>
@@ -62601,7 +62613,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
     </message>
     <message>
         <location line="+10" />
-        <location filename="../src/app/mcp/McpImageTools.cpp" line="+718" />
+        <location filename="../src/app/mcp/McpImageTools.cpp" line="+807" />
         <location line="+40" />
         <location filename="../src/app/mcp/McpUiTools.cpp" line="-562" />
         <location line="+46" />
@@ -68429,7 +68441,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>方法不被允许</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpImageTools.cpp" line="-676" />
+        <location filename="../src/app/mcp/McpImageTools.cpp" line="-762" />
         <source>Ancho maximo en px.</source>
         <translation>最大宽度（px）。</translation>
     </message>
@@ -68470,12 +68482,12 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+8" />
-        <location line="+539" />
+        <location line="+625" />
         <source>No hay imagen del programa: %1</source>
         <translation>没有节目图像：%1</translation>
     </message>
     <message>
-        <location line="-538" />
+        <location line="-624" />
         <source>Programa — escena '%1' (%2x%3)</source>
         <translation>节目 — 场景「%1」（%2x%3）</translation>
     </message>
@@ -68540,7 +68552,17 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>输出为黑屏（尚无信号，或图像本身就是黑的）</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+20" />
+        <source>Ver el programa y el preview (multipantalla)</source>
+        <translation>查看节目和预监（多画面）</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.</source>
+        <translation>切换台的两块小屏幕：节目（正在播出的）和预监（已预备的场景，随下一次 `preview_al_aire` 上播），各自附带场景名和一帧 data URL 形式的 JPEG（`imagen`，尚无画面时为空）。开销很小：使用界面已有的画面。要细看请用 `foto_programa` 或 `foto_fuente`。</translation>
+    </message>
+    <message>
+        <location line="+76" />
         <source>Vista multiple de escenas</source>
         <translation>场景多画面</translation>
     </message>
@@ -84611,6 +84633,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2" />
+        <source>multipantalla monitores programa preview previo armada switcher las dos pantallas que sale y que viene</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>多画面 监视器 节目 预监 预备 切换台 两块屏幕 正在播出 下一个</translation>
+    </message>
+    <message>
+        <location line="+3" />
         <source>todas las escenas de una grilla multiview</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>网格中的所有场景 多画面</translation>
@@ -85664,7 +85692,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>主持人 主持 主持者 东道主 主播</translation>
     </message>
     <message>
-        <location line="-691" />
+        <location line="-694" />
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>撤销 平板 令牌 控制面板 companion http 访问 收回访问权限</translation>
@@ -85682,7 +85710,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>开机自动启动 断电 自动恢复 自启动 开机时启动应用 随系统启动</translation>
     </message>
     <message>
-        <location line="+273" />
+        <location line="+276" />
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take 进入 下一个 下一步 前进 走 播出前检查</translation>
@@ -97127,12 +97155,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>与应用没有连接</translation>
     </message>
     <message>
-        <location line="+2" />
-        <source>Tarjetas en este aparato</source>
-        <translation>此设备上的卡片</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+18" />
         <source>Al aire · %1</source>
         <translation>在播 · %1</translation>
     </message>
@@ -97142,32 +97165,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>未播出</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+10" />
         <source>Control</source>
         <translation>控制</translation>
     </message>
     <message>
-        <location line="-66" />
+        <location line="-82" />
         <source>Desconectado</source>
         <translation>已断开</translation>
     </message>
     <message>
-        <location line="+70" />
-        <source>Qué tarjetas mostrar</source>
-        <translation>显示哪些卡片</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>▦ Tarjetas</source>
-        <translation>▦ 卡片</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+90" />
         <source>Pantalla completa</source>
         <translation>全屏</translation>
     </message>
     <message>
-        <location line="-70" />
+        <location line="-86" />
         <source>Emparejar este aparato</source>
         <translation>配对此设备</translation>
     </message>
@@ -97207,32 +97220,17 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>是，执行</translation>
     </message>
     <message>
-        <location line="+112" />
+        <location line="+170" />
         <source>Escenas</source>
         <translation>场景</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="-32" />
         <source>CORTE</source>
         <translation>切换</translation>
     </message>
     <message>
-        <location line="+2" />
-        <source>AUTO</source>
-        <translation>AUTO</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Programa · %1</source>
-        <translation>节目 · %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Armada · %1</source>
-        <translation>已载入 · %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+40" />
         <source>Estado</source>
         <translation>状态</translation>
     </message>
@@ -97352,12 +97350,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>发言人</translation>
     </message>
     <message>
-        <location line="-92" />
+        <location line="-122" />
         <source>Siguiente ▶</source>
         <translation>下一个 ▶</translation>
     </message>
     <message>
-        <location line="-110" />
+        <location line="-136" />
         <source>Cámara %1</source>
         <translation>摄像机 %1</translation>
     </message>
@@ -97397,7 +97395,52 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>接下来</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+52" />
+        <source>Arrastrá para moverla</source>
+        <translation>拖动以移动</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Columnas que ocupa</source>
+        <translation>占用的列数</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Antes</source>
+        <translation>向前</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Después</source>
+        <translation>向后</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Más angosta</source>
+        <translation>更窄</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Más ancha</source>
+        <translation>更宽</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Mostrarla</source>
+        <translation>显示</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Ocultarla</source>
+        <translation>隐藏</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Disposición de fábrica</source>
+        <translation>默认布局</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>Estante</source>
         <translation>备选区</translation>
     </message>
@@ -97417,7 +97460,42 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>此设备控制哪个输出</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+2" />
+        <source>Ordenar, ensanchar u ocultar las tarjetas</source>
+        <translation>排列、加宽或隐藏卡片</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>✎ Disposición</source>
+        <translation>✎ 布局</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Multipantalla</source>
+        <translation>多画面</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Editando la disposición</source>
+        <translation>正在编辑布局</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.</source>
+        <translation>拖动每张卡片的 ⠿（或用 ◀ ▶），用 − 和 + 改变它占用的列数，用 ✕ 隐藏不用的卡片（隐藏的会变淡：👁 可重新显示）。布局保存在应用中，针对此设备。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Volver a la de fábrica</source>
+        <translation>恢复默认</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Listo</source>
+        <translation>完成</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>GO</source>
         <translation>GO</translation>
     </message>
@@ -97528,6 +97606,81 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2" />
+        <source>Esperando imagen…</source>
+        <translation>等待画面…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>PROGRAMA</source>
+        <translation>节目</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>PREVIEW</source>
+        <translation>预监</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>TAKE</source>
+        <translation>切换</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La transición de este TAKE</source>
+        <translation>本次切换的转场</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Transición configurada</source>
+        <translation>已配置的转场</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Corte</source>
+        <translation>硬切</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Fundido</source>
+        <translation>淡变</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Barrido</source>
+        <translation>擦除</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Deslizar</source>
+        <translation>滑动</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Fundido a color</source>
+        <translation>淡入颜色</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ 显示监视器</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ 隐藏监视器</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Nada armado: elegí una escena</source>
+        <translation>未预备：请选择一个场景</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Manejar esta salida</source>
+        <translation>控制此输出</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>Presentador</source>
         <translation>主持人</translation>
     </message>
@@ -97547,7 +97700,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>之后：%1</translation>
     </message>
     <message>
-        <location line="+54" />
+        <location line="+4" />
+        <source>Tocá una escena para armarla en PREVIEW; mantenela apretada para ponerla al aire directo.</source>
+        <translation>点击场景将其放入预监；长按则直接上播。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No hay escenas.</source>
+        <translation>没有场景。</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>En PREVIEW: sale con el TAKE</source>
+        <translation>在预监中：按切换上播</translation>
+    </message>
+    <message>
+        <location line="+44" />
         <source>Línea de tiempo</source>
         <translation>时间线</translation>
     </message>

@@ -8,8 +8,8 @@
     herramientas: ["dsk_mostrar"],
     crear(c, api) { this.api = api; this.lista = el("div", "columna"); c.append(this.lista); },
     actualizar(_, d) {
-      // El tema «graficos» junta dos herramientas: {dsk_listar, grafico_en_escena}.
-      const l = (d && d.dsk_listar) || d || {};
+      // El tema «graficos» junta dos herramientas: {dsk_capas_ver, grafico_en_escena}.
+      const l = (d && (d.dsk_capas_ver || d.dsk_listar)) || d || {};
       const capas = (Array.isArray(l) ? l : l.capas || []).filter((x) => x && (x.nombre || (x.contenido || []).length));
       if (!capas.length) { vacio(this.lista, t("Sin capas definidas.")); return; }
       sincronizar(this.lista, capas.map((x) => String(x.capa)), (k) => {

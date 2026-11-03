@@ -28,10 +28,10 @@ ControlWebGateway::ControlWebGateway(ControlWeb& control, ConferenceClient& gate
     connect(&cw_, &ControlWeb::enviar, this, [this](const QStringList& conexiones, const json& msg) {
         json ids = json::array();
         for (const QString& c : conexiones) ids.push_back(c.toStdString());
-        enviar("/api/v1/control/enviar", {{"conexiones", ids}, {"msg", msg}});
+        encolar("/api/v1/control/enviar", {{"conexiones", ids}, {"msg", msg}});
     });
     connect(&cw_, &ControlWeb::cortar, this, [this](const QString& conexion, const QString& motivo) {
-        enviar("/api/v1/control/cortar", {{"conexion", conexion.toStdString()}, {"motivo", motivo.toStdString()}});
+        encolar("/api/v1/control/cortar", {{"conexion", conexion.toStdString()}, {"motivo", motivo.toStdString()}});
     });
     connect(&cw_, &ControlWeb::credencialesCambio, this, [this]() { sincronizar(); });
     connect(&cw_, &ControlWeb::resuelta, this, [this](const json& cuerpo) { enviar("/api/v1/control/resolver", cuerpo); });
@@ -44,6 +44,70 @@ ControlWebGateway::ControlWebGateway(ControlWeb& control, ConferenceClient& gate
 void ControlWebGateway::enviar(const std::string& ruta, const json& cuerpo) {
     // Si el gateway no contesta, la próxima sincronización (al volver) lo arregla.
     if (gw_.online()) sala::pedir(gw_, "POST", ruta, cuerpo, {});
+}
+
+namespace {
+/// Lo que entra en un pedido al gateway (su tope es 1 MiB): con aire de sobra.
+constexpr std::size_t kBytesPorPedido = 512 * 1024;
+/// Si el gateway no contesta, la cola no crece sin fin: lo más viejo se descarta.
+constexpr std::size_t kMaxCola = 4000;
+} // namespace
+
+void ControlWebGateway::encolar(const std::string& ruta, json cuerpo) {
+    if (!gw_.online()) return; // nadie a quién mandarle: al volver, las conexiones se reconocen de nuevo
+    Envio e;
+    e.ruta = ruta;
+    const json& msg = cuerpo.contains("msg") ? cuerpo["msg"] : json();
+    if (msg.is_object() && msg.value("type", std::string()) == "estado") e.tema = msg.value("tema", std::string());
+    // Un estado que todavía espera (no salió) para las mismas conexiones: el nuevo lo reemplaza
+    // en su lugar. Solo cuenta lo último de un tema (los cuadros de los monitores, sobre todo).
+    if (!e.tema.empty())
+        for (Envio& x : cola_)
+            if (x.tema == e.tema && x.ruta == ruta && x.cuerpo.value("conexiones", json()) == cuerpo.value("conexiones", json())) {
+                x.cuerpo = std::move(cuerpo);
+                x.bytes = x.cuerpo.dump().size();
+                return;
+            }
+    e.bytes = cuerpo.dump().size();
+    e.cuerpo = std::move(cuerpo);
+    cola_.push_back(std::move(e));
+    while (cola_.size() > kMaxCola) cola_.pop_front();
+    despachar();
+}
+
+void ControlWebGateway::despachar() {
+    if (enVuelo_ || cola_.empty()) return;
+    if (!gw_.online()) {
+        cola_.clear();
+        return;
+    }
+    std::string ruta;
+    json cuerpo;
+    if (cola_.front().ruta == "/api/v1/control/enviar") {
+        // Los «enviar» seguidos van juntos, en orden, hasta el tope de un pedido.
+        json envios = json::array();
+        std::size_t bytes = 0;
+        while (!cola_.empty() && cola_.front().ruta == "/api/v1/control/enviar" &&
+               (envios.empty() || bytes + cola_.front().bytes <= kBytesPorPedido)) {
+            bytes += cola_.front().bytes;
+            envios.push_back(std::move(cola_.front().cuerpo));
+            cola_.pop_front();
+        }
+        ruta = "/api/v1/control/enviar";
+        cuerpo = envios.size() == 1 ? std::move(envios[0]) : json{{"envios", std::move(envios)}};
+    } else {
+        ruta = cola_.front().ruta;
+        cuerpo = std::move(cola_.front().cuerpo);
+        cola_.pop_front();
+    }
+    enVuelo_ = true;
+    QPointer<ControlWebGateway> yo(this);
+    // Bien o mal, sigue con lo que esperaba (si el gateway no estaba, al volver se reconoce todo).
+    sala::pedir(gw_, "POST", ruta, cuerpo, [yo](const std::string&, const json&) {
+        if (!yo) return;
+        yo->enVuelo_ = false;
+        yo->despachar();
+    });
 }
 
 void ControlWebGateway::evento(const json& ev) {

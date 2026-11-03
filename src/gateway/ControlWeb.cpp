@@ -384,22 +384,39 @@ bool ControlWebBorde::admin(long long fd, const std::string& method, const std::
         http::sendResponse(fd, 200, "application/json", volcar({{"ok", true}}));
         return true;
     }
-    if (que == "enviar" || que == "cortar") {
+    // A quiénes va: {conexion | conexiones:[…] | aparato | todas:true}. `todas`: a cada aparato
+    // conectado (una alarma que la app manda desde fuera del hilo de su interfaz y no sabe
+    // quién está). Solo para enviar: cortar a todos, no.
+    const auto destinatarios = [this](const json& d, bool cortando) {
         std::set<std::string> ids;
-        if (r.contains("conexion") && r["conexion"].is_string()) ids.insert(r["conexion"].get<std::string>());
-        if (r.contains("conexiones") && r["conexiones"].is_array())
-            for (const auto& x : r["conexiones"])
+        if (d.contains("conexion") && d["conexion"].is_string()) ids.insert(d["conexion"].get<std::string>());
+        if (d.contains("conexiones") && d["conexiones"].is_array())
+            for (const auto& x : d["conexiones"])
                 if (x.is_string()) ids.insert(x.get<std::string>());
-        const std::string ap = r.value("aparato", std::string());
-        // `todas`: a cada aparato conectado (una alarma que la app manda desde fuera del
-        // hilo de su interfaz y no sabe quién está). Solo para enviar: cortar a todos, no.
-        const bool todas = que == "enviar" && r.value("todas", false);
+        const std::string ap = d.value("aparato", std::string());
+        const bool todas = !cortando && d.value("todas", false);
         std::vector<std::shared_ptr<Conn>> a;
-        {
-            std::lock_guard<std::mutex> l(mu_);
-            for (const auto& c : conns_)
-                if (todas || ids.count(c->id) || (!ap.empty() && c->aparato == ap)) a.push_back(c);
+        std::lock_guard<std::mutex> l(mu_);
+        for (const auto& c : conns_)
+            if (todas || ids.count(c->id) || (!ap.empty() && c->aparato == ap)) a.push_back(c);
+        return a;
+    };
+    if (que == "enviar" && r.contains("envios") && r["envios"].is_array()) {
+        // Varios, EN ORDEN (la app junta lo que se le acumuló mientras esperaba la respuesta
+        // del anterior): cada uno con sus destinatarios, como un «enviar» suelto.
+        std::size_t entregado = 0;
+        for (const auto& e : r["envios"]) {
+            if (!e.is_object()) continue;
+            const auto a = destinatarios(e, false);
+            const json msg = e.value("msg", json::object());
+            for (const auto& c : a) c->enviar(msg);
+            entregado += a.size();
         }
+        http::sendResponse(fd, 200, "application/json", volcar({{"ok", true}, {"entregado", entregado}}));
+        return true;
+    }
+    if (que == "enviar" || que == "cortar") {
+        const auto a = destinatarios(r, que == "cortar");
         if (que == "enviar") {
             const json msg = r.value("msg", json::object());
             for (const auto& c : a) c->enviar(msg);

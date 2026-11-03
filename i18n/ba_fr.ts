@@ -6467,7 +6467,7 @@ L'ancien PIN ne permet plus d'entrer.</translation>
 <context>
     <name>ControlWeb</name>
     <message>
-        <location filename="../src/app/control/ControlWeb.cpp" line="+388" />
+        <location filename="../src/app/control/ControlWeb.cpp" line="+391" />
         <source>Este aparato fue quitado.</source>
         <translation>Cet appareil a été retiré.</translation>
     </message>
@@ -6475,7 +6475,7 @@ L'ancien PIN ne permet plus d'entrer.</translation>
 <context>
     <name>ControlWebGateway</name>
     <message>
-        <location filename="../src/app/control/ControlWebGateway.cpp" line="+94" />
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+158" />
         <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
         <translation>La passerelle n'est pas lancée : le navigateur n'aurait rien à quoi se connecter.</translation>
     </message>
@@ -9078,7 +9078,10 @@ Réactivez-la depuis le Journal.</translation>
         <location line="+46" />
         <location line="+32" />
         <source>No se pudieron mandar %n aviso(s) al asistente: %1</source>
-        <translation><numerusform>Impossible d'envoyer %n alerte à l'assistant : %1</numerusform><numerusform>Impossible d'envoyer %n alertes à l'assistant : %1</numerusform></translation>
+        <translation>
+            <numerusform>Impossible d'envoyer %n alerte à l'assistant : %1</numerusform>
+            <numerusform>Impossible d'envoyer %n alertes à l'assistant : %1</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -23382,7 +23385,10 @@ Ajoutez-y des images depuis l'onglet Fichiers.</translation>
     <message numerus="yes">
         <location line="+8" />
         <source>Borrar los %n integrantes de prueba que quedaron</source>
-        <translation><numerusform>Supprimer le %n membre de test restant</numerusform><numerusform>Supprimer les %n membres de test restants</numerusform></translation>
+        <translation>
+            <numerusform>Supprimer le %n membre de test restant</numerusform>
+            <numerusform>Supprimer les %n membres de test restants</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+11" />
@@ -28355,7 +28361,10 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
     <message numerus="yes">
         <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="+177" />
         <source>Prueba de asamblea: %n integrantes de prueba con su acceso, en el Recinto.</source>
-        <translation><numerusform>Test d'assemblée : %n membre de test avec son accès, dans l'Hémicycle.</numerusform><numerusform>Test d'assemblée : %n membres de test avec leur accès, dans l'Hémicycle.</numerusform></translation>
+        <translation>
+            <numerusform>Test d'assemblée : %n membre de test avec son accès, dans l'Hémicycle.</numerusform>
+            <numerusform>Test d'assemblée : %n membres de test avec leur accès, dans l'Hémicycle.</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+65" />
@@ -28365,7 +28374,10 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
     <message numerus="yes">
         <location line="+40" />
         <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
-        <translation><numerusform>Test d'assemblée : %n membre de test entre (la première fois, le testeur prépare sa vidéo pendant quelques minutes).</numerusform><numerusform>Test d'assemblée : %n membres de test entrent (la première fois, le testeur prépare sa vidéo pendant quelques minutes).</numerusform></translation>
+        <translation>
+            <numerusform>Test d'assemblée : %n membre de test entre (la première fois, le testeur prépare sa vidéo pendant quelques minutes).</numerusform>
+            <numerusform>Test d'assemblée : %n membres de test entrent (la première fois, le testeur prépare sa vidéo pendant quelques minutes).</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+145" />
@@ -28375,12 +28387,18 @@ De face, de profil, avec et sans lunettes : c'est ainsi qu'on la reconnaît le 
     <message numerus="yes">
         <location line="+22" />
         <source>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</source>
-        <translation><numerusform>%n membre de test resté en place a été supprimé (avec son accès).</numerusform><numerusform>%n membres de test restés en place ont été supprimés (avec leur accès).</numerusform></translation>
+        <translation>
+            <numerusform>%n membre de test resté en place a été supprimé (avec son accès).</numerusform>
+            <numerusform>%n membres de test restés en place ont été supprimés (avec leur accès).</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <location line="+18" />
         <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
-        <translation><numerusform>Un test d'assemblée n'était pas terminé (le programme s'est fermé en cours de route) : %n membre de test et son accès ont été supprimés.</numerusform><numerusform>Un test d'assemblée n'était pas terminé (le programme s'est fermé en cours de route) : %n membres de test et leur accès ont été supprimés.</numerusform></translation>
+        <translation>
+            <numerusform>Un test d'assemblée n'était pas terminé (le programme s'est fermé en cours de route) : %n membre de test et son accès ont été supprimés.</numerusform>
+            <numerusform>Un test d'assemblée n'était pas terminé (le programme s'est fermé en cours de route) : %n membres de test et leur accès ont été supprimés.</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -50012,7 +50030,7 @@ Données (de %2) : %3</translation>
         <translation>connecté depuis %1</translation>
     </message>
     <message>
-        <location line="+102" />
+        <location line="+108" />
         <source>La app no está lista para recibir órdenes.</source>
         <translation>L'application n'est pas prête à recevoir des ordres.</translation>
     </message>
@@ -62771,7 +62789,7 @@ L'`id` QU'IL RENVOIE S'UTILISE TEL QUEL dans `audio_module_add`. Les six du cata
     </message>
     <message>
         <location line="+10" />
-        <location filename="../src/app/mcp/McpImageTools.cpp" line="+718" />
+        <location filename="../src/app/mcp/McpImageTools.cpp" line="+807" />
         <location line="+40" />
         <location filename="../src/app/mcp/McpUiTools.cpp" line="-562" />
         <location line="+46" />
@@ -68604,7 +68622,7 @@ Avec ce répertoire, on construit un graphique SANS écrire de code : c'est ce 
         <translation>méthode non autorisée</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpImageTools.cpp" line="-676" />
+        <location filename="../src/app/mcp/McpImageTools.cpp" line="-762" />
         <source>Ancho maximo en px.</source>
         <translation>Largeur maximale en px.</translation>
     </message>
@@ -68645,12 +68663,12 @@ Avec ce répertoire, on construit un graphique SANS écrire de code : c'est ce 
     </message>
     <message>
         <location line="+8" />
-        <location line="+539" />
+        <location line="+625" />
         <source>No hay imagen del programa: %1</source>
         <translation>Pas d'image du programme : %1</translation>
     </message>
     <message>
-        <location line="-538" />
+        <location line="-624" />
         <source>Programa — escena '%1' (%2x%3)</source>
         <translation>Programme — scène '%1' (%2x%3)</translation>
     </message>
@@ -68715,7 +68733,17 @@ Avec ce répertoire, on construit un graphique SANS écrire de code : c'est ce 
         <translation>sort NOIRE (pas encore de signal, ou l'image est vraiment noire)</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+20" />
+        <source>Ver el programa y el preview (multipantalla)</source>
+        <translation>Voir le programme et le preview (multivue)</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.</source>
+        <translation>Les deux écrans d'une régie, en petit : le PROGRAMME (ce qui est à l'antenne) et le PREVIEW (la scène préparée, celle qui part avec le prochain `preview_al_aire`), chacun avec sa scène et une image JPEG en data URL (`imagen`, vide s'il n'y en a pas encore). Économique : utilise les images que l'interface a déjà. Pour REGARDER en détail, `foto_programa` ou `foto_fuente`.</translation>
+    </message>
+    <message>
+        <location line="+76" />
         <source>Vista multiple de escenas</source>
         <translation>Multiview des scènes</translation>
     </message>
@@ -84798,6 +84826,12 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
     </message>
     <message>
         <location line="+2" />
+        <source>multipantalla monitores programa preview previo armada switcher las dos pantallas que sale y que viene</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>multivue moniteurs programme preview préparée régie les deux écrans ce qui passe et ce qui vient</translation>
+    </message>
+    <message>
+        <location line="+3" />
         <source>todas las escenas de una grilla multiview</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>toutes les scènes dans une grille multiview mosaïque</translation>
@@ -85851,7 +85885,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>présentateur animateur modérateur hôte</translation>
     </message>
     <message>
-        <location line="-691" />
+        <location line="-694" />
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>révoquer tablette jeton surface de contrôle companion http accès retirer l'accès</translation>
@@ -85869,7 +85903,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>démarrer automatiquement à l'allumage coupure de courant revenir tout seul démarrage automatique lancer l'application au démarrage de la machine démarrer avec le système</translation>
     </message>
     <message>
-        <location line="+273" />
+        <location line="+276" />
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take entre la suivante étape en avant vas-y vérification avant de sortir</translation>
@@ -97317,12 +97351,7 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>aucune connexion avec l'application</translation>
     </message>
     <message>
-        <location line="+2" />
-        <source>Tarjetas en este aparato</source>
-        <translation>Cartes sur cet appareil</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+18" />
         <source>Al aire · %1</source>
         <translation>À l'antenne · %1</translation>
     </message>
@@ -97332,32 +97361,22 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Hors antenne</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+10" />
         <source>Control</source>
         <translation>Contrôle</translation>
     </message>
     <message>
-        <location line="-66" />
+        <location line="-82" />
         <source>Desconectado</source>
         <translation>Déconnecté</translation>
     </message>
     <message>
-        <location line="+70" />
-        <source>Qué tarjetas mostrar</source>
-        <translation>Cartes à afficher</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>▦ Tarjetas</source>
-        <translation>▦ Cartes</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+90" />
         <source>Pantalla completa</source>
         <translation>Plein écran</translation>
     </message>
     <message>
-        <location line="-70" />
+        <location line="-86" />
         <source>Emparejar este aparato</source>
         <translation>Appairer cet appareil</translation>
     </message>
@@ -97397,32 +97416,17 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Oui, allez-y</translation>
     </message>
     <message>
-        <location line="+112" />
+        <location line="+170" />
         <source>Escenas</source>
         <translation>Scènes</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="-32" />
         <source>CORTE</source>
         <translation>CUT</translation>
     </message>
     <message>
-        <location line="+2" />
-        <source>AUTO</source>
-        <translation>AUTO</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Programa · %1</source>
-        <translation>Programme · %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Armada · %1</source>
-        <translation>Prête · %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+40" />
         <source>Estado</source>
         <translation>État</translation>
     </message>
@@ -97542,12 +97546,12 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Intervenants</translation>
     </message>
     <message>
-        <location line="-92" />
+        <location line="-122" />
         <source>Siguiente ▶</source>
         <translation>Suivant ▶</translation>
     </message>
     <message>
-        <location line="-110" />
+        <location line="-136" />
         <source>Cámara %1</source>
         <translation>Caméra %1</translation>
     </message>
@@ -97587,7 +97591,52 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>À venir</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+52" />
+        <source>Arrastrá para moverla</source>
+        <translation>Faites glisser pour la déplacer</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Columnas que ocupa</source>
+        <translation>Colonnes occupées</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Antes</source>
+        <translation>Avant</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Después</source>
+        <translation>Après</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Más angosta</source>
+        <translation>Plus étroite</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Más ancha</source>
+        <translation>Plus large</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Mostrarla</source>
+        <translation>L'afficher</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Ocultarla</source>
+        <translation>La masquer</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Disposición de fábrica</source>
+        <translation>Disposition d'origine</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>Estante</source>
         <translation>Réserve</translation>
     </message>
@@ -97607,7 +97656,42 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Quelle sortie pilote cet appareil</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+2" />
+        <source>Ordenar, ensanchar u ocultar las tarjetas</source>
+        <translation>Réordonner, élargir ou masquer les cartes</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>✎ Disposición</source>
+        <translation>✎ Disposition</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Multipantalla</source>
+        <translation>Multivue</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Editando la disposición</source>
+        <translation>Modification de la disposition</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.</source>
+        <translation>Faites glisser chaque carte par ⠿ (ou avec ◀ ▶), changez le nombre de colonnes avec − et +, et masquez celles que vous n'utilisez pas avec ✕ (les masquées restent estompées : 👁 les réaffiche). C'est enregistré dans l'application pour cet appareil.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Volver a la de fábrica</source>
+        <translation>Revenir à l'origine</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Listo</source>
+        <translation>Terminé</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>GO</source>
         <translation>GO</translation>
     </message>
@@ -97718,6 +97802,81 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
     </message>
     <message>
         <location line="+2" />
+        <source>Esperando imagen…</source>
+        <translation>En attente de l'image…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>PROGRAMA</source>
+        <translation>PROGRAMME</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>PREVIEW</source>
+        <translation>PREVIEW</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La transición de este TAKE</source>
+        <translation>La transition de ce TAKE</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Transición configurada</source>
+        <translation>Transition configurée</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Corte</source>
+        <translation>Coupe</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Fundido</source>
+        <translation>Fondu</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Barrido</source>
+        <translation>Balayage</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Deslizar</source>
+        <translation>Glissement</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Fundido a color</source>
+        <translation>Fondu vers une couleur</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ Afficher les moniteurs</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ Masquer les moniteurs</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Nada armado: elegí una escena</source>
+        <translation>Rien de préparé : choisissez une scène</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Manejar esta salida</source>
+        <translation>Piloter cette sortie</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>Presentador</source>
         <translation>Présentateur</translation>
     </message>
@@ -97737,7 +97896,22 @@ PROPOSEZ, N'APPLIQUEZ PAS : montrez à la personne ce qui change et appliquez s
         <translation>Ensuite : %1</translation>
     </message>
     <message>
-        <location line="+54" />
+        <location line="+4" />
+        <source>Tocá una escena para armarla en PREVIEW; mantenela apretada para ponerla al aire directo.</source>
+        <translation>Touchez une scène pour la préparer en PREVIEW ; maintenez-la pour la passer directement à l'antenne.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No hay escenas.</source>
+        <translation>Aucune scène.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>En PREVIEW: sale con el TAKE</source>
+        <translation>En PREVIEW : passe à l'antenne avec le TAKE</translation>
+    </message>
+    <message>
+        <location line="+44" />
         <source>Línea de tiempo</source>
         <translation>Timeline</translation>
     </message>

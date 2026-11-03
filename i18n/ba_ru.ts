@@ -6502,7 +6502,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWeb</name>
     <message>
-        <location filename="../src/app/control/ControlWeb.cpp" line="+388" />
+        <location filename="../src/app/control/ControlWeb.cpp" line="+391" />
         <source>Este aparato fue quitado.</source>
         <translation>Это устройство удалено.</translation>
     </message>
@@ -6510,7 +6510,7 @@ El PIN anterior deja de servir para entrar.</source>
 <context>
     <name>ControlWebGateway</name>
     <message>
-        <location filename="../src/app/control/ControlWebGateway.cpp" line="+94" />
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+158" />
         <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
         <translation>Шлюз не запущен: браузеру не к чему подключиться.</translation>
     </message>
@@ -9121,7 +9121,11 @@ Se prende desde el Registro.</source>
         <location line="+46" />
         <location line="+32" />
         <source>No se pudieron mandar %n aviso(s) al asistente: %1</source>
-        <translation><numerusform>Не удалось отправить %n уведомление ассистенту: %1</numerusform><numerusform>Не удалось отправить %n уведомления ассистенту: %1</numerusform><numerusform>Не удалось отправить %n уведомлений ассистенту: %1</numerusform></translation>
+        <translation>
+            <numerusform>Не удалось отправить %n уведомление ассистенту: %1</numerusform>
+            <numerusform>Не удалось отправить %n уведомления ассистенту: %1</numerusform>
+            <numerusform>Не удалось отправить %n уведомлений ассистенту: %1</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -23484,7 +23488,11 @@ Agregale imágenes desde la pestaña Archivos.</source>
     <message numerus="yes">
         <location line="+8" />
         <source>Borrar los %n integrantes de prueba que quedaron</source>
-        <translation><numerusform>Удалить оставшегося тестового участника (%n)</numerusform><numerusform>Удалить оставшихся тестовых участников (%n)</numerusform><numerusform>Удалить оставшихся тестовых участников (%n)</numerusform></translation>
+        <translation>
+            <numerusform>Удалить оставшегося тестового участника (%n)</numerusform>
+            <numerusform>Удалить оставшихся тестовых участников (%n)</numerusform>
+            <numerusform>Удалить оставшихся тестовых участников (%n)</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+11" />
@@ -28482,7 +28490,11 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     <message numerus="yes">
         <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="+177" />
         <source>Prueba de asamblea: %n integrantes de prueba con su acceso, en el Recinto.</source>
-        <translation><numerusform>Тест собрания: %n тестовый участник с доступом, в Зале заседаний.</numerusform><numerusform>Тест собрания: %n тестовых участника с доступом, в Зале заседаний.</numerusform><numerusform>Тест собрания: %n тестовых участников с доступом, в Зале заседаний.</numerusform></translation>
+        <translation>
+            <numerusform>Тест собрания: %n тестовый участник с доступом, в Зале заседаний.</numerusform>
+            <numerusform>Тест собрания: %n тестовых участника с доступом, в Зале заседаний.</numerusform>
+            <numerusform>Тест собрания: %n тестовых участников с доступом, в Зале заседаний.</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+65" />
@@ -28492,7 +28504,11 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     <message numerus="yes">
         <location line="+40" />
         <source>Prueba de asamblea: entran %n integrantes de prueba (la primera vez el probador graba su video unos minutos).</source>
-        <translation><numerusform>Тест собрания: входит %n тестовый участник (в первый раз тестер несколько минут записывает своё видео).</numerusform><numerusform>Тест собрания: входят %n тестовых участника (в первый раз тестер несколько минут записывает своё видео).</numerusform><numerusform>Тест собрания: входят %n тестовых участников (в первый раз тестер несколько минут записывает своё видео).</numerusform></translation>
+        <translation>
+            <numerusform>Тест собрания: входит %n тестовый участник (в первый раз тестер несколько минут записывает своё видео).</numerusform>
+            <numerusform>Тест собрания: входят %n тестовых участника (в первый раз тестер несколько минут записывает своё видео).</numerusform>
+            <numerusform>Тест собрания: входят %n тестовых участников (в первый раз тестер несколько минут записывает своё видео).</numerusform>
+        </translation>
     </message>
     <message>
         <location line="+145" />
@@ -28502,12 +28518,20 @@ De frente, de costado, con anteojos y sin: así se la reconoce en el día real.<
     <message numerus="yes">
         <location line="+22" />
         <source>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</source>
-        <translation><numerusform>Удалён %n оставшийся тестовый участник (и его доступ).</numerusform><numerusform>Удалены %n оставшихся тестовых участника (и их доступ).</numerusform><numerusform>Удалены %n оставшихся тестовых участников (и их доступ).</numerusform></translation>
+        <translation>
+            <numerusform>Удалён %n оставшийся тестовый участник (и его доступ).</numerusform>
+            <numerusform>Удалены %n оставшихся тестовых участника (и их доступ).</numerusform>
+            <numerusform>Удалены %n оставшихся тестовых участников (и их доступ).</numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <location line="+18" />
         <source>Había una prueba de asamblea sin terminar (el programa se cerró en el medio): se borraron %n integrantes de prueba y su acceso.</source>
-        <translation><numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовый участник и его доступ.</numerusform><numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовых участника и их доступ.</numerusform><numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовых участников и их доступ.</numerusform></translation>
+        <translation>
+            <numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовый участник и его доступ.</numerusform>
+            <numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовых участника и их доступ.</numerusform>
+            <numerusform>Был незавершённый тест собрания (программа закрылась посреди теста): удалены %n тестовых участников и их доступ.</numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -50180,7 +50204,7 @@ Datos (de %2): %3</source>
         <translation>подключено с %1</translation>
     </message>
     <message>
-        <location line="+102" />
+        <location line="+108" />
         <source>La app no está lista para recibir órdenes.</source>
         <translation>Приложение не готово принимать команды.</translation>
     </message>
@@ -62941,7 +62965,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
     </message>
     <message>
         <location line="+10" />
-        <location filename="../src/app/mcp/McpImageTools.cpp" line="+718" />
+        <location filename="../src/app/mcp/McpImageTools.cpp" line="+807" />
         <location line="+40" />
         <location filename="../src/app/mcp/McpUiTools.cpp" line="-562" />
         <location line="+46" />
@@ -68779,7 +68803,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>метод не разрешён</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpImageTools.cpp" line="-676" />
+        <location filename="../src/app/mcp/McpImageTools.cpp" line="-762" />
         <source>Ancho maximo en px.</source>
         <translation>Максимальная ширина в px.</translation>
     </message>
@@ -68820,12 +68844,12 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+8" />
-        <location line="+539" />
+        <location line="+625" />
         <source>No hay imagen del programa: %1</source>
         <translation>Нет изображения программы: %1</translation>
     </message>
     <message>
-        <location line="-538" />
+        <location line="-624" />
         <source>Programa — escena '%1' (%2x%3)</source>
         <translation>Программа — сцена '%1' (%2x%3)</translation>
     </message>
@@ -68890,7 +68914,17 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>получается ЧЁРНЫМ (сигнала ещё нет или изображение действительно чёрное)</translation>
     </message>
     <message>
-        <location line="+14" />
+        <location line="+20" />
+        <source>Ver el programa y el preview (multipantalla)</source>
+        <translation>Программа и превью (мультиэкран)</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Las dos pantallas de una mesa de switcher, chicas: el PROGRAMA (lo que sale al aire) y el PREVIEW (la escena armada, la que sale con el próximo `preview_al_aire`), cada una con su escena y un cuadro JPEG como data URL (`imagen`, vacía si todavía no hay). Barata: usa los cuadros que ya tiene la interfaz. Para MIRAR con detalle, `foto_programa` o `foto_fuente`.</source>
+        <translation>Два экрана видеомикшера, маленькие: ПРОГРАММА (то, что в эфире) и ПРЕВЬЮ (подготовленная сцена, которая выйдет со следующим `preview_al_aire`), у каждого своя сцена и кадр JPEG в виде data URL (`imagen`, пусто, если кадра ещё нет). Дёшево: использует кадры, которые уже есть в интерфейсе. Чтобы РАССМОТРЕТЬ подробно — `foto_programa` или `foto_fuente`.</translation>
+    </message>
+    <message>
+        <location line="+76" />
         <source>Vista multiple de escenas</source>
         <translation>Мультивью сцен</translation>
     </message>
@@ -84985,6 +85019,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2" />
+        <source>multipantalla monitores programa preview previo armada switcher las dos pantallas que sale y que viene</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>мультиэкран мониторы программа превью подготовленная микшер два экрана что в эфире и что дальше</translation>
+    </message>
+    <message>
+        <location line="+3" />
         <source>todas las escenas de una grilla multiview</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>все сцены в сетке мультивью</translation>
@@ -86038,7 +86078,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>ведущий модератор хозяин вечера конферансье</translation>
     </message>
     <message>
-        <location line="-691" />
+        <location line="-694" />
         <source>revocar tablet token botonera companion http acceso sacarle el acceso</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>отозвать планшет токен пульт companion http доступ лишить доступа</translation>
@@ -86056,7 +86096,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>запускаться само при включении отключение электричества возвращаться само автозапуск запускать приложение при включении компьютера запуск вместе с системой</translation>
     </message>
     <message>
-        <location line="+273" />
+        <location line="+276" />
         <source>go take entra el siguiente paso adelante dale revision previa antes de salir</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>go take выходит следующий шаг вперёд давай проверка перед выходом</translation>
@@ -97507,12 +97547,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>нет связи с приложением</translation>
     </message>
     <message>
-        <location line="+2" />
-        <source>Tarjetas en este aparato</source>
-        <translation>Карточки на этом устройстве</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+18" />
         <source>Al aire · %1</source>
         <translation>В эфире · %1</translation>
     </message>
@@ -97522,32 +97557,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Не в эфире</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+10" />
         <source>Control</source>
         <translation>Управление</translation>
     </message>
     <message>
-        <location line="-66" />
+        <location line="-82" />
         <source>Desconectado</source>
         <translation>Отключено</translation>
     </message>
     <message>
-        <location line="+70" />
-        <source>Qué tarjetas mostrar</source>
-        <translation>Какие карточки показывать</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>▦ Tarjetas</source>
-        <translation>▦ Карточки</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+90" />
         <source>Pantalla completa</source>
         <translation>Полный экран</translation>
     </message>
     <message>
-        <location line="-70" />
+        <location line="-86" />
         <source>Emparejar este aparato</source>
         <translation>Сопрячь это устройство</translation>
     </message>
@@ -97587,32 +97612,17 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Да, выполнить</translation>
     </message>
     <message>
-        <location line="+112" />
+        <location line="+170" />
         <source>Escenas</source>
         <translation>Сцены</translation>
     </message>
     <message>
-        <location line="+2" />
+        <location line="-32" />
         <source>CORTE</source>
         <translation>СКЛЕЙКА</translation>
     </message>
     <message>
-        <location line="+2" />
-        <source>AUTO</source>
-        <translation>AUTO</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Programa · %1</source>
-        <translation>Программа · %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
-        <source>Armada · %1</source>
-        <translation>Готова · %1</translation>
-    </message>
-    <message>
-        <location line="+2" />
+        <location line="+40" />
         <source>Estado</source>
         <translation>Состояние</translation>
     </message>
@@ -97732,12 +97742,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Выступающие</translation>
     </message>
     <message>
-        <location line="-92" />
+        <location line="-122" />
         <source>Siguiente ▶</source>
         <translation>Следующий ▶</translation>
     </message>
     <message>
-        <location line="-110" />
+        <location line="-136" />
         <source>Cámara %1</source>
         <translation>Камера %1</translation>
     </message>
@@ -97777,7 +97787,52 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Что дальше</translation>
     </message>
     <message>
-        <location line="+58" />
+        <location line="+52" />
+        <source>Arrastrá para moverla</source>
+        <translation>Перетащите, чтобы переместить</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Columnas que ocupa</source>
+        <translation>Сколько колонок занимает</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Antes</source>
+        <translation>Раньше</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Después</source>
+        <translation>Позже</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Más angosta</source>
+        <translation>Уже</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Más ancha</source>
+        <translation>Шире</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Mostrarla</source>
+        <translation>Показать</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Ocultarla</source>
+        <translation>Скрыть</translation>
+    </message>
+    <message>
+        <location line="+6" />
+        <source>Disposición de fábrica</source>
+        <translation>Исходная раскладка</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>Estante</source>
         <translation>Полка</translation>
     </message>
@@ -97797,7 +97852,42 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Каким выходом управляет это устройство</translation>
     </message>
     <message>
-        <location line="+8" />
+        <location line="+2" />
+        <source>Ordenar, ensanchar u ocultar las tarjetas</source>
+        <translation>Упорядочить, расширить или скрыть карточки</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>✎ Disposición</source>
+        <translation>✎ Раскладка</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>Multipantalla</source>
+        <translation>Мультиэкран</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Editando la disposición</source>
+        <translation>Редактирование раскладки</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Arrastrá cada tarjeta por ⠿ (o con ◀ ▶), cambiá cuántas columnas ocupa con − y +, y ocultá las que no uses con ✕ (las ocultas quedan tenues: 👁 las vuelve a mostrar). Se guarda en la app para este aparato.</source>
+        <translation>Перетаскивайте карточки за ⠿ (или кнопками ◀ ▶), меняйте ширину в колонках кнопками − и +, скрывайте ненужные кнопкой ✕ (скрытые остаются бледными: 👁 возвращает их). Сохраняется в приложении для этого устройства.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Volver a la de fábrica</source>
+        <translation>Вернуть исходную</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Listo</source>
+        <translation>Готово</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>GO</source>
         <translation>GO</translation>
     </message>
@@ -97908,6 +97998,81 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2" />
+        <source>Esperando imagen…</source>
+        <translation>Ожидание изображения…</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>PROGRAMA</source>
+        <translation>ПРОГРАММА</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>PREVIEW</source>
+        <translation>ПРЕВЬЮ</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>TAKE</source>
+        <translation>TAKE</translation>
+    </message>
+    <message>
+        <location line="+4" />
+        <source>La transición de este TAKE</source>
+        <translation>Переход для этого TAKE</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Transición configurada</source>
+        <translation>Настроенный переход</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Corte</source>
+        <translation>Склейка</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Fundido</source>
+        <translation>Растворение</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Barrido</source>
+        <translation>Шторка</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Deslizar</source>
+        <translation>Сдвиг</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Fundido a color</source>
+        <translation>Через цвет</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>▾ Mostrar monitores</source>
+        <translation>▾ Показать мониторы</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>▴ Ocultar monitores</source>
+        <translation>▴ Скрыть мониторы</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Nada armado: elegí una escena</source>
+        <translation>Ничего не подготовлено: выберите сцену</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>Manejar esta salida</source>
+        <translation>Управлять этим выходом</translation>
+    </message>
+    <message>
+        <location line="+2" />
         <source>Presentador</source>
         <translation>Ведущий</translation>
     </message>
@@ -97927,7 +98092,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Далее: %1</translation>
     </message>
     <message>
-        <location line="+54" />
+        <location line="+4" />
+        <source>Tocá una escena para armarla en PREVIEW; mantenela apretada para ponerla al aire directo.</source>
+        <translation>Нажмите на сцену, чтобы подготовить её в ПРЕВЬЮ; удерживайте, чтобы сразу вывести в эфир.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>No hay escenas.</source>
+        <translation>Сцен нет.</translation>
+    </message>
+    <message>
+        <location line="+2" />
+        <source>En PREVIEW: sale con el TAKE</source>
+        <translation>В ПРЕВЬЮ: выйдет в эфир по TAKE</translation>
+    </message>
+    <message>
+        <location line="+44" />
         <source>Línea de tiempo</source>
         <translation>Шкала времени</translation>
     </message>

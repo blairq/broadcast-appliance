@@ -829,6 +829,9 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"foto_fuente", QT_TRANSLATE_NOOP("mcp-etiquetas", "ver una fuente revisar antes de poner al aire")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"monitores_ver", QT_TRANSLATE_NOOP("mcp-etiquetas", "multipantalla monitores programa preview previo armada switcher "
+                        "las dos pantallas que sale y que viene")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"foto_todas_escenas", QT_TRANSLATE_NOOP("mcp-etiquetas", "todas las escenas de una grilla multiview")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"capture_feed", QT_TRANSLATE_NOOP("mcp-etiquetas", "se congelo la camara del invitado su camara quedo trabada imagen congelada ver una "
