@@ -93,7 +93,8 @@ void RegistroCuentas::cargar() {
     const json j = a_.leer ? a_.leer() : json();
     bool cambio = !j.is_object();
     if (j.is_object()) {
-        for (const auto& [p, n] : j.value("siguiente", json::object()).items())
+        const json siguiente = j.value("siguiente", json::object()); // items() de un temporal: UB
+        for (const auto& [p, n] : siguiente.items())
             if (esPlataforma(p) && n.is_number_integer()) siguiente_[p] = n.get<int>();
         std::set<std::string> vistas;
         for (const json& c : j.value("cuentas", json::array())) {
