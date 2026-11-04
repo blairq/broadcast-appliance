@@ -568,6 +568,32 @@ if(BA_APP_QT_OK)
     ba_biblioteca_completa(ba_app_cuentas vivos)
     list(PREPEND BA_APP_BIBLIOTECAS ba_app_cuentas)
 
+    # El carrusel de la escena (la tira y su guardado) y la conversión de lo que trae la
+    # gente a láminas (PDF con Qt Pdf; Word/PowerPoint/planillas con los Craft: BA_CRAFT_DIR
+    # se le agrega más abajo, donde se buscan). No usa ningún área.
+    ba_biblioteca(ba_app_carrusel NIVEL 2
+        DEPENDE ba_app_comun ba_core nlohmann_json::nlohmann_json Qt6::Core Qt6::Gui Qt6::Pdf
+        FUENTES carrusel/Carrusel.cpp carrusel/CarruselStore.cpp carrusel/Conversion.cpp)
+    ba_biblioteca_completa(ba_app_carrusel carrusel)
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_carrusel)
+
+    # La terminal de la pestaña Asistente (libvterm y un pty por sistema).
+    ba_biblioteca(ba_app_term NIVEL 2
+        DEPENDE ba_app_comun ba_core ba_vterm Qt6::Core Qt6::Gui Qt6::Quick
+        FUENTES term/Pty.hpp term/TerminalSession.cpp term/TerminalView.cpp)
+    if(WIN32)
+        set(_ba_pty term/Pty_win.cpp)
+    else()
+        set(_ba_pty term/Pty_posix.cpp)
+        if(NOT APPLE)
+            target_link_libraries(ba_app_term PRIVATE util) # forkpty
+        endif()
+    endif()
+    target_sources(ba_app_term PRIVATE ${_ba_pty})
+    set_property(GLOBAL APPEND PROPERTY BA_BIBLIOTECA_ba_app_term_FUENTES "${CMAKE_CURRENT_SOURCE_DIR}/${_ba_pty}")
+    ba_biblioteca_completa(ba_app_term term "/Pty_(win|posix)\\.cpp$")
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_term)
+
     ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
 endif()
 
@@ -716,6 +742,9 @@ foreach(_app wordcraft deckcraft gridcraft)
 endforeach()
 if(_ba_craft_ok)
     target_compile_definitions(ba-app PRIVATE BA_CRAFT_DIR="${_ba_craft_dir}")
+    if(TARGET ba_app_carrusel)
+        target_compile_definitions(ba_app_carrusel PRIVATE BA_CRAFT_DIR="${_ba_craft_dir}") # carrusel/Conversion
+    endif()
 else()
     ba_falta("Documentos (WordCraft, DeckCraft, GridCraft)" "no están en ${_ba_craft_dir} ('make deps-craft')")
 endif()
@@ -1195,10 +1224,9 @@ endif()
     # Twitch: login por codigo, Helix y chat IRC contra un Twitch falso.
     # Terminal de la pestaña Asistente (Pty real + libvterm). POSIX.
     if(NOT WIN32)
-        add_executable(test_terminal tests/test_terminal.cpp term/TerminalSession.cpp term/Pty_posix.cpp term/Pty.hpp
-                                     term/TerminalSession.hpp)
+        add_executable(test_terminal tests/test_terminal.cpp)
         target_include_directories(test_terminal PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-        target_link_libraries(test_terminal PRIVATE ba_vterm ba_core Qt6::Core Qt6::Gui)
+        target_link_libraries(test_terminal PRIVATE ba_app_term ba_vterm ba_core Qt6::Core Qt6::Gui)
         if(NOT APPLE)
             target_link_libraries(test_terminal PRIVATE util)
         endif()
@@ -1460,16 +1488,15 @@ endif()
     add_test(NAME test_grilla_personas COMMAND test_grilla_personas)
 
     # El carrusel de la escena: la tira, el salto y las etiquetas.
-    add_executable(test_carrusel tests/test_carrusel.cpp carrusel/Carrusel.cpp
-                   carrusel/CarruselStore.cpp)
+    add_executable(test_carrusel tests/test_carrusel.cpp)
     target_include_directories(test_carrusel PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_carrusel PRIVATE nlohmann_json::nlohmann_json ba_core)
+    target_link_libraries(test_carrusel PRIVATE ba_app_carrusel nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_carrusel COMMAND test_carrusel)
 
     # De un .pptx a láminas, corriendo el DeckCraft vendoreado de verdad.
-    add_executable(test_conversion tests/test_conversion.cpp carrusel/Conversion.cpp)
+    add_executable(test_conversion tests/test_conversion.cpp)
     target_include_directories(test_conversion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_conversion PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
+    target_link_libraries(test_conversion PRIVATE ba_app_carrusel ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
     target_compile_definitions(test_conversion PRIVATE
         BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
     if(_ba_craft_ok)
@@ -1480,9 +1507,9 @@ endif()
 
     # Lo que se publica, a PDF (evento/APdf): texto en varios idiomas, Markdown, imagen,
     # y con WordCraft, DeckCraft y GridCraft, Word, HTML, .pptx y planillas. Cada PDF se vuelve a leer.
-    add_executable(test_apdf tests/test_apdf.cpp carrusel/Conversion.cpp)
+    add_executable(test_apdf tests/test_apdf.cpp)
     target_include_directories(test_apdf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_apdf PRIVATE ba_app_evento ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
+    target_link_libraries(test_apdf PRIVATE ba_app_carrusel ba_app_evento ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
     target_compile_definitions(test_apdf PRIVATE BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
     if(_ba_craft_ok)
         target_compile_definitions(test_apdf PRIVATE BA_CRAFT_DIR="${_ba_craft_dir}")
