@@ -17,6 +17,8 @@
 # /MD (CRT dinámica) — hereda del root.
 # ============================================================================
 
+include(${CMAKE_SOURCE_DIR}/cmake/BaBiblioteca.cmake)
+
 # --- Sources ----------------------------------------------------------------
 # CONFIGURE_DEPENDS detecta los archivos nuevos sin reconfigurar a mano.
 file(GLOB_RECURSE BA_APP_SOURCES CONFIGURE_DEPENDS
@@ -298,6 +300,39 @@ else()
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/(Escucha|EscuchaNemotron|Habla)\\.cpp$")
 endif()
 
+# --- Lo común a todo el código de la app (ba-app y sus bibliotecas) ------------
+# Las raíces de los #include "…" (las de `raiz app/` en tools/diag/niveles.txt) y las
+# macros que dicen con qué se armó este build. Una sola definición: ba-app y cada
+# ba_biblioteca la enlazan, así una fuente de la app (y todo .hpp que lea) se compila con
+# las mismas macros en el programa, en su biblioteca y en los tests que la enlazan.
+# BA_HAVE_GST, BA_HAVE_ROSTROS y BA_HAVE_CODIGOS vienen con su biblioteca (ba::gstreamer,
+# ba_core, ba_codigos): quien las mira depende de ella.
+add_library(ba_app_comun INTERFACE)
+target_include_directories(ba_app_comun INTERFACE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor"
+                                                  "${CMAKE_SOURCE_DIR}/src/emisor" "${CMAKE_SOURCE_DIR}/src/lspdsp")
+if(BA_HAVE_MOTOR)
+    target_compile_definitions(ba_app_comun INTERFACE BA_HAVE_MOTOR=1)
+    if(BA_HAVE_NDI)
+        target_compile_definitions(ba_app_comun INTERFACE BA_HAVE_NDI=1)
+    endif()
+else()
+    target_compile_definitions(ba_app_comun INTERFACE BA_HAVE_MOTOR=0)
+endif()
+if(BA_APP_QT_OK)
+    target_compile_definitions(ba_app_comun INTERFACE BA_APP_HAVE_GUI=1)
+    if(BA_HAVE_CLAP)
+        target_compile_definitions(ba_app_comun INTERFACE BA_HAVE_CLAP=1)
+    endif()
+else()
+    target_compile_definitions(ba_app_comun INTERFACE BA_APP_HAVE_GUI=0)
+endif()
+if(BA_HAVE_VOZ)
+    target_compile_definitions(ba_app_comun INTERFACE BA_HAVE_VOZ=1)
+endif()
+if(BA_MDNS_OK)
+    target_compile_definitions(ba_app_comun INTERFACE BA_HAVE_MDNS=1)
+endif()
+
 if(MSVC)
     add_executable(ba-app WIN32 ${BA_APP_SOURCES})
 else()
@@ -324,7 +359,6 @@ if(BA_HAVE_VOZ)
     else()
         target_link_libraries(ba-app PRIVATE ${BA_SHERPA_LIBS})
     endif()
-    target_compile_definitions(ba-app PRIVATE BA_HAVE_VOZ=1)
     install(FILES "${BA_SHERPA_DIR}/LICENSE" DESTINATION data/licencias RENAME sherpa-onnx-Apache-2.0.txt
             COMPONENT bundle OPTIONAL)
     message(STATUS "ba-app: con voz (sherpa-onnx)")
@@ -369,7 +403,6 @@ endif()
 # Buscar Chromecast en la red (src/app/pantallas/Buscar.cpp).
 if(BA_MDNS_OK)
     target_link_libraries(ba-app PRIVATE ba_mdns)
-    target_compile_definitions(ba-app PRIVATE BA_HAVE_MDNS=1)
     message(STATUS "ba-app: busqueda de Chromecast por mDNS")
 else()
     ba_falta("Búsqueda de televisores (mDNS)" "no se encontró libmicrodns (extern/libmicrodns, tools/deps/ndi-src.sh)")
@@ -385,9 +418,7 @@ if(BA_HAVE_MOTOR)
     if(BA_HAVE_NDI)
         # Solo libNoIDea: el SpeedHQ lo decodifica GStreamer (avdec_speedhq).
         target_link_libraries(ba-app PRIVATE ba_noidea)
-        target_compile_definitions(ba-app PRIVATE BA_HAVE_NDI=1)
     endif()
-    target_compile_definitions(ba-app PRIVATE BA_HAVE_MOTOR=1)
     # rpath: el ejecutable busca sus bibliotecas JUNTO A EL dentro del bundle
     # portable (bin/64bit/), nunca en el sistema.
     if(APPLE)
@@ -402,8 +433,6 @@ if(BA_HAVE_MOTOR)
     if(TARGET ba::gstreamer)
         ba_gst_rpath(ba-app "")
     endif()
-else()
-    target_compile_definitions(ba-app PRIVATE BA_HAVE_MOTOR=0)
 endif()
 
 # -rdynamic: exporta los simbolos al ejecutable para que la pila de una caida
@@ -452,7 +481,6 @@ if(_ba_craft_ok)
 else()
     ba_falta("Documentos (WordCraft, DeckCraft, GridCraft)" "no están en ${_ba_craft_dir} ('make deps-craft')")
 endif()
-    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_GUI=1)
     # Version visible en Configuracion -> Sistema y datos (soporte).
     target_compile_definitions(ba-app PRIVATE BA_APP_VERSION="${PROJECT_VERSION}")
     target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -505,8 +533,7 @@ endif()
     target_link_libraries(ba-app PRIVATE ba_vterm)
     if(BA_HAVE_CLAP)
         target_include_directories(ba-app PRIVATE "${BA_CLAP_INC}")
-        target_compile_definitions(ba-app PRIVATE BA_HAVE_CLAP=1 BA_DEV_LSP_CLAP="${BA_LSP_CLAP}"
-                                   BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
+        target_compile_definitions(ba-app PRIVATE BA_DEV_LSP_CLAP="${BA_LSP_CLAP}" BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
         target_include_directories(ba-app PRIVATE "${CMAKE_SOURCE_DIR}/src/lspdsp")
         # ClapEditor (las ventanas de los plugins) usa X11 en Linux; antes llegaba de rebote por libobs.
         if(UNIX AND NOT APPLE)
@@ -1776,9 +1803,11 @@ endif()
                  -DQML_DIR=${CMAKE_CURRENT_SOURCE_DIR}/qml -P ${CMAKE_SOURCE_DIR}/cmake/tests/qml_syntax.cmake)
     endif()
 else()
-    target_compile_definitions(ba-app PRIVATE BA_APP_HAVE_GUI=0)
     ba_falta("Interfaz (Qt)" "falta el Qt vendoreado ('make deps-qt-host')")
 endif()
+# Al final: sus raíces de include ya están (ba-app las tiene propias o por ba_motor y
+# ba_emisor_pedido) y el orden de los -I de ba-app no cambia.
+target_link_libraries(ba-app PRIVATE ba_app_comun)
 
 # --- Instalación ------------------------------------------------------------
 # Proceso A va a bin/64bit/ (spec §5.1).

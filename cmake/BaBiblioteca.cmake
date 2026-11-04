@@ -1,0 +1,89 @@
+# ============================================================================
+# cmake/BaBiblioteca.cmake — una biblioteca del diseño físico, con su nivel
+#
+#   ba_biblioteca(<nombre> NIVEL <n> [DEPENDE <target>...] FUENTES <archivo>...)
+#
+# Una biblioteca ESTÁTICA con las FUENTES de un componente de tools/diag/niveles.txt:
+# se compila una sola vez y la enlazan el programa y sus tests (antes cada test
+# compilaba suelta su copia de las fuentes de la app: Evento.cpp, 14 veces).
+#
+#   NIVEL    el del componente en tools/diag/niveles.txt (0 ba_core → 1 ba_motor,
+#            ba_gateway_* → 1.5 ba_app_base → 2 áreas de la app → 3 ba_app_ui →
+#            4 programas). tools/diag/niveles.py lee esta llamada del CMakeLists
+#            (por eso NIVEL y FUENTES van escritos acá, no en variables) y
+#            test_niveles_enlaces revisa que coincida con el mapa y que DEPENDE no
+#            suba ni cruce entre iguales.
+#   DEPENDE  lo que la biblioteca usa, PUBLIC: quien la enlaza ve los mismos
+#            headers y las mismas definiciones que vio ella al compilarse (no hay
+#            un mismo .hpp leído con otras macros en el programa y en un test).
+#            Solo hacia abajo. Lo que hoy se incluye entre iguales (la deuda de
+#            test_niveles) NO se declara: lo resuelve quien enlaza las dos.
+#   FUENTES  rutas relativas a la carpeta del CMakeLists, una por una (las lee
+#            niveles.py). Los .hpp sin .cpp se pueden listar: documentan qué es
+#            de la biblioteca y AUTOMOC los mira.
+#
+# Por qué estática y no OBJECT: un test que usa Evento.cpp no tiene por qué
+# resolver lo que usan las demás fuentes del área (el enlazador trae de una .a
+# solo los objetos que alguien nombra). Eso pide que nada se registre solo con
+# un inicializador estático (PLAN-DISENO-FISICO.md, regla 6 del contrato): el
+# objeto que nadie nombra no entra. docs/local/inventario-autorregistro.md.
+#
+# AUTOMOC propio: los moc de sus headers se compilan una vez, en la biblioteca
+# (antes, en ba-app y otra vez en cada test con AUTOMOC que listaba la fuente).
+# ============================================================================
+
+function(ba_biblioteca nombre)
+    cmake_parse_arguments(PARSE_ARGV 1 _bb "" "NIVEL" "DEPENDE;FUENTES")
+    if(_bb_UNPARSED_ARGUMENTS)
+        message(FATAL_ERROR "biblioteca ${nombre}: no entiendo ${_bb_UNPARSED_ARGUMENTS}")
+    endif()
+    if(NOT DEFINED _bb_NIVEL OR NOT _bb_NIVEL MATCHES "^[0-9]+(\\.[0-9]+)?$")
+        message(FATAL_ERROR "biblioteca ${nombre}: falta NIVEL <n> (el de tools/diag/niveles.txt)")
+    endif()
+    if(NOT _bb_FUENTES)
+        message(FATAL_ERROR "biblioteca ${nombre}: sin FUENTES")
+    endif()
+    add_library(${nombre} STATIC ${_bb_FUENTES})
+    target_link_libraries(${nombre} PUBLIC ${_bb_DEPENDE})
+    set_target_properties(${nombre} PROPERTIES AUTOMOC ON BA_NIVEL "${_bb_NIVEL}")
+    # Las fuentes de la biblioteca, absolutas: ba_biblioteca_fuentes() las saca de las
+    # listas de quien antes las compilaba (ba-app).
+    set(_abs "")
+    foreach(_f IN LISTS _bb_FUENTES)
+        get_filename_component(_f "${_f}" ABSOLUTE)
+        list(APPEND _abs "${_f}")
+    endforeach()
+    set_property(GLOBAL APPEND PROPERTY BA_BIBLIOTECAS ${nombre})
+    set_property(GLOBAL PROPERTY BA_BIBLIOTECA_${nombre}_FUENTES ${_abs})
+endfunction()
+
+# ba_biblioteca_fuentes(<variable> <biblioteca>...): saca de la lista <variable> (rutas
+# absolutas) las fuentes que ya compilan esas bibliotecas.
+function(ba_biblioteca_fuentes variable)
+    set(_lista ${${variable}})
+    foreach(_b IN LISTS ARGN)
+        get_property(_fs GLOBAL PROPERTY BA_BIBLIOTECA_${_b}_FUENTES)
+        if(_fs)
+            list(REMOVE_ITEM _lista ${_fs})
+        endif()
+    endforeach()
+    set(${variable} ${_lista} PARENT_SCOPE)
+endfunction()
+
+# ba_biblioteca_completa(<biblioteca> <carpeta> [<regex de exclusión>]): que todo .cpp de
+# <carpeta> (relativa a la carpeta del CMakeLists) esté en la biblioteca. Un archivo nuevo
+# que no se agregó a FUENTES frena la configuración (si no, ba-app lo compilaría solo por su
+# GLOB y los tests no lo verían en la biblioteca).
+function(ba_biblioteca_completa nombre carpeta)
+    file(GLOB _cpps CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/${carpeta}/*.cpp")
+    if(ARGC GREATER 2)
+        list(FILTER _cpps EXCLUDE REGEX "${ARGV2}")
+    endif()
+    get_property(_fs GLOBAL PROPERTY BA_BIBLIOTECA_${nombre}_FUENTES)
+    list(REMOVE_ITEM _cpps ${_fs})
+    if(_cpps)
+        list(JOIN _cpps "\n  " _faltan)
+        message(FATAL_ERROR "biblioteca ${nombre}: estas fuentes de ${carpeta}/ no están en sus FUENTES "
+                            "(agregalas a la llamada en ${CMAKE_CURRENT_LIST_FILE}):\n  ${_faltan}")
+    endif()
+endfunction()
