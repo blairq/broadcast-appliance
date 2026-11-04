@@ -2,7 +2,7 @@
 
 #include "ui/AsambleaViewModel.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "asamblea/Bancas.hpp"
 #include "asamblea/ConferenciaDcn.hpp"
 #include "asamblea/Cuerpo.hpp"

@@ -26,7 +26,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "mcp/McpCore.hpp"

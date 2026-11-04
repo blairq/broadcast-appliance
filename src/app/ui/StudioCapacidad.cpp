@@ -11,7 +11,7 @@
 #include <QSysInfo>
 
 #include "diag/Recursos.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/ControlGrillas.hpp"

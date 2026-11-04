@@ -10,7 +10,7 @@
 #include <algorithm>
 
 #include "ajustes/Ajustes.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "diag/Metricas.hpp"
 #include "diag/Registro.hpp"

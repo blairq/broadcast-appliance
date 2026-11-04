@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <sstream>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "asamblea/OrdenDelDia.hpp"
 #include "control/BusEventos.hpp"
 #include "diag/Registro.hpp"

@@ -51,7 +51,7 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/HijosDeLaApp.hpp"
 #include "agent/ModelosLocales.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "agent/AlertEngine.hpp"
 #include "arranque/PlanoControl.hpp"
 #include "emision/FuentesApp.hpp"

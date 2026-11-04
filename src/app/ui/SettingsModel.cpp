@@ -22,7 +22,7 @@
 #include <memory>
 #include <optional>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "i18n/I18nPerfiles.hpp"
 #include "platform/IdiomaSistema.hpp"

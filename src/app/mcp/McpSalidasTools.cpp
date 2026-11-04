@@ -17,7 +17,7 @@
 //     herramientas de escenas (cada una lo pide acá, ninguna lo resuelve sola).
 // ============================================================================
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "diag/Recursos.hpp"
 #include "escenas/Conmutador.hpp"

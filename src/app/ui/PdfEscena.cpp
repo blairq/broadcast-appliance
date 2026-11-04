@@ -1,7 +1,7 @@
 // src/app/ui/PdfEscena.cpp — ver PdfEscena.hpp
 #include "ui/PdfEscena.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/FuentePdf.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/VentanillaMotor.hpp"

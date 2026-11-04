@@ -19,7 +19,7 @@
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
 #include "ajustes/Ajustes.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "control/Dsk.hpp"
 #include "emision/VentanillaMotor.hpp"

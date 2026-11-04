@@ -15,7 +15,7 @@
 
 #include <algorithm>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #if defined(BA_HAVE_NDI)
 #include "emision/NdiSource.hpp"

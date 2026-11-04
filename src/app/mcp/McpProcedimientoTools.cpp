@@ -25,7 +25,7 @@
 #include <vector>
 
 #include "i18n/I18nIdioma.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 

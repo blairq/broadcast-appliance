@@ -16,7 +16,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"

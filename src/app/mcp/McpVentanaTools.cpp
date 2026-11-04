@@ -20,7 +20,7 @@
 // titulo es para leer, cambia y se repite.
 // ============================================================================
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include <QGuiApplication>
 #include <QDir>
 #include <QFileInfo>

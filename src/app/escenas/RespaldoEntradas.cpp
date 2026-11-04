@@ -3,7 +3,7 @@
 #include "escenas/RespaldoEntradas.hpp"
 #include "arranque/ArchivoConfig.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/TurnoMotor.hpp"
 #include "escenas/Conmutador.hpp"
 #include "escenas/RefEscena.hpp"

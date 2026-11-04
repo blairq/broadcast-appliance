@@ -34,7 +34,7 @@
 #include "platform/Paths.hpp"
 #include "agent/Mirada.hpp"
 #include "agent/ModelosLocales.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "mcp/McpService.hpp"
 #include "escenas/Conmutador.hpp"
 #include "mcp/McpToolsCommon.hpp"

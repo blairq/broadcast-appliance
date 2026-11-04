@@ -3,7 +3,7 @@
 #include "ui/SalidasViewModel.hpp"
 #include "comun/Restante.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "arranque/InterfazConfig.hpp"
 #include "control/BusEventos.hpp"
 #include "control/Dsk.hpp"

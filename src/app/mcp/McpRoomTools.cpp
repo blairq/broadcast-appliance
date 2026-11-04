@@ -21,7 +21,7 @@
 #include <set>
 
 #include "i18n/I18nTexto.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "ipc/LugaresSala.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/ControlSala.hpp"

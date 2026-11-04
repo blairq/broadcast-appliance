@@ -17,7 +17,7 @@
 #include <nlohmann/json.hpp>
 
 #include "Entrada.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "rostros/QuienEs.hpp"

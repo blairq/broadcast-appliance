@@ -46,7 +46,7 @@
 
 #include <QImage>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "rostros/Personas.hpp"
 #include "rostros/QuienEs.hpp"
 #include "rostros/Rostros.hpp"

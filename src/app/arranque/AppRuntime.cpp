@@ -5,7 +5,7 @@
 // vueltas (ticControl, ticMotor, latirInterfaz), guardar, y lo que delega en cada pieza.
 // ============================================================================
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 
 #include <nlohmann/json.hpp>
 

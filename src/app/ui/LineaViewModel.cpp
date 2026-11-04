@@ -6,7 +6,7 @@
 
 #include "control/Acciones.hpp"
 #include "control/BusEventos.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "evento/Condicion.hpp"
 #include "evento/Corrida.hpp"

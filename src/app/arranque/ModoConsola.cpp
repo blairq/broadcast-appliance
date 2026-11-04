@@ -15,7 +15,7 @@
 #include <string>
 #include <thread>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "fault/ModoSeguro.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "ipc/LugaresSala.hpp"

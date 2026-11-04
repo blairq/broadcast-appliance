@@ -7,7 +7,7 @@
 
 #include <QJsonDocument>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "arranque/AppSettings.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "i18n/I18nIdioma.hpp"

@@ -4,7 +4,7 @@
 
 #include "Motor.hpp"
 #include "Piezas.hpp" // motor::redElectricaDelSistema, cadenciasDeLaRed, avisosDeLaRed
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "control/BusEventos.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "platform/Paths.hpp"

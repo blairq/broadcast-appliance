@@ -2,7 +2,7 @@
 
 #include "ui/SalaViewModel.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "control/BusEventos.hpp"
 #include "net/AccesoRemoto.hpp"
 #include "sala/CalidadPorCalor.hpp"

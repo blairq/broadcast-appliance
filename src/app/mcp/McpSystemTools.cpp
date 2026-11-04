@@ -28,7 +28,7 @@
 #include "i18n/I18nTexto.hpp"
 #include "diag/Metricas.hpp"
 #include "diag/VigiaBucle.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "arranque/InicioConElSistema.hpp"

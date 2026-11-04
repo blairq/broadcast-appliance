@@ -2,7 +2,7 @@
 
 #include "emision/SeguridadAire.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "i18n/I18nTexto.hpp"
 
 namespace ba::app::emision {

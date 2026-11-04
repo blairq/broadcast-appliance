@@ -11,7 +11,7 @@
 #include <algorithm>
 
 #include "i18n/I18nTexto.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "platform/Paths.hpp"
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"

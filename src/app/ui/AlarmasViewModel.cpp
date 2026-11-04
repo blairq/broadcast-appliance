@@ -5,7 +5,7 @@
 #include "agent/AlarmaSonora.hpp"
 #include "agent/EntradasAlarmas.hpp"
 #include "agent/FlujosTexto.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "arranque/EnergiaAire.hpp"
 #include "diag/VigiaBucle.hpp"
 #include "emision/TurnoMotor.hpp"

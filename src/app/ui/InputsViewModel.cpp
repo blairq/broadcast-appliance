@@ -18,7 +18,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "dispositivos/Dispositivos.hpp"
 #include "emision/InputSpecs.hpp"

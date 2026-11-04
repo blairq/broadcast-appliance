@@ -2,7 +2,7 @@
 
 #include "ui/CuentasViewModel.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "control/BusEventos.hpp"
 #include "net/AccountGuides.hpp"
 #include "net/HttpsClient.hpp"

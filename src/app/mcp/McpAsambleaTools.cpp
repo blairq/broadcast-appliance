@@ -10,7 +10,7 @@
 
 #include "mcp/McpAsamblea.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "asamblea/ConferenciaDcn.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"

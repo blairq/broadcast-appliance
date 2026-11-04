@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "Motor.hpp" // motor: el retorno del invitado sin audio
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "i18n/I18nTexto.hpp"
 

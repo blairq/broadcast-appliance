@@ -13,7 +13,7 @@
 
 #include <algorithm>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 
 namespace ba::app {
 

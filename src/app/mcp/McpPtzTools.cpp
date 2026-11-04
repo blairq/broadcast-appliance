@@ -18,7 +18,7 @@
 #include "ui/Seguidor.hpp"
 #include "ui/StudioViewModel.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 
 #include <QCoreApplication>
 #include <QFile>

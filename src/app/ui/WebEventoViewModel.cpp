@@ -13,7 +13,7 @@
 #include <QTimeZone>
 
 #include "ajustes/Ajustes.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "evento/Documentos.hpp"
 #include "evento/EventoWeb.hpp"
 #include "persist/ColaEscritura.hpp"

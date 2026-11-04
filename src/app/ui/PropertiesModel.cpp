@@ -12,7 +12,7 @@
 #include <QJsonValue>
 #include <QVariantMap>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/FotoMotor.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"

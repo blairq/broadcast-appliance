@@ -28,7 +28,7 @@
 #include "agent/ModelosLocales.hpp"
 #include "agent/VozIdioma.hpp"
 #include "i18n/I18nTexto.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "arranque/AppSettings.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "audio/MonitorVoz.hpp"

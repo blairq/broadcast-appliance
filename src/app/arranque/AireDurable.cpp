@@ -10,7 +10,7 @@
 #include <nlohmann/json.hpp>
 
 #include "GpuPerdida.hpp" // motor: la GPU perdida (F3-09)
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "arranque/RepositorioEscenas.hpp"
 #include "arranque/ServicioEmision.hpp"
 #include "diag/Registro.hpp"

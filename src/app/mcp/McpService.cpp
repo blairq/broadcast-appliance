@@ -63,7 +63,7 @@
 
 #include <fstream>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "arranque/PlanoControl.hpp"
 #include "ajustes/Ajustes.hpp"
 #include <QThread>

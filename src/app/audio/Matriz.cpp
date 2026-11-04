@@ -14,7 +14,7 @@
 #include <QMediaDevices>
 #include <QSaveFile>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/NivelesMotor.hpp"
 #include "emision/VentanillaMotor.hpp"

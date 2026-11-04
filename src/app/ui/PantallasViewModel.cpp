@@ -23,7 +23,7 @@
 #include <QTimer>
 #include <QUdpSocket>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"

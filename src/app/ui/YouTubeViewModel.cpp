@@ -16,7 +16,7 @@
 
 #include <algorithm>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "ui/AireDeCuentas.hpp"
 #include "arranque/AppSettings.hpp"
 #include "net/HttpsClient.hpp"

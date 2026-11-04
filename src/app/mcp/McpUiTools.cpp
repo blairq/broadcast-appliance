@@ -16,7 +16,7 @@
 #include <map>
 #include <deque>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "platform/Paths.hpp"
 #include "mcp/McpService.hpp"
 #include "ui/VideoViewModel.hpp"

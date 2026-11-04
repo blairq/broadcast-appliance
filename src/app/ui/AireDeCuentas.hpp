@@ -8,7 +8,7 @@
 // ============================================================================
 #pragma once
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "emision/VentanillaMotor.hpp"
 
 #include <functional>

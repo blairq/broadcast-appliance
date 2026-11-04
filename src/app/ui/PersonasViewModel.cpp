@@ -22,7 +22,7 @@
 #include <algorithm>
 #include <cstring>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "diag/Registro.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "ui/FrameService.hpp"

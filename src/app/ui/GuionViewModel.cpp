@@ -21,7 +21,7 @@
 #include <cstdio>
 #include <set>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/RefEscena.hpp"
 #include "evento/EventoStore.hpp"

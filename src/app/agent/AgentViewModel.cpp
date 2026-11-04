@@ -53,7 +53,7 @@
 #include <fstream>
 
 #include "agent/AlertEngine.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "arranque/AppSettings.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "carrusel/Conversion.hpp"

@@ -14,7 +14,7 @@
 #include <QPointer>
 #include <QTimer>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "graficos/Catalogo.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"

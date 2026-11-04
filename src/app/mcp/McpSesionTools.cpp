@@ -8,7 +8,7 @@
 
 #include "asamblea/Votaciones.hpp"
 #include "asamblea/Presidencia.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
 #include "asamblea/Quorum.hpp"

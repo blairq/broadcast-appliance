@@ -2,7 +2,7 @@
 
 #include "emision/RetornosInvitados.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "i18n/I18nTexto.hpp"
 

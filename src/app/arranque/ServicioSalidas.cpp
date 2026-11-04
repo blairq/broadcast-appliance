@@ -5,7 +5,7 @@
 #include "arranque/ServicioSalidas.hpp"
 
 #include "arranque/AireDurable.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "arranque/ServicioEmision.hpp"
 #include "diag/Registro.hpp"

@@ -18,7 +18,7 @@
 
 #include <algorithm>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "mcp/McpService.hpp"
 #include "medios/Playlist.hpp"

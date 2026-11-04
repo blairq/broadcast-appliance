@@ -13,7 +13,7 @@
 #include "control/BusEventos.hpp"
 #include "plugins/Hijo.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "net/Credentials.hpp"
 #include "platform/Paths.hpp"
 #include "ptz/ControlCamaras.hpp"
