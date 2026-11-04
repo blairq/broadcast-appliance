@@ -34412,7 +34412,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+144"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+145"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -34467,7 +34467,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>界面卡顿了 %1 秒；播出未中断</translation>
     </message>
     <message>
-        <location line="+220"/>
+        <location line="+202"/>
         <source>Guardado</source>
         <translation>已保存</translation>
     </message>
@@ -34477,7 +34477,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无法保存：%1</translation>
     </message>
     <message>
-        <location line="-322"/>
+        <location line="-304"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>已恢复中断前的播出内容（垫片画面或黑场）</translation>
     </message>
@@ -44932,7 +44932,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+181"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+145"/>
+        <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
+        <translation>启动：系统音频（Qt Multimedia，在独立线程中），%1 毫秒</translation>
+    </message>
+    <message>
+        <location line="+83"/>
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>启动：启动画面已显示</translation>
     </message>
@@ -44962,7 +44967,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>自由软件（GPL-3.0）· GStreamer、Qt 和 ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+100"/>
+        <location line="+103"/>
         <source>arranque: la configuración, %1 ms</source>
         <translation>启动：配置，%1 毫秒</translation>
     </message>
@@ -44977,6 +44982,11 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>正在载入工作室配置…</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>arranque: el modelo de la app</source>
+        <translation>启动：应用模型</translation>
+    </message>
+    <message>
         <location line="+2"/>
         <source>arranque: el modelo de la app, %1 ms</source>
         <translation>启动：应用模型，%1 毫秒</translation>
@@ -44985,6 +44995,11 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <location line="+48"/>
         <source>Abriendo la interfaz…</source>
         <translation>正在打开界面…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>arranque: la interfaz (QML)</source>
+        <translation>启动：界面（QML）</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45400,7 +45415,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>启动器请求关闭</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+118"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+120"/>
         <source>no existe la fuente elegida para el operador</source>
         <translation>为操作员选择的来源不存在</translation>
     </message>
@@ -50668,7 +50683,7 @@ Datos (de %2): %3</source>
         <translation>界面卡顿持续了约 %1 毫秒（调用栈在 %2）</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-387"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-396"/>
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples 只能与 --test 一起使用：未开启</translation>
     </message>
@@ -51585,7 +51600,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+38"/>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+922"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+925"/>
         <location filename="../src/app/emision/FuentesApp.cpp" line="+199"/>
         <source>no hay motor</source>
         <translation>没有引擎</translation>
@@ -51631,7 +51646,7 @@ Datos (de %2): %3</source>
         <translation>屏幕用场景：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="-380"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="-383"/>
         <source>armar: %1</source>
         <translation>载入：%1</translation>
     </message>
@@ -51999,7 +52014,7 @@ Datos (de %2): %3</source>
         <translation>来源「%1」：%2</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+61"/>
         <source>addSource: no existe la escena &apos;%1&apos;</source>
         <translation>addSource：场景「%1」不存在</translation>
     </message>
@@ -52019,12 +52034,12 @@ Datos (de %2): %3</source>
         <translation>「%1」不存在</translation>
     </message>
     <message>
-        <location line="-524"/>
+        <location line="-527"/>
         <source>removeScene: no existe o es la única escena</source>
         <translation>removeScene：不存在或是唯一的场景</translation>
     </message>
     <message>
-        <location line="+554"/>
+        <location line="+557"/>
         <source>settings no son JSON válido</source>
         <translation>settings 不是有效的 JSON</translation>
     </message>
@@ -58358,7 +58373,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>historico</name>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="-383"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="-385"/>
         <source>se volvió a la configuración de «%1»: %2 (lo de antes en Config/.restaurar/%3)</source>
         <translation>已恢复到「%1」的配置：%2（之前的内容在 Config/.restaurar/%3）</translation>
     </message>
@@ -59494,7 +59509,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+226"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+235"/>
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>测试模式（--test）：MCP 不请求任何批准，包括在播操作</translation>
     </message>
@@ -91227,7 +91242,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>persistencia</name>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+69"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+71"/>
         <source>al cerrar quedó algo sin guardar (el disco no responde)</source>
         <translation>关闭时有内容未保存（磁盘无响应）</translation>
     </message>

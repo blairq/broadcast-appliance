@@ -34566,7 +34566,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+144"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+145"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (échec&#xa0;: %2)</translation>
     </message>
@@ -34621,7 +34621,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>L&apos;interface a été bloquée %1 s&#xa0;; l&apos;antenne a continué</translation>
     </message>
     <message>
-        <location line="+220"/>
+        <location line="+202"/>
         <source>Guardado</source>
         <translation>Enregistré</translation>
     </message>
@@ -34631,7 +34631,7 @@ puis elle se rouvre toute seule. Les paramètres, identifiants, enregistrements 
         <translation>Impossible d&apos;enregistrer&#xa0;: %1</translation>
     </message>
     <message>
-        <location line="-322"/>
+        <location line="-304"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Ce qui était à l&apos;antenne avant la coupure a été rétabli (carton ou noir)</translation>
     </message>
@@ -45103,7 +45103,12 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+181"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+145"/>
+        <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
+        <translation>démarrage&#xa0;: l&apos;audio du système (Qt Multimedia, dans son propre fil), %1 ms</translation>
+    </message>
+    <message>
+        <location line="+83"/>
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>démarrage&#xa0;: l&apos;écran de chargement est visible</translation>
     </message>
@@ -45133,7 +45138,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Logiciel libre (GPL-3.0) · GStreamer, Qt et ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+100"/>
+        <location line="+103"/>
         <source>arranque: la configuración, %1 ms</source>
         <translation>démarrage&#xa0;: la configuration, %1 ms</translation>
     </message>
@@ -45148,6 +45153,11 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>Chargement de la configuration du studio…</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>arranque: el modelo de la app</source>
+        <translation>démarrage&#xa0;: le modèle de l&apos;application</translation>
+    </message>
+    <message>
         <location line="+2"/>
         <source>arranque: el modelo de la app, %1 ms</source>
         <translation>démarrage&#xa0;: le modèle de l&apos;application, %1 ms</translation>
@@ -45156,6 +45166,11 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <location line="+48"/>
         <source>Abriendo la interfaz…</source>
         <translation>Ouverture de l&apos;interface…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>arranque: la interfaz (QML)</source>
+        <translation>démarrage&#xa0;: l&apos;interface (QML)</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45571,7 +45586,7 @@ Choisissez autre chose dans Sorties → Écrans.</translation>
         <translation>arrêt demandé par le launcher</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+118"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+120"/>
         <source>no existe la fuente elegida para el operador</source>
         <translation>la source choisie pour l&apos;opérateur n&apos;existe pas</translation>
     </message>
@@ -50842,7 +50857,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>le blocage de l&apos;interface a duré environ %1 ms (piles dans %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-387"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-396"/>
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples ne fonctionne qu’avec --test : non activé</translation>
     </message>
@@ -51760,7 +51775,7 @@ Données (de %2)&#xa0;: %3</translation>
     </message>
     <message>
         <location line="+38"/>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+922"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+925"/>
         <location filename="../src/app/emision/FuentesApp.cpp" line="+199"/>
         <source>no hay motor</source>
         <translation>pas de moteur</translation>
@@ -51806,7 +51821,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>scène pour les écrans&#xa0;: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="-380"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="-383"/>
         <source>armar: %1</source>
         <translation>préparer&#xa0;: %1</translation>
     </message>
@@ -52174,7 +52189,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>source «&#xa0;%1&#xa0;»&#xa0;: %2</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+61"/>
         <source>addSource: no existe la escena &apos;%1&apos;</source>
         <translation>addSource&#xa0;: la scène «&#xa0;%1&#xa0;» n&apos;existe pas</translation>
     </message>
@@ -52194,12 +52209,12 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>«&#xa0;%1&#xa0;» n&apos;existe pas</translation>
     </message>
     <message>
-        <location line="-524"/>
+        <location line="-527"/>
         <source>removeScene: no existe o es la única escena</source>
         <translation>removeScene&#xa0;: n&apos;existe pas ou c&apos;est la seule scène</translation>
     </message>
     <message>
-        <location line="+554"/>
+        <location line="+557"/>
         <source>settings no son JSON válido</source>
         <translation>les settings ne sont pas du JSON valide</translation>
     </message>
@@ -58533,7 +58548,7 @@ Les valeurs vides ne laissent pas de séparateurs orphelins&#xa0;: «&#xa0;{nomb
 <context>
     <name>historico</name>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="-383"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="-385"/>
         <source>se volvió a la configuración de «%1»: %2 (lo de antes en Config/.restaurar/%3)</source>
         <translation>retour à la configuration de «&#xa0;%1&#xa0;»&#xa0;: %2 (la précédente est dans Config/.restaurar/%3)</translation>
     </message>
@@ -59669,7 +59684,7 @@ Les valeurs vides ne laissent pas de séparateurs orphelins&#xa0;: «&#xa0;{nomb
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+226"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+235"/>
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>MODE TEST (--test)&#xa0;: le MCP ne demande pas d&apos;approbation, pas même pour l&apos;antenne</translation>
     </message>
@@ -91421,7 +91436,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
 <context>
     <name>persistencia</name>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+69"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+71"/>
         <source>al cerrar quedó algo sin guardar (el disco no responde)</source>
         <translation>à la fermeture, quelque chose n&apos;a pas été enregistré (le disque ne répond pas)</translation>
     </message>

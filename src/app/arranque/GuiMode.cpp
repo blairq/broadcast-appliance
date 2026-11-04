@@ -32,6 +32,7 @@
 #include "diag/Acoples.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
+#include "diag/VigiaBucle.hpp"
 #include "i18n/I18n.hpp"
 #include <QQmlContext>
 #include <QQuickStyle>
@@ -82,10 +83,16 @@
 #include <QEventLoop>
 #include <QFont>
 #include <QImage>
+#include <QAudioDevice>
+#include <QMediaDevices>
 #include <QPainter>
 #include <QPointer>
 #include <QRasterWindow>
 #include <QScreen>
+
+#ifdef _WIN32
+#include <objbase.h> // CoInitializeEx (AudioDelSistema)
+#endif
 
 namespace ba::app {
 
@@ -110,6 +117,47 @@ class AplicacionInterfaz : public QGuiApplication {
         if (--profundidad == 0) TurnoMotor::soltarVuelta();
         return r;
     }
+};
+
+/// EL AUDIO DEL SISTEMA (Qt Multimedia), listo en su hilo antes de que lo pida la interfaz.
+/// La primera vez que algo pregunta por los dispositivos (QMediaDevices) Qt carga su
+/// backend y prepara el audio del sistema: 0,3 a 2,3 s en una Mac, y en Windows una espera
+/// al servicio de audio (waveOutGetNumDevs, volcado del 2026-11-03). Lo pagaba el hilo de
+/// la interfaz al armar el modelo (las alarmas sonoras, la matriz, los equipos), y la traba
+/// de 2 a 4 s del arranque se le achacaba a la ventanilla («VentanillaMotor, evento 43»).
+/// Acá se paga en paralelo con el arranque de GStreamer; después, preguntar es barato (es
+/// lo que suponen EquipoAudio, Registro y RackManager, que preguntan desde la interfaz).
+/// El hilo queda vivo (dormido) hasta el final: lo que Qt armó en él sigue teniendo su hilo.
+class AudioDelSistema {
+   public:
+    AudioDelSistema() {
+        hilo_.setObjectName(QStringLiteral("audio-sistema"));
+        QObject::connect(&hilo_, &QThread::started, []() { // corre en el hilo nuevo
+            ba::platform::nombrarHilo("audio-sistema");
+#ifdef _WIN32
+            // COM en este hilo (multihilo: lo que Qt arme acá se usa también desde la interfaz).
+            CoInitializeEx(nullptr, COINIT_MULTITHREADED);
+#endif
+            QElapsedTimer reloj;
+            reloj.start();
+            (void)QMediaDevices::audioOutputs();
+            (void)QMediaDevices::audioInputs();
+            ba::diag::registro().info(ba::i18n::llenar(
+                ba::i18n::traducir("arranque", "arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms"),
+                {std::to_string(reloj.elapsed())}));
+        });
+#ifdef _WIN32
+        QObject::connect(&hilo_, &QThread::finished, []() { CoUninitialize(); }); // en el mismo hilo
+#endif
+        hilo_.start();
+    }
+    ~AudioDelSistema() {
+        hilo_.quit();
+        hilo_.wait();
+    }
+
+   private:
+    QThread hilo_;
 };
 
 constexpr int kPreviewWidth = 1280; // vista previa/fondo: 720p alcanza y es barata
@@ -353,6 +401,9 @@ int runGui(int argc, char** argv) {
     QQuickStyle::setStyle("Basic"); // controles propios encima; nada nativo que desentone
     // El idioma, antes del cartel de carga: ya sale traducido.
     instalarIdioma();
+    // El audio del sistema se prepara en su hilo mientras arranca el resto (ver arriba;
+    // después del idioma: lo que anota ya sale traducido).
+    const AudioDelSistema audioDelSistema;
 
     // El cartel de carga, ANTES que todo lo demás (ver CartelDeCarga).
     auto cartel = std::make_unique<CartelDeCarga>();
@@ -452,6 +503,10 @@ int runGui(int argc, char** argv) {
         QElapsedTimer relojGui;
         relojGui.start();
         arranque::avisar(ba::i18n::traducir("arranque", "Cargando la configuración del estudio…"));
+        // Al vigía del bucle: el modelo se arma fuera de todo evento y, sin esto, lo que tarde
+        // se le achacaba al último evento que despachó el cartel de carga («corría:
+        // ba::app::VentanillaMotor, evento 43»). Las etapas lentas van al registro (marca).
+        ba::diag::VigiaBucle::interfaz().anotar(ba::i18n::traducir("arranque", "arranque: el modelo de la app"));
         StudioViewModel vm(rt, ventanilla);
         ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: el modelo de la app, %1 ms"),
                                                    {std::to_string(relojGui.restart())}));
@@ -502,6 +557,8 @@ int runGui(int argc, char** argv) {
         QObject::connect(&plano, &PlanoControl::cierrePedido, &vm, &StudioViewModel::quitRequested);
         relojGui.restart();
         arranque::avisar(ba::i18n::traducir("arranque", "Abriendo la interfaz…"));
+        // Al vigía del bucle: lo que traba de acá en más es la carga (no el último evento).
+        ba::diag::VigiaBucle::interfaz().anotar(ba::i18n::traducir("arranque", "arranque: la interfaz (QML)"));
         engine.load(QUrl("qrc:/qml/Main.qml"));
         ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: la interfaz (QML), %1 ms"),
                                                    {std::to_string(relojGui.restart())}));

@@ -34720,7 +34720,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+144"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+145"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (не удалось: %2)</translation>
     </message>
@@ -34775,7 +34775,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Интерфейс завис на %1 с; эфир продолжался</translation>
     </message>
     <message>
-        <location line="+220"/>
+        <location line="+202"/>
         <source>Guardado</source>
         <translation>Сохранено</translation>
     </message>
@@ -34785,7 +34785,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Не удалось сохранить: %1</translation>
     </message>
     <message>
-        <location line="-322"/>
+        <location line="-304"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Восстановлено то, что было в эфире до сбоя (заставка или чёрный)</translation>
     </message>
@@ -45274,7 +45274,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+181"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+145"/>
+        <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
+        <translation>запуск: системный звук (Qt Multimedia, в своём потоке), %1 мс</translation>
+    </message>
+    <message>
+        <location line="+83"/>
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>запуск: заставка загрузки уже видна</translation>
     </message>
@@ -45304,7 +45309,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Свободное ПО (GPL-3.0) · GStreamer, Qt и ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+100"/>
+        <location line="+103"/>
         <source>arranque: la configuración, %1 ms</source>
         <translation>запуск: конфигурация, %1 мс</translation>
     </message>
@@ -45319,6 +45324,11 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Загрузка конфигурации студии…</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>arranque: el modelo de la app</source>
+        <translation>запуск: модель приложения</translation>
+    </message>
+    <message>
         <location line="+2"/>
         <source>arranque: el modelo de la app, %1 ms</source>
         <translation>запуск: модель приложения, %1 мс</translation>
@@ -45327,6 +45337,11 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <location line="+48"/>
         <source>Abriendo la interfaz…</source>
         <translation>Открытие интерфейса…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>arranque: la interfaz (QML)</source>
+        <translation>запуск: интерфейс (QML)</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45742,7 +45757,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>завершение по запросу лаунчера</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+118"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+120"/>
         <source>no existe la fuente elegida para el operador</source>
         <translation>выбранного для оператора источника не существует</translation>
     </message>
@@ -51016,7 +51031,7 @@ Datos (de %2): %3</source>
         <translation>зависание интерфейса длилось около %1 мс (стеки в %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-387"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-396"/>
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples работает только с --test: не включён</translation>
     </message>
@@ -51935,7 +51950,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+38"/>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+922"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+925"/>
         <location filename="../src/app/emision/FuentesApp.cpp" line="+199"/>
         <source>no hay motor</source>
         <translation>нет движка</translation>
@@ -51981,7 +51996,7 @@ Datos (de %2): %3</source>
         <translation>сцена для экранов: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="-380"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="-383"/>
         <source>armar: %1</source>
         <translation>загрузка: %1</translation>
     </message>
@@ -52349,7 +52364,7 @@ Datos (de %2): %3</source>
         <translation>источник &apos;%1&apos;: %2</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+61"/>
         <source>addSource: no existe la escena &apos;%1&apos;</source>
         <translation>addSource: сцены &apos;%1&apos; не существует</translation>
     </message>
@@ -52369,12 +52384,12 @@ Datos (de %2): %3</source>
         <translation>«%1» не существует</translation>
     </message>
     <message>
-        <location line="-524"/>
+        <location line="-527"/>
         <source>removeScene: no existe o es la única escena</source>
         <translation>removeScene: не существует или это единственная сцена</translation>
     </message>
     <message>
-        <location line="+554"/>
+        <location line="+557"/>
         <source>settings no son JSON válido</source>
         <translation>settings — неверный JSON</translation>
     </message>
@@ -58708,7 +58723,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>historico</name>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="-383"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="-385"/>
         <source>se volvió a la configuración de «%1»: %2 (lo de antes en Config/.restaurar/%3)</source>
         <translation>возврат к конфигурации «%1»: %2 (прежняя — в Config/.restaurar/%3)</translation>
     </message>
@@ -59844,7 +59859,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+226"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+235"/>
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>ТЕСТОВЫЙ РЕЖИМ (--test): MCP не запрашивает одобрений, даже эфирных</translation>
     </message>
@@ -91615,7 +91630,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>persistencia</name>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+69"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+71"/>
         <source>al cerrar quedó algo sin guardar (el disco no responde)</source>
         <translation>при закрытии что-то осталось несохранённым (диск не отвечает)</translation>
     </message>
