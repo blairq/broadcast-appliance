@@ -1,7 +1,7 @@
 # mk/deps.mk — Dependencias de terceros comunes a las tres plataformas (descarga reproducible e idempotente).
 # Lo incluye el Makefile de la raíz (las variables comunes están allá).
 
-.PHONY: deps deps-descargas deps-ndi-src deps-qt-host deps-webrtc deps-lwip deps-sherpa-onnx \
+.PHONY: deps deps-ndi-src deps-qt-host deps-webrtc deps-lwip deps-sherpa-onnx \
         deps-rostros _ba_baja deps-libvterm deps-fonts deps-cacert deps-pinggy deps-hinchada \
         deps-cloudflared-host deps-chrome-headless deps-fuentes-texto deps-clap deps-python \
         deps-herramientas deps-craft deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 \
@@ -20,11 +20,8 @@
 # los SHA-256 viven aquí porque son metadatos de descarga, no "pins".
 #
 #   make deps             -> lo de esta plataforma (deps-mac, deps-linux, deps-windows)
-#   make deps-descargas   -> las descargas sueltas de antes (qt + webrtc + spout + cloudflared + vcredist + lsp)
 #   make deps-webrtc      -> SDK libwebrtc M123 a extern/webrtc (= BA_WEBRTC_ROOT)
-#   make deps-spout       -> SDK Spout2 (tag real 2.007h) a extern/Spout2
 #   make deps-cloudflared -> cloudflared 2024.11.0 a extern/cloudflared
-#   make deps-vcredist    -> redist VC++ a extern/vcredist (msvcp140_atomic_wait.dll)
 #   make deps-lsp         -> modulos LSP 1.2.35 (CLAP, Linux) a extern/lsp
 #   make deps-status      -> muestra qué assets hay y su estado
 #   make deps-clean       -> borra extern/
@@ -41,12 +38,9 @@
 # makefile y rompe el parseo).
 
 # --- deps (agregado) ---------------------------------------------------------
-# `make deps`: lo de esta plataforma. `deps-descargas` es el agregado de antes
-# (las descargas sueltas, sobre todo de Windows); los builds no lo usan.
+# `make deps`: lo de esta plataforma (deps-mac, deps-linux o deps-windows).
 deps:
 	$(MAKE) deps-$(PLATAFORMA)
-deps-descargas: deps-qt deps-webrtc deps-lwip deps-cacert deps-libvterm deps-fonts deps-fuentes-texto deps-craft deps-spout deps-cloudflared deps-vcredist deps-lsp deps-src
-
 # Atajo: si no cambiaron las versiones fijadas ni las recetas (Makefile,
 # versions.cmake, tools/deps/, el toolchain) ni lo que hay en extern/ (qué
 # dependencias y sus .version), no se vuelve a verificar nada (eran ~23 s de
@@ -440,10 +434,8 @@ deps-status:
 	@echo "Assets de terceros en $(EXTERNS_DIR)/:"
 	@echo "  Qt6 $(QT6_VER) (win64_msvc2019_64): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
 	@echo "  libwebrtc M123 ($(BA_WEBRTC_TARGET)): $$( [ -f '$(WEB_DEST)/lib/$(WEB_LIB)' ] && echo OK || echo ausente )"
-	@echo "  Spout2 $(SPOUT2_TAG)          : $$( [ -f '$(SPOUT_DEST)/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h' ] && echo OK || echo ausente )"
 	@echo "  cloudflared $(CLOUDFLARED_VER)     : $$( [ -f '$(CFL_EXE)' ] && echo OK || echo ausente )"
-	@echo "  VC++ redist           : $$( [ -f '$(VCREDIST_EXE)' ] && echo OK || echo ausente )"
-	@echo "  LSP $(LSP_VER)           : $$( [ -f '$(LSP_DEST)/.deps-lsp-$(LSP_VER)' ] && echo OK || echo ausente )"
+	@echo "  LSP $(LSP_VER)           : $$( [ -f '$(LSP_DEST)/linux-x86_64/lsp-plugins.clap' ] && echo OK || echo ausente )"
 	@echo "  --- Fuentes de BUILD (se compilan en el producto) ---"
 	@echo "  mbedtls v3.6.2        : $$( [ -f '$(MBEDTLS_SENT)' ] && echo OK || echo ausente )"
 	@echo "  nlohmann v3.11.3      : $$( [ -f '$(NLOHMANN_SENT)' ] && echo OK || echo ausente )"

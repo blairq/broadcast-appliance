@@ -92,7 +92,7 @@ release:
 	    BA_MANIFEST_CACHE=$(BUILD_DIR)/atajos/manifest-cache.txt tools/deploy --solo-manifest release'
 
 dist-linux:
-	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Release
+	@$(CONFIGURAR) $(BUILD_DIR) $(BA_CMAKE_PERFIL) $(BA_CMAKE_PLATAFORMA) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	@# Incremental (`make release`; SIN_CACHE=1 lo arma de cero).
 	$(MAKE) release

@@ -2,8 +2,8 @@
 # Lo incluye el Makefile de la raíz (las variables comunes están allá).
 
 .PHONY: deps-win-toolchain deps-webrtc-win deps-win deps-win-todo deps-lsp-win deps-lspdsp-win \
-        deps-qt deps-ncnn-win deps-onnxruntime-win deps-sherpa-onnx-win deps-spout deps-cloudflared \
-        deps-pinggy-win deps-vcredist deps-chrome-headless-win deps-craft-win deps-msitools \
+        deps-qt deps-ncnn-win deps-onnxruntime-win deps-sherpa-onnx-win deps-cloudflared \
+        deps-pinggy-win deps-chrome-headless-win deps-craft-win deps-msitools \
         deps-llamacpp-win deps-python-win deps-herramientas-win deps-gstreamer-win \
         deps-gstreamer-win-pdb deps-gst-python-win win test-win release-win dist-win dist-win-zip
 
@@ -89,27 +89,6 @@ deps-onnxruntime-win:
 deps-sherpa-onnx-win: deps-onnxruntime-win deps-win-toolchain
 	tools/deps/sherpa-onnx.sh win
 
-deps-spout:
-	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
-	@mkdir -p "$(DL_DIR)" "$(EXTERNS_DIR)"
-	@if [ -f "$(SPOUT_TAR)" ] && [ "$$($(SHA256) "$(SPOUT_TAR)" | cut -d' ' -f1)" = "$(SPOUT_SHA)" ]; then \
-	  echo "[deps] Spout2: ya presente y verificado ($(SPOUT_TAR))"; \
-	else \
-	  echo "[deps] Spout2: descargando $(SPOUT_URL)"; \
-	  curl -fL --retry 3 --connect-timeout 30 -o "$(SPOUT_TAR).part" "$(SPOUT_URL)" \
-	    && mv "$(SPOUT_TAR).part" "$(SPOUT_TAR)" \
-	    && printf '%s  %s\n' "$(SPOUT_SHA)" "$(SPOUT_TAR)" | $(SHA256_CHECK) \
-	    || { echo "[deps] ERROR Spout2: fallo de descarga o hash" >&2; rm -f "$(SPOUT_TAR).part"; exit 1; }; \
-	fi
-	@if [ -f "$(SPOUT_DEST)/SPOUTSDK/SpoutDirectX/SpoutDX/SpoutDX.h" ]; then \
-	  echo "[deps] Spout2: ya extraído en $(SPOUT_DEST)"; \
-	else \
-	  echo "[deps] Spout2: extrayendo a $(SPOUT_DEST)"; \
-	  rm -rf "$(SPOUT_DEST)"; \
-	  mkdir -p "$(SPOUT_DEST)"; \
-	  tar xzf "$(SPOUT_TAR)" -C "$(SPOUT_DEST)" --strip-components=1; \
-	fi
-
 deps-cloudflared:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
 	@mkdir -p "$(dir $(CFL_EXE))"
@@ -125,18 +104,6 @@ deps-cloudflared:
 
 deps-pinggy-win:
 	tools/deps/pinggy.sh windows-x86_64
-
-deps-vcredist:
-	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
-	@mkdir -p "$(dir $(VCREDIST_EXE))"
-	@if [ -f "$(VCREDIST_EXE)" ]; then \
-	  echo "[deps] VC++ redist: ya presente ($(VCREDIST_EXE))"; \
-	else \
-	  echo "[deps] VC++ redist: descargando $(VCREDIST_URL) (evergreen, sin pin de hash)"; \
-	  curl -fL --retry 3 --connect-timeout 30 -o "$(VCREDIST_EXE).part" "$(VCREDIST_URL)" \
-	    && mv "$(VCREDIST_EXE).part" "$(VCREDIST_EXE)" \
-	    || { echo "[deps] ERROR vcredist: fallo de descarga" >&2; rm -f "$(VCREDIST_EXE).part"; exit 1; }; \
-	fi
 
 deps-chrome-headless-win:
 	tools/deps/chrome-headless.sh win64
@@ -197,7 +164,7 @@ deps-gst-python-win: deps-gstreamer-win deps-python-win deps-win-toolchain
 	bash tools/deps/gst-python-win.sh "$(DL_DIR)"
 
 win: deps-win
-	cmake -S . -B $(WIN_BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja \
+	@$(CONFIGURAR) $(WIN_BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja \
 		-DCMAKE_TOOLCHAIN_FILE=$(WIN_TOOLCHAIN) \
 		-DCMAKE_BUILD_TYPE=Release \
 		-DQT_HOST_PATH=$(QT6_HOST_PATH)

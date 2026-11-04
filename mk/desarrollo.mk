@@ -1,30 +1,32 @@
 # mk/desarrollo.mk — Desarrollo: build genérico, idiomas, documentación, tests, lint y limpieza.
 # Lo incluye el Makefile de la raíz (las variables comunes están allá).
 
-.PHONY: dev build prod i18n-actualizar docs test test-unit test-rapido test-completo pytest test-all \
+.PHONY: build _enlaces _configurado _al-diai18n-actualizar docs test test-rapido test-completo pytest \
         lint lint-includes clean clean-all
 
-# --- Desarrollo (Debug) -----------------------------------------------------
-# Build de desarrollo: configuración Debug (debug info, sin optimizar) para
-# depurar y correr los tests. ccache se activa solo vía CMakeLists.
-dev:
-	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Debug
-	cmake --build $(BUILD_DIR) -j$(JOBS)
-
 # --- Build genérico ---------------------------------------------------------
-# Configura (idempotente) y compila. Sin CMAKE_BUILD_TYPE explícito: CMake usa
-# su default (Release, fijado en el CMakeLists raíz).
+# Configura solo si hace falta (tools/ci/preparar-build.sh) y compila. Sin
+# CMAKE_BUILD_TYPE explícito: CMake usa su default (Release, fijado en el
+# CMakeLists raíz). En la Mac, con Ninja, arm64 y 13.3 (BA_CMAKE_PLATAFORMA).
 build:
-	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL)
+	@$(CONFIGURAR) $(BUILD_DIR) $(BA_CMAKE_PERFIL) $(BA_CMAKE_PLATAFORMA)
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
-# --- Producción (Release + bundle) ------------------------------------------
-# Artefacto portable: Release + instalación del layout §5.1 en release.
-prod:
-	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL) -DCMAKE_BUILD_TYPE=Release
+# $(BUILD_DIR) listo para compilar SIN tocar sus opciones (lo usan `make app` y `make
+# test`: no pasan un build de publicar a desarrollo ni al revés). Si no está
+# configurado: en un worktree, los enlaces al principal; en la Mac, ba-modelo
+# (el CMakeLists lo exige) y la configuración de `make compilar`.
+_configurado: _enlaces
+	@[ "$(PLATAFORMA)" != mac ] || [ -f "$(BUILD_DIR)/CMakeCache.txt" ] || $(MAKE) modelo-mac
+	@$(CONFIGURAR) --si-falta $(BUILD_DIR) $(BA_CMAKE_PERFIL) $(BA_CMAKE_PLATAFORMA) -DCMAKE_BUILD_TYPE=Release
+
+# En un worktree: extern/ y build/modelo-mac, enlaces a los del principal.
+_enlaces:
+	@$(PREPARAR) enlaces
+
+# Lo que se prueba es lo compilado: antes de los tests, el build incremental.
+_al-dia: _configurado
 	cmake --build $(BUILD_DIR) -j$(JOBS)
-	cmake --install $(BUILD_DIR) --prefix release --component bundle
-	@echo "Bundle portable: release/"
 
 # --- Idiomas (docs/desarrollo/I18N.md) ---------------------------------------
 # Pone i18n/ba_*.ts al día con el código (lupdate de extern/qt6-host): los textos
@@ -45,6 +47,7 @@ docs:
 	@echo "Docs HTML: docs/_build/html/index.html"
 
 # --- Tests ------------------------------------------------------------------
+# Primero compila lo que cambió (_al-dia): se prueba lo compilado, nunca otra cosa.
 # Con caché por contenido (tools/ci/tests-con-cache.py): un test que ya pasó con
 # exactamente el mismo ejecutable, las mismas bibliotecas, los mismos datos y el
 # mismo entorno se informa «pasó (caché)» sin correrlo. `ctest` a secas sigue
@@ -55,15 +58,13 @@ docs:
 # anota, y la próxima corre solo); TESTS_JOBS=1 los corre en serie.
 TESTS_JOBS ?= $(JOBS)
 TESTS_CACHE = python3 tools/ci/tests-con-cache.py --test-dir $(BUILD_DIR) -- --output-on-failure -j$(TESTS_JOBS)
-test:
+test: _al-dia
 	$(TESTS_CACHE)
 
-test-unit: test
-
-test-rapido:
+test-rapido: _al-dia
 	TESTS_SIN_LENTOS=1 $(TESTS_CACHE)
 
-test-completo:
+test-completo: _al-dia
 	TESTS_SIN_CACHE=1 $(TESTS_CACHE)
 
 # --- Tests Python (pytest) --------------------------------------------------
@@ -73,15 +74,6 @@ test-completo:
 # los tests Python son independientes de $(BUILD_DIR).
 pytest:
 	$(PY) -m pytest tests/ -v
-
-# --- Suite completa (C++ + Python) ------------------------------------------
-# "Todo de una vez": build de desarrollo + tests C++ (ctest) + tests Python
-# (pytest). Cada paso se invoca vía $(MAKE) para que la cadena sea estrictamente
-# secuencial aunque se corra con -j (dev antes que test, test antes que pytest).
-test-all:
-	$(MAKE) dev
-	$(MAKE) test
-	$(MAKE) pytest
 
 # --- Lint (formato) ---------------------------------------------------------
 # Usa el clang-format de la distribucion (una herramienta de build, no un

@@ -26,9 +26,6 @@ QT6_VER        ?= 6.6.3
 # WEBRTC_VERSION=123.0.6312.5 (versions.cmake). NO es derivable por sustitución
 # (Shiguredo usa m<maj>.<build>.<x>.<y>; aquí 6312.3.5), así que se fija aquí.
 WEBRTC_TAG := m123.6312.3.5
-# Spout2: el pin nominal SPOUT2_VERSION=2.0.0.0 (versions.cmake) NO es un tag
-# real del repo leadedge/Spout2; el tag estable más reciente es 2.007h.
-SPOUT2_TAG := 2.007h
 
 # --- URLs + SHA-256 por asset -----------------------------------------------
 # Qt 6.6.3 (win64_msvc2019_64): SDK (headers + import libs + CMake config + moc)
@@ -89,13 +86,6 @@ BUILDTOOLS_URL    := https://chromium.googlesource.com/chromium/src/buildtools/+
 LIBCXX_CFG_SHA    := 6feb8f5430ffa14ca3c32638ac55f40b8f513f615ed650a6f4bb99f35d92ca8e
 LIBCXX_ASSERT_SHA := 84a4c12bc4870c0f5d23b940ce5f38248bc2d2abfdcd4462f81d3a2761e6f29a
 
-# Spout2 (leadedge/Spout2, tag 2.007h): SDK completo (headers SPOUTSDK/ +
-# lib estáticas BUILD/Binaries/x64/). Top-dir `Spout2-2.007h/` -> se strippea.
-SPOUT_URL  := https://codeload.github.com/leadedge/Spout2/tar.gz/refs/tags/$(SPOUT2_TAG)
-SPOUT_SHA  := 9cad3bbfed3f13b154e92a32eaff429236402080d720551bb491757a9febec28
-SPOUT_TAR  := $(DL_DIR)/Spout2-$(SPOUT2_TAG).tar.gz
-SPOUT_DEST := $(EXTERNS_DIR)/Spout2
-
 # cloudflared 2024.11.0 (Windows, el que shippea el appliance en bin/64bit/).
 # Binario plano (sin extraer): se descarga directo a su destino final.
 CFL_URL  := https://github.com/cloudflare/cloudflared/releases/download/$(CLOUDFLARED_VER)/cloudflared-windows-amd64.exe
@@ -122,12 +112,6 @@ else ifeq ($(CFL_HOST_OS),Darwin)
 endif
 CFL_HOST_URL := https://github.com/cloudflare/cloudflared/releases/download/$(CLOUDFLARED_VER)/$(CFL_HOST_ASSET)
 
-
-# Redist VC++ (evergreen aka.ms): aporta msvcp140_atomic_wait.dll (requerido
-# por std::atomic::wait de C++20). Es un objetivo MOVIENTE (sin tag), por lo
-# que NO se fija su hash: solo se asegura su presencia.
-VCREDIST_URL := https://aka.ms/vs/17/release/vc_redist.x64.exe
-VCREDIST_EXE := $(EXTERNS_DIR)/vcredist/VC_redist.x64.exe
 
 # LSP 1.2.35: el CLAP oficial de Linux x86_64 (7z) a extern/lsp/ (el de
 # Windows se compila desde la fuente: deps-lsp-win).
@@ -288,9 +272,7 @@ else
 endif
 ORT_URL := https://github.com/microsoft/onnxruntime/releases/download/v$(ORT_VER)/$(ORT_PKG)
 
-# --- Raices de certificados (HTTPS propio de A: API de YouTube) -----------------
-# El cliente HTTPS usa mbedtls (vendoreado): nada de libssl del sistema. Las
-# raices son las de Mozilla empaquetadas por curl, con fecha y hash fijos.
+# --- La terminal del Asistente --------------------------------------------------
 # libvterm (MIT): emulador de terminal de la pestaña Asistente (la TUI del
 # agente de IA corre adentro). C puro, se compila estatico en ba-app.
 LIBVTERM_URL := https://launchpad.net/libvterm/trunk/v0.3/+download/libvterm-0.3.3.tar.gz
@@ -299,6 +281,9 @@ LIBVTERM_SHA := 09156f43dd2128bd347cbeebe50d9a571d32c64e0cf18d211197946aff7226e0
 FONTS_URL := https://github.com/JetBrains/JetBrainsMono/releases/download/v2.304/JetBrainsMono-2.304.zip
 FONTS_SHA := 6f6376c6ed2960ea8a963cd7387ec9d76e3f629125bc33d1fdcd7eb7012f7bbf
 
+# --- Raices de certificados (HTTPS propio de A: API de YouTube) -----------------
+# El cliente HTTPS usa mbedtls (vendoreado): nada de libssl del sistema. Las
+# raices son las de Mozilla empaquetadas por curl, con fecha y hash fijos.
 CACERT_URL := https://curl.se/ca/cacert-2026-08-13.pem
 CACERT_SHA := f66dff1bdf8f96060b8177976f8b7d9254bc89bc4db933d769f7384d28480bc9
 
@@ -316,6 +301,7 @@ GST_RT := gstreamer-1.0-$(GST_VER)-universal.pkg
 GST_RT_SHA := 529fdf4a4027d942e59b5b3564f6400adaa008f63ce5f3fed4ffe35d73911994
 GST_DEV := gstreamer-1.0-devel-$(GST_VER)-universal.pkg
 GST_DEV_SHA := 72a44870cf02472cbf6e9a84bcc25ee6807dd1c26659a112066373544d365e7a
+
 # --- Python de los plugins (docs/funciones/PLUGINS.md) -----------------------------------
 # CPython relocalizable de python-build-standalone: va adentro del programa
 # (Resources/python). Versión y sha256 fijados (el digest que publica GitHub).
@@ -344,4 +330,5 @@ GST_WIN_RT_SHA := 31cbc21fa0950b5c1e79c80959b2799805cb05a7a35953a13a9f7907761376
 GST_WIN_DEV := gstreamer-1.0-devel-msvc-x86_64-$(GST_WIN_VER).msi
 GST_WIN_DEV_SHA := af0a0720692052aaf5fb0cf2847ef34a87016ef0f914328d516f049e6c86f587
 
+# mlx-swift-lm (ba-modelo, la Mac): el commit fijado; los parches, en src/modelo-mac/parches/.
 MLX_SWIFT_LM_REV := ac6f5651a423b6ad9005332eed583dd336e59a53

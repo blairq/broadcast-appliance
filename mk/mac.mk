@@ -60,9 +60,9 @@ deps-gstreamer-macos:
 # ba-modelo: el modelo local con MLX (src/modelo-mac). xcodebuild y no `swift
 # build`: este no compila los shaders de Metal de MLX. Las dependencias de
 # Swift quedan fijadas en src/modelo-mac/Package.resolved; mlx-swift-lm va en
-# extern/ con los parches de src/modelo-mac/parches/ (deps-mlx-swift-lm). Necesita el
-# componente Metal de Xcode (xcodebuild -downloadComponent MetalToolchain).
-
+# extern/ con los parches de src/modelo-mac/parches/ (deps-mlx-swift-lm; la
+# versión, MLX_SWIFT_LM_REV en mk/versiones.mk). Necesita el componente Metal de
+# Xcode (xcodebuild -downloadComponent MetalToolchain).
 deps-mlx-swift-lm:
 	@set -e; d=extern/mlx-swift-lm; sello=$$d/.parches-$$(cat src/modelo-mac/parches/*.patch | $(SHA256) | cut -c1-12); \
 	if [ -f "$$sello" ]; then echo "[mlx-swift-lm] al dia ($$sello)"; exit 0; fi; \
@@ -72,7 +72,8 @@ deps-mlx-swift-lm:
 	for p in src/modelo-mac/parches/*.patch; do git -C $$d apply "$(CURDIR)/$$p"; echo "[mlx-swift-lm] $$p"; done; \
 	touch "$$sello"
 
-modelo-mac: deps-mlx-swift-lm
+# _enlaces primero: en un worktree, extern/ y build/modelo-mac son los del principal.
+modelo-mac: _enlaces deps-mlx-swift-lm
 	@xcrun metal --version >/dev/null 2>&1 || { echo "ERROR: falta el compilador de Metal: xcodebuild -downloadComponent MetalToolchain" >&2; exit 1; }
 	cd src/modelo-mac && xcodebuild -scheme ba-modelo -destination 'platform=macOS,arch=arm64' \
 		-configuration Release -derivedDataPath $(CURDIR)/build/modelo-mac \
@@ -81,7 +82,7 @@ modelo-mac: deps-mlx-swift-lm
 release-macos:
 	@# Compila primero: sin esto se empaquetaba el ultimo build que hubiera en
 	@# $(BUILD_DIR), y los cambios de la app no llegaban a la .app.
-	cmake -S . -B $(BUILD_DIR) $(BA_CMAKE_PERFIL)
+	@$(CONFIGURAR) $(BUILD_DIR) $(BA_CMAKE_PERFIL) $(BA_CMAKE_PLATAFORMA)
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	rm -rf release
 	@# De cero: también la cache de firmas (tools/deps/firmar-macos.sh).
@@ -102,8 +103,9 @@ app-macos: release-macos
 # Para probar mientras se programa: lo mismo que app-macos, pero sin borrar
 # release/ ni la .app. Solo se copia, firma, revisa y hashea lo que cambió
 # (tools/deps/firmar-macos.sh, BA_CHECK_SOLO, BA_MANIFEST_CACHE). Si algo raro
-# pasa, `make app-macos` lo arma de cero.
-app-macos-rapida:
+# pasa, `make app-macos` lo arma de cero. No toca las opciones de $(BUILD_DIR)
+# (_configurado: solo configura si no lo está, p. ej. en un worktree nuevo).
+app-macos-rapida: _configurado
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 	cmake --install $(BUILD_DIR) --prefix release --component bundle
 	BA_CHECK_SOLO="$$(ls -t $(BUILD_DIR)/firmados-*.txt | head -1)" tools/deps/check-portable-macos.sh release
