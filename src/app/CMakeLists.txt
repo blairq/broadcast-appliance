@@ -602,6 +602,12 @@ endif()
     target_link_libraries(test_formulario PRIVATE Qt6::Core)
     set_target_properties(test_formulario PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_formulario COMMAND test_formulario)
+    # La sección de Configuración que se pide (por su clave, un nombre viejo o su título).
+    add_executable(test_secciones_config tests/test_secciones_config.cpp ui/SeccionesConfig.cpp)
+    target_include_directories(test_secciones_config PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_secciones_config PRIVATE Qt6::Core)
+    set_target_properties(test_secciones_config PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_secciones_config COMMAND test_secciones_config)
     # El registro de dispositivos de la máquina: nombres del operador, ausentes, persistencia.
     add_executable(test_dispositivos tests/test_dispositivos.cpp dispositivos/Dispositivos.cpp dispositivos/Conocidos.cpp ui/Formulario.cpp)
     target_include_directories(test_dispositivos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

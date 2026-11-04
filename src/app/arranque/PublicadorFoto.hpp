@@ -59,6 +59,9 @@ class PublicadorFoto {
 
     /// El motor avisa que cambió el audio de una fuente (parte Mezcla; FotoMezcla.cpp).
     void anotarCambioAudio(const std::string& fuente, const char* que);
+    /// En cada vuelta del motor (en el dueño, con el turno): si las fuentes con audio ya no
+    /// son los canales de la foto, la Mezcla se rearma (FotoMezcla.cpp).
+    void seguirCanalesDelMotor();
 
    private:
     /// Además de las partes: lo que la foto lee de archivos se vuelve a leer.

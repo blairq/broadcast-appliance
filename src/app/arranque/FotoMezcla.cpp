@@ -13,11 +13,21 @@ namespace ba::app {
 void PublicadorFoto::anotarCambioAudio(const std::string& fuente, const char* que) {
     // Lo llama el motor en el hilo que hizo el cambio (el dueño, casi siempre). Una fuente
     // que nace o se rehace con el mismo nombre cuenta un alta: la matriz le pone lo guardado.
+    // Un alta o una baja («baja»: EscenasYFuentes::soltarSiHuerfana) cambia además la lista
+    // de fuentes, que se rearma con Mezcla (FotoMotor::kFuentes).
     if (que != nullptr && std::string(que) == "alta") {
         const std::lock_guard<std::mutex> l(altasMu_);
         ++altasAudio_[fuente];
     }
     fotoSucia(FotoMotor::Mezcla);
+}
+
+void PublicadorFoto::seguirCanalesDelMotor() {
+    // Qué fuentes tienen audio lo dice el motor en su foto (BroadcastEngine::audioSources),
+    // que sale una vuelta después de armar una entrada: el aviso de alta llega antes y la
+    // Mezcla se rearmaba sin ella. Sin esto, un micrófono recién agregado no tenía canal (ni
+    // rack: «no tiene audio») hasta que otra cosa tocara la mezcla.
+    if (rt_.engine_.audioSources() != trabajo_.mezcla.nombres()) marcar(FotoMotor::Mezcla);
 }
 
 void PublicadorFoto::armarMezcla(FotoMotor::MezclaAudio& m) {
