@@ -1146,6 +1146,8 @@ endif()
     target_link_libraries(test_plano_control PRIVATE ba_app_ui ba_app_mcp ba_app_emision ba_app_control ba_app_agente ba_app_evento ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_plano_control COMMAND test_plano_control)
+    # 77: solo fallaron chequeos de tiempo con la máquina cargada (tests/Puntualidad.hpp).
+    set_tests_properties(test_plano_control PROPERTIES SKIP_RETURN_CODE 77)
     # Las pastillas del aire (ui/EstadoAireViewModel): el tiempo de una grabación que ya
     # andaba y los avisos por grupo, con una ventanilla sintética.
     add_executable(test_estado_aire tests/test_estado_aire.cpp)

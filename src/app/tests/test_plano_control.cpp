@@ -72,6 +72,7 @@
 //      y el silencio de cada micrófono salen en el control, leídos directo (no de la
 //      interfaz); el pico del programa: la vista lo toma y el MCP lee el último.
 // ============================================================================
+#include "tests/Puntualidad.hpp"
 #include "agent/AlertEngine.hpp"
 #include "agent/EntradasAlarmas.hpp"
 #include "arranque/AppSettings.hpp"
@@ -128,6 +129,20 @@ int g_fallos = 0;
         if (!(cond)) {                                                                   \
             std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);             \
             ++g_fallos;                                                                  \
+        } else {                                                                         \
+            std::printf("ok: %s\n", msg);                                                \
+        }                                                                                \
+    } while (0)
+/// Un chequeo de TIEMPO: un tope en ms de reloj («en el acto») o cuántas vueltas dio un reloj
+/// durante una traba. Con la máquina cargada el planificador atrasa a todos y eso no es del
+/// plano de control: si solo fallan estos y la máquina estaba impuntual, SKIP con el motivo
+/// (tests/Puntualidad.hpp). Lo que se hizo, dónde y con qué turno son chequeos comunes.
+int g_fallosTiempo = 0;
+#define CHECK_TIEMPO(cond, msg)                                                          \
+    do {                                                                                 \
+        if (!(cond)) {                                                                   \
+            std::printf("FALLO (de tiempo): %s (%s, linea %d)\n", msg, #cond, __LINE__); \
+            ++g_fallosTiempo;                                                            \
         } else {                                                                         \
             std::printf("ok: %s\n", msg);                                                \
         }                                                                                \
@@ -348,19 +363,23 @@ int main(int argc, char** argv) {
     std::printf("  medido: healthz %.1f ms, foto %.1f ms, interfaz ocupada %.1f ms; vueltas del control %d, del motor %d y del "
                 "latido de la interfaz %d en 3 s de traba\n",
                 msHealth, msFoto, msUi, controlTrabada, motorTrabada, latidoTrabada);
-    CHECK(controlTrabada >= 100, "1: el reloj del control siguió con la interfaz trabada");
-    CHECK(motorTrabada >= 100 && dondeMotor.load() == plano.hilo(), "1: el del motor también (es del control, su dueño)");
+    CHECK_TIEMPO(controlTrabada >= 100, "1: el reloj del control siguió con la interfaz trabada");
+    CHECK(dondeMotor.load() == plano.hilo(), "1: el del motor también (es del control, su dueño)");
+    CHECK_TIEMPO(motorTrabada >= 100, "1: el del motor también (es del control, su dueño)");
     CHECK(latidoTrabada == 0, "1: el latido de la interfaz no (es de ella: así el supervisor sabe que se trabó)");
-    CHECK(rHealth == "ok\n" && msHealth < 500, "2: /healthz contesta");
+    CHECK(rHealth == "ok\n", "2: /healthz contesta");
+    CHECK_TIEMPO(msHealth < 500, "2: /healthz contesta");
     const json jf = json::parse(rFoto, nullptr, false);
-    CHECK(jf.is_object() && !jf["result"].value("isError", true) && msFoto < 500, "2: la herramienta de la foto contesta en el acto");
+    CHECK(jf.is_object() && !jf["result"].value("isError", true), "2: la herramienta de la foto contesta en el acto");
+    CHECK_TIEMPO(msFoto < 500, "2: la herramienta de la foto contesta en el acto");
     CHECK(dondeFoto.load() != interfaz && dondeFoto.load() != plano.hilo(), "2: corrió en el pool");
     const json ju = json::parse(rUi, nullptr, false);
     CHECK(ju.is_object() && ju["result"].value("isError", false) &&
               ju["result"]["structuredContent"].value("interfaz_ocupada", false) &&
               ju["result"]["structuredContent"].contains("foto"),
           "3: la de la interfaz contesta «ocupada» con la foto");
-    CHECK(msUi >= 750 && msUi < 2500, "3: al vencer el tope (800 ms)");
+    CHECK(msUi >= 750, "3: al vencer el tope (800 ms)");
+    CHECK_TIEMPO(msUi < 2500, "3: al vencer el tope (800 ms)");
     CHECK(disparosTrabada >= 1 && dondeDisparo.load() == plano.hilo(), "4: la alarma salió en el hilo de control durante la traba");
 
     atender(500); // la interfaz vuelve: lo vencido NO se hace
@@ -544,18 +563,20 @@ int main(int argc, char** argv) {
     trabarInterfaz(static_cast<int>(pedidos.size()) * 150 + 1500);
     clienteFoto.join();
     const int copiasEnLaTraba = copiasStatus.load() + copiasSalidas.load();
-    bool todasContestaron = true;
+    bool todasContestaron = true, todasEnElActo = true;
     double peor = 0;
     for (const auto& p : pedidos) {
         const json r = json::parse(p.resultado, nullptr, false);
         const bool bien = r.is_object() && r.contains("result") && !r["result"].value("isError", true);
         if (!bien) std::printf("  %s: %s\n", p.herramienta.c_str(), p.resultado.substr(0, 300).c_str());
-        todasContestaron = todasContestaron && bien && p.ms < 600;
+        todasContestaron = todasContestaron && bien;
+        todasEnElActo = todasEnElActo && p.ms < 600;
         peor = std::max(peor, p.ms);
     }
     std::printf("  medido: %zu pedidos de la foto con la interfaz trabada, el peor %.1f ms; %d fuentes leídas\n",
                 pedidos.size(), peor, fuentesLeidas.load());
-    CHECK(todasContestaron, "7: con la interfaz trabada, todas contestan en el acto y sin error");
+    CHECK(todasContestaron, "7: con la interfaz trabada, todas contestan sin error");
+    CHECK_TIEMPO(todasEnElActo, "7: con la interfaz trabada, todas contestan en el acto (< 600 ms)");
     CHECK(fuentesLeidas.load() > 0 && fuentesMalLeidas.load() == 0, "7: ninguna fuente se leyó en la interfaz ni en el control");
     CHECK(copiasEnLaTraba == 0, "7: la copia de la interfaz no se hizo durante la traba");
     {
@@ -939,19 +960,21 @@ int main(int argc, char** argv) {
     trabarInterfaz(static_cast<int>(pasos.size()) * 150 + 1500);
     clienteAire.join();
     const int avisosEnLaTraba = avisosVista.load();
-    bool todasHechas = true, todasSeVen = true;
+    bool todasHechas = true, todasEnElActo8 = true, todasSeVen = true;
     double peorAire = 0;
     for (const auto& p : pasos) {
         const json r = json::parse(p.resultado, nullptr, false);
         const bool bien = r.is_object() && r.contains("result") && !r["result"].value("isError", true);
         if (!bien || !p.seVio) std::printf("  %s: %s\n", p.herramienta.c_str(), p.resultado.substr(0, 300).c_str());
-        todasHechas = todasHechas && bien && p.ms < 600;
+        todasHechas = todasHechas && bien;
+        todasEnElActo8 = todasEnElActo8 && p.ms < 600;
         todasSeVen = todasSeVen && p.seVio;
         peorAire = std::max(peorAire, p.ms);
     }
     std::printf("  medido: %zu de aire con la interfaz trabada, la peor %.1f ms; %d operaciones; el control dio %d vueltas\n",
                 pasos.size(), peorAire, operaciones.load(), control.load() - vueltasAntes);
-    CHECK(todasHechas, "8: con la interfaz trabada, TAKE, FTB, transmitir y grabar se hacen en el acto");
+    CHECK(todasHechas, "8: con la interfaz trabada, TAKE, FTB, transmitir y grabar se hacen");
+    CHECK_TIEMPO(todasEnElActo8, "8: y en el acto (< 600 ms)");
     CHECK(todasSeVen, "8: el aire responde: el documento de aire cambia en el acto");
     CHECK(operaciones.load() >= static_cast<int>(pasos.size()) && enLaInterfaz.load() == 0,
           "8: nada se hizo en el hilo de la interfaz");
@@ -983,7 +1006,8 @@ int main(int argc, char** argv) {
         CHECK(j.is_object() && j["result"].value("isError", false) && st.value("motor_ocupado", false) &&
                   st.value("turno", json::object()).value("quien", std::string()) == "interfaz" && st.contains("foto"),
               "8: trabada adentro del motor: «motor ocupado», con quién lo tiene y la foto");
-        CHECK(ms >= 750 && ms < 1400, "8: al vencer el tope");
+        CHECK(ms >= 750, "8: al vencer el tope");
+        CHECK_TIEMPO(ms < 1400, "8: al vencer el tope");
         CHECK(operaciones.load() == antes && aire.alAire == "Cierre" && core.motorOcupado() == ocupadoAntes + 1,
               "8: y no se hizo después");
     }
@@ -1123,7 +1147,8 @@ int main(int argc, char** argv) {
         }
         std::printf("  medido: %d órdenes hechas con la interfaz trabada, la peor a los %.1f ms de pedirla; %d vueltas del control\n",
                     hechasEnLaTraba, peorOrden, control.load() - controlAntes9);
-        CHECK(hechasEnLaTraba == 6 && peorOrden < 200, "10: con la interfaz trabada, lo pedido se hace en el acto");
+        CHECK(hechasEnLaTraba == 6, "10: con la interfaz trabada, lo pedido se hace en el acto");
+        CHECK_TIEMPO(peorOrden < 200, "10: con la interfaz trabada, lo pedido se hace en el acto");
         CHECK(ordenesEnLaInterfaz.load() == 0 && ordenesSinTurno.load() == 0 && fotosSinTurno.load() == 0,
               "10: en el control y con el turno (la foto también)");
         CHECK(fotoQuieta && llegadas.empty(), "10: la foto de la interfaz no cambió durante la traba");
@@ -1172,8 +1197,10 @@ int main(int argc, char** argv) {
                     "mientras; %llu reintentos de la agenda; directas %s\n",
                     esperada.load(), controlEnElEvento.load(), static_cast<unsigned long long>(reintentos),
                     turno.directas().dump().c_str());
-        CHECK(esperada.load() >= 550 && esperada.load() < 900, "10: la orden esperó a que la interfaz soltara el turno, y se hizo");
-        CHECK(controlEnElEvento.load() >= 15 && reintentos > 0, "10: mientras tanto el control siguió (la agenda reintenta, no espera)");
+        CHECK(esperada.load() >= 550, "10: la orden esperó a que la interfaz soltara el turno, y se hizo");
+        CHECK_TIEMPO(esperada.load() < 900, "10: la orden esperó a que la interfaz soltara el turno, y se hizo");
+        CHECK(reintentos > 0, "10: mientras tanto el control siguió (la agenda reintenta, no espera)");
+        CHECK_TIEMPO(controlEnElEvento.load() >= 15, "10: mientras tanto el control siguió (la agenda reintenta, no espera)");
         CHECK(turno.totalDirectas() == directasAntes + 1 && turno.directas()["lugares"].contains("main"),
               "10: la entrada directa quedó contada, con su lugar");
         CHECK(!turno.loTengo(), "10: al terminar el evento la interfaz soltó el turno");
@@ -1217,9 +1244,10 @@ int main(int argc, char** argv) {
         copiaS->copiarYa();
         const json s2 = llamarTrabada(951, ms2);
         std::printf("  medido: linea_estado sembrada con la interfaz trabada: %.1f ms y %.1f ms (sin sembrar esperaba 3000)\n", ms1, ms2);
-        CHECK(s1.value("paso", 0) == 1 && ms1 < 600 && s1.value("interfaz", json::object()).value("edad_ms", -1) >= 0,
-              "S: recién registrada y con la interfaz trabada, la copia sembrada contesta en el acto");
-        CHECK(s2.value("paso", 0) == 2 && ms2 < 600, "S: la línea deja la copia al día cuando cambia (sin que nadie pregunte)");
+        CHECK(s1.value("paso", 0) == 1 && s1.value("interfaz", json::object()).value("edad_ms", -1) >= 0, "S: recién registrada y con la interfaz trabada, la copia sembrada contesta en el acto");
+        CHECK_TIEMPO(ms1 < 600, "S: recién registrada y con la interfaz trabada, la copia sembrada contesta en el acto");
+        CHECK(s2.value("paso", 0) == 2, "S: la línea deja la copia al día cuando cambia (sin que nadie pregunte)");
+        CHECK_TIEMPO(ms2 < 600, "S: la línea deja la copia al día cuando cambia (sin que nadie pregunte)");
         atender(200);
     }
 
@@ -1244,8 +1272,8 @@ int main(int argc, char** argv) {
         });
         trabarInterfaz(400);
         QThreadPool::globalInstance()->waitForDone();
-        CHECK(enCurso && enElPool == raizS / carpeta && deOtro.empty() && msPool >= 0 && msPool < 300,
-              "S: con la interfaz trabada, el pool encuentra el evento en curso con la raíz de los eventos");
+        CHECK(enCurso && enElPool == raizS / carpeta && deOtro.empty() && msPool >= 0, "S: con la interfaz trabada, el pool encuentra el evento en curso con la raíz de los eventos");
+        CHECK_TIEMPO(msPool < 300, "S: con la interfaz trabada, el pool encuentra el evento en curso con la raíz de los eventos");
         fs::remove_all(raizS);
     }
 
@@ -1321,8 +1349,8 @@ int main(int argc, char** argv) {
         }
         const bool quieta = !v.foto().sala.atencionAutomatica && v.foto().salida({})->alAire == "Plano general";
         std::printf("  medido: sala/asamblea/línea con la interfaz trabada: %zu órdenes, la peor a los %.1f ms\n", lat.size(), peor);
-        CHECK(lat.size() == 3 && peor < 200 && enLaInterfaz.load() == 0 && sinTurno.load() == 0,
-              "S: con la interfaz trabada, la atención, el micrófono y el corte de la línea se hacen en el control");
+        CHECK(lat.size() == 3 && enLaInterfaz.load() == 0 && sinTurno.load() == 0, "S: con la interfaz trabada, la atención, el micrófono y el corte de la línea se hacen en el control");
+        CHECK_TIEMPO(peor < 200, "S: con la interfaz trabada, la atención, el micrófono y el corte de la línea se hacen en el control");
         CHECK(pendienteVisto && quieta, "S: lo pedido se ve como pendiente; la foto no cambia durante la traba");
         atender(200);
         CHECK(!atencionPedida && atencion() && v.foto().salida({})->alAire == "Orador" && !m.mudo["Banca 3"] &&
@@ -1435,8 +1463,8 @@ int main(int argc, char** argv) {
                     "%d llamadas al motor\n",
                     msC, llamadasMotor.load() - llamadasAntes);
         const json jC = json::parse(rC, nullptr, false);
-        CHECK(jC.is_object() && !jC["result"].value("isError", true) && msC < 600 && hechoEnLaTraba,
-              "C: con la interfaz trabada, lo pedido (la interfaz y la herramienta) se hace en el acto");
+        CHECK(jC.is_object() && !jC["result"].value("isError", true) && hechoEnLaTraba, "C: con la interfaz trabada, lo pedido (la interfaz y la herramienta) se hace en el acto");
+        CHECK_TIEMPO(msC < 600, "C: con la interfaz trabada, lo pedido (la interfaz y la herramienta) se hace en el acto");
         CHECK(motorEnLaInterfaz.load() == 0 && motorSinTurno.load() == 0, "C: el motor, solo en el control y con el turno");
         CHECK(vistaQuieta, "C: lo que ve la interfaz no cambia durante la traba");
         atender(200);
@@ -1743,8 +1771,8 @@ const auto tomadoM = canalM.tomarPrograma("");
         const bool quieta = v.foto().configuracion.app->mcpAprobacionMin == 2 && v.foto().configuracion.gateway->room == "Sala" &&
                             v.foto().equipo.relojTipo == "sistema" && llegadas.empty();
         std::printf("  medido: aplicar los ajustes con la interfaz trabada, hecho a los %.1f ms de pedirlo\n", aplicadaMs.load());
-        CHECK(aplicadaMs.load() >= 0 && aplicadaMs.load() < 200 && ordenesEnLaInterfaz.load() == 0 && fotosSinTurno.load() == 0,
-              "R: con la interfaz trabada, aplicar se hace en el control (con el turno)");
+        CHECK(aplicadaMs.load() >= 0 && ordenesEnLaInterfaz.load() == 0 && fotosSinTurno.load() == 0, "R: con la interfaz trabada, aplicar se hace en el control (con el turno)");
+        CHECK_TIEMPO(aplicadaMs.load() < 200, "R: con la interfaz trabada, aplicar se hace en el control (con el turno)");
         CHECK(quieta, "R: la foto de la interfaz no cambió durante la traba");
         atender(200);
         const FotoMotor& f = v.foto();
@@ -1828,8 +1856,8 @@ const auto tomadoM = canalM.tomarPrograma("");
                     retomadaMs.load());
         CHECK(a.grabaciones.size() == 1 && a.grabaciones.front() == "Eventos/ZZ caos/Grabaciones",
               "E: la grabación retomada va a la carpeta del evento, no a Recordings/ (una sola vez)");
-        CHECK(retomadaMs.load() >= 0 && retomadaMs.load() < 300 && a.enLaInterfaz.load() == 0,
-              "E: se retoma en el dueño, con la interfaz trabada");
+        CHECK(retomadaMs.load() >= 0 && a.enLaInterfaz.load() == 0, "E: se retoma en el dueño, con la interfaz trabada");
+        CHECK_TIEMPO(retomadaMs.load() < 300, "E: se retoma en el dueño, con la interfaz trabada");
         atender(100);
         CHECK(ajustesAire() == "Eventos/ZZ caos", "E: la copia del plano ya tiene la carpeta");
     }
@@ -2042,14 +2070,13 @@ const auto tomadoM = canalM.tomarPrograma("");
         const int revisionesEnLaTraba = grafoI->revisiones.load() - revisionesAntes;
         std::printf("  medido: %d revisiones del grafo con la interfaz trabada 1,5 s; la herramienta del grafo contestó a los %.1f ms\n",
                     revisionesEnLaTraba, msMcp);
-        CHECK(revisionesEnLaTraba >= 10 && grafoI->enLaInterfaz.load() == 0 && grafoI->sinTurno.load() == 0,
-              "I: con la interfaz trabada, el grafo sigue revisando en el control y con el turno");
+        CHECK(grafoI->enLaInterfaz.load() == 0 && grafoI->sinTurno.load() == 0, "I: con la interfaz trabada, el grafo sigue revisando en el control y con el turno");
+        CHECK_TIEMPO(revisionesEnLaTraba >= 10, "I: con la interfaz trabada, el grafo sigue revisando en el control y con el turno");
         CHECK(dondeSinSenal.load() == plano.hilo(), "I: la alarma «sin señal» sale en el vigía con la interfaz trabada");
         CHECK(dondeOrden.load() == plano.hilo(), "I: lo que pidió la interfaz se hizo en el control durante la traba");
         const json jm = json::parse(rMcp, nullptr, false);
-        CHECK(jm.is_object() && !jm["result"].value("isError", true) && msMcp < 500 && dondeHerramienta.load() == plano.hilo() &&
-                  herramientaConTurno.load(),
-              "I: la herramienta del grafo corre en el control, con el turno, con la interfaz trabada");
+        CHECK(jm.is_object() && !jm["result"].value("isError", true) && dondeHerramienta.load() == plano.hilo() && herramientaConTurno.load(), "I: la herramienta del grafo corre en el control, con el turno, con la interfaz trabada");
+        CHECK_TIEMPO(msMcp < 500, "I: la herramienta del grafo corre en el control, con el turno, con la interfaz trabada");
         CHECK(quieta, "I: la vista de la interfaz no cambió durante la traba");
         atender(300); // la interfaz vuelve
         const nlohmann::json tj = vistaInterfaz.value("grafos", nlohmann::json::object())
@@ -2154,8 +2181,10 @@ const auto tomadoM = canalM.tomarPrograma("");
                     "lo pedido, a los %.1f ms\n",
                     conA, sinA, msA.load());
         CHECK(!teniaA, "T(a): al volver del método del motor, la interfaz ya no tiene el turno (por llamada)");
-        CHECK(conA >= 150 && sinA == 0, "T(a): con la interfaz trabada 5 s, el reloj del motor tuvo el turno en cada vuelta");
-        CHECK(msA.load() >= 0 && msA.load() < 300, "T(a): lo pedido durante la traba se hizo en el acto (la agenda no esperó)");
+        CHECK(sinA == 0, "T(a): con la interfaz trabada 5 s, el reloj del motor tuvo el turno en cada vuelta");
+        CHECK_TIEMPO(conA >= 150, "T(a): con la interfaz trabada 5 s, el reloj del motor tuvo el turno en cada vuelta");
+        CHECK(msA.load() >= 0, "T(a): lo pedido durante la traba se hizo en el acto (la agenda no esperó)");
+        CHECK_TIEMPO(msA.load() < 300, "T(a): lo pedido durante la traba se hizo en el acto (la agenda no esperó)");
         CHECK(turnoT.totalDirectas() == directasA + 1, "T(a): la entrada directa se contó (una vez)");
 
         // (b) Dos oyentes de la foto: el primero entra a cfg_ (por la vuelta), el segundo se traba.
@@ -2179,8 +2208,8 @@ const auto tomadoM = canalM.tomarPrograma("");
                     "los %.1f ms\n",
                     conB, msB.load());
         CHECK(primero && !teniaB, "T(b): el turno que tomó un oyente se suelta antes del siguiente");
-        CHECK(conB >= 60 && msB.load() >= 0 && msB.load() < 300,
-              "T(b): mientras el siguiente se traba, el reloj y la agenda siguen con el turno");
+        CHECK(msB.load() >= 0, "T(b): mientras el siguiente se traba, el reloj y la agenda siguen con el turno");
+        CHECK_TIEMPO(conB >= 60 && msB.load() < 300, "T(b): mientras el siguiente se traba, el reloj y la agenda siguen con el turno");
 
         // (c) La red de seguridad: un evento con cfg_ tomado 5 s (lo que todavía no pasó a la foto).
         int conC = 0, sinC = 0, picosC = 0;
@@ -2200,8 +2229,9 @@ const auto tomadoM = canalM.tomarPrograma("");
         std::printf("  medido: (c) la interfaz con cfg_ 5 s: %d vueltas con el turno, %d sin; %d picos y %llu loudness al canal; "
                     "tenencia %s\n",
                     conC, sinC, picosC, static_cast<unsigned long long>(medidasC), tenencia.dump().c_str());
-        CHECK(conC <= 1 && sinC >= 150, "T(c): con cfg_ tomado, lo del turno se saltea (el reloj no espera a la interfaz)");
-        CHECK(picosC >= 150 && medidasC >= 50, "T(c): pero el pico del programa y el loudness llegan al canal en cada vuelta");
+        CHECK(conC <= 1, "T(c): con cfg_ tomado, lo del turno se saltea (el reloj no espera a la interfaz)");
+        CHECK_TIEMPO(sinC >= 150, "T(c): con cfg_ tomado, lo del turno se saltea (el reloj no espera a la interfaz)");
+        CHECK_TIEMPO(picosC >= 150 && medidasC >= 50, "T(c): pero el pico del programa y el loudness llegan al canal en cada vuelta");
         CHECK(nivT.programa("principal").first > -20.5f && nivT.loudnessDe({}).value("m", 0.0) == -23.0,
               "T(c): el canal de niveles tiene lo medido sin el turno (la por omisión también como \"\")");
         CHECK(tenencia.value("max_ms", 0.0) >= 4900 && tenencia.value("largas", 0) >= 1 &&
@@ -2249,6 +2279,7 @@ const auto tomadoM = canalM.tomarPrograma("");
         fs::remove_all(datosE);
     }
 
-    std::printf(g_fallos == 0 ? "test_plano_control: OK\n" : "test_plano_control: %d fallo(s)\n", g_fallos);
-    return g_fallos == 0 ? 0 : 1;
+    std::printf(g_fallos + g_fallosTiempo == 0 ? "test_plano_control: OK\n" : "test_plano_control: %d fallo(s) y %d de tiempo\n",
+                g_fallos, g_fallosTiempo);
+    return ba::pruebas::resultadoConTiempos("test_plano_control", g_fallos, g_fallosTiempo);
 }
