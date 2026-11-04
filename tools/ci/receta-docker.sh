@@ -24,6 +24,12 @@ resumen() {
     ccache -s 2>/dev/null | grep -iE "hits|misses|cache size" | sed "s/^/  ccache: /" || true
 }
 trap resumen EXIT
+# Sin volcados de memoria: bajo Wine sobre Rosetta, un test que se cae dejaba un «core» de
+# ~500 MB en su carpeta (build/win/src/gst-plugins), que es entrada de 24 tests: la caché los
+# veía cambiados y los volvía a correr en cada corrida (y releía el volcado entero). Los
+# viejos, fuera (un archivo «core» en el build no es otra cosa).
+ulimit -c 0
+find build -name core -type f -size +1M -delete 2>/dev/null || true
 etapa "checkout"
 
 J=$(nproc)
