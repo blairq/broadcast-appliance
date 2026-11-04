@@ -366,6 +366,40 @@ if(BA_APP_QT_OK)
     ba_biblioteca_completa(ba_app_evento evento)
     list(PREPEND BA_APP_BIBLIOTECAS ba_app_evento)
 
+    # La sala remota (lo que se ve y se maneja de los que se conectan por la web). Usa
+    # ui/ConferenceClient y lo de emision/ y arranque/ que sigue en ba-app, y evento/Padron:
+    # lo resuelve quien enlaza (deuda de test_niveles).
+    # mbedcrypto: core/crypto/Sha256.hpp (ClavesEvento, GuardadoEnEvento) incluye <mbedtls/sha256.h>.
+    # ba_motor: LugaresConGente le pasa los lugares al motor (motor::Motor::ponerLugares).
+    ba_biblioteca(ba_app_sala NIVEL 2
+        DEPENDE ba_app_base ba_app_comun ba_core ba_motor mbedcrypto Qt6::Core Qt6::Network
+        FUENTES sala/ArchivosPrueba.cpp sala/Atencion.cpp sala/CalidadPorCalor.cpp sala/CapacidadReglas.cpp
+                sala/CapasNecesarias.cpp sala/CapasRemotos.cpp sala/ClavesEvento.cpp sala/ConfigSala.cpp
+                sala/ControlSala.cpp sala/CorreccionSala.cpp sala/CupoSala.cpp sala/Direcciones.cpp
+                sala/EnlaceNecesita.cpp sala/EnlacesSala.cpp sala/GeneradorCarga.cpp sala/GuardadoEnEvento.cpp
+                sala/ListaPrompters.cpp sala/LugaresConGente.cpp sala/MedidaMaquina.cpp sala/OradoresSala.cpp
+                sala/OradoresSalaReglas.cpp sala/PaginaPublico.cpp sala/PantallasSala.cpp
+                sala/ParticipantesSala.cpp sala/Pedido.cpp sala/PreguntasSala.cpp sala/PruebaSalaReglas.cpp
+                sala/QuienMira.cpp sala/ReglasSala.cpp sala/ResumenSala.cpp sala/SalidasSala.cpp
+                sala/SeguridadSala.cpp sala/Teleprompter.cpp sala/VotacionSala.cpp)
+    ba_biblioteca_completa(ba_app_sala sala)
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_sala)
+
+    # La asamblea: el cuerpo, las bancas, el orden del día, el debate, las votaciones, el
+    # quórum y la sesión remota. Usa sala/ (Pedido, OradoresSala), control/BusEventos y lo de
+    # ui/ que sigue en ba-app: lo resuelve quien enlaza, con ba_app_sala DESPUÉS de esta.
+    ba_biblioteca(ba_app_asamblea NIVEL 2
+        DEPENDE ba_app_base ba_app_comun ba_core Qt6::Core Qt6::Gui Qt6::Network
+        FUENTES asamblea/Bancas.cpp asamblea/ConferenciaDcn.cpp asamblea/Cuerpo.cpp asamblea/CuerpoViewModel.cpp
+                asamblea/Debate.cpp asamblea/InformesResultado.cpp asamblea/OrdenDelDia.cpp
+                asamblea/Presidencia.cpp asamblea/PruebaAsambleaReglas.cpp asamblea/Quorum.cpp
+                asamblea/RecintoModel.cpp asamblea/SeguirMicrofono.cpp asamblea/SesionRemota.cpp
+                asamblea/Votaciones.cpp asamblea/VotacionUnificada.cpp)
+    # El QR de los links personales (SesionRemota): qrcodegen.cpp lo compila quien enlaza.
+    target_include_directories(ba_app_asamblea PRIVATE "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
+    ba_biblioteca_completa(ba_app_asamblea asamblea)
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_asamblea)
+
     ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
 endif()
 
@@ -627,9 +661,9 @@ endif()
     set_target_properties(test_filtro_catalogo PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_filtro_catalogo COMMAND test_filtro_catalogo)
     # El recinto: una fila por banca con lo de sus cinco fuentes ya cruzado.
-    add_executable(test_recinto_model tests/test_recinto_model.cpp asamblea/RecintoModel.cpp)
+    add_executable(test_recinto_model tests/test_recinto_model.cpp)
     target_include_directories(test_recinto_model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_recinto_model PRIVATE ba_app_base Qt6::Core)
+    target_link_libraries(test_recinto_model PRIVATE ba_app_asamblea ba_app_base Qt6::Core)
     set_target_properties(test_recinto_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_recinto_model COMMAND test_recinto_model)
     # Los formularios por esquema: el tipo de cada campo y sus errores (ui/Formulario).
@@ -829,12 +863,12 @@ endif()
 
     # La voz: Escucha con modelos de verdad (si estan; si no, se saltea).
     if(BA_HAVE_VOZ)
-        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
+        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp agent/Vocabulario.cpp)
         target_include_directories(test_escucha PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            target_link_libraries(test_escucha PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
+            target_link_libraries(test_escucha PRIVATE ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
         else()
-            target_link_libraries(test_escucha PRIVATE ${BA_SHERPA_LIBS} ba_core)
+            target_link_libraries(test_escucha PRIVATE ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
         endif()
         add_test(NAME test_escucha COMMAND test_escucha)
         add_executable(test_habla tests/test_habla.cpp audio/Habla.cpp)
@@ -850,12 +884,12 @@ endif()
         set_tests_properties(test_escucha PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
         # Nemotron streaming con el modelo de verdad (BA_NEMOTRON_MODELO; si no, se saltea).
         add_executable(test_nemotron tests/test_nemotron.cpp audio/EscuchaNemotron.cpp audio/EscuchaStreaming.cpp
-                       agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
+                       agent/Vocabulario.cpp)
         target_include_directories(test_nemotron PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            target_link_libraries(test_nemotron PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
+            target_link_libraries(test_nemotron PRIVATE ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
         else()
-            target_link_libraries(test_nemotron PRIVATE ${BA_SHERPA_LIBS} ba_core)
+            target_link_libraries(test_nemotron PRIVATE ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
         endif()
         add_test(NAME test_nemotron COMMAND test_nemotron)
         set_tests_properties(test_nemotron PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
@@ -863,9 +897,9 @@ endif()
     # Los dos reconocedores (agent/Reconocedores) y el motor streaming con un modelo falso:
     # el lote, los márgenes del VAD, la carga por usos y la alerta. Sin sherpa-onnx.
     add_executable(test_reconocedores tests/test_reconocedores.cpp audio/EscuchaStreaming.cpp agent/Reconocedores.cpp
-                   agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
+                   agent/Vocabulario.cpp)
     target_include_directories(test_reconocedores PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_reconocedores PRIVATE ba_core)
+    target_link_libraries(test_reconocedores PRIVATE ba_app_asamblea ba_core)
     add_test(NAME test_reconocedores COMMAND test_reconocedores)
 
     # Modelos locales: leer la API de Hugging Face y verificar lo bajado (sin red).
@@ -1169,28 +1203,29 @@ endif()
     add_test(NAME test_padron COMMAND test_padron)
 
     # La atención a quien se conecta: quién atiende, hablando de a uno, cuándo termina, el nombre que cuenta.
-    add_executable(test_atencion tests/test_atencion.cpp sala/Atencion.cpp)
+    add_executable(test_atencion tests/test_atencion.cpp)
     target_include_directories(test_atencion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_atencion PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_atencion PRIVATE ba_app_sala nlohmann_json::nlohmann_json)
     add_test(NAME test_atencion COMMAND test_atencion)
 
     # Menos resolución a los invitados con la máquina caliente (F4-05), con una sala falsa.
-    add_executable(test_calidad_calor tests/test_calidad_calor.cpp sala/CalidadPorCalor.cpp)
+    add_executable(test_calidad_calor tests/test_calidad_calor.cpp)
     target_include_directories(test_calidad_calor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_calidad_calor PRIVATE ba_app_sala)
     add_test(NAME test_calidad_calor COMMAND test_calidad_calor)
 
     # Quién mira el programa de cada salida: el retorno se le pide al motor solo al cambiar,
     # con la gracia vencida por un reloj de una vez (sin sondeo).
-    add_executable(test_quien_mira tests/test_quien_mira.cpp sala/QuienMira.cpp sala/QuienMira.hpp)
+    add_executable(test_quien_mira tests/test_quien_mira.cpp)
     target_include_directories(test_quien_mira PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_quien_mira PRIVATE Qt6::Core)
+    target_link_libraries(test_quien_mira PRIVATE ba_app_sala Qt6::Core)
     set_target_properties(test_quien_mira PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_quien_mira COMMAND test_quien_mira)
 
     # Qué cámaras de remotos están al aire o armadas (la capa alta), de una foto del motor falsa.
-    add_executable(test_capas_remotos tests/test_capas_remotos.cpp sala/CapasNecesarias.cpp)
+    add_executable(test_capas_remotos tests/test_capas_remotos.cpp)
     target_include_directories(test_capas_remotos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_capas_remotos PRIVATE nlohmann_json::nlohmann_json Qt6::Core)
+    target_link_libraries(test_capas_remotos PRIVATE ba_app_sala nlohmann_json::nlohmann_json Qt6::Core)
     add_test(NAME test_capas_remotos COMMAND test_capas_remotos)
 
     # El registro por tótem: la configuración (registro.json) y el guion hablado con sus normalizadores.
@@ -1249,9 +1284,9 @@ endif()
     add_test(NAME test_documento_dorso COMMAND test_documento_dorso)
 
     # Las reglas de la sala sin red: errores de la API, la prueba técnica y el proxy.
-    add_executable(test_reglas_sala tests/test_reglas_sala.cpp sala/ReglasSala.cpp)
+    add_executable(test_reglas_sala tests/test_reglas_sala.cpp)
     target_include_directories(test_reglas_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_reglas_sala PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_reglas_sala PRIVATE ba_app_sala nlohmann_json::nlohmann_json)
     add_test(NAME test_reglas_sala COMMAND test_reglas_sala)
 
     # La grilla de personas: reparto, lugares estables y disposición (C++ puro, sin video).
@@ -1440,9 +1475,9 @@ endif()
     set_target_properties(test_account_guides PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_account_guides COMMAND test_account_guides)
     # Disparadores (alertas) con entradas y reloj falsos.
-    add_executable(test_cuerpo tests/test_cuerpo.cpp asamblea/Cuerpo.cpp)
+    add_executable(test_cuerpo tests/test_cuerpo.cpp)
     target_include_directories(test_cuerpo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_cuerpo PRIVATE ba_core)
+    target_link_libraries(test_cuerpo PRIVATE ba_app_asamblea ba_core)
     add_test(NAME test_cuerpo COMMAND test_cuerpo)
     # Bus de eventos y botonera (superficie de control) con ganchos falsos.
     add_executable(test_botonera tests/test_botonera.cpp control/Botonera.cpp control/Botonera.hpp
@@ -1466,43 +1501,41 @@ endif()
     add_test(NAME test_reloj_niveles COMMAND test_reloj_niveles)
     # Los oradores: la regla del reloj, el texto, la lectura de tiempos y la fila (lo que
     # comparten la interfaz y el MCP; sala::OradoresSala, sin sala).
-    add_executable(test_oradores_sala tests/test_oradores_sala.cpp sala/OradoresSalaReglas.cpp sala/OradoresSala.hpp)
+    add_executable(test_oradores_sala tests/test_oradores_sala.cpp)
     target_include_directories(test_oradores_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_oradores_sala PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_oradores_sala PRIVATE ba_app_sala ba_core Qt6::Core)
     set_target_properties(test_oradores_sala PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_oradores_sala COMMAND test_oradores_sala)
     # La prueba de sala: la guardia, quién es de prueba (fuera de lo que cuenta) y el informe.
-    add_executable(test_prueba_sala_reglas tests/test_prueba_sala_reglas.cpp sala/PruebaSalaReglas.cpp)
+    add_executable(test_prueba_sala_reglas tests/test_prueba_sala_reglas.cpp)
     target_include_directories(test_prueba_sala_reglas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_prueba_sala_reglas PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_prueba_sala_reglas PRIVATE ba_app_sala ba_core Qt6::Core)
     set_target_properties(test_prueba_sala_reglas PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_prueba_sala_reglas COMMAND test_prueba_sala_reglas)
     # El disco de las pruebas de sala y de asamblea (en el pool) y cortar el probador sin esperarlo.
-    add_executable(test_archivos_prueba tests/test_archivos_prueba.cpp sala/ArchivosPrueba.cpp)
+    add_executable(test_archivos_prueba tests/test_archivos_prueba.cpp)
     target_include_directories(test_archivos_prueba PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_archivos_prueba PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_archivos_prueba PRIVATE ba_app_sala ba_core Qt6::Core)
     set_target_properties(test_archivos_prueba PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_archivos_prueba COMMAND test_archivos_prueba)
     # El enlace: cuánto necesita el evento (contra las mediciones de la prueba de sala) y el
     # veredicto con lo medido por el túnel (sala::enlace, sin la sala).
-    add_executable(test_enlace_necesita tests/test_enlace_necesita.cpp sala/EnlaceNecesita.cpp)
+    add_executable(test_enlace_necesita tests/test_enlace_necesita.cpp)
     target_include_directories(test_enlace_necesita PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_enlace_necesita PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_enlace_necesita PRIVATE ba_app_sala ba_core Qt6::Core)
     set_target_properties(test_enlace_necesita PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_enlace_necesita COMMAND test_enlace_necesita)
     # La capacidad (docs/funciones/CAPACIDAD.md): los escalones, el juicio con datos
     # sintéticos, la guardia, el resultado y el código del que recibe (sala::capacidad).
-    add_executable(test_capacidad_reglas tests/test_capacidad_reglas.cpp sala/CapacidadReglas.cpp sala/EnlaceNecesita.cpp)
+    add_executable(test_capacidad_reglas tests/test_capacidad_reglas.cpp)
     target_include_directories(test_capacidad_reglas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_capacidad_reglas PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_capacidad_reglas PRIVATE ba_app_sala ba_core Qt6::Core)
     set_target_properties(test_capacidad_reglas PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_capacidad_reglas COMMAND test_capacidad_reglas)
     # El modelo de la pestaña Capacidad con una sala, un generador y una red de mentira.
-    add_executable(test_capacidad_vm tests/test_capacidad_vm.cpp ui/CapacidadViewModel.cpp ui/CapacidadViewModel.hpp
-                   sala/CapacidadReglas.cpp sala/EnlaceNecesita.cpp sala/PruebaSalaReglas.cpp sala/GeneradorCarga.cpp
-                   sala/GeneradorCarga.hpp)
+    add_executable(test_capacidad_vm tests/test_capacidad_vm.cpp ui/CapacidadViewModel.cpp ui/CapacidadViewModel.hpp)
     target_include_directories(test_capacidad_vm PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_capacidad_vm PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_capacidad_vm PRIVATE ba_app_sala ba_core Qt6::Core)
     set_target_properties(test_capacidad_vm PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_capacidad_vm COMMAND test_capacidad_vm)
     # El Reloj de las vistas (corre solo con lectores) y las fotos de los conectados.
@@ -1554,49 +1587,45 @@ endif()
     target_link_libraries(test_replica PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::QmlPrivate)
     set_target_properties(test_replica PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_replica COMMAND test_replica)
-    add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp asamblea/SeguirMicrofono.cpp
-                   asamblea/SeguirMicrofono.hpp asamblea/Bancas.cpp asamblea/Bancas.hpp asamblea/Cuerpo.cpp
-                   control/BusEventos.cpp control/BusEventos.hpp sala/OradoresSalaReglas.cpp)
+    add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp
+                   control/BusEventos.cpp control/BusEventos.hpp)
     target_include_directories(test_seguir_microfono PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_seguir_microfono PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_seguir_microfono PRIVATE ba_app_asamblea ba_app_sala ba_core Qt6::Core)
     set_target_properties(test_seguir_microfono PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_seguir_microfono COMMAND test_seguir_microfono)
-    add_executable(test_sesion_remota tests/test_sesion_remota.cpp asamblea/SesionRemota.cpp asamblea/SesionRemota.hpp
-                   asamblea/Cuerpo.cpp asamblea/VotacionUnificada.cpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp
+    add_executable(test_sesion_remota tests/test_sesion_remota.cpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp
                    "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
     target_include_directories(test_sesion_remota PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
-    target_link_libraries(test_sesion_remota PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_sesion_remota PRIVATE ba_app_asamblea ba_core Qt6::Core)
     set_target_properties(test_sesion_remota PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_sesion_remota COMMAND test_sesion_remota)
     # La prueba de asamblea: no toca un padrón real, los de prueba marcados, su acceso al
     # gateway, el archivo del probador y la limpieza (asamblea/PruebaAsambleaReglas).
-    add_executable(test_prueba_asamblea_reglas tests/test_prueba_asamblea_reglas.cpp asamblea/PruebaAsambleaReglas.cpp
-                   asamblea/SesionRemota.cpp asamblea/SesionRemota.hpp asamblea/Cuerpo.cpp asamblea/VotacionUnificada.cpp
+    add_executable(test_prueba_asamblea_reglas tests/test_prueba_asamblea_reglas.cpp
                    ui/FotosPersonas.cpp ui/FotosPersonas.hpp "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
     target_include_directories(test_prueba_asamblea_reglas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
-    target_link_libraries(test_prueba_asamblea_reglas PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_prueba_asamblea_reglas PRIVATE ba_app_asamblea ba_core Qt6::Core)
     set_target_properties(test_prueba_asamblea_reglas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_prueba_asamblea_reglas COMMAND test_prueba_asamblea_reglas)
-    add_executable(test_debate tests/test_debate.cpp asamblea/Debate.cpp asamblea/Debate.hpp asamblea/Cuerpo.cpp)
+    add_executable(test_debate tests/test_debate.cpp)
     target_include_directories(test_debate PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_debate PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_debate PRIVATE ba_app_asamblea ba_core Qt6::Core)
     set_target_properties(test_debate PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_debate COMMAND test_debate)
-    add_executable(test_orden_del_dia tests/test_orden_del_dia.cpp asamblea/OrdenDelDia.cpp asamblea/OrdenDelDia.hpp
+    add_executable(test_orden_del_dia tests/test_orden_del_dia.cpp
                    control/BusEventos.cpp control/BusEventos.hpp)
     target_include_directories(test_orden_del_dia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_orden_del_dia PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_orden_del_dia PRIVATE ba_app_asamblea ba_core Qt6::Core)
     set_target_properties(test_orden_del_dia PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_orden_del_dia COMMAND test_orden_del_dia)
-    add_executable(test_informes_resultado tests/test_informes_resultado.cpp asamblea/InformesResultado.cpp
-                   asamblea/InformesResultado.hpp)
+    add_executable(test_informes_resultado tests/test_informes_resultado.cpp)
     target_include_directories(test_informes_resultado PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_informes_resultado PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_informes_resultado PRIVATE ba_app_asamblea ba_core Qt6::Core)
     set_target_properties(test_informes_resultado PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_informes_resultado COMMAND test_informes_resultado)
-    add_executable(test_quorum tests/test_quorum.cpp asamblea/Quorum.cpp asamblea/Quorum.hpp)
+    add_executable(test_quorum tests/test_quorum.cpp)
     target_include_directories(test_quorum PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_quorum PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_quorum PRIVATE ba_app_asamblea ba_core Qt6::Core)
     set_target_properties(test_quorum PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_quorum COMMAND test_quorum)
     add_executable(test_correccion tests/test_correccion.cpp agent/FlujosTexto.cpp agent/FlujosTexto.hpp emision/FuentesApp.cpp)
@@ -1616,44 +1645,44 @@ endif()
     target_link_libraries(test_notificador PRIVATE ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_notificador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_notificador COMMAND test_notificador)
-    # Lo que arrastra ConferenceClient: la foto de la sala se resume en su lector (sala/ResumenSala).
-    set(BA_SALA_RESUMEN sala/ResumenSala.cpp sala/ResumenSala.hpp sala/OradoresSalaReglas.cpp)
+    # Lo que arrastra ConferenceClient: la foto de la sala se resume en su lector (sala/ResumenSala,
+    # en ba_app_sala).
     # La foto de la sala fuera de la interfaz: el resumen y los cambios por fila en el hilo del
     # lector, la última gana (200 invitados a 10 Hz con la interfaz lenta), y la interfaz
     # aplicando solo lo que cambió.
-    add_executable(test_resumen_sala tests/test_resumen_sala.cpp ${BA_SALA_RESUMEN} ui/ConferenceClient.cpp
+    add_executable(test_resumen_sala tests/test_resumen_sala.cpp ui/ConferenceClient.cpp
                    ui/ConferenceClient.hpp)
     target_include_directories(test_resumen_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_resumen_sala PRIVATE ba_app_base ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_resumen_sala PRIVATE ba_app_sala ba_app_base ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_resumen_sala PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_resumen_sala COMMAND test_resumen_sala)
     set_tests_properties(test_resumen_sala PROPERTIES TIMEOUT 60)
     # F1-13: la alarma «interfaz trabada con aire» sale del hilo del latido, sin la interfaz.
     add_executable(test_latido_aire tests/test_latido_aire.cpp emision/LatidoAire.cpp emision/AvisoFueraDeUi.cpp
-                   agent/Notificador.cpp agent/Notificador.hpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp ${BA_SALA_RESUMEN})
+                   agent/Notificador.cpp agent/Notificador.hpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
     target_include_directories(test_latido_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_latido_aire PRIVATE ba_app_base ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_latido_aire PRIVATE ba_app_sala ba_app_base ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_latido_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_latido_aire COMMAND test_latido_aire)
     set_tests_properties(test_latido_aire PROPERTIES TIMEOUT 60)
     # A le vuelve a decir a B lo de estado cuando B no lo sabe (G-7): con una B de mentira.
-    add_executable(test_republicadores tests/test_republicadores.cpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp ${BA_SALA_RESUMEN})
+    add_executable(test_republicadores tests/test_republicadores.cpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
     target_include_directories(test_republicadores PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_republicadores PRIVATE ba_app_base ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_republicadores PRIVATE ba_app_sala ba_app_base ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_republicadores PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_republicadores COMMAND test_republicadores)
     set_tests_properties(test_republicadores PROPERTIES TIMEOUT 60)
     # Los errores de la página del público (publico_pagina): la imagen o la sala, cada uno dicho.
-    add_executable(test_pagina_publico tests/test_pagina_publico.cpp sala/PaginaPublico.cpp sala/Pedido.cpp
-                   ui/ConferenceClient.cpp ui/ConferenceClient.hpp ${BA_SALA_RESUMEN})
+    add_executable(test_pagina_publico tests/test_pagina_publico.cpp
+                   ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
     target_include_directories(test_pagina_publico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pagina_publico PRIVATE ba_app_base ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_pagina_publico PRIVATE ba_app_sala ba_app_base ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_pagina_publico PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pagina_publico COMMAND test_pagina_publico)
     set_tests_properties(test_pagina_publico PROPERTIES TIMEOUT 60)
-    add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp asamblea/Cuerpo.cpp)
+    add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp)
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_vocabulario PRIVATE ba_core)
+    target_link_libraries(test_vocabulario PRIVATE ba_app_asamblea ba_core)
     add_test(NAME test_vocabulario COMMAND test_vocabulario)
     # La configuración chica que se guarda en Config/ (modo en vivo, escenas, rótulo, interfaz).
     add_executable(test_config_persistida tests/test_config_persistida.cpp
@@ -1756,9 +1785,9 @@ endif()
     target_compile_definitions(test_manuales PRIVATE BA_TEST_IDIOMAS="${CMAKE_SOURCE_DIR}/assets/idiomas")
     set_target_properties(test_manuales PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_manuales COMMAND test_manuales)
-    add_executable(test_lista_prompters tests/test_lista_prompters.cpp sala/ListaPrompters.cpp sala/ListaPrompters.hpp)
+    add_executable(test_lista_prompters tests/test_lista_prompters.cpp)
     target_include_directories(test_lista_prompters PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_lista_prompters PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_lista_prompters PRIVATE ba_app_sala ba_core Qt6::Core)
     set_target_properties(test_lista_prompters PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_lista_prompters COMMAND test_lista_prompters)
     add_executable(test_discursos tests/test_discursos.cpp ui/Discursos.cpp medios/Medios.cpp)

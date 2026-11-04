@@ -30,6 +30,12 @@
 #
 # AUTOMOC propio: los moc de sus headers se compilan una vez, en la biblioteca
 # (antes, en ba-app y otra vez en cada test con AUTOMOC que listaba la fuente).
+# Cada X.cpp cuyo X.hpp declara Q_OBJECT/Q_GADGET/Q_NAMESPACE termina con
+# `#include "moc_X.cpp"`: así el moc va en el objeto de X y no en el
+# mocs_compilation.cpp de la biblioteca, que junta TODOS sus moc en un objeto. Con
+# ese objeto único, un test que usa una sola clase (sala/QuienMira) se llevaba el
+# moc de todas y, con él, todo lo que usan (ConferenceClient, el motor…). Lo
+# revisa la configuración (abajo).
 # ============================================================================
 
 function(ba_biblioteca nombre)
@@ -49,10 +55,30 @@ function(ba_biblioteca nombre)
     # Las fuentes de la biblioteca, absolutas: ba_biblioteca_fuentes() las saca de las
     # listas de quien antes las compilaba (ba-app).
     set(_abs "")
+    set(_sin_moc "")
     foreach(_f IN LISTS _bb_FUENTES)
         get_filename_component(_f "${_f}" ABSOLUTE)
         list(APPEND _abs "${_f}")
+        # El moc de su header, dentro del .cpp (ver arriba).
+        if(_f MATCHES "\\.cpp$")
+            string(REGEX REPLACE "\\.cpp$" ".hpp" _h "${_f}")
+            if(EXISTS "${_h}")
+                file(STRINGS "${_h}" _qobj REGEX "^[ \t]*(Q_OBJECT|Q_GADGET|Q_NAMESPACE)([ \t]|$)")
+                if(_qobj)
+                    get_filename_component(_base "${_f}" NAME_WE)
+                    file(STRINGS "${_f}" _inc REGEX "^#include \"moc_${_base}\\.cpp\"")
+                    if(NOT _inc)
+                        list(APPEND _sin_moc "${_f}")
+                    endif()
+                endif()
+            endif()
+        endif()
     endforeach()
+    if(_sin_moc)
+        list(JOIN _sin_moc "\n  " _lista)
+        message(FATAL_ERROR "biblioteca ${nombre}: a estas fuentes les falta, al final, el "
+                            "#include \"moc_<nombre>.cpp\" de su header con Q_OBJECT (cmake/BaBiblioteca.cmake):\n  ${_lista}")
+    endif()
     set_property(GLOBAL APPEND PROPERTY BA_BIBLIOTECAS ${nombre})
     set_property(GLOBAL PROPERTY BA_BIBLIOTECA_${nombre}_FUENTES ${_abs})
 endfunction()
