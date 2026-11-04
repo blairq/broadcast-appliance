@@ -42,6 +42,11 @@ set(BA_TESTS_TIEMPO_REAL
     test_motor_retornos test_motor_salidas test_baanillo test_superres_vivo
     test_lazo_invitados test_lazo_latencia test_webrtc_loopback test_retorno_ritmo)
 
+# Los de tiempo real que además codifican y decodifican de verdad (VP8/H.264/Opus en varios hilos:
+# test_webrtc_loopback, ~0,7 núcleos de promedio con picos): PROCESSORS 2, que ctest -j les deje
+# lugar. Con la suite entera en paralelo y sin esto, una de cuatro corridas salió SKIP por carga.
+set(BA_TESTS_DOS_NUCLEOS test_webrtc_loopback)
+
 # ba_test_entradas(<test> <ruta>...): archivos o carpetas que el test lee y que
 # la caché no puede adivinar. Rutas relativas: a la carpeta de fuentes actual.
 # Se aceptan expresiones de generador ($<TARGET_FILE:ba-grafico>).
@@ -184,6 +189,9 @@ function(ba_tests_registrar)
                 if(NOT CMAKE_VERSION VERSION_LESS 3.28)
                     set_property(TEST "${_t}" DIRECTORY "${_d}" APPEND PROPERTY LABELS tiempo_real)
                 endif()
+            endif()
+            if(_t IN_LIST BA_TESTS_DOS_NUCLEOS AND NOT CMAKE_VERSION VERSION_LESS 3.28)
+                set_property(TEST "${_t}" DIRECTORY "${_d}" PROPERTY PROCESSORS 2)
             endif()
             if(_t IN_LIST BA_TESTS_LENTOS OR _t IN_LIST BA_TESTS_TIEMPO_REAL)
                 string(JSON _e SET "${_e}" lento true)
