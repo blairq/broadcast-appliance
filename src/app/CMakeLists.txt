@@ -351,6 +351,21 @@ if(BA_APP_QT_OK)
                 ui/JsonListModel.hpp ui/JsonListModel.cpp ui/FiltroCatalogo.hpp ui/FiltroCatalogo.cpp
                 arranque/ArchivoConfig.hpp)
     list(APPEND BA_APP_BIBLIOTECAS ba_app_base)
+
+    # El evento: el guion, la línea de tiempo, la carpeta del evento y lo que se publica de él.
+    # APdf.cpp usa carrusel/Conversion (todavía en ba-app): lo resuelve quien enlaza.
+    # mbedcrypto: core/crypto/Sha256.hpp (FotosConfig, CierreEvento) incluye <mbedtls/sha256.h>.
+    ba_biblioteca(ba_app_evento NIVEL 2
+        DEPENDE ba_app_base ba_app_comun ba_core mbedcrypto Qt6::Core Qt6::Gui Qt6::Svg
+        FUENTES evento/APdf.cpp evento/Bitacora.cpp evento/CierreEvento.cpp evento/Condicion.cpp evento/Corrida.cpp
+                evento/Documentos.cpp evento/Evento.cpp evento/EventoStore.cpp evento/EventoWeb.cpp
+                evento/FotosConfig.cpp evento/Historico.cpp evento/Linea.cpp evento/LineaEdicion.cpp
+                evento/LineaIntercambio.cpp evento/LineaPlantillas.cpp evento/LineaProductor.cpp
+                evento/LineaVista.cpp evento/Padron.cpp evento/TemaEvento.cpp evento/TemaLogoPng.cpp
+                evento/TiposDeCue.cpp)
+    ba_biblioteca_completa(ba_app_evento evento)
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_evento)
+
     ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
 endif()
 
@@ -729,11 +744,11 @@ endif()
                    mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp mcp/McpFoto.cpp mcp/McpMando.cpp
                    emision/DocumentoAire.cpp emision/SalidasConfig.cpp emision/TurnoMotor.cpp
                    emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp emision/NivelesMotor.cpp
-                   evento/EventoStore.cpp evento/Evento.cpp control/Dsk.cpp control/Dsk.hpp
+                   control/Dsk.cpp control/Dsk.hpp
                    arranque/EnergiaAire.cpp arranque/EnergiaAire.hpp)
     # NivelesMotor lee motor/NivelAudio.hpp (sin el motor).
     target_include_directories(test_plano_control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
-    target_link_libraries(test_plano_control PRIVATE ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_plano_control PRIVATE ba_app_evento ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_plano_control COMMAND test_plano_control)
     # Las pastillas del aire (ui/EstadoAireViewModel): el tiempo de una grabación que ya
@@ -1004,33 +1019,30 @@ endif()
     # El guion del evento: tiempos y revision previa (correrlo es de la linea).
     # No depende de Qt ni del motor (dice QUE hacer, no lo hace), asi que
     # compila y corre en cualquier lado.
-    add_executable(test_evento tests/test_evento.cpp evento/Evento.cpp)
+    add_executable(test_evento tests/test_evento.cpp)
     target_include_directories(test_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_evento PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_evento PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_evento COMMAND test_evento)
     # La línea de tiempo v2: modelo, migración desde el v1, resolvedor (pronóstico,
     # hard starts, holds, estado en t, conflictos entre salidas), revisión, load to
     # time y retoma tras un corte; la fachada del guion de cues (proyectar/reconciliar),
     # editar en lote, y la corrida (el ejecutor: GO, HOLD, lo que entra solo, saltar,
     # adlibs, insertar, la retoma). Puro como el guion: sin Qt, sin motor, sin reloj.
-    add_executable(test_linea tests/test_linea.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Corrida.cpp evento/Condicion.cpp
-                   evento/LineaProductor.cpp evento/LineaPlantillas.cpp evento/Evento.cpp)
+    add_executable(test_linea tests/test_linea.cpp)
     target_include_directories(test_linea PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_linea PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_linea PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_linea COMMAND test_linea)
     # El asistente productor (L9): el solucionador del back-timing, las plantillas,
     # la línea desde una guía, el vigía del over/under y lo de las superficies web.
-    add_executable(test_linea_productor tests/test_linea_productor.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Condicion.cpp
-                   evento/LineaProductor.cpp evento/LineaPlantillas.cpp evento/LineaIntercambio.cpp evento/Evento.cpp)
+    add_executable(test_linea_productor tests/test_linea_productor.cpp)
     target_include_directories(test_linea_productor PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_linea_productor PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_linea_productor PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_linea_productor COMMAND test_linea_productor)
     # La línea lista para dibujar (escaleta, conducción, multipista, regla, estante y
     # el presupuesto de miniaturas): lo que ordena LineaViewModel, sin Qt ni motor.
-    add_executable(test_linea_vista tests/test_linea_vista.cpp evento/LineaVista.cpp evento/Linea.cpp evento/LineaEdicion.cpp
-                   evento/Corrida.cpp evento/Condicion.cpp evento/Evento.cpp)
+    add_executable(test_linea_vista tests/test_linea_vista.cpp)
     target_include_directories(test_linea_vista PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_linea_vista PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_linea_vista PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_linea_vista COMMAND test_linea_vista)
 
     # El puente con el renderizador de graficos: que un grafico colgado NO
@@ -1078,43 +1090,38 @@ endif()
     add_test(NAME test_sincro_labios COMMAND test_sincro_labios)
 
     # La carpeta del evento: crear, guardar con respaldo, listar.
-    add_executable(test_evento_store tests/test_evento_store.cpp evento/EventoStore.cpp evento/Evento.cpp)
+    add_executable(test_evento_store tests/test_evento_store.cpp)
     target_include_directories(test_evento_store PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_evento_store PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_evento_store PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_evento_store COMMAND test_evento_store)
     # La página web del evento en vivo: generar, no pisar, subdominio, estado público.
-    add_executable(test_evento_web tests/test_evento_web.cpp evento/EventoWeb.cpp evento/Evento.cpp)
+    add_executable(test_evento_web tests/test_evento_web.cpp)
     target_include_directories(test_evento_web PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_evento_web PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_evento_web PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     target_compile_definitions(test_evento_web PRIVATE BA_PLANTILLAS_EVENTO="${CMAKE_SOURCE_DIR}/assets/web/evento/plantilla")
     add_test(NAME test_evento_web COMMAND test_evento_web)
     # El tema del evento (tema.json, Tema/ y la migración del sitio). La cuenta de colores
-    # es del núcleo (tema/TemaWeb.cpp), que se compila acá suelta para no arrastrar ba_core.
-    add_executable(test_tema_evento tests/test_tema_evento.cpp evento/TemaEvento.cpp
-                                    "${CMAKE_SOURCE_DIR}/src/core/tema/TemaWeb.cpp"
-                                    "${CMAKE_SOURCE_DIR}/src/core/persist/Escritor.cpp")
+    # es del núcleo (tema/TemaWeb.cpp, en ba_core).
+    add_executable(test_tema_evento tests/test_tema_evento.cpp)
     target_include_directories(test_tema_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/core")
-    target_link_libraries(test_tema_evento PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_tema_evento PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_tema_evento COMMAND test_tema_evento)
     # El PNG de un logo SVG (QtSvg no pinta un SVG adentro del SVG del QR que dibuja la app).
-    add_executable(test_tema_logo_png tests/test_tema_logo_png.cpp evento/TemaLogoPng.cpp evento/TemaEvento.cpp
-                                      "${CMAKE_SOURCE_DIR}/src/core/tema/TemaWeb.cpp"
-                                      "${CMAKE_SOURCE_DIR}/src/core/persist/Escritor.cpp")
+    add_executable(test_tema_logo_png tests/test_tema_logo_png.cpp)
     target_include_directories(test_tema_logo_png PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/core")
-    target_link_libraries(test_tema_logo_png PRIVATE Qt6::Core Qt6::Gui Qt6::Svg nlohmann_json::nlohmann_json)
+    target_link_libraries(test_tema_logo_png PRIVATE ba_app_evento Qt6::Core Qt6::Gui Qt6::Svg nlohmann_json::nlohmann_json)
     set_target_properties(test_tema_logo_png PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_tema_logo_png COMMAND test_tema_logo_png)
     set_tests_properties(test_tema_logo_png PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
     # Cada evento a su carpeta: la migración de las carpetas con varios eventos.
-    add_executable(test_eventos_separar tests/test_eventos_separar.cpp arranque/Configuraciones.cpp
-                                        evento/EventoStore.cpp evento/Evento.cpp evento/FotosConfig.cpp)
+    add_executable(test_eventos_separar tests/test_eventos_separar.cpp arranque/Configuraciones.cpp)
     target_include_directories(test_eventos_separar PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_eventos_separar PRIVATE ba_core Qt6::Core nlohmann_json::nlohmann_json mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_eventos_separar PRIVATE ba_app_evento ba_core Qt6::Core nlohmann_json::nlohmann_json mbedtls mbedx509 mbedcrypto)
     set_target_properties(test_eventos_separar PROPERTIES AUTOMOC ON)
     add_test(NAME test_eventos_separar COMMAND test_eventos_separar)
-    add_executable(test_bitacora tests/test_bitacora.cpp evento/Bitacora.cpp)
+    add_executable(test_bitacora tests/test_bitacora.cpp)
     target_include_directories(test_bitacora PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_bitacora PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_bitacora PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_bitacora COMMAND test_bitacora)
     add_executable(test_resolucion tests/test_resolucion.cpp resolucion/Plan.cpp ${CMAKE_SOURCE_DIR}/src/motor/ModosVideo.cpp)
     target_include_directories(test_resolucion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
@@ -1125,42 +1132,40 @@ endif()
     target_include_directories(test_tiempos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_tiempos PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_tiempos COMMAND test_tiempos)
-    add_executable(test_fotos_config tests/test_fotos_config.cpp evento/FotosConfig.cpp)
+    add_executable(test_fotos_config tests/test_fotos_config.cpp)
     target_include_directories(test_fotos_config PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_fotos_config PRIVATE ba_core mbedcrypto nlohmann_json::nlohmann_json)
+    target_link_libraries(test_fotos_config PRIVATE ba_app_evento ba_core mbedcrypto nlohmann_json::nlohmann_json)
     add_test(NAME test_fotos_config COMMAND test_fotos_config)
-    add_executable(test_cierre_evento tests/test_cierre_evento.cpp evento/CierreEvento.cpp evento/FotosConfig.cpp)
+    add_executable(test_cierre_evento tests/test_cierre_evento.cpp)
     target_include_directories(test_cierre_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_cierre_evento PRIVATE ba_core mbedcrypto nlohmann_json::nlohmann_json)
+    target_link_libraries(test_cierre_evento PRIVATE ba_app_evento ba_core mbedcrypto nlohmann_json::nlohmann_json)
     add_test(NAME test_cierre_evento COMMAND test_cierre_evento)
-    add_executable(test_historico tests/test_historico.cpp evento/Historico.cpp evento/Bitacora.cpp)
+    add_executable(test_historico tests/test_historico.cpp)
     target_include_directories(test_historico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_historico PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_historico PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_historico COMMAND test_historico)
     # La API json del histórico (la página y el MCP), con eventos de otra configuración.
-    add_executable(test_historico_consulta tests/test_historico_consulta.cpp ui/HistoricoConsulta.cpp evento/Historico.cpp
-                   evento/Bitacora.cpp evento/CierreEvento.cpp evento/FotosConfig.cpp evento/EventoStore.cpp evento/Evento.cpp)
+    add_executable(test_historico_consulta tests/test_historico_consulta.cpp ui/HistoricoConsulta.cpp)
     target_include_directories(test_historico_consulta PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_historico_consulta PRIVATE ba_core mbedcrypto Qt6::Core nlohmann_json::nlohmann_json)
+    target_link_libraries(test_historico_consulta PRIVATE ba_app_evento ba_core mbedcrypto Qt6::Core nlohmann_json::nlohmann_json)
     set_target_properties(test_historico_consulta PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_historico_consulta COMMAND test_historico_consulta)
     # La lista de eventos: una caché que avisa (leer no va al disco; lo nuevo aparece solo).
-    add_executable(test_eventos_lista tests/test_eventos_lista.cpp ui/EventosListaViewModel.cpp evento/EventoStore.cpp
-                   evento/Evento.cpp)
+    add_executable(test_eventos_lista tests/test_eventos_lista.cpp ui/EventosListaViewModel.cpp)
     target_include_directories(test_eventos_lista PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_eventos_lista PRIVATE ba_core Qt6::Core nlohmann_json::nlohmann_json)
+    target_link_libraries(test_eventos_lista PRIVATE ba_app_evento ba_core Qt6::Core nlohmann_json::nlohmann_json)
     set_target_properties(test_eventos_lista PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_eventos_lista COMMAND test_eventos_lista)
     # Los tipos de cue: una sola lista para el formulario y para guion_cue.
-    add_executable(test_tipos_de_cue tests/test_tipos_de_cue.cpp evento/TiposDeCue.cpp evento/Evento.cpp)
+    add_executable(test_tipos_de_cue tests/test_tipos_de_cue.cpp)
     target_include_directories(test_tipos_de_cue PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_tipos_de_cue PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_tipos_de_cue PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_tipos_de_cue COMMAND test_tipos_de_cue)
 
     # El padron: quien viene, con que papel, por donde y si llego.
-    add_executable(test_padron tests/test_padron.cpp evento/Padron.cpp)
+    add_executable(test_padron tests/test_padron.cpp)
     target_include_directories(test_padron PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_padron PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_padron PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_padron COMMAND test_padron)
 
     # La atención a quien se conecta: quién atiende, hablando de a uno, cuándo termina, el nombre que cuenta.
@@ -1276,9 +1281,9 @@ endif()
 
     # Lo que se publica, a PDF (evento/APdf): texto en varios idiomas, Markdown, imagen,
     # y con WordCraft, DeckCraft y GridCraft, Word, HTML, .pptx y planillas. Cada PDF se vuelve a leer.
-    add_executable(test_apdf tests/test_apdf.cpp evento/APdf.cpp carrusel/Conversion.cpp)
+    add_executable(test_apdf tests/test_apdf.cpp carrusel/Conversion.cpp)
     target_include_directories(test_apdf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_apdf PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
+    target_link_libraries(test_apdf PRIVATE ba_app_evento ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
     target_compile_definitions(test_apdf PRIVATE BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
     if(_ba_craft_ok)
         target_compile_definitions(test_apdf PRIVATE BA_CRAFT_DIR="${_ba_craft_dir}")
@@ -1520,10 +1525,9 @@ endif()
     set_target_properties(test_flanco PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_flanco COMMAND test_flanco)
     # El nombre del evento abierto: el del vínculo {evento.nombre} de los gráficos.
-    add_executable(test_evento_abierto tests/test_evento_abierto.cpp ui/EventoAbierto.cpp evento/EventoStore.cpp
-                   evento/Evento.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Condicion.cpp)
+    add_executable(test_evento_abierto tests/test_evento_abierto.cpp ui/EventoAbierto.cpp)
     target_include_directories(test_evento_abierto PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_evento_abierto PRIVATE ba_core Qt6::Core nlohmann_json::nlohmann_json)
+    target_link_libraries(test_evento_abierto PRIVATE ba_app_evento ba_core Qt6::Core nlohmann_json::nlohmann_json)
     set_target_properties(test_evento_abierto PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_evento_abierto COMMAND test_evento_abierto)
     # Un solo contrato de errores: las acciones avisan; el MCP y las pruebas los capturan.
@@ -1713,10 +1717,9 @@ endif()
     add_test(NAME test_foto_partes COMMAND test_foto_partes)
     # El id estable de escena (escenas/RefEscena.hpp): lo guardado de antes pasa al id, y
     # renombrar no deja nada apuntando al nombre viejo (la línea, transiciones, DSK, botones).
-    add_executable(test_ref_escena tests/test_ref_escena.cpp evento/Linea.cpp evento/LineaEdicion.cpp evento/Condicion.cpp
-                   evento/Evento.cpp)
+    add_executable(test_ref_escena tests/test_ref_escena.cpp)
     target_include_directories(test_ref_escena PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_ref_escena PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_ref_escena PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_ref_escena COMMAND test_ref_escena)
     # Roles y despachador de agentes de un tiro, con un motor falso (script).
     add_executable(test_despachador tests/test_despachador.cpp agent/Despachador.cpp agent/Despachador.hpp
