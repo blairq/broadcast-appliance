@@ -3985,8 +3985,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3561
+        "archivo": "src/app/mcp/McpRecintoTools.cpp",
+        "linea": 141
       },
       "roles": [
         "asistente"
@@ -4309,8 +4309,8 @@
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1470
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 150
       },
       "roles": [
         "asistente",
@@ -4412,8 +4412,8 @@
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2294
+        "archivo": "src/app/mcp/McpMezclaTools.cpp",
+        "linea": 95
       },
       "roles": [
         "asistente",
@@ -4445,8 +4445,8 @@
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2488
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 22
       },
       "roles": [
         "asistente",
@@ -4501,8 +4501,8 @@
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2521
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 55
       },
       "roles": [
         "asistente",
@@ -4535,8 +4535,8 @@
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2506
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 40
       },
       "roles": [
         "asistente",
@@ -4625,8 +4625,8 @@
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2405
+        "archivo": "src/app/mcp/McpMezclaTools.cpp",
+        "linea": 206
       },
       "roles": [
         "asistente",
@@ -4672,8 +4672,8 @@
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2257
+        "archivo": "src/app/mcp/McpMezclaTools.cpp",
+        "linea": 58
       },
       "roles": [
         "asistente",
@@ -4718,8 +4718,8 @@
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2429
+        "archivo": "src/app/mcp/McpMezclaTools.cpp",
+        "linea": 230
       },
       "roles": [
         "asistente",
@@ -4759,8 +4759,8 @@
         "porPrefijo": "audio sonido volumen nivel ganancia db decibeles mezcla mixer canal pista se escucha se oye suena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2375
+        "archivo": "src/app/mcp/McpMezclaTools.cpp",
+        "linea": 176
       },
       "roles": [
         "asistente",
@@ -4840,8 +4840,8 @@
         "porPrefijo": "mezcla audio volumen canal pista mixer"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2221
+        "archivo": "src/app/mcp/McpMezclaTools.cpp",
+        "linea": 22
       },
       "roles": [
         "asistente",
@@ -8828,8 +8828,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3514
+        "archivo": "src/app/mcp/McpRecintoTools.cpp",
+        "linea": 94
       },
       "roles": [
         "asistente"
@@ -9771,8 +9771,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3497
+        "archivo": "src/app/mcp/McpRecintoTools.cpp",
+        "linea": 77
       },
       "roles": [
         "asistente"
@@ -11037,8 +11037,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4295
+        "archivo": "src/app/mcp/McpConfigTools.cpp",
+        "linea": 144
       },
       "roles": [
         "asistente"
@@ -11063,8 +11063,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2575
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 109
       },
       "roles": [
         "asistente"
@@ -11096,8 +11096,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2592
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 126
       },
       "roles": [
         "asistente"
@@ -11126,8 +11126,8 @@
         "porPrefijo": "configuracion ajuste preferencia opcion parametro"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4173
+        "archivo": "src/app/mcp/McpConfigTools.cpp",
+        "linea": 22
       },
       "roles": [
         "asistente"
@@ -11161,8 +11161,8 @@
         "porPrefijo": "configuracion ajuste preferencia opcion parametro"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4207
+        "archivo": "src/app/mcp/McpConfigTools.cpp",
+        "linea": 56
       },
       "roles": [
         "asistente"
@@ -13993,7 +13993,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1268
+        "linea": 1143
       },
       "roles": [
         "asistente",
@@ -14044,8 +14044,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1447
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 127
       },
       "roles": [
         "asistente",
@@ -14077,7 +14077,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1288
+        "linea": 1163
       },
       "roles": [
         "asistente",
@@ -14221,8 +14221,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1509
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 189
       },
       "roles": [
         "asistente",
@@ -14256,8 +14256,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1493
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 173
       },
       "roles": [
         "asistente",
@@ -14379,8 +14379,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1652
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 332
       },
       "roles": [
         "asistente",
@@ -14415,8 +14415,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1572
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 252
       },
       "roles": [
         "asistente",
@@ -14452,8 +14452,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1612
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 292
       },
       "roles": [
         "asistente",
@@ -14490,8 +14490,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1399
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 79
       },
       "roles": [
         "asistente",
@@ -14523,8 +14523,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1359
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 39
       },
       "roles": [
         "asistente",
@@ -14562,8 +14562,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1424
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 104
       },
       "roles": [
         "asistente",
@@ -14641,8 +14641,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1545
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 225
       },
       "roles": [
         "asistente",
@@ -14680,8 +14680,8 @@
         "porPrefijo": "escena escenas placa composicion layout toma camara aire vivo obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1592
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 272
       },
       "roles": [
         "asistente",
@@ -14821,8 +14821,8 @@
         "porPrefijo": "transicion corte fundido disolvencia cambio de escena"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1802
+        "archivo": "src/app/mcp/McpEscenasTools.cpp",
+        "linea": 482
       },
       "roles": [
         "asistente",
@@ -14869,7 +14869,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1303
+        "linea": 1178
       },
       "roles": [
         "asistente",
@@ -14935,7 +14935,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1233
+        "linea": 1108
       },
       "roles": [
         "asistente",
@@ -15019,7 +15019,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1324
+        "linea": 1199
       },
       "roles": [
         "asistente",
@@ -15058,8 +15058,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3268
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 143
       },
       "roles": [
         "asistente",
@@ -15095,8 +15095,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3282
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 157
       },
       "roles": [
         "asistente",
@@ -15122,8 +15122,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3256
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 131
       },
       "roles": [
         "asistente",
@@ -15149,8 +15149,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3300
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 175
       },
       "roles": [
         "asistente",
@@ -16661,8 +16661,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3379
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 254
       },
       "roles": [
         "asistente",
@@ -16728,8 +16728,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3314
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 189
       },
       "roles": [
         "asistente",
@@ -16771,8 +16771,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3396
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 271
       },
       "roles": [
         "asistente",
@@ -16805,8 +16805,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3363
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 238
       },
       "roles": [
         "asistente",
@@ -16839,8 +16839,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3348
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 223
       },
       "roles": [
         "asistente",
@@ -16934,8 +16934,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3456
+        "archivo": "src/app/mcp/McpRecintoTools.cpp",
+        "linea": 36
       },
       "roles": [
         "asistente",
@@ -16961,8 +16961,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3441
+        "archivo": "src/app/mcp/McpRecintoTools.cpp",
+        "linea": 21
       },
       "roles": [
         "asistente",
@@ -17718,8 +17718,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1931
+        "archivo": "src/app/mcp/McpFuentesTools.cpp",
+        "linea": 144
       },
       "roles": [
         "asistente",
@@ -17776,8 +17776,8 @@
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1878
+        "archivo": "src/app/mcp/McpFuentesTools.cpp",
+        "linea": 91
       },
       "roles": [
         "asistente",
@@ -17813,8 +17813,8 @@
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1847
+        "archivo": "src/app/mcp/McpFuentesTools.cpp",
+        "linea": 60
       },
       "roles": [
         "asistente",
@@ -18227,8 +18227,8 @@
         "porPrefijo": "invitado participante persona sala conferencia"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2177
+        "archivo": "src/app/mcp/McpFuentesTools.cpp",
+        "linea": 390
       },
       "roles": [
         "asistente",
@@ -18262,8 +18262,8 @@
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2123
+        "archivo": "src/app/mcp/McpFuentesTools.cpp",
+        "linea": 336
       },
       "roles": [
         "asistente",
@@ -18301,8 +18301,8 @@
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1957
+        "archivo": "src/app/mcp/McpFuentesTools.cpp",
+        "linea": 170
       },
       "roles": [
         "asistente",
@@ -18350,8 +18350,8 @@
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2147
+        "archivo": "src/app/mcp/McpFuentesTools.cpp",
+        "linea": 360
       },
       "roles": [
         "asistente",
@@ -18378,8 +18378,8 @@
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1827
+        "archivo": "src/app/mcp/McpFuentesTools.cpp",
+        "linea": 40
       },
       "roles": [
         "asistente",
@@ -18516,8 +18516,8 @@
         "porPrefijo": "fuente fuentes capa elemento objeto imagen video texto navegador captura obs"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1976
+        "archivo": "src/app/mcp/McpFuentesTools.cpp",
+        "linea": 189
       },
       "roles": [
         "asistente",
@@ -22908,8 +22908,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2832
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 366
       },
       "roles": [
         "asistente",
@@ -22947,8 +22947,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2812
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 346
       },
       "roles": [
         "asistente",
@@ -22983,8 +22983,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2869
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 403
       },
       "roles": [
         "asistente",
@@ -23033,8 +23033,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3222
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 97
       },
       "roles": [
         "asistente",
@@ -23061,8 +23061,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3148
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 23
       },
       "roles": [
         "asistente",
@@ -23109,8 +23109,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3160
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 35
       },
       "roles": [
         "asistente",
@@ -23137,8 +23137,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3208
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 83
       },
       "roles": [
         "asistente",
@@ -23178,8 +23178,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3186
+        "archivo": "src/app/mcp/McpDebateTools.cpp",
+        "linea": 61
       },
       "roles": [
         "asistente",
@@ -23213,8 +23213,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3068
+        "archivo": "src/app/mcp/McpInformesTools.cpp",
+        "linea": 90
       },
       "roles": [
         "asistente",
@@ -23254,8 +23254,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3032
+        "archivo": "src/app/mcp/McpInformesTools.cpp",
+        "linea": 54
       },
       "roles": [
         "asistente",
@@ -23286,8 +23286,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2999
+        "archivo": "src/app/mcp/McpInformesTools.cpp",
+        "linea": 21
       },
       "roles": [
         "asistente",
@@ -23321,8 +23321,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2932
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 466
       },
       "roles": [
         "asistente",
@@ -23370,8 +23370,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2972
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 506
       },
       "roles": [
         "asistente",
@@ -23398,8 +23398,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2954
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 488
       },
       "roles": [
         "asistente",
@@ -23462,8 +23462,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3107
+        "archivo": "src/app/mcp/McpInformesTools.cpp",
+        "linea": 129
       },
       "roles": [
         "asistente",
@@ -23500,8 +23500,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3124
+        "archivo": "src/app/mcp/McpInformesTools.cpp",
+        "linea": 146
       },
       "roles": [
         "asistente",
@@ -23528,8 +23528,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2801
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 335
       },
       "roles": [
         "asistente",
@@ -23559,8 +23559,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3093
+        "archivo": "src/app/mcp/McpInformesTools.cpp",
+        "linea": 115
       },
       "roles": [
         "asistente",
@@ -23663,8 +23663,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2898
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 432
       },
       "roles": [
         "asistente",
@@ -23691,8 +23691,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2887
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 421
       },
       "roles": [
         "asistente",
@@ -29356,8 +29356,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2555
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 89
       },
       "roles": [
         "asistente",
@@ -29432,8 +29432,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3597
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 29
       },
       "roles": [
         "asistente",
@@ -30514,8 +30514,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3637
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 69
       },
       "roles": [
         "asistente"
@@ -30564,8 +30564,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4089
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 521
       },
       "roles": [
         "asistente"
@@ -30626,8 +30626,8 @@
         "porPrefijo": "grabar grabacion guardar archivo mp4 registro"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3835
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 267
       },
       "roles": [
         "asistente"
@@ -30652,8 +30652,8 @@
         "porPrefijo": "grabar grabacion guardar archivo mp4 registro"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3619
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 51
       },
       "roles": [
         "asistente"
@@ -30695,8 +30695,8 @@
         "porPrefijo": "grabar grabacion guardar archivo mp4 registro"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3808
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 240
       },
       "roles": [
         "asistente"
@@ -30800,8 +30800,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3985
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 417
       },
       "roles": [
         "asistente"
@@ -30835,8 +30835,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4008
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 440
       },
       "roles": [
         "asistente"
@@ -31101,8 +31101,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4034
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 466
       },
       "roles": [
         "asistente"
@@ -31154,8 +31154,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 4064
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 496
       },
       "roles": [
         "asistente"
@@ -31216,8 +31216,8 @@
         "porPrefijo": "transmitir emitir salir al aire vivo directo rtmp stream broadcast"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3900
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 332
       },
       "roles": [
         "asistente"
@@ -31250,8 +31250,8 @@
         "porPrefijo": "transmitir emitir salir al aire vivo directo rtmp stream broadcast"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3967
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 399
       },
       "roles": [
         "asistente"
@@ -31306,8 +31306,8 @@
         "porPrefijo": "transmitir emitir salir al aire vivo directo rtmp stream broadcast"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3938
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 370
       },
       "roles": [
         "asistente"
@@ -31333,8 +31333,8 @@
         "porPrefijo": "transmitir emitir salir al aire vivo directo rtmp stream broadcast"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3883
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 315
       },
       "roles": [
         "asistente"
@@ -32403,8 +32403,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3750
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 182
       },
       "roles": [
         "asistente"
@@ -32454,8 +32454,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3778
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 210
       },
       "roles": [
         "asistente"
@@ -32492,8 +32492,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3678
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 110
       },
       "roles": [
         "asistente"
@@ -32527,8 +32527,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 3723
+        "archivo": "src/app/mcp/McpGrabacionTools.cpp",
+        "linea": 155
       },
       "roles": [
         "asistente"
@@ -33716,8 +33716,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2632
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 166
       },
       "roles": [
         "asistente"
@@ -33742,8 +33742,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2657
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 191
       },
       "roles": [
         "asistente"
@@ -33768,8 +33768,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2620
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 154
       },
       "roles": [
         "asistente"
@@ -33801,8 +33801,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2671
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 205
       },
       "roles": [
         "asistente"
@@ -34432,8 +34432,8 @@
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2686
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 220
       },
       "roles": [
         "asistente"
@@ -34477,8 +34477,8 @@
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2703
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 237
       },
       "roles": [
         "asistente"
@@ -34510,8 +34510,8 @@
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2754
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 288
       },
       "roles": [
         "asistente"
@@ -34543,8 +34543,8 @@
         "porPrefijo": "voz hablar escuchar dictado microfono en voz alta asistente por voz"
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2738
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 272
       },
       "roles": [
         "asistente"
@@ -35232,8 +35232,8 @@
         "porPrefijo": ""
       },
       "donde": {
-        "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 2771
+        "archivo": "src/app/mcp/McpTransmisionTools.cpp",
+        "linea": 305
       },
       "roles": [
         "asistente"
