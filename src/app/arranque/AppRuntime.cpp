@@ -425,6 +425,8 @@ void AppRuntime::ticMotor() {
         NivelesMotor& nv = engine_.nivelesCanal();
         nv.setPorOmision(engine_.idDeSalida(""));
         nv.ponerMedidores(engine_.medidores());
+        // Las fuentes con audio, según la foto del motor (sale después de armar una entrada).
+        foto_->seguirCanalesDelMotor();
     }
     medirSinTurno();
     engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño

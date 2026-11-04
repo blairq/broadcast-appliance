@@ -146,11 +146,15 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
             escenas.push_back(std::move(e));
         }
         f.escenas = std::move(escenas);
+        f.tipos.clear();
+        for (const SourceType& t : eng.inputTypes()) f.tipos.push_back({t.id, t.displayName, t.video, t.audio});
+    }
+    // Todas las fuentes: las de las escenas y las globales (esas nacen y se van con un aviso
+    // de audio, que ensucia Mezcla: FotoMotor::kFuentes).
+    if (FotoMotor::rearmar(FotoMotor::kFuentes, p)) {
         std::vector<std::pair<std::string, std::string>> fuentes;
         for (const std::string& n : eng.sourceNames()) fuentes.emplace_back(n, eng.sourceTypeId(n));
         f.fuentes = std::move(fuentes);
-        f.tipos.clear();
-        for (const SourceType& t : eng.inputTypes()) f.tipos.push_back({t.id, t.displayName, t.video, t.audio});
     }
 
     // --- Lo que sale de la por omisión, y de cada salida ---------------------------------

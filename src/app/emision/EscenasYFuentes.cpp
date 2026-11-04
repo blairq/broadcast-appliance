@@ -699,6 +699,9 @@ void EscenasYFuentes::soltarSiHuerfana(const std::string& nombre) {
     sources_.erase(it);
     m_.mezcla_->olvidarFuente(nombre);
     ordenFuentes_.erase(std::remove(ordenFuentes_.begin(), ordenFuentes_.end(), nombre), ordenFuentes_.end());
+    // Como el alta: la que se va (una global, de una placa o de la matriz, no pasa por una
+    // escena) sale de la mezcla y de la lista de fuentes de la foto.
+    if (m_.cambioAudio_) m_.cambioAudio_(nombre, "baja");
 }
 
 bool EscenasYFuentes::addSource(const std::string& sceneName, const SourceSpec& spec) {

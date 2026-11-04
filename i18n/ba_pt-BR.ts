@@ -34566,7 +34566,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+144"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+145"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (não foi possível: %2)</translation>
     </message>
@@ -34621,7 +34621,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>A interface ficou travada %1 s; o ar continuou</translation>
     </message>
     <message>
-        <location line="+220"/>
+        <location line="+202"/>
         <source>Guardado</source>
         <translation>Salvo</translation>
     </message>
@@ -34631,7 +34631,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>Não foi possível salvar: %1</translation>
     </message>
     <message>
-        <location line="-322"/>
+        <location line="-304"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Foi restaurado o que estava no ar antes da queda (cartela ou preto)</translation>
     </message>
@@ -45103,7 +45103,12 @@ Escolha outra coisa em Saídas → Telas.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+181"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+145"/>
+        <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
+        <translation>inicialização: o áudio do sistema (Qt Multimedia, em sua própria thread), %1 ms</translation>
+    </message>
+    <message>
+        <location line="+83"/>
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>inicialização: a tela de carregamento já aparece</translation>
     </message>
@@ -45133,7 +45138,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>Software livre (GPL-3.0) · GStreamer, Qt e ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+100"/>
+        <location line="+103"/>
         <source>arranque: la configuración, %1 ms</source>
         <translation>inicialização: a configuração, %1 ms</translation>
     </message>
@@ -45148,6 +45153,11 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>Carregando a configuração do estúdio…</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>arranque: el modelo de la app</source>
+        <translation>inicialização: o modelo do app</translation>
+    </message>
+    <message>
         <location line="+2"/>
         <source>arranque: el modelo de la app, %1 ms</source>
         <translation>inicialização: o modelo do app, %1 ms</translation>
@@ -45156,6 +45166,11 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <location line="+48"/>
         <source>Abriendo la interfaz…</source>
         <translation>Abrindo a interface…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>arranque: la interfaz (QML)</source>
+        <translation>inicialização: a interface (QML)</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -45571,7 +45586,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>encerramento pedido pelo launcher</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+118"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+120"/>
         <source>no existe la fuente elegida para el operador</source>
         <translation>a fonte escolhida para o operador não existe</translation>
     </message>
@@ -50842,7 +50857,7 @@ Dados (de %2): %3</translation>
         <translation>o travamento da interface durou cerca de %1 ms (pilhas em %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-387"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-396"/>
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples só funciona com --test: não é ligado</translation>
     </message>
@@ -51760,7 +51775,7 @@ Dados (de %2): %3</translation>
     </message>
     <message>
         <location line="+38"/>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+922"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+925"/>
         <location filename="../src/app/emision/FuentesApp.cpp" line="+199"/>
         <source>no hay motor</source>
         <translation>não há motor</translation>
@@ -51806,7 +51821,7 @@ Dados (de %2): %3</translation>
         <translation>cena para telas: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="-380"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="-383"/>
         <source>armar: %1</source>
         <translation>carregar: %1</translation>
     </message>
@@ -52174,7 +52189,7 @@ Dados (de %2): %3</translation>
         <translation>fonte &apos;%1&apos;: %2</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+61"/>
         <source>addSource: no existe la escena &apos;%1&apos;</source>
         <translation>addSource: a cena &apos;%1&apos; não existe</translation>
     </message>
@@ -52194,12 +52209,12 @@ Dados (de %2): %3</translation>
         <translation>“%1” não existe</translation>
     </message>
     <message>
-        <location line="-524"/>
+        <location line="-527"/>
         <source>removeScene: no existe o es la única escena</source>
         <translation>removeScene: não existe ou é a única cena</translation>
     </message>
     <message>
-        <location line="+554"/>
+        <location line="+557"/>
         <source>settings no son JSON válido</source>
         <translation>settings não são JSON válido</translation>
     </message>
@@ -58533,7 +58548,7 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
 <context>
     <name>historico</name>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="-383"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="-385"/>
         <source>se volvió a la configuración de «%1»: %2 (lo de antes en Config/.restaurar/%3)</source>
         <translation>voltou-se à configuração de “%1”: %2 (o anterior em Config/.restaurar/%3)</translation>
     </message>
@@ -59669,7 +59684,7 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+226"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+235"/>
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>MODO DE TESTE (--test): o MCP não pede aprovações, nem mesmo as de ar</translation>
     </message>
@@ -91455,7 +91470,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
 <context>
     <name>persistencia</name>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+69"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+71"/>
         <source>al cerrar quedó algo sin guardar (el disco no responde)</source>
         <translation>ao fechar ficou algo sem salvar (o disco não responde)</translation>
     </message>

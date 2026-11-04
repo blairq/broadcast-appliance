@@ -94,6 +94,7 @@ void rearmar(FotoMotor& f, unsigned sucias, int n) {
         if (s == "configImagen") return &FotoMotor::kConfigImagen;
         if (s == "dsk") return &FotoMotor::kDsk;
         if (s == "temaWeb") return &FotoMotor::kTemaWeb;
+        if (s == "fuentes") return &FotoMotor::kFuentes;
         return nullptr;
     };
     for (const Campo& c : campos()) {
@@ -182,6 +183,16 @@ int main() {
         ahora.alAire = {"Cámara 2"};
         CHECK((FotoMotor::queCambio(antes, ahora, FotoMotor::Salidas | FotoMotor::Estado) & FotoMotor::Video) != 0,
               "3: un corte (Salidas) avisa Video por lo que está al aire");
+        // Un micrófono de la máquina agregado (una entrada global: no toca ninguna escena; el
+        // motor lo avisa como alta de audio, que ensucia Mezcla). La lista de fuentes es de
+        // Escenas y el rack la mira para saber si la fuente existe: decía «no existe la
+        // fuente» hasta que algo tocara una escena.
+        ahora = antes;
+        ahora.fuentes = {{"Micrófono de MacBook Pro", "ba_gst_fuente"}};
+        CHECK(FotoMotor::rearmar(FotoMotor::kFuentes, FotoMotor::Mezcla),
+              "3: un alta o una baja de audio (Mezcla) rearma la lista de fuentes");
+        CHECK((FotoMotor::queCambio(antes, ahora, FotoMotor::Mezcla) & FotoMotor::Escenas) != 0,
+              "3: una fuente global nueva (Mezcla) avisa Escenas por la lista de fuentes");
         // Y lo que no se tocó no se avisa: el reloj del motor no despierta a las vistas de Video
         // si nada de Video cambió.
         CHECK(FotoMotor::queCambio(antes, antes, FotoMotor::Salidas | FotoMotor::Estado | FotoMotor::Medidas) == 0,
