@@ -296,6 +296,18 @@ else()
 endif()
 if(BA_HAVE_CLAP AND EXISTS "${BA_SHERPA_DIR}/.ok" AND EXISTS "${_ba_sherpa_lib}" AND BA_HAVE_ORT)
     set(BA_HAVE_VOZ ON)
+    # Las bibliotecas de sherpa-onnx (las enlazan ba-app, ba_app_audio y los tests de la voz).
+    # Orden de enlace: de las APIs hacia abajo (son estaticas).
+    set(BA_SHERPA_LIBS)
+    foreach(_l sherpa-onnx-cxx-api sherpa-onnx-c-api sherpa-onnx-core kaldi-decoder-core sherpa-onnx-kaldifst-core
+               sherpa-onnx-fstfar sherpa-onnx-fst kaldi-native-fbank-core piper_phonemize espeak-ng ucd
+               kissfft-float ssentencepiece_core)
+        if(MSVC)
+            list(APPEND BA_SHERPA_LIBS "${BA_SHERPA_DIR}/lib/${_l}.lib")
+        else()
+            list(APPEND BA_SHERPA_LIBS "${BA_SHERPA_DIR}/lib/lib${_l}.a")
+        endif()
+    endforeach()
 else()
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/audio/(Escucha|EscuchaNemotron|Habla)\\.cpp$")
 endif()
@@ -443,11 +455,17 @@ if(BA_APP_QT_OK)
             find_package(X11 REQUIRED)
             target_link_libraries(ba_app_audio PRIVATE X11::X11)
         endif()
-        # La voz (sherpa-onnx): solo si está; las bibliotecas de sherpa las enlaza quien
-        # usa la voz (ba-app, test_escucha, test_habla, test_nemotron).
+        # La voz (sherpa-onnx): solo si está.
         if(BA_HAVE_VOZ)
             target_sources(ba_app_audio PRIVATE audio/Escucha.cpp audio/EscuchaNemotron.cpp audio/Habla.cpp)
             target_include_directories(ba_app_audio PRIVATE "${BA_SHERPA_DIR}/include")
+            # Las de sherpa después de la biblioteca: el enlazador de Linux resuelve una .a
+            # solo con las que vienen después (en ba-app iban antes que ba_app_audio).
+            if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+                target_link_libraries(ba_app_audio PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group)
+            else()
+                target_link_libraries(ba_app_audio PRIVATE ${BA_SHERPA_LIBS})
+            endif()
             set_property(GLOBAL APPEND PROPERTY BA_BIBLIOTECA_ba_app_audio_FUENTES
                          "${CMAKE_CURRENT_SOURCE_DIR}/audio/Escucha.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/audio/EscuchaNemotron.cpp"
                          "${CMAKE_CURRENT_SOURCE_DIR}/audio/Habla.cpp")
@@ -606,17 +624,6 @@ endif()
 target_sources(ba-app PRIVATE "${CMAKE_SOURCE_DIR}/third_party/qrcodegen/qrcodegen.cpp")
 target_include_directories(ba-app PRIVATE "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
 if(BA_HAVE_VOZ)
-    # Orden de enlace: de las APIs hacia abajo (son estaticas).
-    set(BA_SHERPA_LIBS)
-    foreach(_l sherpa-onnx-cxx-api sherpa-onnx-c-api sherpa-onnx-core kaldi-decoder-core sherpa-onnx-kaldifst-core
-               sherpa-onnx-fstfar sherpa-onnx-fst kaldi-native-fbank-core piper_phonemize espeak-ng ucd
-               kissfft-float ssentencepiece_core)
-        if(MSVC)
-            list(APPEND BA_SHERPA_LIBS "${BA_SHERPA_DIR}/lib/${_l}.lib")
-        else()
-            list(APPEND BA_SHERPA_LIBS "${BA_SHERPA_DIR}/lib/lib${_l}.a")
-        endif()
-    endforeach()
     target_include_directories(ba-app PRIVATE "${BA_SHERPA_DIR}/include")
     if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
         target_link_libraries(ba-app PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group)
