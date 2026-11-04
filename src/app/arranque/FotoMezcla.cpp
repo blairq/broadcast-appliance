@@ -5,7 +5,7 @@
 // el Mezclador, la matriz, los racks). Los niveles van aparte (emision/NivelesMotor).
 
 #include "arranque/PublicadorFoto.hpp"
-
+#include "arranque/RuntimeMotor.hpp"
 #include <set>
 
 namespace ba::app {

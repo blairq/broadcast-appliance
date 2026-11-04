@@ -10,7 +10,7 @@
 #include <memory>
 #include <sstream>
 #include <vector>
-
+#include "arranque/RuntimeMotor.hpp"
 #include "arranque/AireDurable.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "diag/Registro.hpp"
