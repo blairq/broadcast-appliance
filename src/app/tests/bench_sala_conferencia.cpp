@@ -124,7 +124,7 @@ class ProveedorFalso : public ProveedorCuadros {
                 p.drawEllipse(QPointF(320 + 40 * k, 160), 70, 85);
                 l.imagenes[k] = img;
             }
-            l.faseUs = QRandomGenerator::global()->bounded(std::max<std::int64_t>(1, periodoUs_));
+            l.faseUs = QRandomGenerator::global()->bounded(static_cast<qint64>(std::max<std::int64_t>(1, periodoUs_)));
         }
         reloj_.start();
     }
