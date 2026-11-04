@@ -1714,3 +1714,7 @@ QObject* StudioViewModel::escritorioQml() const {
 }
 
 } // namespace ba::app
+
+// El moc de StudioViewModel acá y no en mocs_compilation.cpp: tocar el header recompila
+// este archivo y no el moc de toda la app (Ola 3, docs/local/build-tiempos.md).
+#include "moc_StudioViewModel.cpp"
