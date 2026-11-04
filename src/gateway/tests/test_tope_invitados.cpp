@@ -13,6 +13,7 @@
 #include "Config.hpp"
 #include "PuertosRtc.hpp"
 #include "ipc/LugaresSala.hpp"
+#include "ipc/RangoRtc.hpp"
 #include "net/NetUtil.hpp"
 
 #include <algorithm>

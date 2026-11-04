@@ -13,6 +13,10 @@
 //   Los secretos (clave de transmision, PIN, token del tunel) NO van en estos
 //   archivos: van por variable de entorno o por la boveda cifrada.
 //
+// Las cabeceras: los tipos de la emisión (emision/ConfigAire.hpp), el rango de WebRTC
+// por omisión (ipc/RangoRtc.hpp) y los objetos JSON guardados tal cual como
+// ba::ObjetoJson: quien lee o cambia uno incluye <nlohmann/json.hpp>.
+//
 // Compatibilidad:
 //   Un app.json viejo con "sources" en el primer nivel se lee como una unica
 //   escena "Principal".
@@ -26,10 +30,9 @@
 #include <string>
 #include <vector>
 
-#include <nlohmann/json.hpp>
-
 #include "emision/ConfigAire.hpp"
-#include "ipc/LugaresSala.hpp"
+#include "ipc/RangoRtc.hpp"
+#include "json/ObjetoJson.hpp"
 
 namespace ba::app {
 
@@ -107,7 +110,7 @@ struct AppConfig {
     int modeloContexto = 32768; ///< contexto del modelo local de chat (tokens)
     int modeloCapasGpu = 999;   ///< capas en la GPU (999 = todas; 0 = solo CPU)
     /// Los avanzados de la app (ba::ajustes; tabla en core/ajustes/Registro): solo los cambiados.
-    nlohmann::json ajustes = nlohmann::json::object();
+    ba::ObjetoJson ajustes;
     int replaySegundos = 0; ///< repetición: los últimos N s en memoria (0 = apagada)
     /// Tope de la latencia del estudio (ms; -1 = automático: 250 ms). Una entrada
     /// que pide más va con su propia demora y avisa (P0.6).
@@ -166,7 +169,7 @@ struct GatewaySettings {
     int guestsReserva = 4;
     /// El proxy por nombre (T61): la sección "proxy" de gateway.json tal cual
     /// (activo, dominio, puertos, servicios, acme). Ver src/gateway/proxy/GestorProxy.hpp.
-    nlohmann::json proxy = nlohmann::json::object();
+    ba::ObjetoJson proxy;
     std::uint16_t port = 8787;
     std::string bindAddress = "127.0.0.1"; ///< "0.0.0.0" = accesible en la red local
     /// La dirección que va en el QR y en el enlace de los invitados (una IP o un nombre);
@@ -182,7 +185,7 @@ struct GatewaySettings {
     int sinVideoPlacaMs = 1000; ///< invitado sin video tanto tiempo: su lugar muestra la placa
     int pinIntentos = 5;        ///< PIN mal tantas veces desde una IP: bloqueo
     int pinBloqueoS = 60;
-    nlohmann::json ajustes = nlohmann::json::object(); ///< los avanzados de la sala (ba::ajustes)
+    ba::ObjetoJson ajustes; ///< los avanzados de la sala (ba::ajustes)
     int videoW = 1280; ///< slot de video del invitado hacia A
     int videoH = 720;
     int guestVideoW = 640; ///< retorno de programa hacia el invitado
@@ -235,7 +238,7 @@ struct LauncherSettings {
     /// El idioma del operador (ba::i18n; "" = el del sistema). Es de la máquina: lo
     /// lee cada proceso al arrancar (ba::i18n::idiomaDeLaMaquina).
     std::string idioma;
-    nlohmann::json ajustes = nlohmann::json::object(); ///< los avanzados del arranque (ba::ajustes)
+    ba::ObjetoJson ajustes; ///< los avanzados del arranque (ba::ajustes)
 };
 
 /// Rutas de los tres archivos bajo `dataRoot`.

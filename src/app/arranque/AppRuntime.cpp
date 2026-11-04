@@ -210,7 +210,7 @@ void AppRuntime::configure(int argc, char** argv) {
     }
     const fs::path cfgPath = argValue(argc, argv, "--config", appConfigPath(root_).string());
     cfg_ = loadAppConfig(cfgPath, root_);
-    ba::ajustes::cargar(cfg_.ajustes); // los avanzados de Configuración, lo antes posible
+    ba::ajustes::cargar(*cfg_.ajustes); // los avanzados de Configuración, lo antes posible
     gateway_ = loadGatewaySettings(gatewayConfigPath(root_));
     launcher_ = loadLauncherSettings(launcherConfigPath(root_));
     applyCli(cfg_, argc, argv, root_);

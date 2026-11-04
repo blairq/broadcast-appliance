@@ -28,6 +28,7 @@
 #include <algorithm>
 
 #include "ipc/LugaresSala.hpp"
+#include "ipc/RangoRtc.hpp"
 
 #include <cstdint>
 #include <cstdlib>
@@ -54,7 +55,7 @@ inline constexpr int kMinGuests = 1;
 /// El tope de puertos del rango UDP de WebRTC (rtcPortMin..rtcPortMax): con el túnel de
 /// WireGuard cada uno es un pcb de lwIP (MEMP_NUM_UDP_PCB, net/lwip-port/lwipopts.h).
 /// Alcanza para el tope de invitados (512) con tres puertos por sesión (PuertosRtc.hpp);
-/// el rango por omisión es de 1600 (ipc/LugaresSala: kRtcPuertoMin..kRtcPuertoMax).
+/// el rango por omisión es de 1600 (ipc/RangoRtc: kRtcPuertoMin..kRtcPuertoMax).
 inline constexpr int kTopeRangoRtc = 2000;
 
 /// Configuracion del gateway (CLI + rutas). Ver el header para el detalle.

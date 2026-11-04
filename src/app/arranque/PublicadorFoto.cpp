@@ -346,7 +346,7 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
         // Los de esta copia (otra abierta con otra carpeta de datos: corridos; platform/Instancia.hpp).
         s.puerto = ba::platform::puertoDeInstancia(g.port);
         s.atencionAutomatica = g.autoIntake;
-        s.proxy = g.proxy;
+        s.proxy = *g.proxy;
         s.tunel = g.tunnel;
         s.tunelHost = g.tunnelHostname;
         s.pinggyActivo = g.pinggyActivo;

@@ -4,6 +4,7 @@
 
 #include "arranque/AppSettings.hpp"
 #include "i18n/I18nTexto.hpp"
+#include "persist/Escritor.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
 #include "arranque/RutasPortables.hpp"
@@ -19,6 +20,7 @@
 #include <cstdlib>
 #include <set>
 #include "ipc/LugaresSala.hpp"
+#include "ipc/RangoRtc.hpp"
 
 namespace ba::app {
 
@@ -430,7 +432,7 @@ bool saveAppConfig(const fs::path& path, const AppConfig& c, const fs::path& dat
         {"transition", {{"type", c.transition.type}, {"durationMs", c.transition.durationMs}}},
         {"ui", {{"theme", c.theme}, {"previewWidth", c.previewWidth}, {"balistica", c.balistica}}},
         {"mcp", {{"enabled", c.mcpEnabled}, {"port", c.mcpPort}, {"approval", c.mcpApproval}, {"aprobacionMin", c.mcpAprobacionMin}}},
-        {"ajustes", c.ajustes},
+        {"ajustes", *c.ajustes},
         {"scenes", scenes},
         {"audioInputs", audioIns},
         {"gruposAudio", c.gruposAudio},
@@ -478,7 +480,7 @@ GatewaySettings loadGatewaySettings(const fs::path& path) {
     s.rtcPortMin = get(j, "rtcPortMin", s.rtcPortMin);
     s.rtcPortMax = get(j, "rtcPortMax", s.rtcPortMax);
     // El rango por omisión de antes (40000-40099: ~50 sesiones) no lo eligió nadie: el nuevo,
-    // que alcanza para el tope de invitados (ipc/LugaresSala). Uno elegido a mano se respeta.
+    // que alcanza para el tope de invitados (ipc/RangoRtc). Uno elegido a mano se respeta.
     if (ba::ipc::rangoRtcDeAntes(s.rtcPortMin, s.rtcPortMax)) s.rtcPortMax = static_cast<std::uint16_t>(ba::ipc::kRtcPuertoMax);
     const json w = j.value("wireguard", json::object());
     s.wgEnabled = get(w, "enabled", s.wgEnabled);
@@ -527,7 +529,7 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                           {"sinVideoPlacaMs", s.sinVideoPlacaMs},
                           {"pinIntentos", s.pinIntentos},
                           {"pinBloqueoS", s.pinBloqueoS},
-                          {"ajustes", s.ajustes},
+                          {"ajustes", *s.ajustes},
                           {"videoW", s.videoW},
                           {"videoH", s.videoH},
                           {"guestVideoW", s.guestVideoW},
@@ -552,7 +554,7 @@ bool saveGatewaySettings(const fs::path& path, const GatewaySettings& s, std::st
                             {"keepalive", s.wgKeepalive},
                             {"httpPort", s.wgHttpPort},
                             {"httpsPort", s.wgHttpsPort}}},
-                          {"proxy", s.proxy},
+                          {"proxy", *s.proxy},
                           {"pinggy",
                            {{"activo", s.pinggyActivo},
                             {"region", s.pinggyRegion},
@@ -609,7 +611,7 @@ bool saveLauncherSettings(const fs::path& path, const LauncherSettings& s, std::
     j["ventanaCaidasMin"] = s.ventanaCaidasMin;
     j["reiniciosSinPreguntar"] = s.reiniciosSinPreguntar;
     j["idioma"] = s.idioma;
-    j["ajustes"] = s.ajustes;
+    j["ajustes"] = *s.ajustes;
     j[ba::persist::kClaveEsquema] = kEsquemaLauncher;
     return writeJson(path, j, err);
 }

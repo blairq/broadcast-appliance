@@ -30,6 +30,7 @@
 #include "sala/ConfigSala.hpp"
 #include "control/TemasWeb.hpp"
 #include "ipc/LugaresSala.hpp"
+#include "ipc/RangoRtc.hpp"
 
 namespace ba::app {
 
@@ -348,7 +349,7 @@ QVariantMap SettingsModel::current() const {
     QVariantMap m = currentBasicos();
     // Los avanzados: lo guardado en su archivo ("ajustes") o su valor de siempre.
     const Guardada gu = guardada();
-    const json* donde[3] = {&gu.app.ajustes, &gu.gateway.ajustes, &gu.launcher.ajustes};
+    const json* donde[3] = {&*gu.app.ajustes, &*gu.gateway.ajustes, &*gu.launcher.ajustes};
     for (const Field& f : fields_) {
         if (!f.avanzado) continue;
         const json& j = *donde[std::clamp(f.destino, 0, 2)];
@@ -871,7 +872,7 @@ SettingsModel::Aplicado SettingsModel::aplicarEn(AppRuntime& rt, const Pedido& p
         if (f.destino == 1 && f.scope == "live") ajSalaEnCaliente[f.key.toStdString()] = jv;
     }
     c.ajustes = ajApp;
-    ba::ajustes::cargar(c.ajustes); // en caliente: el código los lee al usarlos
+    ba::ajustes::cargar(*c.ajustes); // en caliente: el código los lee al usarlos
     rt.launcher().ajustes = ajLauncher;
     if (cambiaLauncher) notes << traducir("ajustes", "Los avanzados del arranque rigen al volver a abrir el programa.");
     bool salaEnCaliente = false;
