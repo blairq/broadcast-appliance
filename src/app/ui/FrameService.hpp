@@ -64,7 +64,7 @@ class QQmlPropertyMap;
 
 namespace ba::app {
 
-class BroadcastEngine;
+class ApiMotor;
 
 class FrameService : public ProveedorCuadros {
     Q_OBJECT
@@ -84,12 +84,12 @@ class FrameService : public ProveedorCuadros {
     Q_PROPERTY(QObject* rotulos READ rotulosQml CONSTANT)
    public:
     /// Lo que se le encarga al dueño del motor (pedir y soltar vistas), sin esperar.
-    using Encargar = std::function<void(std::function<void(BroadcastEngine&)>)>;
-    FrameService(BroadcastEngine& engine, Encargar encargar, int guests, QObject* parent = nullptr);
+    using Encargar = std::function<void(std::function<void(ApiMotor&)>)>;
+    FrameService(ApiMotor& engine, Encargar encargar, int guests, QObject* parent = nullptr);
     ~FrameService() override;
     /// El motor, para lo que publica «desde cualquier hilo» (las vistas, la instantánea, la
     /// foto de las salidas): lo usan otras vistas que solo leen eso (los tiempos).
-    BroadcastEngine& motorEntreHilos() const { return engine_; }
+    ApiMotor& motorEntreHilos() const { return engine_; }
 
     /// Claves de video disponibles ("program", "guest:1"...).
     QStringList keys() const;
@@ -165,7 +165,7 @@ class FrameService : public ProveedorCuadros {
     };
     /// El hilo que lee los canales entre procesos (en el .cpp).
     class Canales;
-    BroadcastEngine& engine_; ///< solo lo que se lee desde cualquier hilo (las vistas)
+    ApiMotor& engine_; ///< solo lo que se lee desde cualquier hilo (las vistas)
     Encargar encargar_;
     int guests_ = 0;
     /// Los canales de una clave, en orden de preferencia (el chico primero).

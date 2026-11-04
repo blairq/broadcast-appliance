@@ -36,13 +36,13 @@ DesdeLaInterfaz desdeLaInterfaz() {
     if (gInterfaz.hilo != std::this_thread::get_id()) return {};
     return gInterfaz;
 }
-std::atomic<BroadcastEngine*> gMotor{nullptr};
+std::atomic<ApiMotor*> gMotor{nullptr};
 std::map<std::string, std::map<int, json>> gExtras;
 std::function<void(const std::string&)> gAvisoExtras;
 } // namespace
 
-BroadcastEngine* motorApp() { return gMotor.load(); }
-void ponerMotorApp(BroadcastEngine* e) { gMotor = e; }
+ApiMotor* motorApp() { return gMotor.load(); }
+void ponerMotorApp(ApiMotor* e) { gMotor = e; }
 
 void registrar(Tipo t) {
     std::lock_guard<std::mutex> l(gMu);

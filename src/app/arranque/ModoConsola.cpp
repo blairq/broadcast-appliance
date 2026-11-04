@@ -39,7 +39,7 @@ bool hasFlag(int argc, char** argv, const char* flag) {
     return false;
 }
 
-void printStatus(const BroadcastEngine& eng) {
+void printStatus(const ApiMotor& eng) {
     const EngineStatus s = eng.status();
     char fps[32];
     std::snprintf(fps, sizeof fps, "%.1f", s.fps);

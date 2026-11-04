@@ -98,7 +98,7 @@ AsambleaViewModel::AsambleaViewModel(Partes p, QObject* parent) : QObject(parent
                                      .sala = p_.sala.client(),
                                      .bus = p_.bus,
                                      .enMotor =
-                                         [this](std::function<asamblea::Presidencia::Canales(BroadcastEngine&)> reparto,
+                                         [this](std::function<asamblea::Presidencia::Canales(ApiMotor&)> reparto,
                                                 std::function<void(asamblea::Presidencia::Canales)> listo) {
                                              p_.ventanilla.pedir(
                                                  this, "asamblea_canales",
@@ -563,10 +563,10 @@ void AsambleaViewModel::actualizarRanurasBanca(bool forzar) {
         }
         ids.push_back(remoto ? std::string() : id);
     }
-    if (ids.size() > static_cast<std::size_t>(BroadcastEngine::kRanurasBanca)) ids.resize(BroadcastEngine::kRanurasBanca);
-    std::vector<BroadcastEngine::RanuraBanca> ranuras;
+    if (ids.size() > static_cast<std::size_t>(ApiMotor::kRanurasBanca)) ids.resize(ApiMotor::kRanurasBanca);
+    std::vector<ApiMotor::RanuraBanca> ranuras;
     for (const std::string& id : ids) {
-        BroadcastEngine::RanuraBanca r;
+        ApiMotor::RanuraBanca r;
         const nlohmann::json i = id.empty() ? nlohmann::json::object() : cuerpo_->cuerpo().buscar(id);
         const nlohmann::json t = i.value("preset_ptz", nlohmann::json::object()); // la toma de su banca
         const QString camara = QString::fromStdString(t.value("camara", std::string()));

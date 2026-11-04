@@ -565,7 +565,7 @@ void McpService::registerGrabacionTools() {
             vm.ventanilla().pedir(
                 &vm, "grabacion_individual",
                 [&rt, arrancar, parar, todas = a.value("todas", false)]() mutable {
-                    BroadcastEngine& e = rt.engine();
+                    ApiMotor& e = rt.engine();
                     if (todas) {
                         // Las de la escena al aire que NO se están grabando ya (como «grabar todas» de la
                         // interfaz): pedirlas de nuevo daba un error por cada una.
@@ -592,7 +592,7 @@ void McpService::registerGrabacionTools() {
                                                  }()},
                                                 {"audioPropio", g.audioPropio},
                                                 {"activa", g.activa}});
-                    return json{{"grabando", grabando}, {"noSePudo", fallaron}, {"tope", BroadcastEngine::kMaxIndividuales}};
+                    return json{{"grabando", grabando}, {"noSePudo", fallaron}, {"tope", ApiMotor::kMaxIndividuales}};
                 },
                 [done](const json& r) { done(ToolResult().data(r)); });
         };

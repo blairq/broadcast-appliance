@@ -13,10 +13,10 @@
 #include "asamblea/SesionRemota.hpp"
 #include "asamblea/Votaciones.hpp"
 #include "control/BusEventos.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
+#include "ipc/CanalesEscena.hpp"
 #include "sala/Pedido.hpp"
 #include "ui/ConferenceClient.hpp"
-
 #include <QDateTime>
 #include <QFile>
 #include <QJsonDocument>
@@ -401,7 +401,7 @@ void Presidencia::aplicarVistas(bool forzar) {
     if (!p_.enMotor) return;
     // Los canales los reparte el motor (en su hilo); lo que dio vuelve acá y va a la sala.
     QPointer<Presidencia> yo(this);
-    p_.enMotor([fuentes, alguien](BroadcastEngine& m) { return repartirCanales(m, fuentes, alguien); },
+    p_.enMotor([fuentes, alguien](ApiMotor& m) { return repartirCanales(m, fuentes, alguien); },
                [yo, vistas](Canales c) {
                    if (!yo) return;
                    for (const std::string& f : c.sinCanal)
@@ -421,7 +421,7 @@ void Presidencia::aplicarVistas(bool forzar) {
                });
 }
 
-Presidencia::Canales Presidencia::repartirCanales(BroadcastEngine& motor, const std::vector<std::string>& fuentes, bool alguien) {
+Presidencia::Canales Presidencia::repartirCanales(ApiMotor& motor, const std::vector<std::string>& fuentes, bool alguien) {
     // Primero las escenas que ya están en un canal (siguen igual, sin apagarse), después se
     // sueltan los canales que ya no van y recién ahí se toman las nuevas. Soltar todo y
     // volver a tomar apagaba y rehacía lo que seguía igual; tomar todo antes de soltar

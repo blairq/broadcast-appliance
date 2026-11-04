@@ -25,7 +25,7 @@
 
 #include "arranque/RuntimeMotor.hpp"
 #include "i18n/I18nTexto.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/RefEscena.hpp"
 #include "ipc/CanalesEscena.hpp"
@@ -143,7 +143,7 @@ QString ipParaAlcanzar(const QStringList& mias, const QString& host) {
 }
 
 /// Los canales de escena del motor, mirados EN EL DUEÑO DEL MOTOR.
-pt::CanalesDelMotor canalesDe(BroadcastEngine& eng) {
+pt::CanalesDelMotor canalesDe(ApiMotor& eng) {
     pt::CanalesDelMotor c;
     c.cantidad = ipc::kCanalesEscena;
     c.escena = [&eng](int k) { return eng.escenaDeCanal(k); };
@@ -152,7 +152,7 @@ pt::CanalesDelMotor canalesDe(BroadcastEngine& eng) {
 }
 /// EN EL DUEÑO DEL MOTOR: suelta los canales de escena que ninguna pantalla usa (ni son de
 /// las vistas de los remotos). Devuelve los soltados: {canal, escena}.
-std::vector<std::pair<int, std::string>> soltarCanales(BroadcastEngine& eng, const std::set<int>& usados) {
+std::vector<std::pair<int, std::string>> soltarCanales(ApiMotor& eng, const std::set<int>& usados) {
     const auto soltados = pt::aSoltar(canalesDe(eng), usados);
     for (const auto& [k, e] : soltados) eng.escenaACanal(k, "");
     return soltados;
@@ -784,7 +784,7 @@ QString PantallasViewModel::mostrarEscena(const QString& id, const QString& pedi
     d_->v->pedir(
         this, "pantalla_canal",
         [&rt = *d_->rt, usados, e = escena.toStdString()]() {
-            BroadcastEngine& eng = rt.engine();
+            ApiMotor& eng = rt.engine();
             CanalPedido r;
             r.soltados = soltarCanales(eng, usados);
             r.canal = pt::canalPara(canalesDe(eng), e);

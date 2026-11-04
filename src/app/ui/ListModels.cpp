@@ -788,7 +788,7 @@ void MixerModel::setSalida(const std::string& salida) {
 // ============================================================================
 
 SourceTypesModel::SourceTypesModel(AppRuntime&, QObject* parent) : QAbstractListModel(parent) {
-    for (const auto& t : BroadcastEngine::tiposDeFuente()) {
+    for (const auto& t : ApiMotor::tiposDeFuente()) {
         // ba_guest_* se manejan desde Invitados, no se agregan a mano.
         if (t.id.rfind("ba_guest", 0) == 0) {
             continue;

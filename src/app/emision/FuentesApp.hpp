@@ -31,15 +31,15 @@
 #include <vector>
 
 namespace ba::app {
-class BroadcastEngine;
+class ApiMotor;
 }
 
 namespace ba::app::fuentes {
 
 /// El motor de la app andando (nullptr antes de arrancar y después de apagar),
 /// para las piezas que no lo reciben (la matriz, los racks). Hilo de la UI.
-BroadcastEngine* motorApp();
-void ponerMotorApp(BroadcastEngine* e);
+ApiMotor* motorApp();
+void ponerMotorApp(ApiMotor* e);
 
 struct Prop {
     std::string nombre;

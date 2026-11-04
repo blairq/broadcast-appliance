@@ -471,7 +471,7 @@ QImage InputThumbProvider::requestImage(const QString& id, QSize* size, const QS
         std::string error = "sin motor", clave;
         int w = 0, h = 0;
         bool esEscena = false;
-        BroadcastEngine* engine = nullptr;
+        ApiMotor* engine = nullptr;
     };
     auto prometida = std::make_shared<std::promise<Preparada>>();
     std::future<Preparada> lista = prometida->get_future();

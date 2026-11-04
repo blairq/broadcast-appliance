@@ -389,7 +389,7 @@ class AppRuntime {
     LauncherSettings& launcher(std::source_location donde = std::source_location::current());
     /// El motor NO toma el turno por la vuelta: cada método suyo tiene su Guarda (la
     /// interfaz lo toma por llamada, TurnoMotor). Solo se cuenta la directa.
-    BroadcastEngine& engine(std::source_location donde = std::source_location::current());
+    ApiMotor& engine(std::source_location donde = std::source_location::current());
     /// El latido del supervisor que mira el motor (la UI trabada no corta el aire).
     LatidoAire& latido();
     /// DESDE CUALQUIER HILO: el canal de niveles (los vúmetros de entradas, buses y
@@ -409,7 +409,7 @@ class AppRuntime {
     /// El motor para lo que se lee DESDE CUALQUIER HILO (las vistas: FrameService). No cuenta
     /// como entrada; un método con el turno llamado por acá desde la interfaz igual se cuenta
     /// (su TurnoMotor::Guarda): la red de seguridad lo ve.
-    BroadcastEngine& motorEntreHilos();
+    ApiMotor& motorEntreHilos();
     /// El último error DE ESTE HILO (ver «Estrategia de errores»).
     const std::string& lastError() const;
     /// true si el ultimo corte de la transmision / grabacion lo PIDIO alguien
@@ -499,6 +499,11 @@ class AppRuntime {
     friend class Invitados;
     friend class SaludProceso;
 
+    /// El motor de las piezas, por su API (emision/ApiMotor.hpp): lo mismo que `*engine_`
+    /// sin contar una llamada directa (las piezas son del dueño). Así no ven
+    /// BroadcastEngine.hpp; lo que es solo del motor (startup, medidores…) queda en
+    /// AppRuntime.cpp, que lo usa por engine_. Const como el unique_ptr: no cambia el motor.
+    ApiMotor& motorPropio() const;
     /// A los que observan, en el hilo dueño (PublicadorFoto::avisar).
     void avisar(Cambio c) const;
     /// El último error del hilo que llama (lastError).

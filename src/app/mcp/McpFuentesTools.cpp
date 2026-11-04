@@ -48,7 +48,7 @@ void McpService::registerFuentesTools() {
             "y/o audio). El id es el `type` de crear_fuente / scene_define.");
         t.run = [](const json&, Done done) {
             json out = json::array();
-            for (const SourceType& s : BroadcastEngine::tiposDeFuente())
+            for (const SourceType& s : ApiMotor::tiposDeFuente())
                 out.push_back(
                     json{{"type", s.id}, {"name", s.displayName}, {"video", s.video}, {"audio", s.audio}});
             done(ToolResult().data(json{{"types", out}}));

@@ -1015,9 +1015,9 @@ MandoDeAire McpService::mandoDeAire() {
         MandoDeAire::Inicio r;
         r.ok = rt.salirAlAireManual(server, key, caliente, salida, hechoDe(std::move(hecho)));
         // ultimoInicio y lastError son de este hilo (como errno): los de recién.
-        const BroadcastEngine::Inicio i = rt.engine().ultimoInicio();
-        r.yaIgual = r.ok && i == BroadcastEngine::Inicio::YaIgual;
-        if (!r.ok && i == BroadcastEngine::Inicio::YaOtroDestino) r.activoEn = rt.engine().destinoActivo(salida);
+        const ApiMotor::Inicio i = rt.engine().ultimoInicio();
+        r.yaIgual = r.ok && i == ApiMotor::Inicio::YaIgual;
+        if (!r.ok && i == ApiMotor::Inicio::YaOtroDestino) r.activoEn = rt.engine().destinoActivo(salida);
         if (!r.ok) r.error = rt.lastError();
         return r;
     };

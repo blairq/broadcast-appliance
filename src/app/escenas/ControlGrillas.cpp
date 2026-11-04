@@ -11,7 +11,7 @@
 #include "asamblea/Cuerpo.hpp"
 #include "escenas/FuenteGrilla.hpp"
 #include "asamblea/SesionRemota.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/FotoMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "emision/FuentesApp.hpp"
@@ -305,7 +305,7 @@ std::vector<grilla::Persona> ControlGrillas::gente(std::int64_t ahora, const std
     const FotoMotor& f = p_.motor.foto();
     for (const std::string& n : seVe) {
         const std::string tipo = f.tipoDe(n);
-        if (tipo == BroadcastEngine::kTipoBanca) {
+        if (tipo == ApiMotor::kTipoBanca) {
             bancaAlAire = true;
             continue;
         }

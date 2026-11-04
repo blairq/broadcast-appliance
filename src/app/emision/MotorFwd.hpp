@@ -18,6 +18,7 @@
 
 namespace ba::app {
 
+class ApiMotor;
 class BroadcastEngine;
 class LatidoAire;
 class NivelesMotor;

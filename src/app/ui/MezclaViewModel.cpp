@@ -165,7 +165,7 @@ bool MezclaViewModel::setRetardoUi(const QString& fuente, int ms) {
     p_.ventanilla.pedir(
         this, "mezcla_retardo",
         [&rt = p_.rt, f, ms = std::clamp(ms, -5000, 5000)]() -> std::string {
-            BroadcastEngine& e = rt.engine();
+            ApiMotor& e = rt.engine();
             if (!e.setSourceSyncOffset(f, ms)) return e.lastError();
             rt.save();
             return {};
@@ -185,7 +185,7 @@ QString MezclaViewModel::medirSincro(int segundos, std::function<void(const nloh
     p_.ventanilla.pedir(
         this, "mezcla_sincro_empezar",
         [&rt = p_.rt, salida]() -> std::string {
-            BroadcastEngine& e = rt.engine();
+            ApiMotor& e = rt.engine();
             if (e.midiendoSincro()) return ba::i18n::traducir("audio", "ya se está midiendo");
             if (!e.empezarMedicionSincro(salida)) return e.lastError();
             rt.fotoSucia(FotoMotor::Mezcla);
@@ -206,7 +206,7 @@ void MezclaViewModel::terminarSincro(std::function<void(const nlohmann::json&)> 
     p_.ventanilla.pedir(
         this, "mezcla_sincro_terminar",
         [&rt = p_.rt, aplicarA]() {
-            BroadcastEngine& e = rt.engine();
+            ApiMotor& e = rt.engine();
             nlohmann::json r = e.terminarMedicionSincro();
             rt.fotoSucia(FotoMotor::Mezcla);
             // Con una fuente y una medición confiable, se le suma lo medido a lo que tenía.

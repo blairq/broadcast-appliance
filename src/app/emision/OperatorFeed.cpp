@@ -6,7 +6,7 @@
 
 #include <cstring>
 
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/FuentesApp.hpp"
 #include "Motor.hpp"
 #include "ipc/HealthBlock.hpp"
@@ -35,7 +35,7 @@ std::uint32_t selfPid() {
 constexpr std::size_t kBlockFrames = 480; // 10 ms a 48 kHz (formato del ring)
 
 motor::Motor* motorAndando() {
-    BroadcastEngine* e = fuentes::motorApp();
+    ApiMotor* e = fuentes::motorApp();
     return e != nullptr ? e->motor() : nullptr;
 }
 
@@ -55,7 +55,7 @@ void OperatorFeed::shutdown() {
     registroMonitors_.clear();
 }
 
-bool OperatorFeed::configure(BroadcastEngine& engine, const std::string& videoSource,
+bool OperatorFeed::configure(ApiMotor& engine, const std::string& videoSource,
                              const std::string& audioSource) {
     bool ok = true;
     motor::Motor* m = engine.motor();

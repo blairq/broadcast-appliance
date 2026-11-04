@@ -109,8 +109,8 @@ void recorrer(F&& fn) {
 } // namespace
 #endif
 
-std::vector<BroadcastEngine::ListItem> camarasDelEquipo(BroadcastEngine&) {
-    std::vector<BroadcastEngine::ListItem> out;
+std::vector<ApiMotor::ListItem> camarasDelEquipo(ApiMotor&) {
+    std::vector<ApiMotor::ListItem> out;
 #if defined(BA_HAVE_GST)
     recorrer([&](GstDevice* dev, const std::string& id) {
         gchar* n = gst_device_get_display_name(dev);

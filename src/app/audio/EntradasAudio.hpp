@@ -18,7 +18,7 @@
 // ============================================================================
 #pragma once
 
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 
 #include <string>
 #include <vector>
@@ -28,7 +28,7 @@ namespace ba::app::audio {
 /// Las entradas de audio del equipo [{name, value}], la predeterminada primero.
 /// Con GStreamer andando, de su monitor de dispositivos; si todavía no arrancó,
 /// la lista de libobs (convertida al id de GStreamer).
-std::vector<BroadcastEngine::ListItem> entradasDeAudio(BroadcastEngine& engine);
+std::vector<ApiMotor::ListItem> entradasDeAudio(ApiMotor& engine);
 
 /// La parte de origen del pipeline para el dispositivo (para `pipeline_audio`).
 std::string pipelineDeMicrofono(const std::string& dispositivo);

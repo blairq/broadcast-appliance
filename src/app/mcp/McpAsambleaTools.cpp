@@ -17,7 +17,7 @@
 #include "asamblea/Debate.hpp"
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/SesionRemota.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
@@ -359,7 +359,7 @@ void McpService::registerAsambleaTools() {
                 &vm, "asamblea_escenas_base",
                 [&rt, plan]() {
                     json creadas = json::array(), errores = json::array();
-                    BroadcastEngine& eng = rt.engine();
+                    ApiMotor& eng = rt.engine();
                     for (const auto& p : plan) {
                         const std::string sc = p["escena"];
                         if (p.value("existe", false)) continue;
@@ -374,7 +374,7 @@ void McpService::registerAsambleaTools() {
                             spec.settingsJson = "{}";
                             // La fuente de banca, la primera vez: ranura 1 (quien habla) o 2 (el otro del debate).
                             if (!eng.sourceExists(spec.name) && (spec.name == kBanca1 || spec.name == kBanca2)) {
-                                spec.id = BroadcastEngine::kTipoBanca;
+                                spec.id = ApiMotor::kTipoBanca;
                                 spec.settingsJson = json{{"ranura", spec.name == kBanca1 ? 1 : 2}}.dump();
                             }
                             spec.visible = true;

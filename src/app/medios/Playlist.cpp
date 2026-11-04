@@ -101,7 +101,7 @@ std::string Playlist::setItems(const json& items) {
 }
 
 std::string Playlist::asegurarEscena() {
-    BroadcastEngine& e = rt_.engine();
+    ApiMotor& e = rt_.engine();
     const auto escenas = e.sceneNames();
     if (std::find(escenas.begin(), escenas.end(), kEscena) == escenas.end() && !rt_.addScene(kEscena)) return rt_.lastError();
     const auto fuentes = e.sceneSources(kEscena);

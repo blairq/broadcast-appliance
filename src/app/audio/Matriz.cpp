@@ -15,7 +15,7 @@
 #include <QSaveFile>
 
 #include "arranque/RuntimeMotor.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/NivelesMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "ui/ListaObjetos.hpp"
@@ -48,10 +48,10 @@ using anillo::Ring;
 float dbALineal(double db) { return db <= -96.0 ? 0.0f : static_cast<float>(std::pow(10.0, db / 20.0)); }
 double linealADb(float x) { return x <= 1e-6f ? -100.0 : 20.0 * std::log10(static_cast<double>(x)); }
 
-BroadcastEngine* motor() { return fuentes::motorApp(); }
+ApiMotor* motor() { return fuentes::motorApp(); }
 /// El motor de GStreamer de la app (nulo si no está andando).
 motor::Motor* motorGst() {
-    BroadcastEngine* e = motor();
+    ApiMotor* e = motor();
     return e != nullptr ? e->motor() : nullptr;
 }
 
@@ -157,7 +157,7 @@ Matriz::Matriz(fs::path dataRoot, AppRuntime* rt, VentanillaMotor* ventanilla, Q
         bool falta = false;
         {
             std::lock_guard<std::mutex> l(tomasLock_);
-            BroadcastEngine* eng = motor();
+            ApiMotor* eng = motor();
             for (const auto& [k, e] : envios_) // (las tomas son de lo que va a una salida física)
                 if (k.second.rfind("fis:", 0) == 0 && !tomas_.contains(k.first)) falta = true;
             for (const auto& [n, t] : tomas_)
@@ -191,7 +191,7 @@ Matriz::~Matriz() {
     planCv_.notify_all();
     if (hilo_.joinable()) hilo_.join();
     setActiva(false);
-    BroadcastEngine* e = motor();
+    ApiMotor* e = motor();
     {
         std::lock_guard<std::mutex> l(tomasLock_);
         for (auto& [n, t] : tomas_)
@@ -266,7 +266,7 @@ void Matriz::ponerMascara(const std::string& f, std::uint32_t m) {
     pedir(
         "matriz_pistas",
         [f, v](AppRuntime& rt) -> std::string {
-            BroadcastEngine& e = rt.engine();
+            ApiMotor& e = rt.engine();
             return e.setSourcePistas(f, v) ? std::string() : e.lastError();
         },
         [this, f, m]() {
@@ -282,7 +282,7 @@ void Matriz::setEscucha(const std::string& f, bool on) {
     pedir(
         "matriz_escucha",
         [f, on](AppRuntime& rt) -> std::string {
-            BroadcastEngine& e = rt.engine();
+            ApiMotor& e = rt.engine();
             return e.setSourceMonitoring(f, on) ? std::string() : e.lastError();
         },
         [this, f, on]() {
@@ -460,7 +460,7 @@ QVariantMap Matriz::cruce(const QString& fuente, const QString& bus) const {
 namespace {
 /// La salida de escucha (los auriculares del operador): la del motor.
 QString nombreEscucha() {
-    BroadcastEngine* e = motor();
+    ApiMotor* e = motor();
     // La foto del motor: no espera su candado (ver Motor::instantanea).
     const auto foto = e != nullptr && e->motor() != nullptr ? e->motor()->instantanea() : nullptr;
     // (Sin copiar la foto entera del motor: solo se mira su «escucha».)
@@ -596,7 +596,7 @@ QString Matriz::ponerPfl(const QString& fuenteQ, const QString& modo, const QStr
     pedir(
         "matriz_pfl",
         [pedida, m = modo.toStdString(), s = salida.toStdString()](AppRuntime& rt) -> std::string {
-            BroadcastEngine& e = rt.engine();
+            ApiMotor& e = rt.engine();
             if (!e.setPfl(pedida, m, s)) return e.lastError();
             rt.fotoSucia(FotoMotor::Mezcla);
             return {};
@@ -610,7 +610,7 @@ QString Matriz::ponerSalidaEscucha(const QString& salida) {
     if (v_ == nullptr) return tr("el motor no está listo");
     // El cambio() lo trae la foto (alCambiarFoto), si cambió.
     pedir("matriz_salida_escucha", [s = salida.toStdString()](AppRuntime& rt) -> std::string {
-        BroadcastEngine& e = rt.engine();
+        ApiMotor& e = rt.engine();
         if (!e.setSalidaEscucha(s)) return e.lastError();
         rt.fotoSucia(FotoMotor::Mezcla);
         return {};
@@ -657,7 +657,7 @@ void Matriz::aplicarGuardado(const std::string& f) {
     pedir(
         "matriz_aplicar_guardado",
         [f, c](AppRuntime& rt) -> std::string {
-            BroadcastEngine& e = rt.engine();
+            ApiMotor& e = rt.engine();
             if (c.pistas) {
                 std::vector<int> v;
                 for (int i = 0; i < 6; ++i)
@@ -934,7 +934,7 @@ void Matriz::sincronizarTomas() {
     std::set<std::string> hacen;
     for (const auto& [k, e] : envios_)
         if (k.second.rfind("fis:", 0) == 0) hacen.insert(k.first);
-    BroadcastEngine* eng = motor();
+    ApiMotor* eng = motor();
     motor::Motor* m = eng != nullptr ? eng->motor() : nullptr;
     std::vector<int> soltar;
     {

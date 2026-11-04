@@ -154,7 +154,7 @@ void ImagenViewModel::armarTiempos() {
     // motor; los racks).
     tiempos_ = std::make_unique<tiempos::TiemposModel>([this]() {
         tiempos::Fotos f;
-        BroadcastEngine& e = p_.motorEntreHilos;
+        ApiMotor& e = p_.motorEntreHilos;
         if (motor::Motor* m = e.motor())
             if (const auto foto = m->instantanea()) f.motor = *foto;
         f.salidas = e.salidasAhora();

@@ -34,7 +34,7 @@ escenas::Conmutador& conmutadorDe(escenas::Conmutadores& cs, const std::string& 
 std::string armarRepeticionEn(AppRuntime& rt, escenas::Conmutadores& cs, const std::string& archivo,
                               const std::string& salida) {
     static const std::string kEscena = "Repetición", kFuente = "Repetición (clip)";
-    BroadcastEngine& e = rt.engine();
+    ApiMotor& e = rt.engine();
     const auto escenas = e.sceneNames();
     if (std::find(escenas.begin(), escenas.end(), kEscena) == escenas.end() && !rt.addScene(kEscena)) return rt.lastError();
     const std::string ajustes =

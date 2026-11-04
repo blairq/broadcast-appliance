@@ -174,10 +174,10 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     };
     // Lo que el motor no pudo hacer: sus órdenes van en cola y la interfaz no
     // espera el resultado, así que el error llega después, desde su hilo.
-    rt_.alFallarMotor([vm = QPointer<StudioViewModel>(this)](const BroadcastEngine::AvisoMotor& a) {
+    rt_.alFallarMotor([vm = QPointer<StudioViewModel>(this)](const ApiMotor::AvisoMotor& a) {
         QMetaObject::invokeMethod(
             qApp,
-            [vm, t = QString::fromStdString(a.texto), ok = a.nivel == BroadcastEngine::AvisoMotor::Nivel::Bien]() {
+            [vm, t = QString::fromStdString(a.texto), ok = a.nivel == ApiMotor::AvisoMotor::Nivel::Bien]() {
                 if (vm) emit vm->notify(t, ok ? "ok" : "error");
             },
             Qt::QueuedConnection);
@@ -218,7 +218,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // Las vistas del motor se leen sin el turno; pedirlas y soltarlas se le encarga al dueño.
     frames_ = std::make_unique<FrameService>(
         rt.motorEntreHilos(),
-        [this](std::function<void(BroadcastEngine&)> fn) {
+        [this](std::function<void(ApiMotor&)> fn) {
             ventanilla_.pedir("vista", [&rt = rt_, fn = std::move(fn)]() { fn(rt.engine()); });
         },
         ventanilla_.foto().ajustes.invitados);
@@ -1643,7 +1643,7 @@ void StudioViewModel::publicarSegundo() {
     // Las mediciones de cada segundo (la salud de las salidas, el loudness) y el orador.
     emision_->muestrearSalud(*bus_);
     // (El loudness, del canal de niveles: ya no va en la foto del motor.)
-    bus_->publicar("audio/loudness", rt_.niveles().loudnessDe(BroadcastEngine::kSalidaPorOmision));
+    bus_->publicar("audio/loudness", rt_.niveles().loudnessDe(ApiMotor::kSalidaPorOmision));
     if (asamblea_) bus_->publicar("oradores/al_aire", asamblea_->bancas().oradorParaZocalo());
 }
 

@@ -662,7 +662,7 @@ EngineStatus BroadcastEngine::status() const {
 // Capacidades (no miran el estado del motor: desde cualquier hilo)
 // ============================================================================
 
-std::string BroadcastEngine::graphicsDeviceName() {
+std::string ApiMotor::graphicsDeviceName() {
 #if defined(__APPLE__)
     return "Apple (VideoToolbox, GStreamer)";
 #else
@@ -670,7 +670,7 @@ std::string BroadcastEngine::graphicsDeviceName() {
 #endif
 }
 
-std::vector<BroadcastEngine::EncoderInfo> BroadcastEngine::videoEncoders() {
+std::vector<ApiMotor::EncoderInfo> ApiMotor::videoEncoders() {
     std::vector<EncoderInfo> out;
     for (const char* f : {"vtenc_h264_hw", "vtenc_h264", "nvh264enc", "qsvh264enc", "d3d12h264enc", "amfh264enc", "vah264enc",
                           "mfh264enc", "x264enc"}) {
@@ -699,11 +699,11 @@ std::vector<std::string> BroadcastEngine::videoEncoderCandidates(const EncoderCo
     return out;
 }
 
-std::vector<SourceType> BroadcastEngine::tiposDeFuente() { return EscenasYFuentes::tiposDeFuente(); }
+std::vector<SourceType> ApiMotor::tiposDeFuente() { return EscenasYFuentes::tiposDeFuente(); }
 
-std::string BroadcastEngine::grupoDeAudio(const std::string& nombre) { return MezclaApp::grupoDeAudio(nombre); }
+std::string ApiMotor::grupoDeAudio(const std::string& nombre) { return MezclaApp::grupoDeAudio(nombre); }
 
-int BroadcastEngine::kbpsGrabacion(const RecordConfig& rec, const EncoderConfig& enc, bool conPistas) {
+int ApiMotor::kbpsGrabacion(const RecordConfig& rec, const EncoderConfig& enc, bool conPistas) {
     return EmisionSalidas::kbpsGrabacion(rec, enc, conPistas);
 }
 
