@@ -2,7 +2,7 @@
 // src/app/emision/MotorFwd.hpp — El motor de emisión declarado, sin definirlo
 //
 // Para los headers que nombran el motor o sus piezas en una firma, un puntero, una
-// referencia o un `unique_ptr` (arranque/AppRuntime.hpp, los ViewModels) sin usarlos
+// referencia o un `unique_ptr` (arranque/RuntimeConfig.hpp, los ViewModels) sin usarlos
 // por dentro: incluir emision/BroadcastEngine.hpp cuesta ~0,4 s por TU y hace que
 // tocarlo recompile a todos (Ola 3 del diseño físico, docs/local/PLAN-DISENO-FISICO.md).
 //

@@ -6,7 +6,7 @@
 // invitado), los archivos largos de un idioma (prompts, ayuda, guías), los plurales y el
 // pseudo-idioma. Sin el perfil de un idioma (`Perfil`, en I18nPerfiles.hpp): tocarlo no
 // recompila a quien solo elige o traduce. Trae lo de traducir (I18nTexto.hpp), así un
-// archivo incluye siempre una sola parte. El cuadro completo, en I18n.hpp.
+// archivo incluye siempre una sola parte. El cuadro completo, en I18n.cpp.
 // ============================================================================
 #pragma once
 

@@ -225,7 +225,7 @@ raiz app/ app core
 def test_el_mapa_elige_la_ruta_mas_larga():
     m = niveles.Mapa.desde_texto(MAPA_JUGUETE)
     assert m.componente_de("app/a/X.hpp").nombre == "app/a"
-    assert m.componente_de("app/arranque/AppRuntime.hpp").nombre == "app/ui"
+    assert m.componente_de("app/arranque/RuntimeConfig.hpp").nombre == "app/ui"
     assert m.componente_de("app/main.cpp").nombre == "app/main"
     assert m.componente_de("emisor/Pedido.hpp").nombre == "emisor"
     assert m.componente_de("emisor/main.cpp") is None

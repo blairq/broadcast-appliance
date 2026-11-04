@@ -938,7 +938,7 @@ FuentesDeFoto McpService::fuentesDeFoto() {
     AppRuntime& rt = rt_;
     InterfazMcp& vm = vm_;
     FuentesDeFoto f;
-    // El documento de aire y el latido: «desde cualquier hilo» (AppRuntime.hpp; ya los lee
+    // El documento de aire y el latido: «desde cualquier hilo» (arranque/RuntimeAire.hpp; ya los lee
     // la foto de emergencia desde el control). La foto de las salidas la publica el hilo
     // de salidas bajo su candado; la lista de salidas, el reloj del motor.
     f.aire = [&rt]() { return salidas::aJson(rt.documentoAire().foto()); };

@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/arranque/SaludProceso.hpp — el proceso A ante el launcher y el gateway
 //
-// Pieza de AppRuntime (ver AppRuntime.hpp). El latido en BA.Health (el del arranque, el de
+// Pieza de AppRuntime (ver RuntimeConfig.hpp). El latido en BA.Health (el del arranque, el de
 // la interfaz y el de los cuadros: LatidoAire), el canal de órdenes del launcher
 // («control.app»), si el gateway (B) está vivo y el pedido de reiniciarlo.
 //

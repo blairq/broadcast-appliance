@@ -1,5 +1,5 @@
 // ============================================================================
-// src/app/arranque/AppRuntime.cpp — ver AppRuntime.hpp
+// src/app/arranque/AppRuntime.cpp — ver RuntimeConfig.hpp
 //
 // El núcleo de la fachada: leer la configuración, arrancar y cerrar, el hilo dueño, las
 // vueltas (ticControl, ticMotor, latirInterfaz), guardar, y lo que delega en cada pieza.

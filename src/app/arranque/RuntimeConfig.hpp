@@ -9,7 +9,7 @@
 //                               guardadas, la foto, el latido, el feed del operador,
 //                               el loudness
 //   arranque/RuntimeMotor.hpp   + el motor (engine(), motorEntreHilos(), turno(), niveles())
-// arranque/AppRuntime.hpp queda de paraguas (incluye RuntimeMotor.hpp) mientras se migra.
+// (El paraguas arranque/AppRuntime.hpp, que traía las tres, se borró en la Ola 4.)
 //
 // Proposito:
 //   Todo lo que hace ba-app para estar "al aire", comun a la consola

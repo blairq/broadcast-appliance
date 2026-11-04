@@ -2,7 +2,7 @@
 // src/app/arranque/ServicioEmision.hpp — lo que sale: grabar, transmitir, destinos, réplica,
 // señal limpia, grabaciones aparte y el disco
 //
-// Pieza de AppRuntime (ver AppRuntime.hpp, «Lo que sale» y «Destinos adicionales»). Las
+// Pieza de AppRuntime (ver RuntimeConfig.hpp, «Lo que sale» y «Destinos adicionales»). Las
 // órdenes de grabar y transmitir corren en el hilo de salidas del motor: que devuelvan true
 // es «encolada». LO PEDIDO de cada salida tiene UN dueño, acá (pedidos_,
 // emision/PedidosSalida.hpp): queda «pendiente» hasta que el motor manda el resultado de esa

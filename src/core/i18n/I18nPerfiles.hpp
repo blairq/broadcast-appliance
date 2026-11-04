@@ -5,7 +5,7 @@
 // los idiomas que hay, el perfil de un código, el del operador (`actual`). Lo usan las
 // pantallas y herramientas que muestran o eligen idiomas; para elegir el del proceso o
 // traducir en otro alcanza con I18nIdioma.hpp, y para traducir con I18nTexto.hpp. Trae
-// las dos (un archivo incluye siempre una sola parte). El cuadro completo, en I18n.hpp.
+// las dos (un archivo incluye siempre una sola parte). El cuadro completo, en I18n.cpp.
 // ============================================================================
 #pragma once
 

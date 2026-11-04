@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/arranque/RepositorioEscenas.hpp — las escenas y sus fuentes, en el motor y en app.json
 //
-// Pieza de AppRuntime (ver AppRuntime.hpp). Cada cambio de escenas y fuentes va al motor
+// Pieza de AppRuntime (ver RuntimeConfig.hpp). Cada cambio de escenas y fuentes va al motor
 // Y a la configuración en memoria (cfg_.scenes, cfg_.audioInputs, cfg_.transition,
 // cfg_.currentScene): así lo que se arma sobrevive a un reinicio sin que nadie toque JSON
 // (lo escribe AppRuntime::save, por la cola de escritura de ba::persist). También la mezcla

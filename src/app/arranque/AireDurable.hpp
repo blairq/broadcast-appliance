@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/arranque/AireDurable.hpp — lo que está al aire sobrevive a un corte
 //
-// Pieza de AppRuntime (ver AppRuntime.hpp). EL DOCUMENTO DE AIRE (F3-04,
+// Pieza de AppRuntime (ver RuntimeConfig.hpp). EL DOCUMENTO DE AIRE (F3-04,
 // emision/DocumentoAire.hpp): la sección de las salidas (qué sale de cada una, su escena, el
 // negro y la placa, y si el cierre fue ordenado), lo que dejó la corrida anterior y VOLVER
 // COMO ESTABA en un solo lugar (restaurarAire); el corte de luz con poca batería (F1-11), el
