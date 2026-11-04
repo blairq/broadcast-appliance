@@ -5,9 +5,15 @@
 # recursos) sino el ARRANQUE de la interfaz. Este test pasa qmllint (del Qt
 # vendoreado) por todos los QML y falla ante errores de SINTAXIS; las
 # advertencias de estilo de qmllint no cuentan.
-#   -DQMLLINT=<ruta a qmllint> -DQML_DIR=<src/app/qml>
+#   -DQMLLINT=<ruta a qmllint> -DQML_DIR=<src/app/qml>    todos los de la carpeta
+#   -DQMLLINT=<ruta a qmllint> -DQML_FILES=<a.qml;b.qml>  esos (src/app/CMakeLists.txt
+#                                                         registra uno por archivo)
 # ============================================================================
-file(GLOB_RECURSE files "${QML_DIR}/*.qml")
+if(DEFINED QML_FILES)
+    set(files ${QML_FILES})
+else()
+    file(GLOB_RECURSE files "${QML_DIR}/*.qml")
+endif()
 set(bad 0)
 foreach(f ${files})
     execute_process(COMMAND "${QMLLINT}" "${f}" OUTPUT_VARIABLE out ERROR_VARIABLE err)

@@ -20,6 +20,12 @@ se graba de a poco), se suma a DEUDA con un comentario que diga por qué.
 import pathlib
 import re
 
+import areas
+import pytest
+
+# Por área (BA_AREA, tests/areas.py): cada archivo se cuenta en la suya.
+pytestmark = pytest.mark.area
+
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 ESCRITOR = re.compile(r"\bstd::ofstream\b|\bofstream\s*[a-zA-Z_(]|\bQSaveFile\s+\w+\s*\(|\bQSaveFile\s+\w+\s*;"
                       r"|\bios::app\b|\b_?w?fopen\s*\([^;]*,\s*L?\"[wa]")
@@ -76,7 +82,7 @@ def contar():
         if f.suffix not in (".cpp", ".hpp", ".h", ".mm") or "tests" in f.parts:
             continue
         rel = f.relative_to(RAIZ / "src").as_posix()
-        if rel.startswith("core/persist/"):
+        if rel.startswith("core/persist/") or not areas.mira(f):
             continue
         for linea in f.read_text(encoding="utf-8", errors="replace").splitlines():
             codigo = linea.split("//")[0]
@@ -89,7 +95,8 @@ def contar():
 
 def test_sin_escritores_nuevos():
     cuenta = contar()
-    nuevos = {f: n for f, n in cuenta.items() if n > DEUDA.get(f, 0)}
+    deuda = areas.deuda(DEUDA)
+    nuevos = {f: n for f, n in cuenta.items() if n > deuda.get(f, 0)}
     assert not nuevos, (
         "std::ofstream/QSaveFile nuevos (usá ba::persist::escribir, persist::cola() o config::guardar; "
         f"ver la cabecera de esta prueba): {nuevos}")
@@ -97,5 +104,5 @@ def test_sin_escritores_nuevos():
 
 def test_la_deuda_solo_baja():
     cuenta = contar()
-    sobra = {f: (n, cuenta.get(f, 0)) for f, n in DEUDA.items() if cuenta.get(f, 0) < n}
+    sobra = {f: (n, cuenta.get(f, 0)) for f, n in areas.deuda(DEUDA).items() if cuenta.get(f, 0) < n}
     assert not sobra, f"ya se migraron (bajá su número en DEUDA): {sobra}"

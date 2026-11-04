@@ -13,6 +13,12 @@ sí vive todo el recorrido. El arreglo: ponerle nombre antes del `for` (o en su 
 import pathlib
 import re
 
+import areas
+import pytest
+
+# Por área (BA_AREA, tests/areas.py).
+pytestmark = pytest.mark.area
+
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 CABECERA = re.compile(r"\bfor\s*\(")
 
@@ -56,6 +62,8 @@ def peligroso(expr):
 def test_sin_recorrer_temporales():
     malos = []
     for f in sorted((RAIZ / "src").rglob("*.cpp")) + sorted((RAIZ / "src").rglob("*.hpp")):
+        if not areas.mira(f):
+            continue
         texto = f.read_text(encoding="utf-8", errors="replace")
         for linea, cab in cabeceras(texto):
             expr = rango(cab)

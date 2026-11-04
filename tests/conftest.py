@@ -35,3 +35,13 @@ def build_dir(repo_root: Path) -> Path | None:
     """
     candidate = repo_root / "build"
     return candidate if candidate.is_dir() else None
+
+
+def pytest_configure(config) -> None:
+    # `area`: la prueba recorre src/ y respeta BA_AREA (tests/areas.py, cmake/BaTestsPy.cmake).
+    config.addinivalue_line("markers", "area: recorre src/ de a un área (BA_AREA); ver tests/areas.py")
+    area = os.environ.get("BA_AREA")
+    if area:
+        import areas
+        if area not in areas.nombres():
+            raise pytest.UsageError(f"BA_AREA={area!r} no es un área de tools/diag/niveles.txt (ni «resto»)")
