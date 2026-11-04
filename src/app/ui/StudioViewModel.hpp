@@ -29,19 +29,7 @@
 #include <functional>
 #include "control/BusEventos.hpp"
 #include "comun/UsoCpu.hpp"
-#include "ui/AppViewModel.hpp"
-#include "ui/AsambleaViewModel.hpp"
-#include "ui/AsistenteViewModel.hpp"
-#include "ui/ControlViewModel.hpp"
-#include "ui/EmisionViewModel.hpp"
-#include "ui/EstadoAireViewModel.hpp"
-#include "ui/EscritorioViewModel.hpp"
-#include "ui/EscenasViewModel.hpp"
-#include "ui/ImagenViewModel.hpp"
-#include "ui/MezclaViewModel.hpp"
-#include "ui/SalaViewModel.hpp"
-#include "ui/SalidasViewModel.hpp"
-#include "ui/MultiviewViewModel.hpp"
+// Los ViewModels de área (ui/AreasStudio.hpp) van declarados abajo, no incluidos.
 
 #include <deque>
 #include <map>
@@ -229,9 +217,23 @@ class ScenesModel;
 class SettingsModel;
 class SourcesModel;
 class SourceTypesModel;
+// Las áreas (ui/AreasStudio.hpp): declaradas; quien las usa incluye su header.
+class AppViewModel;
+class AsistenteViewModel;
+class ControlViewModel;
+class EmisionViewModel;
+class EstadoAireViewModel;
+class EscritorioViewModel;
+class EscenasViewModel;
+class ImagenViewModel;
+class MezclaViewModel;
+class SalaViewModel;
+class SalidasViewModel;
+class VideoViewModel;
 
 class StudioViewModel : public QObject {
     Q_OBJECT
+    Q_MOC_INCLUDE("ui/AreasStudio.hpp")
     // --- Estado ---------------------------------------------------------------
     /// Lo que sale de la por omisión, las pastillas (ui/EstadoAireViewModel): recording,
     /// streaming, alAire, transmitiendo, reconnecting, outputProblem, los tiempos y lo que
@@ -513,7 +515,7 @@ class StudioViewModel : public QObject {
     /// El foco del teclado está en un campo de texto (las teclas T/Enter no son TAKE).
     Q_INVOKABLE bool focoEnTexto() const;
     /// Sale algo (transmisión, grabación o señal limpia): BroadcastEngine::haySalida.
-    bool alAire() const { return aire_->alAire(); }
+    bool alAire() const;
     QObject* cuerpoQml() const;
     QStringList sinSenal() const;
     /// El respaldo de entradas (modelo).
@@ -526,34 +528,34 @@ class StudioViewModel : public QObject {
     QObject* bancasQml() const;
     QObject* debateQml() const;
     QObject* configuracionesQml() const;
-    Configuraciones* configuraciones() { return &app_->configuraciones(); }
+    Configuraciones* configuraciones();
     /// La app misma (el modo en vivo, la caída, cerrar y reiniciar, los eventos).
     AppViewModel& app() { return *app_; }
     QObject* appQml() const;
-    asamblea::Debate* debate() { return asamblea_->debate(); }
+    asamblea::Debate* debate();
     QObject* dcnQml() const;
     QObject* sesionRemotaQml() const;
     QObject* votacionesQml() const;
-    asamblea::Votaciones* votaciones() { return asamblea_->votaciones(); }
-    asamblea::Presidencia* presidencia() { return asamblea_->presidencia(); }
+    asamblea::Votaciones* votaciones();
+    asamblea::Presidencia* presidencia();
     QObject* ccQml() const;
-    agent::SubtitulosCC& cc() { return asistente_->cc(); }
-    asamblea::Bancas& bancas() { return asamblea_->bancas(); }
-    asamblea::ConferenciaDcn& dcn() { return asamblea_->dcn(); }
-    asamblea::SesionRemota* sesionRemota() { return asamblea_->sesionRemota(); }
+    agent::SubtitulosCC& cc();
+    asamblea::Bancas& bancas();
+    asamblea::ConferenciaDcn& dcn();
+    asamblea::SesionRemota* sesionRemota();
     AppRuntime& runtime() { return rt_; }
     /// La ventanilla del motor (F3-03): las herramientas de la interfaz leen su foto y le piden.
     VentanillaMotor& ventanilla() { return ventanilla_; }
-    asamblea::CuerpoViewModel& cuerpo() { return asamblea_->cuerpo(); }
+    asamblea::CuerpoViewModel& cuerpo();
     /// El área de la asamblea (sus modelos, la web del evento, los vínculos, el acta).
     AsambleaViewModel& asamblea() { return *asamblea_; }
     QObject* asambleaQml() const;
-    agent::Vocabulario& vocabulario() { return asistente_->vocabulario(); }
+    agent::Vocabulario& vocabulario();
     /// El área del asistente y la voz (sus modelos, el vocabulario, el rótulo de traducción).
     AsistenteViewModel& asistente() { return *asistente_; }
     QObject* asistenteQml() const;
     control::BusEventos& bus() { return *bus_; }
-    control::Botonera& botonera() { return control_->botonera(); }
+    control::Botonera& botonera();
     /// El área de las superficies de control (sus modelos, el tema web, la API remota).
     ControlViewModel& control() { return *control_; }
     QObject* controlQml() const;
@@ -571,11 +573,11 @@ class StudioViewModel : public QObject {
     /// El corte de luz (F1-11): de dónde viene la energía y la política (arranque/EnergiaAire).
     EnergiaAire* energia() const { return energia_.get(); }
     /// La botonera con el gateway (emparejar tablets, credenciales): control/BotoneraGateway.
-    control::BotoneraGateway& botoneraGateway() { return control_->botoneraGateway(); }
-    control::CarasBotonera& carasBotonera() { return control_->carasBotonera(); }
+    control::BotoneraGateway& botoneraGateway();
+    control::CarasBotonera& carasBotonera();
     /// El control web (/control/): sus aparatos y el puente con el gateway.
-    control::ControlWeb& controlWeb() { return control_->controlWeb(); }
-    control::ControlWebGateway& controlWebGateway() { return control_->controlWebGateway(); }
+    control::ControlWeb& controlWeb();
+    control::ControlWebGateway& controlWebGateway();
     QObject* controlWebQml() const;
     QObject* botoneraQml() const;
     QObject* satelliteQml() const;
@@ -583,43 +585,43 @@ class StudioViewModel : public QObject {
     QObject* dskQml() const;
     QObject* grillasQml() const;
     QObject* seguirMicrofonoQml() const;
-    asamblea::SeguirMicrofono& seguirMicrofono() { return asamblea_->seguirMicrofono(); }
+    asamblea::SeguirMicrofono& seguirMicrofono();
     QObject* ordenDelDiaQml() const;
-    asamblea::OrdenDelDia& ordenDelDia() { return asamblea_->ordenDelDia(); }
+    asamblea::OrdenDelDia& ordenDelDia();
     QObject* informesQml() const;
     QObject* manualesQml() const;
-    asamblea::InformesResultado* informes() { return asamblea_->informes(); }
+    asamblea::InformesResultado* informes();
     QObject* quorumQml() const;
-    asamblea::Quorum& quorum() { return asamblea_->quorum(); }
+    asamblea::Quorum& quorum();
     QObject* accionesQml() const;
-    control::Acciones& acciones() { return control_->acciones(); }
+    control::Acciones& acciones();
     QObject* notificadorQml() const;
     agent::Notificador& notificador() { return *notificador_; }
     QObject* accesoRemotoQml() const;
-    AccesoRemoto* accesoRemoto() { return &sala_->accesoRemoto(); }
+    AccesoRemoto* accesoRemoto();
     /// Modo en vivo (T48): protege páginas y ajustes que cortan (ver AppViewModel).
-    bool modoVivo() const { return app_ && app_->modoVivo(); }
+    bool modoVivo() const;
     /// El área de la emisión (los mandos de grabar y transmitir, la salud de los destinos).
     EmisionViewModel& emision() { return *emision_; }
     QObject* emisionQml() const;
     std::filesystem::path datosRaiz() const;
     /// Capítulos de la grabación en curso por punto del orden del día (texto para YouTube).
     Q_INVOKABLE QString capitulosPuntosUi() const;
-    control::Dsk& dsk() { return control_->dsk(); }
+    control::Dsk& dsk();
     QObject* playlistQml() const;
     QObject* puestoCorreccionQml() const;
     medios::Playlist& playlist() { return *playlist_; }
     /// El cupo de invitados (modelo: sala::CupoSala). La interfaz y el MCP lo piden
     /// por acá; el resultado se muestra como aviso.
-    sala::CupoSala& cupoSala() { return sala_->cupo(); }
+    sala::CupoSala& cupoSala();
     /// La configuración de la sala en caliente (modelo: sala::ConfigSala).
-    sala::ConfigSala& configSala() { return sala_->config(); }
+    sala::ConfigSala& configSala();
     /// La votación de la sala (modelo).
-    sala::VotacionSala& votacion() { return sala_->votacion(); }
+    sala::VotacionSala& votacion();
     /// La cola de preguntas de la sala (modelo).
-    sala::PreguntasSala& preguntas() { return sala_->preguntas(); }
+    sala::PreguntasSala& preguntas();
     /// El PIN por sesión y el token del MCP (modelo: Config/seguridad.json).
-    sala::SeguridadSala& seguridad() { return sala_->seguridad(); }
+    sala::SeguridadSala& seguridad();
     /// El área de la sala (el cupo, el chat, aprobar a los invitados, el encargo al asistente).
     SalaViewModel& sala() { return *sala_; }
     QObject* salaQml() const;
@@ -631,7 +633,7 @@ class StudioViewModel : public QObject {
     /// El área de las escenas (armarlas, el TAKE de la activa, el AFV, la repetición).
     EscenasViewModel& escenas() { return *escenas_; }
     QObject* escenasQml() const;
-    control::SatelliteServidor& satellite() { return control_->satellite(); }
+    control::SatelliteServidor& satellite();
     QObject* busQml() const;
     void setCorteDirectoEditor(bool si);
     double cpuPercent() const { return cpu_; }
@@ -641,8 +643,8 @@ class StudioViewModel : public QObject {
     double programPeakL() const;
     double programPeakR() const;
     QObject* nivelesQml() const;
-    double picoActivaL() const { return salidas_->activaId().empty() ? peakL_ : peakActivaL_; }
-    double picoActivaR() const { return salidas_->activaId().empty() ? peakR_ : peakActivaR_; }
+    double picoActivaL() const;
+    double picoActivaR() const;
     QString currentScene() const;
     QString transitionType() const;
     double canvasAspect() const;
@@ -652,7 +654,7 @@ class StudioViewModel : public QObject {
     bool streamKeySaved() const;
     QString room() const;
     QObject* direccionesQml() const;
-    sala::Direcciones& direcciones() { return sala_->direcciones(); }
+    sala::Direcciones& direcciones();
     int guests() const;
     QString theme() const;
 
@@ -674,10 +676,10 @@ class StudioViewModel : public QObject {
     QObject* pantallas() const;
     QObject* catalogoQml() const;
     QObject* pantallasConectadasQml() const;
-    CatalogoVisible* catalogoVisible() const { return &escritorio_->catalogo(); }
-    MonitoresModel* monitoresModelo() const { return &escritorio_->monitoresModelo(); }
+    CatalogoVisible* catalogoVisible() const;
+    MonitoresModel* monitoresModelo() const;
     QObject* ventanasQml() const;
-    VentanasModel* ventanasModelo() const { return &escritorio_->ventanas(); }
+    VentanasModel* ventanasModelo() const;
     QObject* qr() const;
     QObject* temaEvento() const;
     QObject* enlacesQml() const;
@@ -715,7 +717,7 @@ class StudioViewModel : public QObject {
     QObject* modelos() const;
     QObject* descargas() const;
     QObject* multivistasQml() const;
-    MultiviewViewModel& multivistas() { return escritorio_->multivistas(); }
+    MultiviewViewModel& multivistas();
     /// El área del escritorio (el catálogo, los monitores, las ventanas, las multivistas).
     EscritorioViewModel& escritorio() { return *escritorio_; }
     QObject* escritorioQml() const;
@@ -725,21 +727,21 @@ class StudioViewModel : public QObject {
     QObject* mezcladorQml() const;
     QObject* camaras() const;
     QObject* tiempos() const;
-    tiempos::TiemposModel* tiemposModel() const { return &imagen_->tiempos(); }
+    tiempos::TiemposModel* tiemposModel() const;
     QObject* resolucion() const;
-    resolucion::ResolucionModel* resolucionModel() const { return &imagen_->resolucion(); }
+    resolucion::ResolucionModel* resolucionModel() const;
     QObject* video() const;
     /// El grafo de video: vive en el dueño del motor (solo el MCP del control y las órdenes).
-    video::VideoGrafos* videoGrafos() const { return &imagen_->video(); }
+    video::VideoGrafos* videoGrafos() const;
     /// Lo que la interfaz ve de él y cómo le pide (para los modelos de la interfaz).
-    VideoViewModel* videoVista() const { return &imagen_->videoVm(); }
+    VideoViewModel* videoVista() const;
     QObject* red() const;
-    red::Red* redEquipos() const { return &imagen_->red(); }
+    red::Red* redEquipos() const;
     /// Los plugins de Python (docs/funciones/PLUGINS.md).
     plugins::Plugins* plugins() const { return plugins_.get(); }
     QObject* pluginsQml() const;
     QObject* seguidor() const;
-    Seguidor* seguidorPtz() const { return &imagen_->seguidor(); }
+    Seguidor* seguidorPtz() const;
     QObject* dispositivosQml() const;
     dispositivos::Dispositivos* equipos() const { return dispositivos_.get(); }
     QObject* flujos() const;
@@ -750,45 +752,45 @@ class StudioViewModel : public QObject {
     DocumentosViewModel* documentos() const { return documentos_.get(); }
     QObject* pdfEscenaQml() const;
     PdfEscena* pdfEscena() const { return pdfEscena_.get(); }
-    agent::EstadoIA* estadoIAModelo() const { return &asistente_->estadoIA(); }
+    agent::EstadoIA* estadoIAModelo() const;
     QObject* superres() const;
     QObject* bancoSrObj() const;
-    video::BancoSuperRes* bancoSr() const { return &imagen_->bancoSr(); }
-    video::SuperRes* superresVideo() const { return &imagen_->superres(); }
+    video::BancoSuperRes* bancoSr() const;
+    video::SuperRes* superresVideo() const;
     /// El área de la imagen (las cámaras, los grafos de video, la superresolución, los scopes).
     ImagenViewModel& imagen() { return *imagen_; }
     QObject* imagenQml() const;
-    agent::Traductor* traductorAgent() const { return asistente_->traductor(); }
-    agent::ModelosLocales* modelosLocales() const { return &asistente_->modelos(); }
+    agent::Traductor* traductorAgent() const;
+    agent::ModelosLocales* modelosLocales() const;
     QObject* messages() const;
     QObject* inputs() const;
     QObject* audio() const;
     /// Racks de audio (módulos LSP) de las fuentes.
-    audio::RackManager* racks() const { return &mezcla_->racks(); }
+    audio::RackManager* racks() const;
     agent::AlertEngine& alerts();
     /// El área de las alarmas (ui/AlarmasViewModel): Studio.alarmas en QML.
     QObject* alarmasQml() const;
-    agent::Despachador& despachador() { return asistente_->despachador(); }
+    agent::Despachador& despachador();
     QObject* despachadorQml() const;
 
     // --- Comandos ---------------------------------------------------------------
     QString escenaArmada() const;
     /// El conmutador de escenas de la salida por omisión (modelo): la GUI y el MCP
     /// cambian de escena por ahí.
-    escenas::Conmutador& conmutador() { return salidas_->conmutador(); }
+    escenas::Conmutador& conmutador();
     /// Los de todas las salidas (uno por salida; el de la por omisión es conmutador()).
-    escenas::Conmutadores& conmutadores() { return salidas_->conmutadores(); }
+    escenas::Conmutadores& conmutadores();
     /// El área de las salidas (la lista, la activa, el FTB y la placa).
     SalidasViewModel& salidas() { return *salidas_; }
     QObject* salidasQml() const;
     /// La grilla de personas (fuentes ba_grilla): quién va en cada una. nullptr antes de armarse.
     escenas::ControlGrillas* grillasPersonas() { return grillasPersonas_.get(); }
     /// El FTB y la placa de seguridad (modelo): la GUI y el MCP los ponen por ahí.
-    emision::SeguridadAire& seguridadAire() { return salidas_->seguridadAire(); }
+    emision::SeguridadAire& seguridadAire();
     /// Lo que oye cada invitado (modelo, Config/retornos.json).
-    emision::RetornosInvitados& retornos() { return emision_->retornosInvitados(); }
+    emision::RetornosInvitados& retornos();
     /// El objetivo de loudness guardado (modelo, Config/loudness.json).
-    audio::ObjetivoLoudness& objetivoLoudness() { return emision_->objetivoLoudness(); }
+    audio::ObjetivoLoudness& objetivoLoudness();
 
    private:
     /// Le manda el estado de los buses a las pantallas de tally de la sala.

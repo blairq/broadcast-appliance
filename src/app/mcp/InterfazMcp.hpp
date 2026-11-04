@@ -31,19 +31,7 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
-#include "ui/AppViewModel.hpp"
-#include "ui/AsambleaViewModel.hpp"
-#include "ui/AsistenteViewModel.hpp"
-#include "ui/ControlViewModel.hpp"
-#include "ui/EmisionViewModel.hpp"
-#include "ui/EstadoAireViewModel.hpp"
-#include "ui/EscritorioViewModel.hpp"
-#include "ui/EscenasViewModel.hpp"
-#include "ui/ImagenViewModel.hpp"
-#include "ui/MezclaViewModel.hpp"
-#include "ui/SalaViewModel.hpp"
-#include "ui/SalidasViewModel.hpp"
-#include "ui/MultiviewViewModel.hpp"
+#include "ui/AreasStudio.hpp"
 
 #include <deque>
 #include <map>

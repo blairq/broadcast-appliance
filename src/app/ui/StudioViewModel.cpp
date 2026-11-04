@@ -3,7 +3,7 @@
 // ============================================================================
 
 #include "ui/StudioViewModel.hpp"
-
+#include "ui/AreasStudio.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "audio/Calibracion.hpp"
 #include "audio/Mezclador.hpp"
@@ -1712,6 +1712,65 @@ QObject* StudioViewModel::escritorioQml() const {
     QQmlEngine::setObjectOwnership(escritorio_.get(), QQmlEngine::CppOwnership);
     return escritorio_.get();
 }
+
+// --- Los accesos a las áreas (antes inline en el header: el header las declara, no las
+// incluye) ---------------------------------------------------------------------------
+
+bool StudioViewModel::alAire() const { return aire_->alAire(); }
+Configuraciones* StudioViewModel::configuraciones() { return &app_->configuraciones(); }
+asamblea::Debate* StudioViewModel::debate() { return asamblea_->debate(); }
+asamblea::Votaciones* StudioViewModel::votaciones() { return asamblea_->votaciones(); }
+asamblea::Presidencia* StudioViewModel::presidencia() { return asamblea_->presidencia(); }
+agent::SubtitulosCC& StudioViewModel::cc() { return asistente_->cc(); }
+asamblea::Bancas& StudioViewModel::bancas() { return asamblea_->bancas(); }
+asamblea::ConferenciaDcn& StudioViewModel::dcn() { return asamblea_->dcn(); }
+asamblea::SesionRemota* StudioViewModel::sesionRemota() { return asamblea_->sesionRemota(); }
+asamblea::CuerpoViewModel& StudioViewModel::cuerpo() { return asamblea_->cuerpo(); }
+agent::Vocabulario& StudioViewModel::vocabulario() { return asistente_->vocabulario(); }
+control::Botonera& StudioViewModel::botonera() { return control_->botonera(); }
+control::BotoneraGateway& StudioViewModel::botoneraGateway() { return control_->botoneraGateway(); }
+control::CarasBotonera& StudioViewModel::carasBotonera() { return control_->carasBotonera(); }
+control::ControlWeb& StudioViewModel::controlWeb() { return control_->controlWeb(); }
+control::ControlWebGateway& StudioViewModel::controlWebGateway() { return control_->controlWebGateway(); }
+asamblea::SeguirMicrofono& StudioViewModel::seguirMicrofono() { return asamblea_->seguirMicrofono(); }
+asamblea::OrdenDelDia& StudioViewModel::ordenDelDia() { return asamblea_->ordenDelDia(); }
+asamblea::InformesResultado* StudioViewModel::informes() { return asamblea_->informes(); }
+asamblea::Quorum& StudioViewModel::quorum() { return asamblea_->quorum(); }
+control::Acciones& StudioViewModel::acciones() { return control_->acciones(); }
+AccesoRemoto* StudioViewModel::accesoRemoto() { return &sala_->accesoRemoto(); }
+bool StudioViewModel::modoVivo() const { return app_ && app_->modoVivo(); }
+control::Dsk& StudioViewModel::dsk() { return control_->dsk(); }
+sala::CupoSala& StudioViewModel::cupoSala() { return sala_->cupo(); }
+sala::ConfigSala& StudioViewModel::configSala() { return sala_->config(); }
+sala::VotacionSala& StudioViewModel::votacion() { return sala_->votacion(); }
+sala::PreguntasSala& StudioViewModel::preguntas() { return sala_->preguntas(); }
+sala::SeguridadSala& StudioViewModel::seguridad() { return sala_->seguridad(); }
+control::SatelliteServidor& StudioViewModel::satellite() { return control_->satellite(); }
+double StudioViewModel::picoActivaL() const { return salidas_->activaId().empty() ? peakL_ : peakActivaL_; }
+double StudioViewModel::picoActivaR() const { return salidas_->activaId().empty() ? peakR_ : peakActivaR_; }
+sala::Direcciones& StudioViewModel::direcciones() { return sala_->direcciones(); }
+CatalogoVisible* StudioViewModel::catalogoVisible() const { return &escritorio_->catalogo(); }
+MonitoresModel* StudioViewModel::monitoresModelo() const { return &escritorio_->monitoresModelo(); }
+VentanasModel* StudioViewModel::ventanasModelo() const { return &escritorio_->ventanas(); }
+MultiviewViewModel& StudioViewModel::multivistas() { return escritorio_->multivistas(); }
+tiempos::TiemposModel* StudioViewModel::tiemposModel() const { return &imagen_->tiempos(); }
+resolucion::ResolucionModel* StudioViewModel::resolucionModel() const { return &imagen_->resolucion(); }
+video::VideoGrafos* StudioViewModel::videoGrafos() const { return &imagen_->video(); }
+VideoViewModel* StudioViewModel::videoVista() const { return &imagen_->videoVm(); }
+red::Red* StudioViewModel::redEquipos() const { return &imagen_->red(); }
+Seguidor* StudioViewModel::seguidorPtz() const { return &imagen_->seguidor(); }
+agent::EstadoIA* StudioViewModel::estadoIAModelo() const { return &asistente_->estadoIA(); }
+video::BancoSuperRes* StudioViewModel::bancoSr() const { return &imagen_->bancoSr(); }
+video::SuperRes* StudioViewModel::superresVideo() const { return &imagen_->superres(); }
+agent::Traductor* StudioViewModel::traductorAgent() const { return asistente_->traductor(); }
+agent::ModelosLocales* StudioViewModel::modelosLocales() const { return &asistente_->modelos(); }
+audio::RackManager* StudioViewModel::racks() const { return &mezcla_->racks(); }
+agent::Despachador& StudioViewModel::despachador() { return asistente_->despachador(); }
+escenas::Conmutador& StudioViewModel::conmutador() { return salidas_->conmutador(); }
+escenas::Conmutadores& StudioViewModel::conmutadores() { return salidas_->conmutadores(); }
+emision::SeguridadAire& StudioViewModel::seguridadAire() { return salidas_->seguridadAire(); }
+emision::RetornosInvitados& StudioViewModel::retornos() { return emision_->retornosInvitados(); }
+audio::ObjetivoLoudness& StudioViewModel::objetivoLoudness() { return emision_->objetivoLoudness(); }
 
 } // namespace ba::app
 
