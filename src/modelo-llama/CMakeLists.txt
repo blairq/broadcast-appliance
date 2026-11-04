@@ -103,7 +103,7 @@ elseif(NOT WIN32 AND EXISTS "${_ba_llama}/bin/llama-server")
             if(BA_PATCHELF_LLAMA)
                 install(CODE "
                     foreach(_l libssl.so.3 libcrypto.so.3)
-                        execute_process(COMMAND \"${BA_PATCHELF_LLAMA}\" --set-rpath \"\\\$ORIGIN\"
+                        execute_process(COMMAND sh \"${CMAKE_SOURCE_DIR}/tools/deps/patchelf-misma-fecha.sh\" \"${BA_PATCHELF_LLAMA}\" --set-rpath \"\\\$ORIGIN\"
                                         \"\${CMAKE_INSTALL_PREFIX}/bin/64bit/llama/\${_l}\")
                     endforeach()
                 " COMPONENT bundle)

@@ -89,7 +89,7 @@ if(NOT WIN32 AND NOT APPLE)
     if(BA_PATCHELF_PINGGY)
         install(CODE "
             foreach(_l libpinggy.so libssl.so.3 libcrypto.so.3)
-                execute_process(COMMAND \"${BA_PATCHELF_PINGGY}\" --set-rpath \"\\\$ORIGIN\"
+                execute_process(COMMAND sh \"${CMAKE_SOURCE_DIR}/tools/deps/patchelf-misma-fecha.sh\" \"${BA_PATCHELF_PINGGY}\" --set-rpath \"\\\$ORIGIN\"
                                 \"\${CMAKE_INSTALL_PREFIX}/bin/64bit/pinggy/\${_l}\")
             endforeach()
         " COMPONENT bundle)

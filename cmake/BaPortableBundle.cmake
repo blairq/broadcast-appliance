@@ -58,14 +58,14 @@ install(CODE "
         if(IS_SYMLINK \"\${_lib}\")
             continue()
         endif()
-        execute_process(COMMAND \"${BA_PATCHELF}\" --set-rpath \"\\\$ORIGIN\" \"\${_lib}\"
+        execute_process(COMMAND sh \"${CMAKE_SOURCE_DIR}/tools/deps/patchelf-misma-fecha.sh\" \"${BA_PATCHELF}\" --set-rpath \"\\\$ORIGIN\" \"\${_lib}\"
                         RESULT_VARIABLE _rc ERROR_QUIET)
     endforeach()
 
     # Plugins de audio LSP (CLAP): sus bibliotecas (cairo, libsndfile...) en bin/64bit.
     file(GLOB _claps \"\${CMAKE_INSTALL_PREFIX}/plugins/lsp/*.clap\")
     foreach(_c IN LISTS _claps)
-        execute_process(COMMAND \"${BA_PATCHELF}\"
+        execute_process(COMMAND sh \"${CMAKE_SOURCE_DIR}/tools/deps/patchelf-misma-fecha.sh\" \"${BA_PATCHELF}\"
                         --set-rpath \"\\\$ORIGIN:\\\$ORIGIN/../../bin/64bit\" \"\${_c}\"
                         RESULT_VARIABLE _rc ERROR_QUIET)
     endforeach()
