@@ -555,6 +555,19 @@ if(BA_APP_QT_OK)
     ba_biblioteca_completa(ba_app_equipos red)
     list(PREPEND BA_APP_BIBLIOTECAS ba_app_equipos)
 
+    # Las cuentas de las plataformas (YouTube, Facebook, Twitch) y los vivos que las juntan:
+    # solo usan ba_app_net. vivos/ usa los tres clientes, por eso van juntos.
+    ba_biblioteca(ba_app_cuentas NIVEL 2
+        DEPENDE ba_app_net ba_app_base ba_app_comun ba_core nlohmann_json::nlohmann_json
+                Qt6::Core Qt6::Gui Qt6::Network
+        FUENTES facebook/FacebookClient.cpp twitch/TwitchClient.cpp youtube/YouTubeClient.cpp
+                vivos/PlataformasVivo.cpp vivos/Vivos.cpp)
+    ba_biblioteca_completa(ba_app_cuentas facebook)
+    ba_biblioteca_completa(ba_app_cuentas twitch)
+    ba_biblioteca_completa(ba_app_cuentas youtube)
+    ba_biblioteca_completa(ba_app_cuentas vivos)
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_cuentas)
+
     ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
 endif()
 
@@ -985,9 +998,9 @@ endif()
     add_test(NAME test_mcp_busqueda COMMAND test_mcp_busqueda)
 
     # YouTube: cliente OAuth + Data API contra un Google falso, y HTTPS real.
-    add_executable(test_youtube tests/test_youtube.cpp youtube/YouTubeClient.cpp)
+    add_executable(test_youtube tests/test_youtube.cpp)
     target_include_directories(test_youtube PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_youtube PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_youtube PRIVATE ba_app_cuentas ba_app_net ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
     target_compile_definitions(test_youtube PRIVATE BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     set_target_properties(test_youtube PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_youtube COMMAND test_youtube)
@@ -1841,9 +1854,9 @@ endif()
     add_test(NAME test_salidas_config COMMAND test_salidas_config)
     # Varias cuentas por plataforma y los vivos de cada salida (vivos/Vivos.hpp): la migración,
     # asignar con una plataforma de mentira, dos salidas al mismo vivo y el estado de cada destino.
-    add_executable(test_vivos tests/test_vivos.cpp vivos/Vivos.cpp)
+    add_executable(test_vivos tests/test_vivos.cpp)
     target_include_directories(test_vivos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_vivos PRIVATE ba_core nlohmann_json::nlohmann_json)
+    target_link_libraries(test_vivos PRIVATE ba_app_cuentas ba_core nlohmann_json::nlohmann_json)
     add_test(NAME test_vivos COMMAND test_vivos)
     # El documento único de aire (F3-04): corte en cada transición, daño y la versión 1.
     add_executable(test_documento_aire tests/test_documento_aire.cpp emision/DocumentoAire.cpp emision/SalidasConfig.cpp)
@@ -1944,16 +1957,16 @@ endif()
     set_target_properties(test_cast PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_cast COMMAND test_cast)
 
-    add_executable(test_twitch tests/test_twitch.cpp twitch/TwitchClient.cpp)
+    add_executable(test_twitch tests/test_twitch.cpp)
     target_include_directories(test_twitch PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_twitch PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_twitch PRIVATE ba_app_cuentas ba_app_net ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
     set_target_properties(test_twitch PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_twitch COMMAND test_twitch)
 
     # Facebook: login, Paginas, vivos RTMPS, comentarios y subida por partes contra un Graph falso.
-    add_executable(test_facebook tests/test_facebook.cpp facebook/FacebookClient.cpp)
+    add_executable(test_facebook tests/test_facebook.cpp)
     target_include_directories(test_facebook PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_facebook PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_facebook PRIVATE ba_app_cuentas ba_app_net ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
     set_target_properties(test_facebook PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_facebook COMMAND test_facebook)
     # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:

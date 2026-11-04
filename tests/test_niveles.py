@@ -115,9 +115,6 @@ DEUDA_INCLUDES = {
     "app/video -> app/emision": 7,
     "app/video -> app/plugins": 1,
     "app/video -> app/ui": 2,
-    "app/vivos -> app/facebook": 1,
-    "app/vivos -> app/twitch": 1,
-    "app/vivos -> app/youtube": 1,
     "gateway -> app/net-base": 1,
 }
 
