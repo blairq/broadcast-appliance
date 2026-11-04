@@ -78,9 +78,10 @@ int main(int argc, char** argv) {
     // ejecutable de un proceso según el sistema (/proc/<pid>/exe) es el EMULADOR, no el programa:
     // el barrido —que solo mata a un pid si sigue siendo el programa anotado, para no matar a
     // otro que reusó el número— no lo reconoce y, bien hecho, no lo toca. Eso no se puede probar
-    // ahí: se avisa y el test termina en SKIP (lo demás se prueba igual).
-    const std::string propio = ba::platform::huerfanos::ejecutableDe(::getpid()).string();
-    const bool emulado = propio != QFileInfo(yo).canonicalFilePath().toStdString();
+    // ahí: se avisa y el test termina en SKIP (lo demás se prueba igual). Se mira en un hijo, como
+    // el barrido: Rosetta muestra bien el /proc/<pid>/exe del propio proceso, no el de otro.
+    std::string propio;
+    bool emulado = false;
     // Como si quien lo anotó hubiera muerto: el dueño, un pid que ya no vive.
     const auto sinDueno = [&anotado]() {
         QProcess t;
@@ -129,6 +130,8 @@ int main(int argc, char** argv) {
         hijos::preparar(p);
         p.start(yo, {"--desprendido"});
         CHECK(p.waitForStarted(5000), "arranca el huérfano");
+        propio = ba::platform::huerfanos::ejecutableDe(static_cast<std::int64_t>(p.processId())).string();
+        emulado = propio != QFileInfo(yo).canonicalFilePath().toStdString();
         hijos::anotar(p, "prueba");
         CHECK(p.waitForReadyRead(5000), "dice el pid de su desprendido");
         const pid_t nieto = static_cast<pid_t>(p.readLine().trimmed().toLongLong());
@@ -156,7 +159,7 @@ int main(int argc, char** argv) {
     }
     std::printf("== test_hijos_app: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
     if (fallos == 0 && emulado) {
-        std::printf("SKIP: corre bajo un emulador (el sistema dice que este proceso es «%s», no «%s»: Rosetta/qemu "
+        std::printf("SKIP: corre bajo un emulador (el sistema dice que el hijo es «%s», no «%s»: Rosetta/qemu "
                     "por binfmt, el Linux x86_64 de Docker en una Mac ARM). El barrido de huérfanos reconoce a un "
                     "proceso por su ejecutable y eso ahí no se puede probar; lo demás pasó.\n",
                     propio.c_str(), QFileInfo(yo).canonicalFilePath().toUtf8().constData());
