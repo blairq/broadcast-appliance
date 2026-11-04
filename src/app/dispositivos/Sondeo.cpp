@@ -218,3 +218,5 @@ void Sondeo::terminar(const QString& error) {
 }
 
 } // namespace ba::app::dispositivos
+
+#include "moc_Sondeo.cpp"

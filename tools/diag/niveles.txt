@@ -57,37 +57,36 @@ componente emisor          1.5 emisor/Pedido.*               : ba_emisor_pedido
 # errores, los nombres de la app para Config/). Antes comun era un área más (nivel 2) y
 # todo el que lo incluía sumaba deuda «entre iguales» por usar algo que está más abajo.
 componente app/base        1.5 app/comun/ app/ui/CapturaError.hpp app/ui/ListaConClave.hpp app/ui/ListaObjetos.* app/ui/JsonListModel.* app/ui/FiltroCatalogo.* app/arranque/ArchivoConfig.hpp : ba_app_base
+# El HTTPS propio y lo que lo usa sin depender de ningún área (ba_app_net). net/AccesoRemoto
+# (el túnel visto desde la interfaz) queda en app/net, nivel 2.
+componente app/net-base    1.5 app/net/HttpsClient.* app/net/AsyncHttp.hpp app/net/Credentials.hpp app/net/AccountGuides.* app/net/CapturaWeb.* app/net/ClienteCapacidad.* app/net/Descargas.* : ba_app_net
 
 # --- nivel 2: los modelos de área de la app ------------------------------------------------
-componente app/agent        2  app/agent/
+# El asistente y el registro con tótems van juntos (ba_app_agente): se usan entre sí.
+componente app/agent        2  app/agent/ app/registro/
 componente app/asamblea     2  app/asamblea/
 componente app/audio        2  app/audio/
-componente app/camaras      2  app/camaras/
+# Los equipos (ba_app_equipos): dispositivos, cámaras PTZ, red y sincronía de las cámaras.
+componente app/equipos      2  app/camaras/ app/dispositivos/ app/ptz/ app/red/
 componente app/carrusel     2  app/carrusel/
 componente app/control      2  app/control/
-componente app/dispositivos 2  app/dispositivos/
 componente app/emision      2  app/emision/
+# Las cuentas de las plataformas y los vivos (ba_app_cuentas).
+componente app/cuentas      2  app/facebook/ app/twitch/ app/vivos/ app/youtube/
 componente app/escenas      2  app/escenas/
 componente app/evento       2  app/evento/
-componente app/facebook     2  app/facebook/
 componente app/graficos     2  app/graficos/
 componente app/mcp          2  app/mcp/
 componente app/medios       2  app/medios/
 componente app/net          2  app/net/
 componente app/pantallas    2  app/pantallas/
 componente app/plugins      2  app/plugins/
-componente app/ptz          2  app/ptz/
-componente app/red          2  app/red/
-componente app/registro     2  app/registro/
 componente app/resolucion   2  app/resolucion/
 componente app/rostros      2  app/rostros/
 componente app/sala         2  app/sala/
 componente app/term         2  app/term/
 componente app/tiempos      2  app/tiempos/
-componente app/twitch       2  app/twitch/
 componente app/video        2  app/video/
-componente app/vivos        2  app/vivos/
-componente app/youtube      2  app/youtube/
 
 # --- nivel 3: la interfaz (la futura ba_app_ui) --------------------------------------------
 componente app/ui           3  app/ui/ app/arranque/ app/qml/

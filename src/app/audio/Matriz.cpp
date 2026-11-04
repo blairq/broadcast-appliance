@@ -1306,3 +1306,5 @@ void Matriz::cargar() {
 }
 
 } // namespace ba::app::audio
+
+#include "moc_Matriz.cpp"

@@ -394,3 +394,5 @@ void TerminalSession::scheduleRepaint() {
 }
 
 } // namespace ba::app::term
+
+#include "moc_TerminalSession.cpp"

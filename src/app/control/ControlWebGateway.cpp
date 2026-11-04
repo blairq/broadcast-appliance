@@ -212,3 +212,5 @@ void ControlWebGateway::estado(std::function<void(const json&)> listo) {
 }
 
 } // namespace ba::app::control
+
+#include "moc_ControlWebGateway.cpp"

@@ -220,3 +220,5 @@ void ServidorModeloLocal::parar() {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_ServidorModeloLocal.cpp"

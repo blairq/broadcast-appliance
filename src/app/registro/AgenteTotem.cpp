@@ -191,3 +191,5 @@ void AgenteTotem::cerrar(const Conversacion::Respuesta& r, bool porGuion) {
 }
 
 } // namespace ba::registro
+
+#include "moc_AgenteTotem.cpp"

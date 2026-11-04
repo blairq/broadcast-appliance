@@ -639,3 +639,5 @@ void FacebookClient::uploadChunk(const QString& path, const QString& session, qi
 }
 
 } // namespace ba::app
+
+#include "moc_FacebookClient.cpp"

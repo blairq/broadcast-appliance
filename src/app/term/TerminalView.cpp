@@ -522,3 +522,5 @@ void TerminalView::focusOutEvent(QFocusEvent* e) {
 }
 
 } // namespace ba::app::term
+
+#include "moc_TerminalView.cpp"

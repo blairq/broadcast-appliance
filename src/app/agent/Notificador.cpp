@@ -252,3 +252,5 @@ void Notificador::probarUi(const QString& id) {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_Notificador.cpp"

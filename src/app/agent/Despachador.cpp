@@ -767,3 +767,5 @@ QVariantMap Despachador::modelosQml() const {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_Despachador.cpp"

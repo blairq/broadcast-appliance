@@ -273,3 +273,5 @@ std::vector<FlujosTexto::Frase> FlujosTexto::desde(std::uint64_t seq) const {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_FlujosTexto.cpp"

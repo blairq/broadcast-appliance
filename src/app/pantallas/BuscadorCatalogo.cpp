@@ -225,3 +225,5 @@ void BuscadorCatalogo::mover(int delta) {
 }
 
 } // namespace ba::app
+
+#include "moc_BuscadorCatalogo.cpp"

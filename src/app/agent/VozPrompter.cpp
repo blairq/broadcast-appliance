@@ -303,3 +303,5 @@ void VozPrompter::agendar(int desde, int hasta, double inicioMs) {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_VozPrompter.cpp"

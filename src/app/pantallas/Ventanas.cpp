@@ -367,3 +367,5 @@ void VentanasModel::guardar() const {
 }
 
 } // namespace ba::app
+
+#include "moc_Ventanas.cpp"

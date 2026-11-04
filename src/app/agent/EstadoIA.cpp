@@ -166,3 +166,5 @@ nlohmann::json EstadoIA::estado() const {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_EstadoIA.cpp"

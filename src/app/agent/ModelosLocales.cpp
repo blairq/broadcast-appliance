@@ -1506,3 +1506,5 @@ void ModelosLocales::anotarPrueba(const QString& frase, const json& j) {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_ModelosLocales.cpp"

@@ -222,3 +222,5 @@ void EnvioOpencode::mandar(ColaAutomatica::Lote lote) {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_EnvioOpencode.cpp"

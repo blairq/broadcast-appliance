@@ -122,3 +122,5 @@ void AlarmaSonora::guardar() const {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_AlarmaSonora.cpp"

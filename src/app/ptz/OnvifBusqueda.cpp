@@ -92,3 +92,5 @@ QVariantList OnvifBusqueda::encontradas() const {
 }
 
 } // namespace ba::app::ptz
+
+#include "moc_OnvifBusqueda.cpp"

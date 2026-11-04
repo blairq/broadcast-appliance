@@ -602,3 +602,5 @@ void EquipoAudio::cargar(const nlohmann::json& j) {
 }
 
 } // namespace ba::app::audio
+
+#include "moc_EquipoAudio.cpp"

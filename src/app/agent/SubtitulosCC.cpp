@@ -113,3 +113,5 @@ void SubtitulosCC::probar(const QString& texto) {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_SubtitulosCC.cpp"

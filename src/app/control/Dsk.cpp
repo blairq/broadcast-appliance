@@ -317,3 +317,5 @@ bool Dsk::fija(int capa) const {
 }
 
 } // namespace ba::app::control
+
+#include "moc_Dsk.cpp"

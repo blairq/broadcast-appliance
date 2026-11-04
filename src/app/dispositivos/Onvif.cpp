@@ -161,3 +161,5 @@ void ClienteOnvif::funciones(Listo listo) {
 }
 
 } // namespace ba::app::dispositivos
+
+#include "moc_Onvif.cpp"

@@ -167,3 +167,5 @@ void CuadrosWeb::listo(const std::string& clave, int ancho, std::uint64_t serial
 }
 
 } // namespace ba::app::control
+
+#include "moc_CuadrosWeb.cpp"

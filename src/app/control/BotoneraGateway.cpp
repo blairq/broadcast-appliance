@@ -173,3 +173,5 @@ void BotoneraGateway::estado(std::function<void(const json&)> listo) {
 }
 
 } // namespace ba::app::control
+
+#include "moc_BotoneraGateway.cpp"

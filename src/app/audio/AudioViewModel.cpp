@@ -731,3 +731,5 @@ QVariantList AudioViewModel::catalogoLsp() const {
 }
 
 } // namespace ba::app::audio
+
+#include "moc_AudioViewModel.cpp"

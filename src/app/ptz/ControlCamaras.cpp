@@ -772,3 +772,5 @@ void ControlCamaras::setInterlock(const QVariantMap& c) {
 }
 
 } // namespace ba::app::ptz
+
+#include "moc_ControlCamaras.cpp"

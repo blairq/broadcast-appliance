@@ -374,3 +374,5 @@ void FacebookVivo::salud(const std::string& cuenta, const std::string& vivo, Lis
 }
 
 } // namespace ba::app::vivos
+
+#include "moc_PlataformasVivo.cpp"

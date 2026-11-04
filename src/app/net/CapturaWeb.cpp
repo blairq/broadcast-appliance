@@ -109,3 +109,5 @@ void CapturaWeb::capturar(const Pedido& p, Listo listo) {
 }
 
 } // namespace ba::app
+
+#include "moc_CapturaWeb.cpp"

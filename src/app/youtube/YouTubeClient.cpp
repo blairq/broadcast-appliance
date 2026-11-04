@@ -931,3 +931,5 @@ void YouTubeClient::chatSend(const QString& liveChatId, const QString& text, Don
 }
 
 } // namespace ba::app
+
+#include "moc_YouTubeClient.cpp"

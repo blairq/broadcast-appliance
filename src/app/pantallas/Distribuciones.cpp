@@ -1053,3 +1053,5 @@ void DistribucionesModel::guardar() const {
 }
 
 } // namespace ba::app
+
+#include "moc_Distribuciones.cpp"
