@@ -529,7 +529,7 @@
 <context>
     <name>AgentViewModel</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="+447"/>
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="+458"/>
         <source>Falta la dirección del servidor.</source>
         <translation>缺少服务器地址。</translation>
     </message>
@@ -604,7 +604,7 @@
         <translation>无法保存密钥。</translation>
     </message>
     <message>
-        <location line="+113"/>
+        <location line="+140"/>
         <source>No se pudo buscar la actualizacion: %1</source>
         <translation>无法检查更新：%1</translation>
     </message>
@@ -614,12 +614,12 @@
         <translation>有新版本：%1。</translation>
     </message>
     <message>
-        <location line="-391"/>
+        <location line="-437"/>
         <source>El agente terminó (código %1).</source>
         <translation>代理已结束（代码 %1）。</translation>
     </message>
     <message>
-        <location line="+384"/>
+        <location line="+430"/>
         <source>La versión nueva no se publicó con hash para esta plataforma (%1): no se ofrece.</source>
         <translation>新版本未发布适用于此平台（%1）的哈希值：不提供更新。</translation>
     </message>
@@ -629,13 +629,12 @@
         <translation>已是最新（最新发布版本为 %1）。</translation>
     </message>
     <message>
-        <location line="+21"/>
-        <location line="+315"/>
+        <location filename="../src/app/agent/DiscoAgentes.cpp" line="+349"/>
         <source>No se pudo guardar %1</source>
         <translation>无法保存 %1</translation>
     </message>
     <message>
-        <location line="-297"/>
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="+29"/>
         <source>Buscando la última versión de %1…</source>
         <translation>正在查找 %1 的最新版本…</translation>
     </message>
@@ -650,19 +649,19 @@
         <translation>无法获取 %1 的最新版本（%2）：将安装 %3。</translation>
     </message>
     <message>
-        <location line="+173"/>
+        <location line="+95"/>
         <source>No hay una version de %1 para esta plataforma (%2).</source>
         <translation>没有适用于此平台（%2）的 %1 版本。</translation>
     </message>
     <message>
-        <location line="+83"/>
-        <location line="+91"/>
+        <location line="+71"/>
         <location line="+72"/>
+        <location filename="../src/app/agent/DiscoAgentes.cpp" line="-25"/>
         <source>Instalacion cancelada.</source>
         <translation>安装已取消。</translation>
     </message>
     <message>
-        <location line="-163"/>
+        <location filename="../src/app/agent/DiscoAgentes.cpp" line="+1"/>
         <source>No se pudo descargar: %1</source>
         <translation>无法下载：%1</translation>
     </message>
@@ -682,7 +681,7 @@
         <translation>正在解压…</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>No se pudo descomprimir: %1 (no arrancó el Python del programa)</source>
         <translation>无法解压：%1（程序自带的 Python 未启动）</translation>
     </message>
@@ -697,27 +696,27 @@
         <translation>无法放置 %1</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>El paquete de %1 no trae %2: no se instalo (queda la version anterior).</source>
         <translation>%1 的安装包中没有 %2：未安装（保留旧版本）。</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>No se pudo dejar la instalacion en su lugar (%1).</source>
         <translation>无法将安装移至目标位置（%1）。</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="-70"/>
         <source>Instalado.</source>
         <translation>已安装。</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+5"/>
         <source>Agente instalado en la carpeta portable.</source>
         <translation>代理已安装到便携文件夹。</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+9"/>
         <source>Instalando %1, versión %2…</source>
         <translation>正在安装 %1，版本 %2…</translation>
     </message>
@@ -732,7 +731,7 @@
         <translation>%1 有新版本</translation>
     </message>
     <message>
-        <location line="+198"/>
+        <location line="+195"/>
         <source>No se pudo escribir %1</source>
         <translation>无法写入 %1</translation>
     </message>
@@ -742,8 +741,8 @@
         <translation>缺少 API 密钥（请粘贴到右侧面板）。</translation>
     </message>
     <message>
-        <location line="+108"/>
-        <location line="+222"/>
+        <location line="+105"/>
+        <location line="+225"/>
         <source>Proveedor desconocido: %1</source>
         <translation>未知的提供商：%1</translation>
     </message>
@@ -799,7 +798,7 @@
         <translation>无法启动代理：%1</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+95"/>
         <source>Al aire: el asistente se relanzó sin consola (Bash/PowerShell) hasta que termine la emisión.</source>
         <translation>在播：助手已在无控制台（Bash/PowerShell）的状态下重启，直至播出结束。</translation>
     </message>
@@ -854,7 +853,7 @@
         <translation>%1 · 活动</translation>
     </message>
     <message>
-        <location line="+99"/>
+        <location line="+65"/>
         <source>Primero pará el asistente (la consola está corriendo).</source>
         <translation>请先停止助手（控制台正在运行）。</translation>
     </message>
@@ -869,7 +868,7 @@
         <translation>正在进行安装。</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+77"/>
         <source>Motor desconocido: %1</source>
         <translation>未知引擎：%1</translation>
     </message>
@@ -1384,7 +1383,7 @@
 <context>
     <name>AlarmasViewModel</name>
     <message>
-        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+334"/>
+        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+335"/>
         <source>El aviso por «%1» no salió: %2</source>
         <translation>通过「%1」发送的通知未能发出：%2</translation>
     </message>
@@ -1975,7 +1974,7 @@
     </message>
     <message>
         <location line="+1"/>
-        <location line="+249"/>
+        <location line="+256"/>
         <location line="+17"/>
         <location line="+12"/>
         <location line="+24"/>
@@ -1983,7 +1982,7 @@
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-291"/>
+        <location line="-298"/>
         <source>El servidor MCP está apagado: activalo en Configuración → Asistente (MCP) y reiniciá la app.</source>
         <translation>MCP 服务器已关闭：请在 设置 → 助手（MCP）中开启并重启应用。</translation>
     </message>
@@ -2040,13 +2039,13 @@
     </message>
     <message>
         <location line="-64"/>
-        <location line="+162"/>
+        <location line="+169"/>
         <location line="+53"/>
         <source>Borrar</source>
         <translation>删除</translation>
     </message>
     <message>
-        <location line="-188"/>
+        <location line="-195"/>
         <source>Tu servidor</source>
         <translation>自有服务器</translation>
     </message>
@@ -2126,7 +2125,7 @@
         <translation>%1：已释放 %2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+17"/>
         <source>Cada asistente guarda sus conversaciones en su perfil y se van acumulando. Borrarlas no toca el login ni los ajustes. Si el asistente no arranca o anda raro, «Reinstalar» vuelve a bajar el programa; «Desde cero» borra también el perfil y hay que volver a entrar. Nada de esto se puede con el asistente corriendo.</source>
         <translation>每个助手都会在其配置文件中保存对话，并不断累积。删除对话不会影响登录和设置。如果助手无法启动或运行异常，「重新安装」会重新下载程序；「从头开始」还会删除配置文件，需要重新登录。助手运行时以上操作均无法执行。</translation>
     </message>
@@ -2166,8 +2165,8 @@
         <translation>已保存的对话共 %1。登录和设置会保留。</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <location line="+53"/>
+        <location line="-47"/>
+        <location line="+102"/>
         <source>Chats borrados</source>
         <translation>聊天已删除</translation>
     </message>
@@ -2177,12 +2176,12 @@
         <translation>旧版本</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-53"/>
         <source>Versiones viejas borradas</source>
         <translation>旧版本已删除</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+59"/>
         <location line="+6"/>
         <source>Reinstalar</source>
         <translation>重新安装</translation>
@@ -8458,7 +8457,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>EmisionViewModel</name>
     <message>
-        <location filename="../src/app/ui/EmisionViewModel.cpp" line="+168"/>
+        <location filename="../src/app/ui/EmisionViewModel.cpp" line="+169"/>
         <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
         <translation>注意：磁盘约可录制 %1 小时</translation>
     </message>
@@ -35466,7 +35465,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>TiemposModel</name>
     <message>
-        <location filename="../src/app/tiempos/TiemposModel.cpp" line="+425"/>
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="+489"/>
         <source>ya hay un análisis midiendo</source>
         <translation>已有分析正在测量</translation>
     </message>
@@ -35479,12 +35478,12 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>TiemposPage</name>
     <message>
-        <location filename="../src/app/qml/pages/TiemposPage.qml" line="+78"/>
+        <location filename="../src/app/qml/pages/TiemposPage.qml" line="+83"/>
         <source>%1 (audio)</source>
         <translation>%1（音频）</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+134"/>
         <source>Latencias y sincronía</source>
         <translation>延迟与同步</translation>
     </message>
@@ -35519,7 +35518,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>全部按最低延迟对齐：由谁决定、哪些输入与会场同步、时钟和网络。</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+40"/>
         <source>Midiendo… %1 %</source>
         <translation>正在测量… %1 %</translation>
     </message>
@@ -35584,7 +35583,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>延迟分析不可用</translation>
     </message>
     <message>
-        <location line="+104"/>
+        <location line="+111"/>
         <source>Tocá una tarjeta para elegirla: después, analizarla por dentro, verla en la gráfica o ver su detalle.</source>
         <translation>点击卡片以选中：然后可分析其内部、在图表中查看或查看其详情。</translation>
     </message>
@@ -35614,7 +35613,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>适应</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+40"/>
         <source>Hasta cada salida</source>
         <translation>到每个输出</translation>
     </message>
@@ -44932,7 +44931,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+145"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+146"/>
         <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
         <translation>启动：系统音频（Qt Multimedia，在独立线程中），%1 毫秒</translation>
     </message>
@@ -45102,7 +45101,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>「%1」的音频未能接入：%2</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+196"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+258"/>
         <location line="+24"/>
         <source>Contando los plugins de video…</source>
         <translation>正在统计视频插件…</translation>
@@ -45260,7 +45259,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>编码器</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AireDurable.cpp" line="+131"/>
+        <location filename="../src/app/arranque/AireDurable.cpp" line="+132"/>
         <source>al-aire.json: la última generación estaba rota (corte a mitad); se retoma la anterior</source>
         <translation>al-aire.json：最后一次生成的内容已损坏（中途断电）；恢复上一版</translation>
     </message>
@@ -46617,7 +46616,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>asistente</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2421"/>
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2223"/>
         <source>Claude — suscripción Pro/Max</source>
         <translation>Claude — Pro/Max 订阅</translation>
     </message>
@@ -46687,12 +46686,12 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>自己的服务器。配置地址（baseURL）、要请求的模型及其支持的额外参数，并粘贴密钥。由 opencode 负责调用：本设备不直接与模型通信，只为其生成配置。</translation>
     </message>
     <message>
-        <location line="+1637"/>
+        <location line="+1481"/>
         <source>Para el rol «%1» (lo atendés vos, en esta conversación del evento). Instrucciones del rol:</source>
         <translation>针对角色“%1”（由你在此活动对话中处理）。角色指令：</translation>
     </message>
     <message>
-        <location line="+445"/>
+        <location line="+451"/>
         <source>%1 — Atendelo según lo acordado (si no hay nada acordado, revisá con las herramientas, contame qué pasó y proponé qué hacer).</source>
         <translation>%1 — 按约定处理（如果没有约定，用工具检查，说明发生了什么并提出处理建议）。</translation>
     </message>
@@ -48643,7 +48642,7 @@ Datos (de %2): %3</source>
         <translation>退出代码为 %1</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Supervisor.cpp" line="+516"/>
+        <location filename="../src/launcher/Supervisor.cpp" line="+535"/>
         <source>se cayó</source>
         <translation>已崩溃</translation>
     </message>
@@ -50689,7 +50688,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+15"/>
-        <location filename="../src/launcher/main.cpp" line="+68"/>
+        <location filename="../src/launcher/main.cpp" line="+69"/>
         <source>--detectar-acoples: este programa no trae el detector</source>
         <translation>--detectar-acoples：此程序不包含检测器</translation>
     </message>
@@ -51815,7 +51814,7 @@ Datos (de %2): %3</source>
         <translation>回放</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+564"/>
+        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+565"/>
         <location filename="../src/app/emision/VigiaDisco.cpp" line="-45"/>
         <source>grabación</source>
         <translation>录制</translation>
@@ -54548,7 +54547,7 @@ Datos (de %2): %3</source>
 <context>
     <name>foto</name>
     <message>
-        <location filename="../src/app/arranque/PublicadorFoto.cpp" line="+91"/>
+        <location filename="../src/app/arranque/PublicadorFoto.cpp" line="+94"/>
         <source>la foto cambió partes sin compararlas (%1) al rearmar %2: falta su fila en FotoMotor::kArrastres</source>
         <translation>快照在重建 %2 时未比较就更改了部分内容（%1）：FotoMotor::kArrastres 中缺少它的行</translation>
     </message>
@@ -56177,7 +56176,7 @@ Datos (de %2): %3</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+778"/>
+        <location filename="../src/gateway/main.cpp" line="+780"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>（无）</translation>
@@ -56330,12 +56329,12 @@ Datos (de %2): %3</source>
         <translation>全部</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-535"/>
+        <location filename="../src/gateway/main.cpp" line="-537"/>
         <source>%1 (nueva)</source>
         <translation>%1（新）</translation>
     </message>
     <message>
-        <location line="+197"/>
+        <location line="+199"/>
         <source>arranque: guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5</source>
         <translation>启动：guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5</translation>
     </message>
@@ -56471,7 +56470,7 @@ Datos (de %2): %3</source>
         <translation>turn：测试模式（--turn-prueba）：TURN 不经 pinggy 启动，仅限局域网</translation>
     </message>
     <message>
-        <location line="+270"/>
+        <location line="+271"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>隧道：--tunnel-token 在进程列表中可见；建议使用 %1</translation>
     </message>
@@ -56491,7 +56490,7 @@ Datos (de %2): %3</source>
         <translation>隧道：已在配置中停用（仅限本地访问）</translation>
     </message>
     <message>
-        <location line="-648"/>
+        <location line="-649"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>网络：本机 IP %1；二维码中：%2</translation>
     </message>
@@ -56541,7 +56540,7 @@ Datos (de %2): %3</source>
         <translation>https：ba-web 不处理；启动自带的终结器</translation>
     </message>
     <message>
-        <location line="+218"/>
+        <location line="+219"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>会场入口：https 位于 %1:%2</translation>
     </message>
@@ -58686,15 +58685,21 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>instance</name>
     <message>
-        <location filename="../src/launcher/Supervisor.cpp" line="-43"/>
+        <location filename="../src/launcher/Supervisor.cpp" line="-62"/>
+        <location line="+8"/>
         <source>no se inicia: %1</source>
         <translation>不启动：%1</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>lugar %1: otra copia del programa (con otra carpeta de datos) puede estar usando los puertos configurados; esta les suma %2</source>
+        <translation>位置 %1：另一个程序副本（使用另一个数据文件夹）可能正在使用已配置的端口；本副本在端口上加 %2</translation>
     </message>
 </context>
 <context>
     <name>integrity</name>
     <message>
-        <location line="+99"/>
+        <location line="+97"/>
         <source>integridad OK antes de arrancar (%1 archivos, %2 leídos, %3 para leer en el fondo)</source>
         <translation>启动前完整性检查 OK（%1 个文件，已读取 %2 个，%3 个在后台读取）</translation>
     </message>
@@ -58717,7 +58722,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>ipc</name>
     <message>
-        <location filename="../src/core/platform/LocalSocket_posix.cpp" line="+159"/>
+        <location filename="../src/core/platform/LocalSocket_posix.cpp" line="+162"/>
         <location line="+138"/>
         <source>nombre de canal inválido: &apos;%1&apos;</source>
         <translation>通道名称无效：「%1」</translation>
@@ -58755,7 +58760,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
         <translation>连接被拒绝：客户端不属于同一用户</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/LocalSocket_win.cpp" line="+166"/>
+        <location filename="../src/core/platform/LocalSocket_win.cpp" line="+168"/>
         <source>no se pudo conectar a &apos;%1&apos;</source>
         <translation>无法连接到「%1」</translation>
     </message>
@@ -58770,14 +58775,14 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
         <translation>无法构建管道的安全描述符</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/SingleInstance_posix.cpp" line="+48"/>
+        <location filename="../src/core/platform/SingleInstance_posix.cpp" line="+51"/>
         <source>nombre de lock inválido: &apos;%1&apos;</source>
         <translation>锁名称无效：「%1」</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <location line="+27"/>
-        <location filename="../src/core/platform/SingleInstance_win.cpp" line="+44"/>
+        <location filename="../src/core/platform/SingleInstance_win.cpp" line="+46"/>
         <source>ya hay otra instancia en ejecucion</source>
         <translation>已有另一个实例在运行</translation>
     </message>
@@ -58785,6 +58790,11 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
         <location line="-16"/>
         <source>no se pudo resolver el lockfile para &apos;%1&apos;</source>
         <translation>无法解析「%1」的锁文件</translation>
+    </message>
+    <message>
+        <location filename="../src/core/platform/Instancia.cpp" line="+25"/>
+        <source>ya hay %1 copias del programa abiertas en esta máquina (cada una con su carpeta de datos)</source>
+        <translation>本机上已打开 %1 个程序副本（每个都有自己的数据文件夹）</translation>
     </message>
 </context>
 <context>
@@ -60123,7 +60133,7 @@ Rutas con variables (%USERPROFILE%\Desktop en Windows; ~/Desktop o $HOME en macO
         <location filename="../src/app/escritorio/control_linux.cpp" line="+11"/>
         <location line="+12"/>
         <location filename="../src/app/escritorio/control_mac.mm" line="+21"/>
-        <location filename="../src/app/mcp/McpUiTools.cpp" line="+419"/>
+        <location filename="../src/app/mcp/McpUiTools.cpp" line="+420"/>
         <source>Aviso mostrado.</source>
         <translation>已显示通知。</translation>
     </message>
@@ -61204,7 +61214,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>叠加在所有输出内容之上的垫片画面（&quot;休会&quot;、&quot;马上回来&quot;、&quot;默哀一分钟&quot;…），含 `texto`、可选的 `imagen`（路径）和淡入淡出 `ms`（600）。不依赖场景。在播时开启，如果由自动流程发起则需确认；关闭则不需要。应用崩溃后仍会保留。每个输出有自己的垫片画面（`salida`）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1330"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+1272"/>
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>如果应用停止心跳，守护程序会重新启动它。心跳来自界面，「以及」一个监视引擎帧的线程：如果界面卡住而引擎仍在运行，播出「不会」中断。界面卡住超过 `espera_ui_s`（10 到 3600，默认 60）且 `matar_si_ui_trabada_sin_aire`（默认 true）时，只有在没有推流和录制的情况下才会重启。「有」播出时界面卡住会产生一个不经界面发出的警报，发送到网页控制端以及 `notificar` 中的通知器（「todos」为默认，或 notificador_listar 中的 id 列表；[] = 无）。无参数时显示当前设置（含状态：motor_vivo、ui_viva、ui_trabada_ms、ultima_traba_ms）。</translation>
     </message>
@@ -61214,7 +61224,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>手动执行转场（T-bar）</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+146"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+169"/>
         <source>Con `sigue_video`, la `fuente` sube (a su volumen) cuando entra al aire una escena que la tiene y baja a cero cuando sale, con la duracion de la transicion. Sin `sigue_video`, lista las que lo tienen. Es de cada salida: mueve el fader de la fuente en la mezcla de esa `salida`.</source>
         <translation>使用 `sigue_video` 时，当包含该 `fuente` 的场景进入在播时，它会升高（到其音量），离开时降为零，持续时间与转场相同。不带 `sigue_video` 时，列出启用了该功能的来源。按输出设置：移动的是该 `salida` 混音中该来源的推子。</translation>
     </message>
@@ -61234,7 +61244,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>切换场景时转场的类型（切换、淡入淡出、擦除、滑动或淡入某种颜色）和时长（毫秒）。</translation>
     </message>
     <message>
-        <location line="+419"/>
+        <location filename="../src/app/mcp/McpMezclaTools.cpp" line="+41"/>
         <source>Foto de los niveles del mezclador, para leer. Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor (`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del programa. -100 = silencio; cerca de 0 = saturando. Cada salida tiene su mezcla: con `salida`, la de esa.</source>
         <translation>调音台电平的快照，只读。各音频来源的音量（dB）、静音、是否正在通过监听收听（`escuchando`，见 audio_escuchar）以及当前峰值电平（dBFS），另加节目电平。-100 = 静音；接近 0 = 过载。每个输出有自己的混音：带 `salida` 时返回该输出的混音。</translation>
     </message>
@@ -61269,12 +61279,12 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>「停止」播出：切断正在进行的推流。停止直播推流。带 `destino`（id 或 &quot;todos&quot;）时，只停止该附加目标，主推流继续。带 `salida` 时，停止该输出的主推流（其他输出继续）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+227"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+53"/>
         <source>El loudness del PROGRAMA (la mezcla que va a la transmision y la grabacion), EBU R128 / BS.1770-4: `m` momentaneo (400 ms), `s` corto (3 s), `i` integrado desde el reset (arranca solo al transmitir o grabar), `tp` true peak maximo (dBTP), `lra` rango, `gr_db` lo que baja el limitador del master, `objetivo` y `fuera_de_objetivo` (integrado a mas de 2 LU o TP arriba del techo). audio_measure es por fuente; esto es lo que sale. Cada salida tiene el suyo (`salida`).</source>
         <translation>「节目」的响度（送往推流和录制的混音），EBU R128 / BS.1770-4：`m` 瞬时（400 ms），`s` 短期（3 s），`i` 自重置起的综合响度（推流或录制时自动开始），`tp` 最大真峰值（dBTP），`lra` 响度范围，`gr_db` 主输出限幅器的衰减量，`objetivo` 和 `fuera_de_objetivo`（综合响度偏离超过 2 LU 或 TP 超过上限）。audio_measure 按来源测量；这里测的是输出的内容。每个输出有自己的（`salida`）。</translation>
     </message>
     <message>
-        <location line="+858"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="+242"/>
         <source>La ficha de un integrante del cuerpo, buscado por `clave`: su id, su número de banca o su nombre.</source>
         <translation>议事机构某位成员的资料，按 `clave` 查找：其 id、席位号或姓名。</translation>
     </message>
@@ -61284,7 +61294,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>从议事机构中删除一名成员（`id`，来自 cuerpo_listar）：其姓名、职务和席位不再属于议事机构。</translation>
     </message>
     <message>
-        <location line="+239"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="+76"/>
         <source>Cuanto disco queda y para cuantas horas alcanza al bitrate de todo lo que se graba (grabación, copia, señal limpia e ISO de todas las salidas, repartido por disco: manda el que antes se llena; sin grabar, lo que sumaría arrancar la grabación); si alguna copia va al mismo disco que su grabación (`copia_mismo_volumen`, `mismo_volumen`); y el estado del ultimo pase a MP4 (remux).</source>
         <translation>剩余磁盘空间，以及按所有录制内容（所有输出的录制、副本、干净信号和 ISO，按磁盘分摊：以最先写满的磁盘为准；未录制时，按开始录制后会增加的量）的码率还够用几小时；是否有副本与其录制在同一磁盘（`copia_mismo_volumen`、`mismo_volumen`）；以及最近一次转换为 MP4（remux）的状态。</translation>
     </message>
@@ -61354,7 +61364,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>切换配置（程序重启：中断所有输出）</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2183"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-1"/>
         <source>cambia la transición</source>
         <translation>更改转场</translation>
     </message>
@@ -61364,12 +61374,12 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>让发言人上播或下播</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+155"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="+191"/>
         <source>borra una fuente (puede estar al aire)</source>
         <translation>删除来源（可能正在播出）</translation>
     </message>
     <message>
-        <location line="-385"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-230"/>
         <source>borra una escena</source>
         <translation>删除场景</translation>
     </message>
@@ -61379,7 +61389,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>「停止」录制：关闭文件并停止写入磁盘。带 `salida` 时，停止该输出的录制。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+2634"/>
+        <location filename="../src/app/mcp/McpConfigTools.cpp" line="+73"/>
         <source>cambia ajustes (los de video reinician el motor y los de gateway la conferencia: cortan)</source>
         <translation>更改设置（视频设置会重启引擎，网关设置会重启会议：都会中断）</translation>
     </message>
@@ -61389,7 +61399,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>更改工作室时钟（引擎重启：中断输出）</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-1948"/>
+        <location filename="../src/app/mcp/McpMezclaTools.cpp" line="-4"/>
         <source>cambia el audio (mute del máster corta el sonido)</source>
         <translation>更改音频（主输出静音会切断声音）</translation>
     </message>
@@ -61409,7 +61419,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>将摄像机调到某个位置（如在播则会被看到）</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1255"/>
+        <location filename="../src/app/mcp/McpRecintoTools.cpp" line="+111"/>
         <source>lleva una cámara a una banca, persona o posición (si está al aire, se ve)</source>
         <translation>将摄像机对准席位、人员或位置（如在播则会被看到）</translation>
     </message>
@@ -61444,7 +61454,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>将输出切黑</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-682"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+342"/>
         <source>pone a un orador al aire (en directo corta la escena)</source>
         <translation>让发言人上播（直播中会切换场景）</translation>
     </message>
@@ -61474,7 +61484,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>更改会场麦克风的开启方式</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpYouTubeTools.cpp" line="+365"/>
+        <location filename="../src/app/mcp/McpYouTubeTools.cpp" line="+366"/>
         <source>pone el chat del público en pantalla (en modo flujo, sin elegir)</source>
         <translation>将观众聊天显示在屏幕上（流模式，不经挑选）</translation>
     </message>
@@ -61484,7 +61494,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>将观众消息播出</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1135"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="-19"/>
         <source>borra un destino (si transmite, lo corta)</source>
         <translation>删除推流目标（如在推流则会中断）</translation>
     </message>
@@ -61494,7 +61504,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>用垫片画面覆盖输出</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="+672"/>
+        <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="+675"/>
         <source>sube o baja una capa (DSK) encima del programa</source>
         <translation>在节目上方叠加或撤下图层（DSK）</translation>
     </message>
@@ -61597,12 +61607,12 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
     <message>
         <location line="+1"/>
         <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="-485"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="+6"/>
         <location filename="../src/app/mcp/McpFacebookTools.cpp" line="+165"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="+8"/>
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+438"/>
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270"/>
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-581"/>
-        <location line="+589"/>
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+161"/>
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="-496"/>
         <source>Borrado.</source>
@@ -61738,7 +61748,9 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location line="+161"/>
         <location line="+211"/>
         <location line="+36"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="-114"/>
         <location filename="../src/app/mcp/McpDocumentosTools.cpp" line="+184"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-113"/>
         <location filename="../src/app/mcp/McpLaminaTools.cpp" line="+371"/>
         <location filename="../src/app/mcp/McpMatrizTools.cpp" line="+148"/>
         <location line="+87"/>
@@ -61749,10 +61761,8 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+270"/>
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-771"/>
         <location line="+43"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2515"/>
-        <location line="+1261"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-111"/>
         <location line="+137"/>
-        <location line="+414"/>
         <location filename="../src/app/mcp/McpYouTubeTools.cpp" line="+23"/>
         <source>Listo.</source>
         <translation>完成。</translation>
@@ -62105,7 +62115,7 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
 助手或智能体任务运行时，以上操作均不可执行。</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>Chats borrados: se liberaron %1.</source>
         <translation>已删除对话：释放了 %1。</translation>
     </message>
@@ -62115,7 +62125,7 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
         <translation>已删除旧版本：释放了 %1。</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+10"/>
         <source>Decí qué `motor` reinstalar.</source>
         <translation>请指定要重新安装的 `motor`。</translation>
     </message>
@@ -62130,7 +62140,7 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
         <translation>正在重新安装 %1：进度见 assistant_status。</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+15"/>
         <source>Cuál asistente: el del evento (de fábrica) o el de automatización (las alertas).</source>
         <translation>哪个助手：活动助手（默认）或自动化助手（警报）。</translation>
     </message>
@@ -63373,7 +63383,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <location line="+1"/>
         <location filename="../src/app/mcp/McpControlWebTools.cpp" line="+1"/>
         <location filename="../src/app/mcp/McpMatrizTools.cpp" line="-43"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-528"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-114"/>
         <source>Quitado.</source>
         <translation>已移除。</translation>
     </message>
@@ -64397,7 +64407,7 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2318"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-881"/>
         <source>La herramienta fallo: %1</source>
         <translation>工具执行失败：%1</translation>
     </message>
@@ -65266,7 +65276,7 @@ Sos el rol `%1`: este es TODO tu juego. Lo que no esta aca no lo podes hacer vos
         <translation>在后台、在应用之外重新测试「所有」已安装的驱动（包括正常的；隔离的除外：那些用 driver_probar 逐个测试）。进度见 drivers_listar（`revisando`、`resumen`）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+65"/>
+        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+66"/>
         <source>El idioma va como texto: un código (es, en, pt-BR).</source>
         <translation>语言以文本形式指定：代码（es、en、pt-BR）。</translation>
     </message>
@@ -66954,7 +66964,7 @@ Sin fecha en el evento la invitacion sale sin fecha y se avisa: una invitacion q
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../src/app/mcp/McpPreguntaTools.cpp" line="+547"/>
+        <location filename="../src/app/mcp/McpPreguntaTools.cpp" line="+548"/>
         <source>el enlace por internet en vez del de la red local</source>
         <translation>使用互联网链接而非本地网络链接</translation>
     </message>
@@ -67245,7 +67255,7 @@ No toca la libreta de rostros: la ficha de la persona queda donde estaba.</sourc
         <translation>评论约每 5 秒读取一次；如果刚选择了直播，几秒后再调用。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpGraficoTools.cpp" line="+52"/>
+        <location filename="../src/app/mcp/McpGraficoTools.cpp" line="+53"/>
         <location filename="../src/app/mcp/McpHelp.cpp" line="-30"/>
         <source>Gráficos animados</source>
         <translation>动画图形</translation>
@@ -68008,7 +68018,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+720"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+722"/>
         <source>Escenas</source>
         <translation>场景</translation>
     </message>
@@ -68380,7 +68390,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+35"/>
+        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+36"/>
         <source>Traducción en vivo</source>
         <translation>实时翻译</translation>
     </message>
@@ -69582,7 +69592,7 @@ La tarjeta de control del operador sigue a la escena: cuando esta escena esta al
     </message>
     <message>
         <location line="+17"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1578"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-16"/>
         <source>Agregado.</source>
         <translation>已添加。</translation>
     </message>
@@ -72764,14 +72774,14 @@ No cambia nada del evento salvo agregar los ítems a mano que falten en su lista
         <translation>要撰写或精简讲稿：prompter_leer，估算时长（每分钟 140 词），改写并保存。空行分隔段落，操作员的控制可以按段落跳转：每段最好是一个意思。不要使用 markdown 或星号：这是要朗读的，在平板上会原样显示。</translation>
     </message>
     <message>
-        <location line="+22"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1570"/>
+        <location filename="../src/app/mcp/McpConfigTools.cpp" line="+91"/>
+        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+22"/>
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1632"/>
         <source>Guardado.</source>
         <translation>已保存。</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+10"/>
         <source>Ordenar los discursos</source>
         <translation>整理讲稿</translation>
     </message>
@@ -75357,7 +75367,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>等待摄像头中看不到任何人。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4182"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-1036"/>
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>注意：会重启引擎。所有输出（节目、会场、屏幕、嘉宾看到的画面）会中断几秒，摄像机会重新打开。有推流或录制进行时不会应用。不要用它来修复摄像机：事先告诉操作员并请其确认。</translation>
     </message>
@@ -75467,7 +75477,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>拒绝</translation>
     </message>
     <message>
-        <location line="+283"/>
+        <location line="+285"/>
         <source>Estado</source>
         <translation>状态</translation>
     </message>
@@ -75517,23 +75527,25 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>设备的所有设置（视频、编码、会议、网络...）。</translation>
     </message>
     <message>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-119"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="-147"/>
         <location filename="../src/app/mcp/McpMando.cpp" line="-42"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+64"/>
         <source>No existe la escena &apos;%1&apos;. Escenas: %2.</source>
         <translation>场景「%1」不存在。场景：%2。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+3"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="+3"/>
         <source>Escena (por defecto, la que esta al aire).</source>
         <translation>场景（默认为在播场景）。</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+3"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="+2"/>
         <source>Ubicacion: preset (full, left, right, top, bottom, center, top-left, top-right, bottom-left, bottom-right, pip-tl, pip-tr, pip-bl, pip-br, lower-third, third-1..3, grid-&lt;n&gt;-&lt;i&gt;) u objeto {x,y,w,h} en fracciones del lienzo (0..1).</source>
         <translation>位置：预设（full、left、right、top、bottom、center、top-left、top-right、bottom-left、bottom-right、pip-tl、pip-tr、pip-bl、pip-br、lower-third、third-1..3、grid-&lt;n&gt;-&lt;i&gt;）或以画布比例（0..1）表示的对象 {x,y,w,h}。</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+56"/>
         <source>Dónde se va la CPU y la GPU (build de diagnóstico)</source>
         <translation>CPU 和 GPU 用在哪里（诊断版本）</translation>
     </message>
@@ -75608,7 +75620,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>守护程序策略（界面卡死）</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+14"/>
         <source>Listar escenas</source>
         <translation>列出场景</translation>
     </message>
@@ -75723,7 +75735,7 @@ Armar la escena que YA esta al aire no tiene sentido (el take cortaria a lo mism
         <translation>手动推动到已载入场景的转场：`t` 从 0 到 1（推杆）。使用 `soltar` 时结束：超过一半则保持在播，否则退回。用于控制台推子：{&quot;t&quot;: &quot;{{valor}}&quot;}，推子范围 0 到 1。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+22"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+22"/>
         <source>La transicion con la que ENTRA la `escena` al aire (`tipo`: cut, fade, swipe, slide, fade_to_color; vacio = la global) y su duracion `ms`. Un take con transicion explicita manda sobre esta.</source>
         <translation>`escena` 进入播出时使用的转场（`tipo`：cut、fade、swipe、slide、fade_to_color；留空 = 全局转场）及其时长 `ms`。指定了转场的 take 优先于此设置。</translation>
     </message>
@@ -75767,7 +75779,7 @@ Que el plano que SALE del aire quede armado es como funciona cualquier mesa: des
         <translation>在播：%1。已载入：%2。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+22"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+22"/>
         <source>Crear escena vacia</source>
         <translation>创建空场景</translation>
     </message>
@@ -75969,7 +75981,7 @@ Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que des
         <translation>转场：%1</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="+9"/>
         <source>Tipos de fuente disponibles</source>
         <translation>可用的来源类型</translation>
     </message>
@@ -76142,7 +76154,7 @@ Copiarla si se puede, y editar sus fuentes tambien: lo que se protege es que des
         <translation>「%1」位于「%2」。</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location filename="../src/app/mcp/McpMezclaTools.cpp" line="-39"/>
         <source>Mezclador</source>
         <translation>调音台</translation>
     </message>
@@ -76347,7 +76359,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>推流已停止。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+11"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-241"/>
         <source>Loudness de lo que sale</source>
         <translation>输出响度</translation>
     </message>
@@ -76467,13 +76479,13 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>通过已配置的方式发送一段测试 `texto`（608 需要有正在进行的推流）。</translation>
     </message>
     <message>
-        <location line="+5"/>
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+146"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+5"/>
         <source>Mandado.</source>
         <translation>已发送。</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+8"/>
         <source>Vocabulario de la voz a texto</source>
         <translation>语音转文字词汇表</translation>
     </message>
@@ -76548,7 +76560,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>停止发送隐藏字幕（直播中的 CEA-608 和 YouTube 字幕 API）：与 cc_activar 相反。</translation>
     </message>
     <message>
-        <location line="-337"/>
+        <location filename="../src/app/mcp/McpMezclaTools.cpp" line="-156"/>
         <source>pfl (antes del fader, por defecto) o afl (con el fader de `salida`)</source>
         <translation>pfl（推子前，默认）或 afl（经 `salida` 的推子）</translation>
     </message>
@@ -76578,7 +76590,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>查看该输出的节目（`salida`）。</translation>
     </message>
     <message>
-        <location line="+145"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-129"/>
         <source>Cada salida tiene el suyo (`salida`).</source>
         <translation>每个输出各有一个（`salida`）。</translation>
     </message>
@@ -76663,7 +76675,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>议题 `n` 变为 `estado`（en_tratamiento：结束上一个，在 {punto} 中填入「Punto N: …」供字幕条使用，并标记到会议纪要和章节中），可选 `resultado`（「一致通过」）。使用 `siguiente`: true 时，下一个待处理议题进入审议。</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location filename="../src/app/mcp/McpInformesTools.cpp" line="+35"/>
         <source>Las plantillas del informe del resultado</source>
         <translation>会议结果报告模板</translation>
     </message>
@@ -76772,7 +76784,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>主席已关闭其麦克风。</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="-127"/>
         <source>El debate en curso</source>
         <translation>进行中的辩论</translation>
     </message>
@@ -76893,7 +76905,7 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>查看议事机构成员</translation>
     </message>
     <message>
-        <location line="+271"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="-359"/>
         <source>Disco de la grabación</source>
         <translation>录制磁盘</translation>
     </message>
@@ -76948,17 +76960,17 @@ Como encontrar el numero: poner un valor, mirar con `foto_programa` a alguien ha
         <translation>将单独的输入（摄像机、嘉宾）各自录到独立文件，节目照常录制；不带参数时说明正在录制什么。</translation>
     </message>
     <message>
-        <location line="+203"/>
+        <location filename="../src/app/mcp/McpConfigTools.cpp" line="-6"/>
         <source>Guardar configuración</source>
         <translation>保存配置</translation>
     </message>
     <message>
-        <location line="-940"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="+7"/>
         <source>no hay nadie con esa banca, id o nombre (cuerpo_listar)</source>
         <translation>没有该席位、id 或姓名的人（cuerpo_listar）</translation>
     </message>
     <message>
-        <location line="-1989"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-452"/>
         <source>El listado de escenas que existen: cual esta al aire, en que carpeta esta cada una. Para el contenido de UNA escena, capa por capa, no es esta. Todas las escenas con sus capas (de abajo hacia arriba), cual esta al aire y en que carpeta esta cada una (`folder`, &quot;&quot; = suelta). Las carpetas solo ordenan la lista de la pestaña Escenas: no cambian nada de la emision.
 
 `live` es la que esta AL AIRE; `armada` es la del bus de preview, la que sale con el proximo `preview_al_aire`. Son los dos buses de una mesa de switcher. Con `salida`, los de esa salida (cada una tiene su aire y su armada; las escenas son de todas).
@@ -76981,12 +76993,12 @@ Cada escena trae su `id`, que no cambia al renombrarla: donde va el nombre de un
         <translation>场景之间的转场</translation>
     </message>
     <message>
-        <location line="+344"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="-65"/>
         <source>Cambiar una propiedad (o apretar un botón)</source>
         <translation>修改属性（或按下按钮）</translation>
     </message>
     <message>
-        <location line="+154"/>
+        <location filename="../src/app/mcp/McpMezclaTools.cpp" line="-85"/>
         <source>Es el PFL de una consola: antes de abrir un micrófono se lo escucha para ver si está ahí, si zumba, si el invitado ya volvió. Sin esto había que ponerlo al aire para enterarse.
 
 Hay UN solo a la vez: escuchar una reemplaza a la anterior. Sin argumentos se apaga. `modo` &quot;pfl&quot; (de fábrica) es lo que entrega la entrada, antes del fader; &quot;afl&quot;, con el fader y el mute de `salida` (la por omisión si no se dice). Mientras dura suena SOLO esa: la escucha fija (lo que la matriz manda a los auriculares a propósito, como la voz del asistente) no se toca y vuelve al soltarlo. No se guarda.
@@ -77007,7 +77019,7 @@ Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin 
 能否听到取决于设备是否配置了音频监听；没有监听时不会报错，但也不会发声。`audio_sources` 会显示正在收听哪一个。</translation>
     </message>
     <message>
-        <location line="+254"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-420"/>
         <source>Aprobar el cargo que escribió un invitado</source>
         <translation>批准嘉宾填写的职务</translation>
     </message>
@@ -77037,7 +77049,7 @@ Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin 
         <translation>议程</translation>
     </message>
     <message>
-        <location line="+409"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="+8"/>
         <source>Validar los datos de un integrante</source>
         <translation>验证成员信息</translation>
     </message>
@@ -77108,7 +77120,7 @@ Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin 
         <translation>照片已载入。</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location filename="../src/app/mcp/McpRecintoTools.cpp" line="-76"/>
         <source>La grilla del recinto</source>
         <translation>会场网格</translation>
     </message>
@@ -77188,7 +77200,7 @@ Que se oiga depende de que el equipo tenga un monitor de audio configurado; sin 
         <translation>%1 号席位：%2（%3）。</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="-495"/>
         <source>Lo que oye cada invitado</source>
         <translation>每位嘉宾听到的内容</translation>
     </message>
@@ -77399,7 +77411,7 @@ Los archivos van a Recordings/entradas/, con el nombre de la fuente adentro.</so
         <translation>录制已停止。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+53"/>
+        <location filename="../src/app/mcp/McpConfigTools.cpp" line="-122"/>
         <source>Ajustes</source>
         <translation>设置</translation>
     </message>
@@ -79552,7 +79564,7 @@ Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, launch
         <translation>正在关闭应用。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpVentanaTools.cpp" line="+210"/>
+        <location filename="../src/app/mcp/McpVentanaTools.cpp" line="+211"/>
         <source>Este escritorio es Wayland: ubicar las ventanas es del compositor, no del programa. El TAMAÑO se aplica; la POSICION no. No es un error de la app y no se puede forzar desde adentro. Ojo, tampoco alcanza con arrancar sobre XWayland (QT_QPA_PLATFORM=xcb): se probo, y GNOME ignora igual la posicion pedida y coloca las ventanas a su criterio. Con un escritorio que si lo respete (KDE, XFCE, un gestor de mosaico, o X11 a secas) estas herramientas funcionan enteras. Mientras tanto sirven para LEER donde esta todo, para el tamaño, y para pantalla completa en un monitor, que es lo que mas se usa.</source>
         <translation>此桌面为 Wayland：窗口位置由合成器决定，而不是程序。「尺寸」会生效；「位置」不会。这不是应用的错误，也无法从内部强制。注意，在 XWayland 上启动（QT_QPA_PLATFORM=xcb）也不够：已经测试过，GNOME 仍会忽略请求的位置，自行放置窗口。在会遵守的桌面上（KDE、XFCE、平铺窗口管理器或纯 X11），这些工具可以完整工作。在此期间，它们仍可用于「读取」所有内容的位置、调整尺寸以及在显示器上全屏显示，这也是最常用的。</translation>
     </message>
@@ -91247,7 +91259,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>关闭时有内容未保存（磁盘无响应）</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ColaEscritura.cpp" line="+248"/>
+        <location filename="../src/core/persist/ColaEscritura.cpp" line="+259"/>
         <source>no se pudo guardar %1 (se reintenta): %2</source>
         <translation>无法保存 %1（正在重试）：%2</translation>
     </message>
@@ -95490,7 +95502,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>在合成之前，「无信号」垫片画面的链路滞留了 %1：切换器不会在帧到达时立即放行（fallbackswitch 会等待声明的延迟 + 一点余量）。这是此输入的缓冲；合成本身已会等待最慢的输入。</translation>
     </message>
     <message>
-        <location filename="../src/app/tiempos/TiemposModel.cpp" line="-388"/>
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="-452"/>
         <source>se cerró la app midiendo</source>
         <translation>测量时应用已关闭</translation>
     </message>
@@ -95505,12 +95517,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>空闲</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+20"/>
         <source>no se pudo armar el grafo: %1</source>
         <translation>无法搭建图：%1</translation>
     </message>
     <message>
-        <location line="+154"/>
+        <location line="+221"/>
         <source>%1: llegan datos</source>
         <translation>%1：有数据到达</translation>
     </message>
