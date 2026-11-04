@@ -24,6 +24,7 @@
 #include "platform/Energia.hpp"
 #include "platform/Ritmo.hpp"
 #include "tests/Despertadas.hpp"
+#include "tests/Puntualidad.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -56,6 +57,17 @@ int g_fallos = 0;
         if (!(cond)) {                                                                                       \
             std::printf("FALLO: %s (%s, linea %d)\n", msg, #cond, __LINE__);                                 \
             ++g_fallos;                                                                                      \
+        }                                                                                                    \
+    } while (0)
+/// Un chequeo de TIEMPO (milisegundos de reloj: una demora, un despertar). Con la máquina
+/// cargada el planificador tarda en despertar a cualquiera y eso no es de Mirada ni del timbre:
+/// si solo fallan estos y la máquina estaba impuntual, el test da SKIP (tests/Puntualidad.hpp).
+int g_fallosTiempo = 0;
+#define CHECK_TIEMPO(cond, msg)                                                                              \
+    do {                                                                                                     \
+        if (!(cond)) {                                                                                       \
+            std::printf("FALLO (de tiempo): %s (%s, linea %d)\n", msg, #cond, __LINE__);                    \
+            ++g_fallosTiempo;                                                                                \
         }                                                                                                    \
     } while (0)
 
@@ -314,8 +326,8 @@ void testAntesDespues() {
         if (Timbre::hayPrimitiva()) {
             CHECK(timbre.leidos + 1 >= timbre.publicados, "con el timbre no se pierden cuadros");
             CHECK(timbre.vueltasS < 1.3 * 30, "con el timbre, una vuelta por cuadro");
-            CHECK(timbre.demoraMediaMs < ahora.demoraMediaMs, "con el timbre, menos demora por salto que con Mirada");
-            CHECK(timbre.demoraMediaMs < 0.3, "con el timbre, la demora de un salto en décimas de ms");
+            CHECK_TIEMPO(timbre.demoraMediaMs < ahora.demoraMediaMs, "con el timbre, menos demora por salto que con Mirada");
+            CHECK_TIEMPO(timbre.demoraMediaMs < 0.3, "con el timbre, la demora de un salto en décimas de ms");
         }
         CHECK(ahora.leidos + 1 >= ahora.publicados, "con proximaMirada no se pierden cuadros");
         // (Sin cuenta de despertadas del sistema —Windows—, las vueltas del bucle.)
@@ -323,7 +335,7 @@ void testAntesDespues() {
             CHECK(ahora.despertadasS - base < 0.6 * (antes.despertadasS - base), "bastante menos despertadas que a 4 ms");
         else
             CHECK(ahora.vueltasS < 0.6 * antes.vueltasS, "bastante menos vueltas que a 4 ms");
-        CHECK(ahora.demoraMediaMs <= antes.demoraMediaMs + 1.0, "la demora media no crece");
+        CHECK_TIEMPO(ahora.demoraMediaMs <= antes.demoraMediaMs + 1.0, "la demora media no crece");
     }
     const double base = faseAudio(Modo::Cada4, false).despertadasS;
     std::printf("audio, bloques de 10 ms (escritor solo: %.1f despertadas/s)\n", base);
@@ -336,12 +348,12 @@ void testAntesDespues() {
     if (Timbre::hayPrimitiva()) {
         CHECK(timbre.leidos + 1 >= timbre.publicados, "con el timbre no se pierde audio");
         CHECK(timbre.vueltasS < 1.3 * 100, "con el timbre, una vuelta por bloque");
-        CHECK(timbre.demoraMediaMs < 0.3, "con el timbre, la demora de un salto en décimas de ms");
+        CHECK_TIEMPO(timbre.demoraMediaMs < 0.3, "con el timbre, la demora de un salto en décimas de ms");
     }
     CHECK(ahora.leidos + 1 >= ahora.publicados, "no se pierde audio");
     CHECK(antes.despertadasS > 0 ? ahora.despertadasS < antes.despertadasS : ahora.vueltasS < antes.vueltasS,
           "menos despertadas que a 4 ms");
-    CHECK(ahora.demoraMediaMs <= antes.demoraMediaMs + 1.0, "la demora media no crece");
+    CHECK_TIEMPO(ahora.demoraMediaMs <= antes.demoraMediaMs + 1.0, "la demora media no crece");
 }
 
 /// En reposo (el canal existe y nadie publica): con Mirada el lector mira de a `pasoQuieto`;
@@ -389,7 +401,7 @@ void testReposo() {
     std::printf("reposo (nadie publica): Mirada %.1f vueltas/s, timbre %.1f vueltas/s; despertar() en %.2f ms\n",
                 vueltasMirada.load() / seg, vueltasTimbre.load() / seg, despertarMs);
     CHECK(vueltasTimbre.load() / seg <= 2.0, "con el timbre, en reposo, casi ninguna vuelta");
-    CHECK(despertarMs < 20.0, "despertar() saca al lector del sueño en seguida");
+    CHECK_TIEMPO(despertarMs < 20.0, "despertar() saca al lector del sueño en seguida (sin él, dormiría hasta el vigía: 1 s)");
 }
 
 } // namespace
@@ -402,6 +414,6 @@ int main() {
     testCanal();
     testAntesDespues();
     testReposo();
-    if (g_fallos == 0) std::printf("test_mirada: OK\n");
-    return g_fallos == 0 ? 0 : 1;
+    if (g_fallos + g_fallosTiempo == 0) std::printf("test_mirada: OK\n");
+    return ba::pruebas::resultadoConTiempos("test_mirada", g_fallos, g_fallosTiempo);
 }
