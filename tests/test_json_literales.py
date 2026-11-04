@@ -15,6 +15,12 @@ vigilancia es para que el código nuevo no sume más.
 import pathlib
 import re
 
+import areas
+import pytest
+
+# Por área (BA_AREA, tests/areas.py).
+pytestmark = pytest.mark.area
+
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 LITERAL = re.compile(r'\bjson::parse\(\s*(?:u8)?R?"|"_json\b')
 
@@ -70,7 +76,7 @@ def sin_comentarios(t: str) -> str:
 def contar():
     cuenta = {}
     for f in sorted((RAIZ / "src").rglob("*")):
-        if f.suffix not in (".cpp", ".hpp", ".h", ".mm") or not f.is_file():
+        if f.suffix not in (".cpp", ".hpp", ".h", ".mm") or not f.is_file() or not areas.mira(f):
             continue
         n = len(LITERAL.findall(sin_comentarios(f.read_text(encoding="utf-8", errors="replace"))))
         if n:
@@ -80,12 +86,13 @@ def contar():
 
 def test_sin_json_de_literales_nuevos():
     cuenta = contar()
-    nuevos = {f: n for f, n in cuenta.items() if n > DEUDA.get(f, 0)}
+    deuda = areas.deuda(DEUDA)
+    nuevos = {f: n for f, n in cuenta.items() if n > deuda.get(f, 0)}
     assert not nuevos, ("json::parse(\"…\") o \"…\"_json nuevos: usá ba::jsonDeTexto (json/Json.hpp); "
                         f"ver la cabecera de esta prueba: {nuevos}")
 
 
 def test_la_deuda_solo_baja():
     cuenta = contar()
-    sobra = {f: (n, cuenta.get(f, 0)) for f, n in DEUDA.items() if cuenta.get(f, 0) < n}
+    sobra = {f: (n, cuenta.get(f, 0)) for f, n in areas.deuda(DEUDA).items() if cuenta.get(f, 0) < n}
     assert not sobra, f"ya se migraron (bajá su número en DEUDA): {sobra}"

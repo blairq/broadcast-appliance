@@ -24,6 +24,9 @@ import functools
 import pathlib
 import sys
 
+import areas
+import pytest
+
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "tools" / "diag"))
 import acoples  # noqa: E402
@@ -160,11 +163,19 @@ GANCHOS = {
 }
 
 
+# Dos partes, cada una con su prueba en CMake (cmake/BaTestsPy.cmake): lo de la QML (los
+# bindings y las Q_INVOKABLE de toda la app que llaman) y, por área (BA_AREA, tests/areas.py, la
+# marca `area`), el C++ de la interfaz y los ganchos de cada archivo.
 @functools.lru_cache(maxsize=1)
-def _hallazgos():
-    """Una sola lectura del árbol para todas las pruebas (tarda unos segundos)."""
+def _hallazgos_qml():
+    """Una sola lectura de la QML y los .hpp de la app para todas las pruebas."""
     nonvoid = acoples.invocables()
-    return nonvoid, acoples.acoples_qml(nonvoid), acoples.acoples_cpp()
+    return nonvoid, acoples.acoples_qml(nonvoid)
+
+
+@functools.lru_cache(maxsize=1)
+def _hallazgos_cpp():
+    return acoples.acoples_cpp(areas.mira)
 
 
 def _nuevos(cuenta, deuda, hallazgos, qml):
@@ -180,35 +191,48 @@ def _nuevos(cuenta, deuda, hallazgos, qml):
 
 
 def test_qml_sin_bindings_nuevos_a_funciones():
-    _, qml, _ = _hallazgos()
+    _, qml = _hallazgos_qml()
     error = _nuevos(acoples.cuenta(qml, True), DEUDA_QML, qml, True)
     assert not error, ("bindings nuevos que llaman a una Q_INVOKABLE que devuelve algo (enlazá a una propiedad con "
                        "NOTIFY o a un rol; ver la cabecera):\n" + error)
 
 
+@pytest.mark.area
 def test_cpp_de_la_interfaz_sin_esperas_nuevas():
-    _, _, cpp = _hallazgos()
-    error = _nuevos(acoples.cuenta(cpp, False), DEUDA_CPP, cpp, False)
+    cpp = _hallazgos_cpp()
+    error = _nuevos(acoples.cuenta(cpp, False), _deuda_cpp(), cpp, False)
     assert not error, ("esperas o entradas directas nuevas en el C++ de la interfaz (ventanilla/foto, la cola de "
                        "persist, un hilo propio; ver la cabecera):\n" + error)
 
 
-def test_la_deuda_solo_baja():
-    _, qml, cpp = _hallazgos()
-    cq, cc = acoples.cuenta(qml, True), acoples.cuenta(cpp, False)
+def _deuda_cpp():
+    """Las filas de DEUDA_CPP de esta corrida (claves «archivo|categoría», relativas a src/app/)."""
+    return areas.deuda(DEUDA_CPP, "app/", lambda k: k.split("|", 1)[0])
+
+
+def test_la_deuda_qml_solo_baja():
+    _, qml = _hallazgos_qml()
+    cq = acoples.cuenta(qml, True)
     sobra = {k: (n, cq.get(k, 0)) for k, n in DEUDA_QML.items() if cq.get(k, 0) < n}
-    sobra |= {k: (n, cc.get(k, 0)) for k, n in DEUDA_CPP.items() if cc.get(k, 0) < n}
-    assert not sobra, f"ya se arreglaron (bajá su número en DEUDA_QML/DEUDA_CPP): {sobra}"
+    assert not sobra, f"ya se arreglaron (bajá su número en DEUDA_QML): {sobra}"
 
 
+@pytest.mark.area
+def test_la_deuda_cpp_solo_baja():
+    cc = acoples.cuenta(_hallazgos_cpp(), False)
+    sobra = {k: (n, cc.get(k, 0)) for k, n in _deuda_cpp().items() if cc.get(k, 0) < n}
+    assert not sobra, f"ya se arreglaron (bajá su número en DEUDA_CPP): {sobra}"
+
+
+@pytest.mark.area
 def test_los_ganchos_no_bajan():
-    hay = acoples.ganchos()
-    faltan = {f: (n, hay.get(f, 0)) for f, n in GANCHOS.items() if hay.get(f, 0) < n}
+    hay = acoples.ganchos(areas.mira)
+    faltan = {f: (n, hay.get(f, 0)) for f, n in areas.deuda(GANCHOS).items() if hay.get(f, 0) < n}
     assert not faltan, f"se sacaron ganchos BA_ACOPLE (el detector dinámico deja de verlos): {faltan}"
 
 
 def test_cada_invocable_de_un_binding_tiene_su_gancho():
-    nonvoid, qml, _ = _hallazgos()
+    nonvoid, qml = _hallazgos_qml()
     faltan = acoples.invocables_sin_gancho(qml, nonvoid)
     assert not faltan, ("Q_INVOKABLE que devuelven algo, llamadas desde un binding, sin BA_ACOPLE(\"invocable\", "
                         "\"Clase::metodo\") en la primera línea del cuerpo:\n" + "\n".join(faltan))

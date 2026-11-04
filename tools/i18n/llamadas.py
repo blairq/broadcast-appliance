@@ -40,10 +40,13 @@ def _argumentos(txt: str, i: int):
     return args
 
 
-def problemas():
+def problemas(mira=None):
+    """mira(ruta) -> bool: qué archivos de src/ revisar (tests/areas.py); None: todos."""
     out = []
     for f in sorted((RAIZ / "src").rglob("*")):
         if f.suffix not in (".cpp", ".hpp", ".mm") or "tests" in f.parts or not f.is_file():
+            continue
+        if mira is not None and not mira(f):
             continue
         txt = f.read_text(encoding="utf-8", errors="replace")
         for m in LLAMADA.finditer(txt):

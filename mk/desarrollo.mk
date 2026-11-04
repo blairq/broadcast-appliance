@@ -1,7 +1,7 @@
 # mk/desarrollo.mk — Desarrollo: build genérico, idiomas, documentación, tests, lint y limpieza.
 # Lo incluye el Makefile de la raíz (las variables comunes están allá).
 
-.PHONY: build _enlaces _configurado _al-diai18n-actualizar docs test test-rapido test-completo pytest \
+.PHONY: build _enlaces _configurado _al-dia i18n-actualizar docs test test-rapido test-completo test-explicar pytest \
         lint lint-includes clean clean-all
 
 # --- Build genérico ---------------------------------------------------------
@@ -53,6 +53,8 @@ docs:
 # mismo entorno se informa «pasó (caché)» sin correrlo. `ctest` a secas sigue
 # corriendo todo. TESTS_SIN_CACHE=1 (o SIN_CACHE=1) corre todo igual;
 # TESTS_SIN_LENTOS=1 deja afuera los `lento` (cmake/BaTestsCache.cmake).
+# Antes de correrlos dice por qué corre cada uno (qué entrada cambió); `make test-explicar`
+# lo dice sin correr nada.
 # Explicar la clave de uno: python3 tools/ci/tests-con-cache.py --test-dir build --explicar test_x
 # En paralelo (-j): bajo carga algún test del motor puede fallar por tiempo (no se
 # anota, y la próxima corre solo); TESTS_JOBS=1 los corre en serie.
@@ -66,6 +68,12 @@ test-rapido: _al-dia
 
 test-completo: _al-dia
 	TESTS_SIN_CACHE=1 $(TESTS_CACHE)
+
+# Sin correr nada: qué tests correría `make test` y por qué (qué entrada cambió desde la
+# última vez que pasaron). Para auditar que no corra nada de más. Compila antes, como
+# `make test`: si no, explicaría contra los ejecutables viejos.
+test-explicar: _al-dia
+	python3 tools/ci/tests-con-cache.py --test-dir $(BUILD_DIR) --explicar-todo
 
 # --- Tests Python (pytest) --------------------------------------------------
 # Suite Python en tests/ (22 tests), corriendo con el pytest del venv local

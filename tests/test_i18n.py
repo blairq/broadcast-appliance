@@ -28,6 +28,8 @@ from pathlib import Path
 
 import pytest
 
+import areas
+
 REPO = Path(__file__).resolve().parent.parent
 PERFILES = REPO / "assets" / "idiomas"
 TS_DIR = REPO / "i18n"
@@ -130,30 +132,33 @@ RAMA_POR_IDIOMA = re.compile(
 PENDIENTES: dict[str, str] = {}
 
 
+@pytest.mark.area
 def test_no_code_branches_on_a_language() -> None:
     malos, vistos = [], set()
+    pendientes = {k: v for k, v in PENDIENTES.items() if areas.mira(REPO / k)}
     for base, exts in ((REPO / "src", {".cpp", ".hpp", ".mm", ".qml", ".js"}), (REPO / "assets" / "web", {".js"})):
         for f in base.rglob("*"):
-            if f.suffix not in exts or "tests" in f.parts or not f.is_file():
+            if f.suffix not in exts or "tests" in f.parts or not f.is_file() or not areas.mira(f):
                 continue
             for n, linea in enumerate(f.read_text(encoding="utf-8", errors="replace").splitlines(), 1):
                 if RAMA_POR_IDIOMA.search(linea):
                     rel = f.relative_to(REPO).as_posix()
-                    if rel in PENDIENTES:
+                    if rel in pendientes:
                         vistos.add(rel)
                         continue
                     malos.append(f"{rel}:{n}: {linea.strip()}")
     assert not malos, "language-specific code (move it to the language profile):\n" + "\n".join(malos)
-    resueltos = set(PENDIENTES) - vistos
+    resueltos = set(pendientes) - vistos
     assert not resueltos, f"no longer language-specific, take them out of PENDIENTES: {sorted(resueltos)}"
 
 
+@pytest.mark.area
 def test_translation_calls_lupdate_can_read() -> None:
     """lupdate hangs on a plural whose count has a quoted string inside a call
     (`traducir("mcp", "%n x", nullptr, r.value("n", 0))`): the count goes in a variable."""
     sys.path.insert(0, str(REPO / "tools" / "i18n"))
     import llamadas
-    malas = llamadas.problemas()
+    malas = llamadas.problemas(areas.mira)
     assert not malas, "\n".join(malas)
 
 
@@ -215,12 +220,18 @@ def test_web_extractor_runs(tmp_path: Path) -> None:
 QML_LITERAL = re.compile(r"""\b(?:text|title|placeholderText|ToolTip\.text)\s*:\s*["'][^"']*[A-Za-zÁÉÍÓÚáéíóúÑñ]""")
 
 
-def test_progress_report() -> None:
+@pytest.mark.area
+def test_progress_report_qml() -> None:
     sueltos = 0
     for f in (REPO / "src").rglob("*.qml"):
-        sueltos += len(QML_LITERAL.findall(f.read_text(encoding="utf-8", errors="replace")))
+        if areas.mira(f):
+            sueltos += len(QML_LITERAL.findall(f.read_text(encoding="utf-8", errors="replace")))
     if sueltos:
-        warnings.warn(f"i18n: {sueltos} visible QML literals without qsTr (phase I1)")
+        warnings.warn(f"i18n: {sueltos} visible QML literals without qsTr (phase I1)"
+                      + (f" in {areas.actual()}" if areas.actual() else ""))
+
+
+def test_progress_report() -> None:
     for ts in sorted(TS_DIR.glob("ba_*.ts")):
         if perfiles().get(ts.stem[3:], {}).get("fuente"):
             continue

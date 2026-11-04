@@ -2192,11 +2192,20 @@ endif()
     target_compile_definitions(test_selector_herramientas PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_selector_herramientas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_selector_herramientas COMMAND test_selector_herramientas)
-    # La interfaz parsea: qmllint sobre todos los QML (ver cmake/tests).
+    # La interfaz parsea: qmllint sobre cada QML, un test por archivo (ver cmake/tests): la
+    # caché de tests corre solo el del .qml que cambió. Un error de sintaxis es del archivo
+    # (lo que qmllint resuelve de los imports da advertencias, que no cuentan): su entrada es
+    # el archivo solo. Un .qml nuevo reconfigura (CONFIGURE_DEPENDS) y suma su test.
     find_program(BA_QMLLINT qmllint PATHS "${BA_QT_PREFIX}/bin" NO_DEFAULT_PATH)
     if(BA_QMLLINT)
-        add_test(NAME test_qml_syntax COMMAND ${CMAKE_COMMAND} -DQMLLINT=${BA_QMLLINT}
-                 -DQML_DIR=${CMAKE_CURRENT_SOURCE_DIR}/qml -P ${CMAKE_SOURCE_DIR}/cmake/tests/qml_syntax.cmake)
+        file(GLOB_RECURSE _ba_qml_todos CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
+        foreach(_ba_qml IN LISTS _ba_qml_todos)
+            file(RELATIVE_PATH _ba_qml_rel "${CMAKE_CURRENT_SOURCE_DIR}/qml" "${_ba_qml}")
+            string(REGEX REPLACE "\\.qml$" "" _ba_qml_n "${_ba_qml_rel}")
+            string(REGEX REPLACE "[^A-Za-z0-9_]" "_" _ba_qml_n "${_ba_qml_n}")
+            add_test(NAME test_qml_syntax_${_ba_qml_n} COMMAND ${CMAKE_COMMAND} -DQMLLINT=${BA_QMLLINT}
+                     -DQML_FILES=${_ba_qml} -P ${CMAKE_SOURCE_DIR}/cmake/tests/qml_syntax.cmake)
+        endforeach()
     endif()
 else()
     ba_falta("Interfaz (Qt)" "falta el Qt vendoreado ('make deps-qt-host')")

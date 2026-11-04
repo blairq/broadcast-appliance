@@ -146,7 +146,7 @@ pasos:
 	@echo "  Windows:  win  test-win  release-win  dist-win  dist-win-docker   (desde Linux: BA_ACCEPT_MSVC_LICENSE=1; mk/windows.mk)"
 	@echo "  macOS:    macos (compila y prueba)  release-macos  app-macos  app-macos-rapida  dmg-macos  dist-macos  modelo-mac  (mk/mac.mk)"
 	@echo "  Publicar: publicar-macos / publicar-linux / publicar-win (una plataforma, compilando acá)  (mk/publicar.mk)"
-	@echo "  Tests:    test  test-rapido  test-completo  pytest  lint  lint-includes          (mk/desarrollo.mk)"
+	@echo "  Tests:    test  test-rapido  test-completo  test-explicar  pytest  lint  lint-includes  (mk/desarrollo.mk)"
 	@echo ""
 	@echo "Dependencias una por una (extern/, idempotente, con sha256; mk/deps.mk y las de cada plataforma):"
 	@echo "  deps-src (mbedtls, nlohmann, samplerate, argon2, libdeflate, zxing)  deps-qt  deps-qt-host  deps-webrtc"

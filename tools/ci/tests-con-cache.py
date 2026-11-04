@@ -18,7 +18,8 @@
 #     (BA_*, GST_*, QT_*, DYLD_*, LD_*, WINE*, PYTHON*, LANG, LC_*), la versión de
 #     ctest o de Wine, la del sistema y la de este script.
 # Solo se guarda la clave de un test que pasó (0) o se salteó (77); un fallo
-# nunca. Los contenidos se leen una vez: después, el memo de tools/ci/huellas.py
+# nunca. De cada uno se guardan también las partes de esa clave (.cache-tests/
+# ultimas/<test>.json): la próxima vez que corra se dice qué entrada cambió. Los contenidos se leen una vez: después, el memo de tools/ci/huellas.py
 # (tamaño, mtime, ctime e inodo) dice si un archivo cambió sin releerlo.
 #
 # La caché vive en <build>/.cache-tests/ (en Docker, en el volumen ba-trabajo).
@@ -33,6 +34,9 @@
 #       --output-on-failure...) va al ctest que corre los que faltan.
 #   tests-con-cache.py --test-dir build --explicar test_x
 #       Qué entra en la clave de test_x y si está en la caché.
+#   tests-con-cache.py --test-dir build --explicar-todo [filtros]
+#       Sin correr nada: qué tests correrían y por qué (para auditar que no corra
+#       nada de más). Lo mismo que dice `make test` antes de correrlos.
 #   tests-con-cache.py wine-preparar --build build/win --herramienta <wine> \
 #       --objdump <llvm-objdump> --ruta "$WINEPATH" --pendientes F  < lista de .exe
 #   tests-con-cache.py wine-guardar --build build/win --resultados F
@@ -373,6 +377,40 @@ class Cache:
                         self.entrada(partes, c)
         return sha_texto(json.dumps(partes, sort_keys=True)), partes
 
+    def _ultimas(self, nombre):
+        return os.path.join(self.dir, "ultimas", re.sub(r"[^A-Za-z0-9_.-]", "_", nombre) + ".json")
+
+    def guardar_partes(self, nombre, partes):
+        p = self._ultimas(nombre)
+        os.makedirs(os.path.dirname(p), exist_ok=True)
+        with open(p + ".tmp", "w") as f:
+            json.dump(partes, f, sort_keys=True, separators=(",", ":"))
+        os.replace(p + ".tmp", p)
+
+    def razones(self, nombre, partes):
+        """Por qué corre: lo que cambió en su clave desde la última vez que pasó."""
+        try:
+            with open(self._ultimas(nombre)) as f:
+                antes = json.load(f)
+        except (OSError, ValueError):
+            return ["nunca pasó (o no hay registro de sus entradas)"]
+        out = []
+        # Primero lo que el test lee (rutas y binarios), después el resto (comando, script...).
+        for k in sorted(set(partes) | set(antes), key=lambda k: (not k.startswith(("ruta ", "binario ")), k)):
+            if k not in antes:
+                out.append("entrada nueva: " + self.corta(k))
+            elif k not in partes:
+                out.append("ya no es entrada: " + self.corta(k))
+            elif antes[k] != partes[k]:
+                out.append("cambió " + self.corta(k))
+        return out or ["mismas entradas que la última vez que pasó: después falló o la caché se podó"]
+
+    def corta(self, k):
+        """«ruta /…/repo/src/x.cpp» → «ruta src/x.cpp» (relativa a la fuente o al build)."""
+        for r in sorted((r for r in self.raices if r not in ("/", os.path.expanduser("~"))), key=len, reverse=True):
+            k = k.replace(r + "/", "")
+        return k
+
     def esta(self, clave):
         return os.path.exists(os.path.join(self.dir, "ok", clave))
 
@@ -474,6 +512,7 @@ def modo_ctest(argv):
     ap = argparse.ArgumentParser(prog="tests-con-cache.py", add_help=False)
     ap.add_argument("--test-dir", required=True)
     ap.add_argument("--explicar")
+    ap.add_argument("--explicar-todo", action="store_true")
     ap.add_argument("--ctest", default="ctest")
     a, resto = ap.parse_known_args(argv)
     if resto and resto[0] == "--":
@@ -550,7 +589,7 @@ def modo_ctest(argv):
     # Sin caché (un release) no se calcula ninguna clave: corren todos igual, y leer las
     # dependencias de cada test (ldd, otool, objdump) es lanzar cientos de procesos, que
     # bajo Rosetta (Docker en una Mac) trabó el script entero más de una vez, aun de a uno.
-    if sin_cache() and not a.explicar:
+    if sin_cache() and not (a.explicar or a.explicar_todo):
         claves = [(None, None)] * len(tests)
     else:
         claves = calcular(cache, tests, una)
@@ -564,6 +603,19 @@ def modo_ctest(argv):
                 return 0
         log("no hay un test %s (con esos filtros)" % a.explicar)
         return 1
+    if a.explicar_todo:
+        n = 0
+        for t, (k, partes) in zip(tests, claves):
+            if k and cache.esta(k):
+                print("      %s %s caché (%s)" % (t["name"], "." * max(3, 40 - len(t["name"])), cache.como(k)))
+                continue
+            n += 1
+            print("  corre %s:" % t["name"])
+            for r in (cache.razones(t["name"], partes) if partes else ["sin clave (no está tests-entradas.json)"]):
+                print("        " + r)
+        cache.guardar()
+        log("%d tests: %d correrían, %d de la caché" % (len(tests), n, len(tests) - n))
+        return 0
 
     usar = not sin_cache()
     if not usar:
@@ -572,8 +624,15 @@ def modo_ctest(argv):
     for t, (k, _) in zip(tests, claves):
         (en_cache if usar and k and cache.esta(k) else correr).append(t["name"])
     clave_de = {t["name"]: k for t, (k, _) in zip(tests, claves)}
+    partes_de = {t["name"]: p for t, (_, p) in zip(tests, claves)}
     for n in en_cache:
         print("      %s %s %s (caché)" % (n, "." * max(3, 40 - len(n)), cache.como(clave_de[n])))
+    # Por qué corre cada uno (lo primero que cambió y cuántas cosas más; todo, con
+    # --explicar-todo o --explicar <test>).
+    if usar:
+        for n in correr:
+            rs = cache.razones(n, partes_de[n]) if partes_de.get(n) else ["sin clave"]
+            print("  corre %s: %s%s" % (n, rs[0], " (y %d más)" % (len(rs) - 1) if len(rs) > 1 else ""))
     t0 = time.time()
     rc = 0
     resultados = {}
@@ -598,6 +657,8 @@ def modo_ctest(argv):
         k = clave_de.get(n)
         if k:
             cache.anotar(k, n, codigo, seg)
+            if partes_de.get(n):
+                cache.guardar_partes(n, partes_de[n])
             anotados += 1
     cache.guardar()
     cache.podar()

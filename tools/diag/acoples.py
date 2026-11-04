@@ -513,12 +513,15 @@ RE_RUNTIME = re.compile(r"\brt_?\s*(?:\.|->)\s*(\w+)\s*\(")
 ARRANQUE = ("src/app/arranque/", "src/app/mcp/", "src/app/tests/")
 
 
-def archivos_interfaz() -> list[pathlib.Path]:
+def archivos_interfaz(mira=None) -> list[pathlib.Path]:
     """src/app/ui y los .cpp cuyos .hpp declaran Q_INVOKABLE o Q_PROPERTY (los ve la QML).
-    Sin el arranque (detrás del cartel de carga) ni el MCP (cada herramienta en su hilo)."""
+    Sin el arranque (detrás del cartel de carga) ni el MCP (cada herramienta en su hilo).
+    mira(ruta) -> bool: solo esos archivos (tests/areas.py); None: todos."""
     out = []
     for p in sorted(APP.rglob("*")):
         if p.suffix not in (".cpp", ".mm") or _es_prueba(p):
+            continue
+        if mira is not None and not mira(p):
             continue
         rel = _rel(p)
         if rel.startswith(ARRANQUE):
@@ -572,9 +575,9 @@ RE_OTRO_HILO = re.compile(
     r"|\bQtConcurrent::run\b|\bstd::(?:thread|jthread|async)\b|\bQThread::create\s*\(")
 
 
-def acoples_cpp() -> list[Hallazgo]:
+def acoples_cpp(mira=None) -> list[Hallazgo]:
     out: list[Hallazgo] = []
-    for p in archivos_interfaz():
+    for p in archivos_interfaz(mira):
         en_bloque = False
         prof = 0                # llaves y paréntesis abiertos
         otro_hilo: list[int] = []  # la profundidad donde empezó cada llamada que encarga a otro hilo
@@ -606,11 +609,14 @@ def acoples_cpp() -> list[Hallazgo]:
 RE_GANCHO = re.compile(r"\bBA_ACOPLE(?:_EN)?\s*\(")
 
 
-def ganchos() -> dict[str, int]:
-    """{archivo: cuántos BA_ACOPLE} en src/ (sin las pruebas ni la definición)."""
+def ganchos(mira=None) -> dict[str, int]:
+    """{archivo: cuántos BA_ACOPLE} en src/ (sin las pruebas ni la definición). mira: como en
+    archivos_interfaz."""
     out: dict[str, int] = {}
     for p in sorted((RAIZ / "src").rglob("*")):
         if p.suffix not in (".cpp", ".hpp", ".mm") or _es_prueba(p):
+            continue
+        if mira is not None and not mira(p):
             continue
         rel = p.relative_to(RAIZ / "src").as_posix()
         if rel.startswith("core/diag/Acoples."):
