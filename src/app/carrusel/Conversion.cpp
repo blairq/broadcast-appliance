@@ -258,3 +258,5 @@ void Conversor::rendirUna() {
 }
 
 } // namespace ba::carrusel
+
+#include "moc_Conversion.cpp"
