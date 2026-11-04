@@ -137,6 +137,7 @@ std::string sistemaDeArchivos(const std::filesystem::path& ruta) {
         case 0x7366746e: return "ntfs3";
         case 0x65735546: return "fuse"; // ntfs-3g, exfat-fuse…: no se sabe
         case 0x01021994: return "tmpfs";
+        case 0x794C7630: return "overlay"; // Docker y los contenedores
         default: return "0x" + [](unsigned long v) {
             char b[20];
             std::snprintf(b, sizeof b, "%lx", v);
