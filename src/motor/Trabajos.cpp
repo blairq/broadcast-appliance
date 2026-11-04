@@ -65,6 +65,11 @@ class Hilos {
         tope_ = std::clamp(tope, base_, 64); // los que sobran se van al vencer su espera
     }
 
+    void ponerEspera(int ms) {
+        std::lock_guard<std::mutex> l(m_);
+        espera_ = std::chrono::milliseconds(std::clamp(ms, 50, 60000));
+    }
+
    private:
     void trabajar() {
         ba::platform::nombrarHilo("motor-trabajo");
@@ -72,7 +77,7 @@ class Hilos {
         for (;;) {
             if (filas_.empty()) {
                 ++libres_;
-                if (cv_.wait_for(l, std::chrono::seconds(5), [this]() { return avisos_ > 0; })) {
+                if (cv_.wait_for(l, espera_, [this]() { return avisos_ > 0; })) {
                     --avisos_; // lo avisó poner (que ya lo descontó de los libres)
                     continue;
                 }
@@ -134,6 +139,7 @@ class Hilos {
     int libres_ = 0; ///< esperando trabajo y sin avisar
     int avisos_ = 0; ///< avisados por poner que todavía no se despertaron
     int base_ = 2, tope_ = 16;
+    std::chrono::milliseconds espera_{5000}; ///< sin trabajo esto, el que sobra se va
 };
 
 } // namespace
@@ -170,5 +176,7 @@ std::size_t FilaDeTrabajo::pendientes() const {
 HilosDeTrabajo hilosDeTrabajo() { return Hilos::el().cuantos(); }
 
 void ponerHilosDeTrabajo(int base, int tope) { Hilos::el().ponerTamanos(base, tope); }
+
+void ponerEsperaDeHilosDeTrabajo(int ms) { Hilos::el().ponerEspera(ms); }
 
 } // namespace ba::motor

@@ -101,11 +101,11 @@ template <class F> bool esperarQue(F listo, int topeMs = 20000) {
     return true;
 }
 
-/// Los hilos del proceso ya en calma: los de trabajo que sobraron se fueron (a los ~5 s sin
-/// trabajo: Trabajos.hpp; con la máquina cargada, más) y la cuenta no cambió en el último
-/// medio segundo. Lo que se mide son los hilos que QUEDAN, no la ráfaga de un cambio: antes
-/// era un esperar fijo de 6 s y, con carga, la ráfaga seguía viva y se contaba como de los
-/// lugares (test_motor_lugares_vacios fallaba con otros compilando).
+/// Los hilos del proceso ya en calma: los de trabajo que sobraron se fueron (a los 0,5 s sin
+/// trabajo: ponerEsperaDeHilosDeTrabajo en main; con la máquina cargada, más) y la cuenta no
+/// cambió en el último medio segundo. Lo que se mide son los hilos que QUEDAN, no la ráfaga
+/// de un cambio: antes era un esperar fijo de 6 s y, con carga, la ráfaga seguía viva y se
+/// contaba como de los lugares (test_motor_lugares_vacios fallaba con otros compilando).
 int hilosEnCalma() {
     int antes = -1, h = hilos();
     esperarQue(
@@ -137,6 +137,9 @@ int main() {
             std::printf("SKIP: falta %s\n", e);
             return 77;
         }
+    // Los hilos de trabajo que sobran se van a los 0,5 s sin trabajo (de fábrica, 5 s): lo que
+    // se mide es lo que QUEDA, y cada medición esperaba los 5 s enteros (eran ~39 s de test).
+    ponerEsperaDeHilosDeTrabajo(500);
     const std::string pid = std::to_string(getpid());
     Motor::Config cfg;
     cfg.lienzo.ancho = 320;
@@ -176,8 +179,8 @@ int main() {
     json rec;
     esperarQue([&] { rec = motor.estado()["recursos"]; return rec.value("en_reposo", -1) == 2 * kLugares; });
     // Crear 48 entradas de golpe agranda los hilos de trabajo compartidos hasta su tope (16);
-    // los que sobran se van a los 5 s sin trabajo (Trabajos.hpp). Lo que se mide es lo que
-    // QUEDA: los hilos de los lugares, no la ráfaga del arranque.
+    // los que sobran se van a los 0,5 s sin trabajo (ponerEsperaDeHilosDeTrabajo, arriba). Lo
+    // que se mide es lo que QUEDA: los hilos de los lugares, no la ráfaga del arranque.
     const int h1 = hilosEnCalma();
     std::printf("%d lugares vacíos: hilos %d → %d (%.2f por lugar); %s\n", kLugares, h0, h1,
                 static_cast<double>(h1 - h0) / kLugares, rec.dump().c_str());
@@ -220,7 +223,7 @@ int main() {
         rec = motor.estado()["recursos"];
         return rec.value("en_reposo", -1) == 2 * kLugares && rec.value("placas_armadas", -1) == 0;
     });
-    const int h4 = hilosEnCalma(); // los hilos de trabajo que sobran se van a los ~5 s
+    const int h4 = hilosEnCalma(); // los hilos de trabajo que sobran se van a los ~0,5 s
     const std::int64_t m4 = memoria::privada();
     std::printf("tres idas y vueltas: hilos %d → %d, privada %lld → %lld MB; %s\n", h3, h4, static_cast<long long>(m3 / 1048576),
                 static_cast<long long>(m4 / 1048576), rec.dump().c_str());

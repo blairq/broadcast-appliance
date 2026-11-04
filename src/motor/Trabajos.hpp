@@ -58,5 +58,9 @@ HilosDeTrabajo hilosDeTrabajo();
 /// Los que quedan siempre (1..8) y cuántos puede haber como mucho (base..64). Lo de
 /// fábrica: 2 y 16. Rige para los hilos que se crean después.
 void ponerHilosDeTrabajo(int base, int tope);
+/// Cuánto espera sin trabajo un hilo que sobra antes de irse (50 ms..60 s; de fábrica 5 s).
+/// Rige desde la próxima espera de cada hilo. Los tests que miden los hilos que QUEDAN la
+/// achican para no esperar 5 s cada vez.
+void ponerEsperaDeHilosDeTrabajo(int ms);
 
 } // namespace ba::motor
