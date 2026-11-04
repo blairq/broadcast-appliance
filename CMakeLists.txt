@@ -18,6 +18,14 @@
 # ============================================================================
 
 cmake_minimum_required(VERSION 3.21)
+# Las bibliotecas estáticas repetidas en la línea de enlace (ba_core, mbedtls… que piden
+# varias bibliotecas de la app): con CMP0156 en NEW, CMake las repite solo si el enlazador
+# lo necesita (GNU ld sí; ld64 de Apple y el de MSVC/lld-link no), y en la Mac deja de avisar
+# «ignoring duplicate libraries». Lo que se enlaza es lo mismo. Con un CMake anterior a 3.29
+# (sin la política) queda como antes.
+if(POLICY CMP0156)
+    cmake_policy(SET CMP0156 NEW)
+endif()
 
 # --- Proyecto ---------------------------------------------------------------
 project(
