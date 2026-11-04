@@ -1138,6 +1138,19 @@ endif()
                                                 BA_PRUEBA_FUENTES="${CMAKE_SOURCE_DIR}")
     set_target_properties(test_mcp PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_dependencies(test_mcp ba-mcp)
+    # Las otras dos partes del test_mcp de antes (tests/McpPrueba.hpp): las salidas y el límite
+    # de frecuencia, y cada herramienta del registro (docs/mcp.json) por el despachador.
+    add_executable(test_mcp_salidas tests/test_mcp_salidas.cpp)
+    target_include_directories(test_mcp_salidas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_mcp_salidas PRIVATE ba_app_mcp ba_core Qt6::Core Qt6::Network)
+    set_target_properties(test_mcp_salidas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_mcp_salidas COMMAND test_mcp_salidas)
+    add_executable(test_mcp_herramientas tests/test_mcp_herramientas.cpp)
+    target_include_directories(test_mcp_herramientas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/core/tests")
+    target_link_libraries(test_mcp_herramientas PRIVATE ba_app_mcp ba_core Qt6::Core Qt6::Network)
+    target_compile_definitions(test_mcp_herramientas PRIVATE BA_PRUEBA_FUENTES="${CMAKE_SOURCE_DIR}")
+    set_target_properties(test_mcp_herramientas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_mcp_herramientas COMMAND test_mcp_herramientas)
     # El plano de control con la interfaz trabada (F3-03): MCP, alarmas y relojes, sin QML; y
     # las herramientas de la foto (McpFoto) contra un documento de aire de verdad.
     add_executable(test_plano_control tests/test_plano_control.cpp)
