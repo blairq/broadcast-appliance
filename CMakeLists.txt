@@ -520,6 +520,10 @@ if(APPLE)
     include(${CMAKE_SOURCE_DIR}/cmake/BaMacBundle.cmake)
 endif()
 
+# Los niveles del diseño físico y los headers solos, un test por componente
+# (tools/diag/niveles.txt).
+include(${CMAKE_SOURCE_DIR}/cmake/BaNiveles.cmake)
+
 # Con todos los tests ya declarados: etiquetas y entradas para la caché de tests.
 ba_tests_registrar()
 

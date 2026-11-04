@@ -279,6 +279,14 @@ lint:
 	@find src \( -name '*.cpp' -o -name '*.h' -o -name '*.hpp' \) -print0 \
 		| xargs -0 -r $(CF) --dry-run -Werror
 
+# misc-include-cleaner (.clang-tidy) sobre los archivos de src/ que cambiaron respecto de
+# master (o ARCHIVOS="a.cpp b.hpp"; LINT_BASE=otra-rama). Con el clang-tidy vendoreado o
+# CLANG_TIDY=/ruta: sin ninguno, falla y lo dice. Ver tools/diag/lint-includes.py.
+LINT_BASE ?= master
+.PHONY: lint-includes
+lint-includes:
+	python3 -B tools/diag/lint-includes.py --build $(BUILD_DIR) --base $(LINT_BASE) $(ARCHIVOS)
+
 # --- Bundle portable (layout §5.1) ------------------------------------------
 # Instala el esqueleto del layout portable sobre release (bin/64bit,
 # gst-plugins, data, Config, Logs, Recordings, Web/guest).
