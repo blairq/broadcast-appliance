@@ -245,3 +245,5 @@ void DocumentosViewModel::abrirCarpetaUi() {
 }
 
 } // namespace ba::app
+
+#include "moc_DocumentosViewModel.cpp"

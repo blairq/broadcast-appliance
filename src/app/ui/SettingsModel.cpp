@@ -1037,3 +1037,5 @@ void SettingsModel::alAplicar(Aplicado a, int conectados, const std::function<vo
     if (listo) listo(summary, fallo_);
 }
 } // namespace ba::app
+
+#include "moc_SettingsModel.cpp"

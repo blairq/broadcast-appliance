@@ -356,3 +356,5 @@ void AlarmasViewModel::enLaInterfaz(const json& ev) {
 }
 
 } // namespace ba::app
+
+#include "moc_AlarmasViewModel.cpp"

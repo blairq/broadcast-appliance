@@ -879,3 +879,5 @@ std::string ControlGrillas::devolver(const std::string& fuente, const std::strin
 }
 
 } // namespace ba::app::escenas
+
+#include "moc_ControlGrillas.cpp"

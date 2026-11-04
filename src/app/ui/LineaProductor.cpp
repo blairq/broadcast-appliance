@@ -156,3 +156,5 @@ void LineaProductor::aplicar(const QString& salida, const QString& opcion) {
 void LineaProductor::descartar(const QString& salida) { sacar(salida.toStdString()); }
 
 } // namespace ba::app
+
+#include "moc_LineaProductor.cpp"

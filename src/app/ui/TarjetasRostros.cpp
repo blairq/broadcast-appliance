@@ -223,3 +223,5 @@ QString TarjetasRostros::etiquetaDe(const QString& feed) const {
 } // namespace ba::app
 
 #endif // BA_HAVE_ROSTROS
+
+#include "moc_TarjetasRostros.cpp"

@@ -191,3 +191,5 @@ QString CuentasViewModel::guardarCredencial(const QString& platform, const QVari
 }
 
 } // namespace ba::app
+
+#include "moc_CuentasViewModel.cpp"

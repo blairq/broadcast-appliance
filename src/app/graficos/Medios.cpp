@@ -309,3 +309,5 @@ QJsonObject Medios::videoACuadros(const QString& video, const QString& destino, 
 }
 
 } // namespace ba::app::graficos
+
+#include "moc_Medios.cpp"

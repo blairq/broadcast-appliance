@@ -204,3 +204,5 @@ QSGNode* Vumetro::updatePaintNode(QSGNode* viejo, UpdatePaintNodeData*) {
 }
 
 } // namespace ba::app
+
+#include "moc_Vumetro.cpp"

@@ -130,3 +130,5 @@ void EstadoAireViewModel::avisarEstadisticas() {
 }
 
 } // namespace ba::app
+
+#include "moc_EstadoAireViewModel.cpp"

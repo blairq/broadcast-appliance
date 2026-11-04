@@ -547,3 +547,5 @@ QStringList SalidasViewModel::textosDePlaca(const QString& usado) {
 }
 
 } // namespace ba::app
+
+#include "moc_SalidasViewModel.cpp"

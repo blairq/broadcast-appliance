@@ -493,3 +493,5 @@ void CarruselViewModel::desarmar(const QString& documento, const QString& nombre
 void CarruselViewModel::cancelar() { conv_->cancelar(); }
 
 } // namespace ba::app
+
+#include "moc_CarruselViewModel.cpp"

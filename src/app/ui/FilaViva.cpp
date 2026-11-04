@@ -44,3 +44,5 @@ void FilaViva::leer() {
 }
 
 } // namespace ba::app
+
+#include "moc_FilaViva.cpp"

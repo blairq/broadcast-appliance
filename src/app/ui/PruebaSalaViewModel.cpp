@@ -515,3 +515,5 @@ json PruebaSalaViewModel::estadoJson(bool conCredencial) const {
 }
 
 } // namespace ba::app
+
+#include "moc_PruebaSalaViewModel.cpp"

@@ -393,3 +393,5 @@ void Conmutadores::guardar() const {
 }
 
 } // namespace ba::app::escenas
+
+#include "moc_Conmutador.cpp"

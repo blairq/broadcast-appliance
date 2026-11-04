@@ -497,3 +497,5 @@ void VivosViewModel::rehacerDestinos() {
 }
 
 } // namespace ba::app
+
+#include "moc_VivosViewModel.cpp"

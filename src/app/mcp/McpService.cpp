@@ -1301,3 +1301,5 @@ void McpService::registerTools() {
 }
 
 } // namespace ba::app::mcp
+
+#include "moc_McpService.cpp"

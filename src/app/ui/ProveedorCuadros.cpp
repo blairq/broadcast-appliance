@@ -4,3 +4,5 @@
 // ============================================================================
 
 #include "ui/ProveedorCuadros.hpp"
+
+#include "moc_ProveedorCuadros.cpp"

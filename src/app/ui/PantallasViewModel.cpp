@@ -926,3 +926,5 @@ void PantallasViewModel::silenciar(const QString& id, bool si) {
 }
 
 } // namespace ba::app
+
+#include "moc_PantallasViewModel.cpp"

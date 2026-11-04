@@ -904,3 +904,5 @@ std::string EjecucionLinea::decidirPtz(const std::string& pieza, const std::stri
 }
 
 } // namespace ba::app
+
+#include "moc_EjecucionLinea.cpp"

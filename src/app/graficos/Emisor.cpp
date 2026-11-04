@@ -832,3 +832,5 @@ QString Emisor::ultimoGrafico(std::uint64_t fuente) const {
 }
 
 } // namespace ba::app::graficos
+
+#include "moc_Emisor.cpp"

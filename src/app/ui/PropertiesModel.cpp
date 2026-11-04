@@ -446,3 +446,5 @@ void PropertiesModel::press(const QString& prop) {
 }
 
 } // namespace ba::app
+
+#include "moc_PropertiesModel.cpp"

@@ -40,3 +40,5 @@ void PuestoCorreccion::pedirQr(const QString& target, const QString& /*vista*/, 
 }
 
 } // namespace ba::app
+
+#include "moc_PuestoCorreccion.cpp"

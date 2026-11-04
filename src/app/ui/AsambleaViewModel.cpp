@@ -781,3 +781,5 @@ void AsambleaViewModel::completarVinculos(QJsonObject& ctx) const {
 }
 
 } // namespace ba::app
+
+#include "moc_AsambleaViewModel.cpp"

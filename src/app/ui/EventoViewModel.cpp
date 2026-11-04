@@ -197,3 +197,5 @@ std::filesystem::path EventoViewModel::archivoBitacoraDe(const std::string& carp
 std::filesystem::path EventoViewModel::carpetaConfig() const { return rt_.dataRoot() / "Config"; }
 
 } // namespace ba::app
+
+#include "moc_EventoViewModel.cpp"

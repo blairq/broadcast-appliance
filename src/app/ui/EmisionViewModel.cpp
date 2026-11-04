@@ -468,3 +468,5 @@ nlohmann::json EmisionViewModel::saludSerie(const std::string& destino, int minu
 }
 
 } // namespace ba::app
+
+#include "moc_EmisionViewModel.cpp"

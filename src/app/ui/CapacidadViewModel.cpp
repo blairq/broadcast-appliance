@@ -1172,3 +1172,5 @@ QVariantList CapacidadViewModel::chequeoPrevio(int cupoEvento) const {
 }
 
 } // namespace ba::app
+
+#include "moc_CapacidadViewModel.cpp"

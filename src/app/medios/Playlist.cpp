@@ -275,3 +275,5 @@ void Playlist::armarUi() {
 }
 
 } // namespace ba::app::medios
+
+#include "moc_Playlist.cpp"

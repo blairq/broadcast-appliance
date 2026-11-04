@@ -523,3 +523,5 @@ void YouTubeViewModel::sendChat(const QString& text) {
 }
 
 } // namespace ba::app
+
+#include "moc_YouTubeViewModel.cpp"

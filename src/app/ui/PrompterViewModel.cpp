@@ -587,3 +587,5 @@ void PrompterViewModel::pedirQr(const QString& target, const QString& vista, boo
 }
 
 } // namespace ba::app
+
+#include "moc_PrompterViewModel.cpp"

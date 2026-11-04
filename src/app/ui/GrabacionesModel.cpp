@@ -79,3 +79,5 @@ void GrabacionesModel::refrescar() {
 }
 
 } // namespace ba::app
+
+#include "moc_GrabacionesModel.cpp"

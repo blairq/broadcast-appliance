@@ -904,3 +904,5 @@ QImage QrImageProvider::requestImage(const QString& id, QSize* size, const QSize
 }
 
 } // namespace ba::app
+
+#include "moc_QrViewModel.cpp"

@@ -1149,3 +1149,5 @@ json ConduccionLinea::lineaCamaras(const std::string& camara,
 }
 
 } // namespace ba::app
+
+#include "moc_ConduccionLinea.cpp"

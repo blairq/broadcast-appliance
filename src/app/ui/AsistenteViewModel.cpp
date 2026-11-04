@@ -391,3 +391,5 @@ nlohmann::json AsistenteViewModel::rotuloTraduccionEstado() const {
 }
 
 } // namespace ba::app
+
+#include "moc_AsistenteViewModel.cpp"

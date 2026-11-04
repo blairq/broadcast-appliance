@@ -1195,3 +1195,5 @@ std::unique_ptr<registro::Entendedor> TotemsViewModel::crearEntendedor(const std
 }
 
 } // namespace ba::app
+
+#include "moc_TotemsViewModel.cpp"

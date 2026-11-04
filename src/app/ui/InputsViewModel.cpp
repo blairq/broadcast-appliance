@@ -502,3 +502,5 @@ QImage InputThumbProvider::requestImage(const QString& id, QSize* size, const QS
 }
 
 } // namespace ba::app
+
+#include "moc_InputsViewModel.cpp"

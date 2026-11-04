@@ -375,3 +375,5 @@ QVariantMap InformeEventoViewModel::importarEscaleta(const QString& rutaOUrl, bo
     return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, json::error_handler_t::replace))).object().toVariantMap();
 }
 } // namespace ba::app
+
+#include "moc_InformeEventoViewModel.cpp"

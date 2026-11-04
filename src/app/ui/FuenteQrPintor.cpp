@@ -62,3 +62,5 @@ void FuenteQrPintor::tic() {
 }
 
 } // namespace ba::app
+
+#include "moc_FuenteQrPintor.cpp"

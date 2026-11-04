@@ -448,3 +448,5 @@ void EscenasViewModel::armarRepeticion(const QString& archivo, const std::string
 }
 
 } // namespace ba::app
+
+#include "moc_EscenasViewModel.cpp"

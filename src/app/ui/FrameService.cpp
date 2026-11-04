@@ -561,3 +561,5 @@ QJsonObject FrameService::medidas() const {
 }
 
 } // namespace ba::app
+
+#include "moc_FrameService.cpp"

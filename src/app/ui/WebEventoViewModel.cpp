@@ -314,3 +314,5 @@ void WebEventoViewModel::publicarCuerpo(const json& cuerpo) {
 }
 
 } // namespace ba::app
+
+#include "moc_WebEventoViewModel.cpp"

@@ -362,3 +362,5 @@ void ImagenViewModel::legalizarUi(const QString& modo) {
 }
 
 } // namespace ba::app
+
+#include "moc_ImagenViewModel.cpp"

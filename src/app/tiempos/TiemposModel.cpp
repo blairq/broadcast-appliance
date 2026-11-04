@@ -551,3 +551,5 @@ void TiemposModel::guardar() const {
 }
 
 } // namespace ba::app::tiempos
+
+#include "moc_TiemposModel.cpp"

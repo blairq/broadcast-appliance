@@ -426,3 +426,5 @@ QString GraficoViewModel::ocultarDeEscena(qulonglong fuente) {
 }
 
 } // namespace ba::app
+
+#include "moc_GraficoViewModel.cpp"

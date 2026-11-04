@@ -329,3 +329,5 @@ void RotuladorViewModel::pedirQr(const QString& target, bool conClave) {
 }
 
 } // namespace ba::app
+
+#include "moc_RotuladorViewModel.cpp"

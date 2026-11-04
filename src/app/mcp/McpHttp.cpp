@@ -240,3 +240,5 @@ void McpHttp::onReadable(QTcpSocket* s) {
 }
 
 } // namespace ba::app::mcp
+
+#include "moc_McpHttp.cpp"

@@ -819,3 +819,5 @@ QHash<int, QByteArray> SourceTypesModel::roleNames() const {
 }
 
 } // namespace ba::app
+
+#include "moc_ListModels.cpp"

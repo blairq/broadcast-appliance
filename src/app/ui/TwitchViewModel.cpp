@@ -357,3 +357,5 @@ void TwitchViewModel::setChatOn(bool on) {
 void TwitchViewModel::sendChat(const QString& text) { client_->sendChat(text); }
 
 } // namespace ba::app
+
+#include "moc_TwitchViewModel.cpp"

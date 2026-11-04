@@ -274,3 +274,5 @@ nlohmann::json PlanoControl::estado() const {
 }
 
 } // namespace ba::app
+
+#include "moc_PlanoControl.cpp"

@@ -981,3 +981,5 @@ QString Configuraciones::describirUi(const QString& n, const QString& d) {
 void Configuraciones::borrarUi(const QString& n) { return avisarError(QString::fromStdString(borrar(n.toStdString()))); }
 
 } // namespace ba::app
+
+#include "moc_Configuraciones.cpp"

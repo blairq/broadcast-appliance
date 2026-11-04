@@ -1309,3 +1309,5 @@ bool SuperRes::editarVarianteUi(const QString& plugin, const QString& id, const 
 }
 
 } // namespace ba::app::video
+
+#include "moc_SuperRes.cpp"

@@ -42,3 +42,5 @@ bool ChatHilo::filterAcceptsRow(int fila, const QModelIndex& padre) const {
 }
 
 } // namespace ba::app
+
+#include "moc_ChatHilo.cpp"

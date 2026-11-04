@@ -339,3 +339,5 @@ QString Vinculos::disparar(const QString& id) {
 }
 
 } // namespace ba::app::graficos
+
+#include "moc_Vinculos.cpp"

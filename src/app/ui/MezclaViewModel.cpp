@@ -236,3 +236,5 @@ bool MezclaViewModel::medirSincroUi(int segundos, const QString& salida) {
 }
 
 } // namespace ba::app
+
+#include "moc_MezclaViewModel.cpp"

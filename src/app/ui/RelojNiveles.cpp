@@ -59,3 +59,5 @@ void RelojNiveles::despertar() {
 }
 
 } // namespace ba::app
+
+#include "moc_RelojNiveles.cpp"

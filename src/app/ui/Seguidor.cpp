@@ -235,3 +235,5 @@ void Seguidor::corregir(const QString& entrada, Estado& e, double cx, double cy,
 }
 
 } // namespace ba::app
+
+#include "moc_Seguidor.cpp"

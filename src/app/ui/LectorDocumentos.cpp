@@ -348,3 +348,5 @@ void LectorDocumentos::Impl::paso(QPointer<LectorDocumentos> yo, std::shared_ptr
 }
 
 } // namespace ba::app
+
+#include "moc_LectorDocumentos.cpp"

@@ -180,3 +180,5 @@ QJsonObject GraficoProceso::repertorio(QString* error) {
 }
 
 } // namespace ba::app::graficos
+
+#include "moc_GraficoProceso.cpp"

@@ -350,3 +350,5 @@ void FacebookViewModel::sendChat(const QString& text) {
 }
 
 } // namespace ba::app
+
+#include "moc_FacebookViewModel.cpp"

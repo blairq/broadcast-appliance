@@ -329,3 +329,5 @@ void RegistroViewModel::marcar(const QString& texto) {
 }
 
 } // namespace ba::app
+
+#include "moc_RegistroViewModel.cpp"

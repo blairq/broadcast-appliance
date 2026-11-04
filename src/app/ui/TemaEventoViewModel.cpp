@@ -294,3 +294,5 @@ json TemaEventoViewModel::estado() const {
 }
 
 } // namespace ba::app
+
+#include "moc_TemaEventoViewModel.cpp"

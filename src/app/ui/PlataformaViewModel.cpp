@@ -69,3 +69,5 @@ void PlataformaViewModel::openUrl(const QString& url) { QDesktopServices::openUr
 void PlataformaViewModel::copy(const QString& text) { QGuiApplication::clipboard()->setText(text); }
 
 } // namespace ba::app
+
+#include "moc_PlataformaViewModel.cpp"

@@ -3170,3 +3170,5 @@ void VideoGrafos::cargar() {
 }
 
 } // namespace ba::app::video
+
+#include "moc_VideoGrafos.cpp"

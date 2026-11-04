@@ -338,3 +338,5 @@ void RecursosViewModel::atenderTermica(const diag::Recursos::Muestra& m) {
 }
 
 } // namespace ba::app
+
+#include "moc_RecursosViewModel.cpp"
