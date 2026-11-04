@@ -85,6 +85,13 @@ if(NOT BA_APP_QT_OK)
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/(graficos|medios)/.*")
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/carrusel/Conversion\\.cpp$")
 endif()
+# El header precompilado de lo que usa Qt (cmake/BaPch.cmake): el donante va acá porque
+# los objetivos importados de Qt se ven solo desde esta carpeta.
+if(BA_APP_QT_OK AND TARGET nlohmann_json::nlohmann_json)
+    ba_pch_hilos(_ba_pch_hilos)
+    ba_pch_donante(qt ENLAZA nlohmann_json::nlohmann_json Qt6::Core ${_ba_pch_hilos}
+                   CABECERAS ${BA_PCH_STD} ${BA_PCH_JSON} ${BA_PCH_QT})
+endif()
 # Pseudo-terminal: una implementacion por plataforma.
 if(WIN32)
     list(FILTER BA_APP_SOURCES EXCLUDE REGEX ".*/term/Pty_posix\\.cpp$")

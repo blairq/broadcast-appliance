@@ -9,6 +9,8 @@
 add_library(ba_motor STATIC Piezas.cpp BancoSr.cpp Reloj.cpp OrigenRed.cpp Trabajos.cpp Memoria.cpp Entrada.cpp Mezcla.cpp Escucha.cpp Composicion.cpp Salidas.cpp Vistas.cpp Motor.cpp Mapa.cpp Candado.cpp Capturas.cpp Sondas.cpp ModosVideo.cpp Edad.cpp MedidorCeldas.cpp Prioridad.cpp Fallas.cpp GpuPerdida.cpp)
 target_include_directories(ba_motor PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(ba_motor PUBLIC ba_core ba::gstreamer)
+# Su header precompilado lleva además <gst/gst.h> (lo incluyen casi todos sus .cpp).
+ba_pch(ba_motor gst)
 # Capturas: las ventanas de cada sistema (ver Capturas.hpp).
 if(APPLE)
     target_sources(ba_motor PRIVATE Capturas_mac.mm)

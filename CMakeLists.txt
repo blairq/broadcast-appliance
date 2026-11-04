@@ -328,6 +328,8 @@ include(CTest)
 include(${CMAKE_SOURCE_DIR}/cmake/BaRequisitos.cmake)
 # Lo que la caché de tests tiene que saber de cada uno (tools/ci/tests-con-cache.py).
 include(${CMAKE_SOURCE_DIR}/cmake/BaTestsCache.cmake)
+# Headers precompilados con lo de afuera (std, json, Qt, GStreamer): ver el archivo.
+include(${CMAKE_SOURCE_DIR}/cmake/BaPch.cmake)
 
 # --- Componentes ------------------------------------------------------------
 # Cada subdirectorio declara su target. `ba_core` es la base; el resto enlaza
@@ -337,6 +339,7 @@ if(BA_WIN_STATIC_PART)
     add_subdirectory(src/core)
     add_subdirectory(src/launcher)
     add_subdirectory(src/gateway)
+    ba_pch_aplicar()
     ba_tests_registrar()
     ba_revisar_requisitos()
     return()
@@ -576,6 +579,9 @@ include(${CMAKE_SOURCE_DIR}/cmake/BaNiveles.cmake)
 # JSON temporal (UB), el comparador de las corridas nocturnas del banco de caos (F4-03)... Los
 # que recorren src/, de a un área (cmake/BaTestsPy.cmake, tests/areas.py).
 include(${CMAKE_SOURCE_DIR}/cmake/BaTestsPy.cmake)
+
+# Con todos los objetivos ya declarados: a cada uno, el header precompilado que le toca.
+ba_pch_aplicar()
 
 # Con todos los tests ya declarados: etiquetas y entradas para la caché de tests.
 ba_tests_registrar()
