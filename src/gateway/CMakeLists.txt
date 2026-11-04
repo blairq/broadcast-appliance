@@ -341,13 +341,12 @@ foreach(test_source ${BA_GATEWAY_TESTS})
     # 77 = saltado (ver src/core/CMakeLists.txt).
     set_tests_properties(${test_name} PROPERTIES SKIP_RETURN_CODE 77)
 endforeach()
-# Los que miden tiempo real (ritmo, latencia, plazos): solos. Con ocho tests más
-# compitiendo por la CPU, el período medido se va y fallan sin que nada esté mal.
-foreach(t test_retorno_ritmo test_retorno_video test_cupos test_pinggy test_enlace test_ipstack)
-    if(TEST ${t})
-        set_tests_properties(${t} PROPERTIES RUN_SERIAL TRUE)
-    endif()
-endforeach()
+# Los que miden tiempo real (ritmo, latencia, plazos: test_retorno_ritmo, test_retorno_video,
+# test_cupos, test_pinggy, test_enlace, test_ipstack) ya NO van con RUN_SERIAL: casi no usan
+# CPU (duermen esperando el reloj) y entre ellos no se molestan (cada uno con sus puertos
+# efímeros y sus nombres). Lo que los atrasaba eran los tests que SÍ comen CPU sin decírselo a
+# ctest: ver BA_TESTS_TIEMPO_REAL en cmake/BaTestsCache.cmake. Con RUN_SERIAL, los 18 de tiempo real corrían de a uno al final
+# de la suite: 409 s de 583 con un solo test andando (medido el 2026-11-04).
 
 # Windows: los tests de medios reales (RTP/SRTP sobre UDP local; el Opus del retorno
 # compartido) tambien.

@@ -148,7 +148,7 @@ if(BUILD_TESTING OR TRUE)
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_lazo_latencia gstbaaudio gstbaipc)
     add_test(NAME test_lazo_latencia COMMAND test_lazo_latencia)
-    set_tests_properties(test_lazo_latencia PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE) # mide latencia en tiempo real: solo
+    set_tests_properties(test_lazo_latencia PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120) # mide latencia en tiempo real (BA_TESTS_TIEMPO_REAL)
 
     # La voz de muchos invitados (anillos → lector común → mezcladores): el lazo con el reloj de pared.
     add_executable(test_lazo_invitados tests/test_lazo_invitados.cpp)
@@ -158,7 +158,7 @@ if(BUILD_TESTING OR TRUE)
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_lazo_invitados gstbaaudio gstbaipc)
     add_test(NAME test_lazo_invitados COMMAND test_lazo_invitados)
-    set_tests_properties(test_lazo_invitados PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE) # mide latencia en tiempo real: solo
+    set_tests_properties(test_lazo_invitados PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120) # mide latencia en tiempo real (BA_TESTS_TIEMPO_REAL)
 
     add_executable(test_composicion tests/test_composicion.cpp)
     target_link_libraries(test_composicion PRIVATE ba_motor)
@@ -167,7 +167,7 @@ if(BUILD_TESTING OR TRUE)
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_composicion gstbafiltros) # basombra
     add_test(NAME test_composicion COMMAND test_composicion)
-    set_tests_properties(test_composicion PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE) # tiempo real con GPU: solo
+    set_tests_properties(test_composicion PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120) # tiempo real con GPU (BA_TESTS_TIEMPO_REAL)
 
     add_executable(test_capturas tests/test_capturas.cpp)
     target_link_libraries(test_capturas PRIVATE ba_motor)
@@ -214,8 +214,8 @@ if(BUILD_TESTING OR TRUE)
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_app gstbaaudio gstbaipc)
     add_test(NAME test_motor_app COMMAND test_motor_app)
-    # Mide cuadros en tiempo real (GPU): solo, que con la CPU repartida llegan tarde.
-    set_tests_properties(test_motor_app PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE)
+    # Mide cuadros en tiempo real (GPU): ver BA_TESTS_TIEMPO_REAL (cmake/BaTestsCache.cmake).
+    set_tests_properties(test_motor_app PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
     # Muchas salidas (docs/planes/PLAN-SALIDAS.md, etapa 1): cada una con su aire y su mezcla.
     add_executable(test_motor_salidas tests/test_motor_salidas.cpp)
@@ -225,7 +225,7 @@ if(BUILD_TESTING OR TRUE)
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_salidas gstbaaudio gstbaipc)
     add_test(NAME test_motor_salidas COMMAND test_motor_salidas)
-    set_tests_properties(test_motor_salidas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 RUN_SERIAL TRUE) # tiempo real con GPU: solo
+    set_tests_properties(test_motor_salidas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120) # tiempo real con GPU (BA_TESTS_TIEMPO_REAL)
 
     # La interfaz nunca espera al motor (docs/planes/PLAN-MOTOR-SIN-ESPERAS.md).
     add_executable(test_motor_sin_esperas tests/test_motor_sin_esperas.cpp)

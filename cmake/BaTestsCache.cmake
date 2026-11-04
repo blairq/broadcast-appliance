@@ -16,7 +16,7 @@
 # Y los tests lentos (más de ~10 s en la Mac) llevan la etiqueta `lento`:
 # `make test-rapido` (o TESTS_SIN_LENTOS=1) los deja afuera; `make test` los
 # corre solo si cambió lo que prueban; `make publicar` siempre. Los de tiempo
-# real, además, `tiempo_real` y RUN_SERIAL (BA_TESTS_TIEMPO_REAL).
+# real, además, `tiempo_real` (BA_TESTS_TIEMPO_REAL).
 #
 # Todo queda en <build>/tests-entradas.json (tools/ci/tests-con-cache.py).
 # ============================================================================
@@ -30,9 +30,13 @@ set(BA_TESTS_LENTOS
 
 # Los de TIEMPO REAL (lazos de audio, el motor con su reloj, WebRTC de punta a punta):
 # miden milisegundos de verdad y con la máquina cargada fallan por tiempo. Llevan la
-# etiqueta `tiempo_real` (y `lento`: `make test-rapido` los deja afuera) y RUN_SERIAL: ctest
-# no corre nada más mientras tanto. Como todos, `make test` los corre solo si cambió algo de
-# lo que cargan (su ejecutable y sus bibliotecas) o leen.
+# etiqueta `tiempo_real` (y `lento`: `make test-rapido` los deja afuera). Como todos, `make
+# test` los corre solo si cambió algo de lo que cargan (su ejecutable y sus bibliotecas) o leen.
+# Ya NO llevan RUN_SERIAL: casi no usan CPU (los 18 juntos: 63 s de pared y 42 s de CPU) y
+# entre ellos no se molestan; con RUN_SERIAL corrían de a uno al final de la suite y eran 409
+# de sus 583 s (2026-11-04). Lo que los atrasa es un test que COME CPU sin decirlo: uno que
+# lanza procesos en paralelo los declara (PROCESSORS) o lanza de a uno (test_headers_solos_*,
+# por partes y de a una compilación: cmake/BaNiveles.cmake), y así ctest -j no reparte de más.
 set(BA_TESTS_TIEMPO_REAL
     test_retraso_propio test_composicion test_motor_app test_motor test_salidas
     test_motor_retornos test_motor_salidas test_baanillo test_superres_vivo
@@ -179,7 +183,6 @@ function(ba_tests_registrar)
                 string(JSON _e SET "${_e}" tiempo_real true)
                 if(NOT CMAKE_VERSION VERSION_LESS 3.28)
                     set_property(TEST "${_t}" DIRECTORY "${_d}" APPEND PROPERTY LABELS tiempo_real)
-                    set_property(TEST "${_t}" DIRECTORY "${_d}" PROPERTY RUN_SERIAL TRUE)
                 endif()
             endif()
             if(_t IN_LIST BA_TESTS_LENTOS OR _t IN_LIST BA_TESTS_TIEMPO_REAL)
