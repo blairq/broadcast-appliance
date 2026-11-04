@@ -61,16 +61,27 @@ fi
 cd "$ROOT"
 [ -z "$(git status --porcelain --untracked-files=no)" ] || morir "hay cambios sin commitear: se compila un commit, no el arbol de trabajo"
 SHA="$(git rev-parse HEAD)"
+# De dónde se trae el commit: el .git común (en un worktree, $ROOT/.git es un archivo que
+# apunta a una ruta de la Mac que el contenedor no ve).
+GITDIR="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
 mkdir -p "$ROOT/dist"
+
+# Un registro por corrida en dist/logs/ (ignorado por git): todo lo que sale por la
+# terminal, para ver después qué falló y dónde se fue el tiempo. Los registros de los
+# tests que fallaron quedan al lado, en dist/logs/<corrida>/.
+CORRIDA="$(date +%Y%m%d-%H%M%S)-$QUE-$(git rev-parse --short HEAD)"
+mkdir -p "$ROOT/dist/logs"
+exec > >(tee -a "$ROOT/dist/logs/$CORRIDA.log") 2>&1
+log "registro de esta corrida: dist/logs/$CORRIDA.log"
 
 log "imagen ba-compilar (Ubuntu 24.04 x86_64)"
 d build -q --platform linux/amd64 -t ba-compilar -f "$ROOT/tools/ci/compilar.Dockerfile" "$ROOT/tools/ci" >/dev/null
 
 log "compilando $QUE en el commit $(git rev-parse --short HEAD) (la primera vez tarda horas)"
 d run --rm --platform linux/amd64 \
-    -v ba-trabajo:/trabajo -v "$ROOT:/repo:ro" -v "$ROOT/dist:/salida" \
+    -v ba-trabajo:/trabajo -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" \
     -v ba-ccache:/ccache -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
-    -e SHA="$SHA" -e QUE="$QUE" -e PERFILAR="${PERFILAR:-0}" -e DIAG_ACOPLES="${DIAG_ACOPLES:-1}" \
+    -e SHA="$SHA" -e QUE="$QUE" -e CORRIDA="$CORRIDA" -e PERFILAR="${PERFILAR:-0}" -e DIAG_ACOPLES="${DIAG_ACOPLES:-1}" \
     -e SIN_CACHE="${SIN_CACHE:-0}" -e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
     -e TESTS_SIN_LENTOS="${TESTS_SIN_LENTOS:-0}" ${TESTS_WIN_JOBS:+-e TESTS_WIN_JOBS="$TESTS_WIN_JOBS"} ${TESTS_JOBS:+-e TESTS_JOBS="$TESTS_JOBS"} \
     ba-compilar bash -c '
@@ -87,9 +98,9 @@ ccache -z >/dev/null 2>&1 || true
 # La caché de ccache, en su propio volumen (ba-ccache): en /root del contenedor
 # (--rm) se perdía en cada corrida y ccache no aceleraba nada.
 git config --global --add safe.directory "*"
-[ -d /trabajo/ba/.git ] || git clone -q /repo /trabajo/ba
+[ -d /trabajo/ba/.git ] || git clone -q /repo.git /trabajo/ba
 cd /trabajo/ba
-git fetch -q /repo "$SHA"
+git fetch -q /repo.git "$SHA"
 git checkout -q -f "$SHA"
 [ -x .venv/bin/python ] || python3 -m venv .venv
 etapa "checkout"
@@ -112,13 +123,20 @@ llevar() {
 }
 if [ "$QUE" != win ]; then
     make deps-linux JOBS=$J
+    etapa "deps-linux"
     make build JOBS=$J PERFILAR=$PERFILAR
+    etapa "compilar (linux)"
     make test
+    etapa "tests (ctest)"
     .venv/bin/pip install -q -r requirements-dev.lock
+    etapa "pip install"
     .venv/bin/pytest -q
+    etapa "pytest"
     make dist-linux JOBS=$J PERFILAR=$PERFILAR
+    etapa "dist-linux"
     for f in dist/*-$VER-linux-x64$SUF.tar.gz; do llevar "$f"; done
     mkdir -p /salida/simbolos && cp -rn dist/simbolos/linux /salida/simbolos/ 2>/dev/null || true
+    etapa "copia a dist/"
 fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
@@ -130,7 +148,15 @@ if [ "$QUE" != linux ]; then
     # CI pasan: cada corrida, uno distinto. Por eso un fallo aca NO frena el
     # .zip, pero se informa y la corrida termina con error: no es verde.
     tests_win=0
+    touch /tmp/antes-de-wine
     make -o deps-win -o win test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
+    if [ "$tests_win" != 0 ]; then
+        # Los registros de los tests que corrieron en esta vuelta, a dist/logs/<corrida>/ de la
+        # Mac (en el volumen los pisa la próxima corrida).
+        mkdir -p "/salida/logs/$CORRIDA"
+        find build/win/wine-logs -maxdepth 1 -name "*.log" -newer /tmp/antes-de-wine -exec cp {} "/salida/logs/$CORRIDA/" \;
+        echo "[compilar-en-docker] registros de Wine de esta vuelta: dist/logs/$CORRIDA/"
+    fi
     etapa "tests bajo Wine"
     make -o deps-win -o win release-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     etapa "release-win (install+chequeo+manifest)"
