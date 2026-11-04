@@ -121,5 +121,7 @@ dist-linux: compilado-release
 
 dist-linux-tar:
 	@mkdir -p dist
-	tar -C release -czf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz --transform 's,^\.,BroadcastAppliance,' .
+	@# Con pigz si está (gzip en todos los núcleos; el mismo formato): el .tar.gz de 1,8 GB
+	@# con gzip solo eran ~70 s bajo Rosetta.
+	tar -C release $$(command -v pigz >/dev/null 2>&1 && echo "-I pigz" || echo "-z") -cf dist/BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz --transform 's,^\.,BroadcastAppliance,' .
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz > BroadcastAppliance-$(BA_VERSION)-linux-x64$(BA_SUFIJO).tar.gz.sha256

@@ -32,4 +32,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
       libxi6 \
     && rm -rf /var/lib/apt/lists/*
 
+# gzip en paralelo para el .tar.gz de Linux (mk/linux.mk): gzip solo, bajo Rosetta, ~70 s
+# por el bundle. En una capa aparte: agregarlo no rehace la de arriba.
+RUN apt-get update && apt-get install -y --no-install-recommends pigz && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /trabajo
