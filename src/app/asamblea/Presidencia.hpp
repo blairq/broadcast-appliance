@@ -35,7 +35,7 @@
 #include <nlohmann/json.hpp>
 
 namespace ba::app {
-class BroadcastEngine;
+class ApiMotor;
 class ConferenceClient;
 } // namespace ba::app
 
@@ -69,7 +69,7 @@ class Presidencia : public QObject {
     };
     /// En el dueño del motor: las vistas que no son el programa toman su canal (las que ya
     /// tenían uno lo conservan; se sueltan los que ya no van). `fuentes`: la de cada vista.
-    static Canales repartirCanales(BroadcastEngine& motor, const std::vector<std::string>& fuentes, bool alguien);
+    static Canales repartirCanales(ApiMotor& motor, const std::vector<std::string>& fuentes, bool alguien);
 
     /// Lo que usa (todo vive más que este modelo). `debate`, `votaciones`, `quorum`
     /// y `ordenDia` pueden faltar.
@@ -86,7 +86,7 @@ class Presidencia : public QObject {
         control::BusEventos& bus;
         /// Los canales de escena son del motor, que es del plano de control (F3-03): corre
         /// `reparto` allá (con repartirCanales) y devuelve lo que dio a este hilo.
-        std::function<void(std::function<Canales(BroadcastEngine&)> reparto, std::function<void(Canales)> listo)> enMotor;
+        std::function<void(std::function<Canales(ApiMotor&)> reparto, std::function<void(Canales)> listo)> enMotor;
         /// ¿El operador tiene micrófono para la sala? (para hablarle a un remoto)
         std::function<bool()> microfonoOperador;
     };

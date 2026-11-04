@@ -211,3 +211,5 @@ void SystemViewModel::openFolder(const QString& sub) const {
 }
 
 } // namespace ba::app
+
+#include "moc_SystemViewModel.cpp"

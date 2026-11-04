@@ -74,3 +74,5 @@ QByteArray FotosPersonas::jpeg(const QString& clave) const {
 }
 
 } // namespace ba::app
+
+#include "moc_FotosPersonas.cpp"

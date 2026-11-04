@@ -367,3 +367,5 @@ double BancoSuperRes::estimarMs(const std::string& plugin, int ancho, int alto) 
 }
 
 } // namespace ba::app::video
+
+#include "moc_BancoSuperRes.cpp"

@@ -28,3 +28,5 @@ void EjecutorLinea::programar() {
 }
 
 } // namespace ba::app
+
+#include "moc_EjecutorLinea.cpp"

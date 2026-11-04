@@ -319,3 +319,5 @@ void EventosListaViewModel::alGuardar(const std::string& carpeta, const evento::
 }
 
 } // namespace ba::app
+
+#include "moc_EventosListaViewModel.cpp"

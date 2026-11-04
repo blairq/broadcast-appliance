@@ -180,7 +180,7 @@ void PropertiesModel::ponerFilas(Lectura l) {
 
 PropertiesModel::Lectura PropertiesModel::leer(AppRuntime& rt, const std::string& nombre) {
     Lectura l;
-    BroadcastEngine& e = rt.engine();
+    ApiMotor& e = rt.engine();
     if (!e.sourceExists(nombre)) return l;
     l.existe = true;
     l.tipo = e.sourceTypeId(nombre);
@@ -362,7 +362,7 @@ json PropertiesModel::cambioDe(const QString& kind, const std::string& key, cons
 
 std::string PropertiesModel::aplicar(AppRuntime& rt, const std::string& nombre, const std::string& prop,
                                      const QString& kind, const QVariant& valor, bool apretar) {
-    BroadcastEngine& e = rt.engine();
+    ApiMotor& e = rt.engine();
     if (!e.sourceExists(nombre)) return ba::i18n::llenar(ba::i18n::traducir("mcp", "No existe la fuente '%1'."), {nombre});
     if (apretar) {
         fuentes::Tipo t;
@@ -446,3 +446,5 @@ void PropertiesModel::press(const QString& prop) {
 }
 
 } // namespace ba::app
+
+#include "moc_PropertiesModel.cpp"

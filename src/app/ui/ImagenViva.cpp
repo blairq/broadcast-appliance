@@ -58,3 +58,5 @@ QSGNode* ImagenViva::updatePaintNode(QSGNode* viejo, UpdatePaintNodeData*) {
 }
 
 } // namespace ba::app
+
+#include "moc_ImagenViva.cpp"

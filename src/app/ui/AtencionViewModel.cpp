@@ -880,3 +880,5 @@ QString AtencionViewModel::configurar(const nlohmann::json& c) {
 }
 
 } // namespace ba::app
+
+#include "moc_AtencionViewModel.cpp"

@@ -171,3 +171,5 @@ evento::Cue* EventoAbierto::cue(int bloque, int cue) {
 }
 
 } // namespace ba::app
+
+#include "moc_EventoAbierto.cpp"

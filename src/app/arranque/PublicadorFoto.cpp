@@ -9,8 +9,10 @@
 #include "arranque/ServicioEmision.hpp"
 
 #include "diag/Registro.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "emision/SalidasConfig.hpp"
+#include "emision/TurnoMotor.hpp"
 #include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
@@ -70,7 +72,7 @@ void PublicadorFoto::publicarFoto() {
     if (!publicarFoto_ || !rt_.started_) return;
     const unsigned sucias = fotoSucia_.exchange(0);
     if ((sucias & FotoMotor::Todas) == 0) return;
-    const TurnoMotor::Guarda turno(rt_.engine_->turno());
+    const TurnoMotor::Guarda turno(rt_.motorPropio().turno());
     // Se rearma lo sucio sobre la de trabajo (lo demás sigue como estaba) y se compara
     // SOLO lo sucio: la foto nueva (una copia) se hace solo si algo cambió de verdad.
     armarFoto(trabajo_, sucias);
@@ -110,7 +112,7 @@ std::shared_ptr<const FotoMotor> PublicadorFoto::ultimaFoto() const {
 void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
     // Lo del dueño que se lee acá: la configuración y el motor (con el turno).
     AppConfig& cfg = rt_.cfg_;
-    BroadcastEngine& eng = *rt_.engine_;
+    ApiMotor& eng = rt_.motorPropio();
     // --- Escenas: el orden del operador, la carpeta, si está protegida y las fuentes ------
     if ((p & FotoMotor::Escenas) != 0) {
         // Se arman aparte y se asignan: si quedaron iguales, la foto sigue con las de antes
@@ -177,7 +179,7 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
         f.salidas.clear();
         f.tope = fotoListaSalidas_.value("tope", 1);
         // Lo que se muestra fuera del aire (vistas de la interfaz, canales de escena).
-        BroadcastEngine::EscenasMostradas mostradas = eng.escenasMostradas();
+        ApiMotor::EscenasMostradas mostradas = eng.escenasMostradas();
         f.escenasEnVistas = std::move(mostradas.vistas);
         f.escenasEnCanales = std::move(mostradas.canales);
         for (const auto& s : fotoListaSalidas_.value("salidas", nlohmann::json::array())) {
@@ -360,7 +362,7 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
         s.audio = eng.audioSources();
         s.hayFuenteBanca = eng.hayFuenteBanca();
         s.escenaDeRanura.clear();
-        for (int r = 1; r <= BroadcastEngine::kRanurasBanca; ++r) s.escenaDeRanura.push_back(eng.escenaDeRanura(r));
+        for (int r = 1; r <= ApiMotor::kRanurasBanca; ++r) s.escenaDeRanura.push_back(eng.escenaDeRanura(r));
     }
 }
 

@@ -37,7 +37,7 @@
 
 namespace ba::app {
 
-class BroadcastEngine;
+class ApiMotor;
 
 class OperatorFeed {
    public:
@@ -55,7 +55,7 @@ class OperatorFeed {
     /// Arma (o rearma) el feed con fuentes EXISTENTES del motor, por nombre.
     /// Vacio = sin video / sin voz (B muestra una placa de espera).
     /// :returns: false si alguna fuente no existe (el resto queda armado).
-    bool configure(BroadcastEngine& engine, const std::string& videoSource, const std::string& audioSource);
+    bool configure(ApiMotor& engine, const std::string& videoSource, const std::string& audioSource);
     void stop();
     /// stop() + libera el monitoreo. Llamar ANTES de apagar el motor.
     void shutdown();

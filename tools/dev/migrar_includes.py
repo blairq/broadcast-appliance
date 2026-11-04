@@ -26,6 +26,12 @@ runtime: cada `#include "arranque/AppRuntime.hpp"` (el paraguas) pasa a la parte
   - RuntimeMotor.hpp   + el motor (engine(), motorEntreHilos(), turno(), niveles()).
     python3 tools/dev/migrar_includes.py runtime --aplicar
 
+apimotor: fuera de emision/, `#include "emision/BroadcastEngine.hpp"` pasa a
+`"emision/ApiMotor.hpp"` (la API del motor que usa la app), y `BroadcastEngine::X` (los tipos,
+constantes y estáticas de la interfaz) y `BroadcastEngine&`/`*` a `ApiMotor`. Quedan con el
+motor concreto emision/ y los de API_CONCRETO.
+    python3 tools/dev/migrar_includes.py apimotor --aplicar
+
 json-fwd: en los headers que se nombran, `#include <nlohmann/json.hpp>` pasa a
 `#include "json/JsonFwd.hpp"` (declaraciones; json.hpp cuesta ~1 s de frontend por TU).
 Solo para headers que lo nombran en firmas, referencias o punteros: cada uno tiene que
@@ -276,6 +282,83 @@ def migrar_runtime(aplicar: bool, raices) -> int:
     return 0
 
 
+BE_INCLUDE = re.compile(r'^(\s*#\s*include\s*)"emision/BroadcastEngine\.hpp"(.*)$')
+# Lo que se nombra como BroadcastEngine::X y es de la interfaz (emision/ApiMotor.hpp): los tipos,
+# las constantes y las estáticas que usan de afuera.
+API_NOMBRES = ("kSalidaPorOmision", "kTipoBanca", "kRanurasBanca", "kMaxIndividuales", "grupoDeAudio",
+               "tiposDeFuente", "graphicsDeviceName", "videoEncoders", "kbpsGrabacion", "RanuraBanca",
+               "ProgramaVideo", "MediaInfo", "ListItem", "EncoderInfo", "EscenasMostradas",
+               "GrabacionIndividual", "Inicio", "Captura", "AvisoMotor", "ResultadoOrden", "AlResultado")
+API_CALIFICADO = re.compile(r"\bBroadcastEngine::(%s)\b" % "|".join(API_NOMBRES))
+API_REFERENCIA = re.compile(r"\bBroadcastEngine([&*])")
+# Los que usan el motor concreto (lo crean, o llaman lo que no está en ApiMotor): quedan con
+# BroadcastEngine.hpp. emision/ entero es del motor.
+API_CONCRETO = {"src/app/arranque/AppRuntime.cpp"}
+
+
+def _comentario_de_linea(l: str) -> int:
+    """Dónde empieza el comentario // de la línea (fuera de comillas), o su largo."""
+    i, n, q = 0, len(l), ""
+    while i < n:
+        c = l[i]
+        if q:
+            if c == "\\":
+                i += 2
+                continue
+            if c == q:
+                q = ""
+        elif c in "\"'":
+            q = c
+        elif l.startswith("//", i):
+            return i
+        i += 1
+    return n
+
+
+def migrar_apimotor(aplicar: bool, raices) -> int:
+    """Fuera de emision/: `#include "emision/BroadcastEngine.hpp"` pasa a
+    `"emision/ApiMotor.hpp"`, `BroadcastEngine::X` (X de la interfaz) a `ApiMotor::X`, y
+    `BroadcastEngine&`/`BroadcastEngine*` a `ApiMotor&`/`ApiMotor*`. Solo en el código (no en
+    comentarios ni textos) y línea por línea: el archivo no cambia de largo."""
+    cuenta = 0
+    for f in archivos(raices):
+        rel = f.relative_to(RAIZ).as_posix()
+        if not rel.startswith("src/app/") or rel.startswith("src/app/emision/") or "/tests/" in rel:
+            continue
+        if rel in API_CONCRETO:
+            continue
+        texto = f.read_bytes().decode("utf-8")
+        lineas = texto.split("\n")
+        cambios = 0
+        en_bloque = False  # dentro de un /* … */
+        for k, l in enumerate(lineas):
+            m = BE_INCLUDE.match(l)
+            if m:
+                lineas[k] = f'{m.group(1)}"emision/ApiMotor.hpp"{m.group(2)}'
+                cambios += 1
+                continue
+            # Línea por línea (sin_comentarios_ni_textos se desalinea con un ' suelto, como el
+            # separador de dígitos 1'000): la parte de código, antes de un comentario //.
+            if en_bloque or l.lstrip().startswith("/*"):
+                en_bloque = "*/" not in l
+                continue
+            corte = _comentario_de_linea(l)
+            cod, com = l[:corte], l[corte:]
+            if not (API_CALIFICADO.search(cod) or API_REFERENCIA.search(cod)):
+                continue
+            nuevo = API_REFERENCIA.sub(r"ApiMotor\1", API_CALIFICADO.sub(r"ApiMotor::\1", cod)) + com
+            if nuevo != l:
+                lineas[k] = nuevo
+                cambios += 1
+        if cambios:
+            cuenta += 1
+            print(f"{rel}: {cambios} líneas")
+            if aplicar:
+                f.write_bytes("\n".join(lineas).encode("utf-8"))
+    print(f"  {cuenta} archivos", file=sys.stderr)
+    return 0
+
+
 JSON_INCLUDE = re.compile(r'^(\s*#\s*include\s*)<nlohmann/json\.hpp>(.*)$')
 
 
@@ -297,7 +380,7 @@ def migrar_json_fwd(aplicar: bool, headers) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("migracion", choices=["i18n", "json-fwd", "runtime"])
+    ap.add_argument("migracion", choices=["i18n", "json-fwd", "runtime", "apimotor"])
     ap.add_argument("--aplicar", action="store_true", help="escribir los cambios (sin esto, solo los muestra)")
     ap.add_argument("rutas", nargs="*", help="i18n: carpetas a recorrer (por omisión, src); json-fwd: los headers")
     a = ap.parse_args()
@@ -306,6 +389,8 @@ def main() -> int:
     raices = [RAIZ / r for r in (a.rutas or ["src"])]
     if a.migracion == "runtime":
         return migrar_runtime(a.aplicar, raices)
+    if a.migracion == "apimotor":
+        return migrar_apimotor(a.aplicar, raices)
     return migrar_i18n(a.aplicar, raices)
 
 

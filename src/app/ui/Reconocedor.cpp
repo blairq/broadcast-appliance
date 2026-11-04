@@ -99,3 +99,5 @@ void Reconocedor::pedir(std::vector<std::uint8_t> bgra, int ancho, int alto, boo
 } // namespace ba::app
 
 #endif // BA_HAVE_ROSTROS
+
+#include "moc_Reconocedor.cpp"

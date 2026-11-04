@@ -7,6 +7,7 @@
 #include "agent/FlujosTexto.hpp"
 #include "arranque/RuntimeMotor.hpp"
 #include "arranque/EnergiaAire.hpp"
+#include "audio/LoudnessPrograma.hpp"
 #include "diag/VigiaBucle.hpp"
 #include "emision/TurnoMotor.hpp"
 #include "emision/AvisoFueraDeUi.hpp"
@@ -103,7 +104,7 @@ agent::AlertInputs AlarmasViewModel::directas(const Fuentes& f) {
     AppRuntime& rt = f.rt;
     // Lo que se lee del motor desde cualquier hilo (los picos, la foto de las salidas, el
     // programa en imagen, el loudness): el vigía corre en el plano de control.
-    BroadcastEngine& motor = rt.motorEntreHilos();
+    ApiMotor& motor = rt.motorEntreHilos();
     // Cada entrada de audio (el silencio y la saturación de cada micrófono) y la mezcla del
     // programa (lo que sale): de lo que el motor ya publicó (la foto del dueño, con el mute
     // de la por omisión, y el canal de niveles), sin la interfaz: con ella trabada, siguen.
@@ -355,3 +356,5 @@ void AlarmasViewModel::enLaInterfaz(const json& ev) {
 }
 
 } // namespace ba::app
+
+#include "moc_AlarmasViewModel.cpp"

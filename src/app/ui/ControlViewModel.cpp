@@ -514,3 +514,5 @@ void ControlViewModel::avisarA(EnlacesViewModel& e) {
 }
 
 } // namespace ba::app
+
+#include "moc_ControlViewModel.cpp"

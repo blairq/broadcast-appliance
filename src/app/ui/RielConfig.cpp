@@ -350,3 +350,5 @@ void RielConfig::restaurar() {
 }
 
 } // namespace ba::app
+
+#include "moc_RielConfig.cpp"

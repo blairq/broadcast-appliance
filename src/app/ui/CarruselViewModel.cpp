@@ -14,7 +14,7 @@
 #include <QUrl>
 
 #include "arranque/RuntimeAire.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "carrusel/Carrusel.hpp"
 #include "carrusel/CarruselStore.hpp"
@@ -493,3 +493,5 @@ void CarruselViewModel::desarmar(const QString& documento, const QString& nombre
 void CarruselViewModel::cancelar() { conv_->cancelar(); }
 
 } // namespace ba::app
+
+#include "moc_CarruselViewModel.cpp"

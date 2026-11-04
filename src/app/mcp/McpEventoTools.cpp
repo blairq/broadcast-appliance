@@ -19,7 +19,7 @@
 #include "arranque/RuntimeAire.hpp"
 #include "arranque/Configuraciones.hpp"
 #include "asamblea/OrdenDelDia.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "mcp/McpAsamblea.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
@@ -52,6 +52,7 @@
 #include "ui/HistoricoConsulta.hpp"
 #include "ui/HistoricoViewModel.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/EstadoAireViewModel.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;

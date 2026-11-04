@@ -67,3 +67,5 @@ void Reloj::revisar() {
 }
 
 } // namespace ba::app
+
+#include "moc_Reloj.cpp"

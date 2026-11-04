@@ -1,12 +1,27 @@
 // ============================================================================
 // src/app/mcp/McpDebateTools.cpp — Herramientas MCP del motor: el debate entre dos (asamblea/Debate).
 //
-// Una familia de McpService::registerTools() (ver mcp/McpRegistro.hpp: el orden en que
+// Una familia de McpService::registerTools() (ver mcp/McpService.hpp: el orden en que
 // se registran es el de siempre). El texto de cada herramienta es el que estaba en
 // McpService.cpp.
 // ============================================================================
 
-#include "mcp/McpRegistro.hpp"
+#include "mcp/McpFamilia.hpp"
+#include "asamblea/Debate.hpp"
+#include <QJsonDocument>
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "emision/VentanillaMotor.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "asamblea/CuerpoViewModel.hpp"
+#include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
 

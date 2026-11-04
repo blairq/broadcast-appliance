@@ -42,7 +42,7 @@
 
 namespace ba::app {
 class AppRuntime;
-class BroadcastEngine;
+class ApiMotor;
 class ConferenceViewModel;
 class FrameService;
 class InputsViewModel;
@@ -98,7 +98,7 @@ class ImagenViewModel : public QObject {
         VentanillaMotor& ventanilla;   ///< la foto del motor y las órdenes (F3-03)
         /// Solo lo que el motor publica para cualquier hilo (la instantánea, la foto de las
         /// salidas): lo que leen los tiempos.
-        BroadcastEngine& motorEntreHilos;
+        ApiMotor& motorEntreHilos;
         control::BusEventos& bus;      ///< la superresolución que no llega
         ConferenceViewModel& sala;     ///< los lugares de la sala sin nadie (tiempos)
         InputsViewModel& entradas;     ///< las entradas nuevas y lo que cambia en Configuración

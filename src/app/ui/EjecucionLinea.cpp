@@ -17,7 +17,7 @@
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/Votaciones.hpp"
 #include "control/Dsk.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/Conmutador.hpp"
@@ -904,3 +904,5 @@ std::string EjecucionLinea::decidirPtz(const std::string& pieza, const std::stri
 }
 
 } // namespace ba::app
+
+#include "moc_EjecucionLinea.cpp"

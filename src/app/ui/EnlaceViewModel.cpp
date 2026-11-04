@@ -246,3 +246,5 @@ json EnlaceViewModel::estadoJson() const {
 }
 
 } // namespace ba::app
+
+#include "moc_EnlaceViewModel.cpp"

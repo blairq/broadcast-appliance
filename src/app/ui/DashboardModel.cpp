@@ -449,3 +449,5 @@ void DashboardModel::save() const {
 }
 
 } // namespace ba::app
+
+#include "moc_DashboardModel.cpp"

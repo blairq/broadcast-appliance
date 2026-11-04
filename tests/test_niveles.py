@@ -31,6 +31,10 @@ import niveles  # noqa: E402
 # o ui/StudioViewModel.hpp (Ola 3: interfaces Runtime*, declaraciones adelantadas); los cruces
 # entre áreas (mismo nivel) se cortan con una interfaz chica abajo o por inyección.
 # gateway -> app/net: src/gateway/proxy/Acme.cpp incluye ../../app/net/HttpsClient.hpp.
+# Única suba (Ola 4, W6, acordada con DIR2): app/mcp -> asamblea/emision/escenas/sala/ui, +33
+# líneas, 0 pares nuevos. Se borró mcp/McpRegistro.hpp (un paraguas que traía todo a las diez
+# familias del MCP en UNA línea por destino) y cada familia incluye lo que usa: la misma
+# dependencia, contada por archivo. A cambio, tocar un ViewModel recompila 9 objetos y no 72.
 DEUDA_INCLUDES = {
     "app/agent -> app/asamblea": 1,
     "app/agent -> app/audio": 9,
@@ -78,12 +82,12 @@ DEUDA_INCLUDES = {
     "app/graficos -> app/emision": 1,
     "app/graficos -> app/ui": 1,
     "app/mcp -> app/agent": 26,
-    "app/mcp -> app/asamblea": 27,
-    "app/mcp -> app/audio": 15,
+    "app/mcp -> app/asamblea": 31,
+    "app/mcp -> app/audio": 14,
     "app/mcp -> app/control": 12,
-    "app/mcp -> app/emision": 24,
+    "app/mcp -> app/emision": 28,
     "app/mcp -> app/equipos": 8,
-    "app/mcp -> app/escenas": 7,
+    "app/mcp -> app/escenas": 8,
     "app/mcp -> app/evento": 8,
     "app/mcp -> app/graficos": 6,
     "app/mcp -> app/medios": 3,
@@ -92,9 +96,9 @@ DEUDA_INCLUDES = {
     "app/mcp -> app/plugins": 2,
     "app/mcp -> app/resolucion": 1,
     "app/mcp -> app/rostros": 1,
-    "app/mcp -> app/sala": 16,
+    "app/mcp -> app/sala": 17,
     "app/mcp -> app/tiempos": 1,
-    "app/mcp -> app/ui": 131,
+    "app/mcp -> app/ui": 155,
     "app/mcp -> app/video": 17,
     "app/medios -> app/emision": 1,
     "app/medios -> app/ui": 1,
@@ -221,7 +225,7 @@ raiz app/ app core
 def test_el_mapa_elige_la_ruta_mas_larga():
     m = niveles.Mapa.desde_texto(MAPA_JUGUETE)
     assert m.componente_de("app/a/X.hpp").nombre == "app/a"
-    assert m.componente_de("app/arranque/AppRuntime.hpp").nombre == "app/ui"
+    assert m.componente_de("app/arranque/RuntimeConfig.hpp").nombre == "app/ui"
     assert m.componente_de("app/main.cpp").nombre == "app/main"
     assert m.componente_de("emisor/Pedido.hpp").nombre == "emisor"
     assert m.componente_de("emisor/main.cpp") is None

@@ -17,7 +17,7 @@
 namespace ba::app::escenas {
 
 namespace {
-constexpr const char* kPorOmision = BroadcastEngine::kSalidaPorOmision;
+constexpr const char* kPorOmision = ApiMotor::kSalidaPorOmision;
 }
 
 // ============================================================================
@@ -393,3 +393,5 @@ void Conmutadores::guardar() const {
 }
 
 } // namespace ba::app::escenas
+
+#include "moc_Conmutador.cpp"

@@ -62,8 +62,8 @@ std::string pipelineDeMicrofono(const std::string& dispositivo) {
     return p + kExtra;
 }
 
-std::vector<BroadcastEngine::ListItem> entradasDeAudio(BroadcastEngine&) {
-    std::vector<BroadcastEngine::ListItem> out;
+std::vector<ApiMotor::ListItem> entradasDeAudio(ApiMotor&) {
+    std::vector<ApiMotor::ListItem> out;
     out.push_back({ba::i18n::traducir("audio", "Entrada de audio predeterminada"), "default", false});
 #if defined(BA_HAVE_GST)
     if (gst_is_initialized()) {

@@ -162,3 +162,5 @@ void RespaldoEntradas::revisar() {
 }
 
 } // namespace ba::app::escenas
+
+#include "moc_RespaldoEntradas.cpp"

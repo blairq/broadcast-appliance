@@ -237,3 +237,5 @@ void ChatOverlayRenderer::pintar() {
 }
 
 } // namespace ba::app
+
+#include "moc_ChatOverlayRenderer.cpp"

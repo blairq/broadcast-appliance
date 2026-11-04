@@ -12,7 +12,7 @@
 // ============================================================================
 #pragma once
 
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 
 #include "ModosVideo.hpp"
 
@@ -24,7 +24,7 @@
 namespace ba::app::video {
 
 /// Las cámaras del equipo [{name, value = id}].
-std::vector<BroadcastEngine::ListItem> camarasDelEquipo(BroadcastEngine& engine);
+std::vector<ApiMotor::ListItem> camarasDelEquipo(ApiMotor& engine);
 
 /// Un modo de un dispositivo de video: tamaño, cps, formato real (crudo, MJPEG, H.264,
 /// H.265), quién lo decodifica y si es un crudo que fabrica el sistema (ver motor/ModosVideo).

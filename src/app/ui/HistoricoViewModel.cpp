@@ -659,3 +659,5 @@ QString HistoricoViewModel::guardarAjustes(const QVariantMap& cambios) {
 }
 
 } // namespace ba::app
+
+#include "moc_HistoricoViewModel.cpp"

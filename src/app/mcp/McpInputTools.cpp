@@ -112,7 +112,7 @@ void McpService::registerInputTools() {
         // Solo el motor y la configuración: en el control, su dueño.
         t.hilo = Hilo::Control;
         t.run = [&rt, layoutOf](const json& a, Done done) {
-            BroadcastEngine& e = rt.engine();
+            ApiMotor& e = rt.engine();
             if (!e.sourceTypeExists(inputs::kMicType))
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "La entrada de GStreamer (ba_gst_fuente) no esta cargada.")));
             std::string devName;
@@ -302,7 +302,7 @@ void McpService::registerInputTools() {
         // Lee el motor: en el control, su dueño (con la interfaz trabada, contesta igual).
         t.hilo = Hilo::Control;
         t.run = [&rt](const json&, Done done) {
-            BroadcastEngine& e = rt.engine();
+            ApiMotor& e = rt.engine();
             json out = json::array();
             std::map<std::string, std::string> media;
             for (const auto& m : e.mediaSources())

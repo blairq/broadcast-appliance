@@ -792,3 +792,5 @@ QVariantList ConferenceViewModel::chatHilos() const {
 }
 
 } // namespace ba::app
+
+#include "moc_ConferenceViewModel.cpp"

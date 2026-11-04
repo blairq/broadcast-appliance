@@ -9,9 +9,9 @@
 namespace ba::app {
 
 struct AppConfig;
-class BroadcastEngine;
+class ApiMotor;
 
 /// En el dueño del motor (los umbrales del disco son de `motor`).
-void aplicarAjustesMotor(const AppConfig& c, BroadcastEngine& motor);
+void aplicarAjustesMotor(const AppConfig& c, ApiMotor& motor);
 
 } // namespace ba::app

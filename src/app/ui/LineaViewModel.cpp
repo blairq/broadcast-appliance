@@ -759,3 +759,5 @@ void LineaViewModel::descartar() {
 }
 
 } // namespace ba::app
+
+#include "moc_LineaViewModel.cpp"

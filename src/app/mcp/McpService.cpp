@@ -1,12 +1,76 @@
 // ============================================================================
 // src/app/mcp/McpService.cpp — arranque del servidor MCP y herramientas del
 // motor: lo general y el estado; las familias (escenas, fuentes, audio, salidas,
-// configuracion…), cada una en su archivo (ver mcp/McpRegistro.hpp).
+// configuracion…), cada una en su archivo (ver mcp/McpService.hpp).
 // (Imagenes: McpImageTools.cpp · Sala y oradores: McpRoomTools.cpp ·
 //  Interfaz y sistema: McpUiTools.cpp · Ayuda: McpHelp.cpp)
 // ============================================================================
 
-#include "mcp/McpRegistro.hpp"
+#include "McpRenombres.hpp"
+#include "arranque/EnergiaAire.hpp"
+#include "fault/ModoSeguro.hpp"
+#include "i18n/I18nTexto.hpp"
+#include "diag/Perfil.hpp"
+#include "sala/CupoSala.hpp"
+#include "sala/SeguridadSala.hpp"
+#include "escenas/Conmutador.hpp"
+#include "mcp/McpService.hpp"
+#include "Piezas.hpp"
+#include <QRandomGenerator>
+#include "agent/AgentViewModel.hpp"
+#include "agent/Despachador.hpp"
+#include "agent/Roles.hpp"
+#include "agent/Voz.hpp"
+#include "mcp/McpTraza.hpp"
+#include "ui/PersonasViewModel.hpp"
+#include <QBuffer>
+#include <QDir>
+#include <QJsonDocument>
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "arranque/RuntimeMotor.hpp"
+#include "arranque/PlanoControl.hpp"
+#include "ajustes/Ajustes.hpp"
+#include <QThread>
+#include <QThreadPool>
+#include "emision/InputSpecs.hpp"
+#include "emision/SeguridadAire.hpp"
+#include "emision/VentanillaMotor.hpp"
+#include "mcp/McpBotoneraTools.hpp"
+#include "mcp/McpControlWebTools.hpp"
+#include "mcp/McpEventoTools.hpp"
+#include "mcp/McpTemaTools.hpp"
+#include "mcp/McpHttp.hpp"
+#include "mcp/McpPreguntaTools.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "platform/Paths.hpp"
+#include "agent/Notificador.hpp"
+#include "ui/AtencionViewModel.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/SystemViewModel.hpp"
+#include "ui/ConferenceViewModel.hpp"
+#include "ui/EventoViewModel.hpp"
+#include "ui/TemaEventoViewModel.hpp"
+#include "ui/OperatorMessages.hpp"
+#include "ui/RecursosViewModel.hpp"
+#include "control/BusEventos.hpp"
+#include "video/ElementosGst.hpp"
+#include "ui/SettingsModel.hpp"
+#include "mcp/InterfazMcp.hpp"
+#include "platform/Hilo.hpp"
+#include "ui/AppViewModel.hpp"
+#include "ui/EmisionViewModel.hpp"
+#include "ui/EscenasViewModel.hpp"
+#include "ui/EstadoAireViewModel.hpp"
+#include "ui/SalaViewModel.hpp"
+#include "ui/SalidasViewModel.hpp"
 
 using ::ba::app::errorDe;
 
@@ -874,7 +938,7 @@ FuentesDeFoto McpService::fuentesDeFoto() {
     AppRuntime& rt = rt_;
     InterfazMcp& vm = vm_;
     FuentesDeFoto f;
-    // El documento de aire y el latido: «desde cualquier hilo» (AppRuntime.hpp; ya los lee
+    // El documento de aire y el latido: «desde cualquier hilo» (arranque/RuntimeAire.hpp; ya los lee
     // la foto de emergencia desde el control). La foto de las salidas la publica el hilo
     // de salidas bajo su candado; la lista de salidas, el reloj del motor.
     f.aire = [&rt]() { return salidas::aJson(rt.documentoAire().foto()); };
@@ -1015,9 +1079,9 @@ MandoDeAire McpService::mandoDeAire() {
         MandoDeAire::Inicio r;
         r.ok = rt.salirAlAireManual(server, key, caliente, salida, hechoDe(std::move(hecho)));
         // ultimoInicio y lastError son de este hilo (como errno): los de recién.
-        const BroadcastEngine::Inicio i = rt.engine().ultimoInicio();
-        r.yaIgual = r.ok && i == BroadcastEngine::Inicio::YaIgual;
-        if (!r.ok && i == BroadcastEngine::Inicio::YaOtroDestino) r.activoEn = rt.engine().destinoActivo(salida);
+        const ApiMotor::Inicio i = rt.engine().ultimoInicio();
+        r.yaIgual = r.ok && i == ApiMotor::Inicio::YaIgual;
+        if (!r.ok && i == ApiMotor::Inicio::YaOtroDestino) r.activoEn = rt.engine().destinoActivo(salida);
         if (!r.ok) r.error = rt.lastError();
         return r;
     };
@@ -1224,7 +1288,7 @@ void McpService::registerTools() {
         core_.addTool(std::move(t));
     }
 
-    // Las familias (mcp/McpRegistro.hpp), en el orden de siempre.
+    // Las familias (mcp/McpService.hpp), en el orden de siempre.
     registerEscenasTools();
     registerFuentesTools();
     registerMezclaTools();
@@ -1237,3 +1301,5 @@ void McpService::registerTools() {
 }
 
 } // namespace ba::app::mcp
+
+#include "moc_McpService.cpp"

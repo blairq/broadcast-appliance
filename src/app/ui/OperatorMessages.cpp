@@ -201,3 +201,5 @@ QString OperatorMessages::sendReply(int id, const QString& text) {
 }
 
 } // namespace ba::app
+
+#include "moc_OperatorMessages.cpp"

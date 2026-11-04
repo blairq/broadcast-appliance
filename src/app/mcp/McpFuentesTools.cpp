@@ -1,12 +1,28 @@
 // ============================================================================
 // src/app/mcp/McpFuentesTools.cpp — Herramientas MCP del motor: fuentes: agregar, quitar, mover, ubicar, efectos, recorte, ajustes de cada fuente.
 //
-// Una familia de McpService::registerTools() (ver mcp/McpRegistro.hpp: el orden en que
+// Una familia de McpService::registerTools() (ver mcp/McpService.hpp: el orden en que
 // se registran es el de siempre). El texto de cada herramienta es el que estaba en
 // McpService.cpp.
 // ============================================================================
 
-#include "mcp/McpRegistro.hpp"
+#include "mcp/McpFamilia.hpp"
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "arranque/RuntimeMotor.hpp"
+#include "emision/InputSpecs.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "ui/PropertiesModel.hpp"
+#include "video/FuentesCaptura.hpp"
+#include "Capturas.hpp"
+#include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
 
@@ -48,7 +64,7 @@ void McpService::registerFuentesTools() {
             "y/o audio). El id es el `type` de crear_fuente / scene_define.");
         t.run = [](const json&, Done done) {
             json out = json::array();
-            for (const SourceType& s : BroadcastEngine::tiposDeFuente())
+            for (const SourceType& s : ApiMotor::tiposDeFuente())
                 out.push_back(
                     json{{"type", s.id}, {"name", s.displayName}, {"video", s.video}, {"audio", s.audio}});
             done(ToolResult().data(json{{"types", out}}));

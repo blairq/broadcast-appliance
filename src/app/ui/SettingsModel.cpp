@@ -4,7 +4,7 @@
 
 #include "arranque/AjustesMotor.hpp"
 
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "ui/SettingsModel.hpp"
 #include "ui/Formulario.hpp"
@@ -1037,3 +1037,5 @@ void SettingsModel::alAplicar(Aplicado a, int conectados, const std::function<vo
     if (listo) listo(summary, fallo_);
 }
 } // namespace ba::app
+
+#include "moc_SettingsModel.cpp"

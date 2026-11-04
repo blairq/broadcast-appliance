@@ -27,26 +27,26 @@ void ServicioSalidas::guardarGrupo(const std::string& salida, const std::string&
 
 audio::ObjetivoLoudness ServicioSalidas::objetivoLoudness() {
     return audio::ObjetivoLoudness(
-        rt_.root_, [this](const std::string& salida) { return rt_.engine_->loudnessDe(salida); }, [this]() { rt_.engine_->aplicarLoudness(); });
+        rt_.root_, [this](const std::string& salida) { return rt_.motorPropio().loudnessDe(salida); }, [this]() { rt_.motorPropio().aplicarLoudness(); });
 }
 
 void ServicioSalidas::crearSalidasGuardadas() {
     bool alguna = false;
     for (const auto& s : salidas::leer(config::leerObjeto(archivoSalidas())).salidas) {
-        if (rt_.engine_->existeSalida(s.id)) continue;
-        if (!rt_.engine_->crearSalida(s.id, s.nombre)) {
+        if (rt_.motorPropio().existeSalida(s.id)) continue;
+        if (!rt_.motorPropio().crearSalida(s.id, s.nombre)) {
             ba::diag::registro().linea(ba::diag::Nivel::Error, "salidas", 0,
                                        ba::i18n::llenar(ba::i18n::traducir("salidas", "la salida «%1» no arrancó: %2"),
-                                                        {s.id, rt_.engine_->lastError()}));
+                                                        {s.id, rt_.motorPropio().lastError()}));
             continue;
         }
         // Su mezcla como quedó (arrancó con la de la por omisión). Una fuente que ya no
         // está no tiene fader: se saltea (queda anotada por si vuelve).
         for (const auto& [fuente, m] : s.mezcla) {
-            rt_.engine_->setSourceVolume(fuente, static_cast<float>(m.volumen), s.id);
-            rt_.engine_->setSourceMuted(fuente, m.mute, s.id);
+            rt_.motorPropio().setSourceVolume(fuente, static_cast<float>(m.volumen), s.id);
+            rt_.motorPropio().setSourceMuted(fuente, m.mute, s.id);
         }
-        for (const auto& [grupo, g] : s.grupos) rt_.engine_->setGananciaGrupo(grupo, static_cast<float>(g), s.id);
+        for (const auto& [grupo, g] : s.grupos) rt_.motorPropio().setGananciaGrupo(grupo, static_cast<float>(g), s.id);
         alguna = true;
     }
     if (alguna) objetivoLoudness().cargar(); // el objetivo de loudness que guardó cada una
@@ -54,7 +54,7 @@ void ServicioSalidas::crearSalidasGuardadas() {
 
 EncoderConfig ServicioSalidas::codificadorDe(const std::string& salida) const {
     EncoderConfig e = rt_.ajustesAire().encoder;
-    const std::string id = rt_.engine_->idDeSalida(salida);
+    const std::string id = rt_.motorPropio().idDeSalida(salida);
     if (id.empty() || id == salidas::kPorOmision) return e;
     const salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
     if (const salidas::Salida* s = l.buscar(id); s != nullptr && !s->codificador.empty()) e.videoEncoder = s->codificador;
@@ -65,7 +65,7 @@ void ServicioSalidas::guardarMando(const std::string& salida, const std::string&
     // El fader y el mute de otra salida: en Config/salidas.json (encolado: un arrastre
     // de fader escribe lo último, no cada paso).
     salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
-    if (salidas::ponerMando(l, salida, fuente, {rt_.engine_->sourceVolume(fuente, salida), rt_.engine_->sourceMuted(fuente, salida)}))
+    if (salidas::ponerMando(l, salida, fuente, {rt_.motorPropio().sourceVolume(fuente, salida), rt_.motorPropio().sourceMuted(fuente, salida)}))
         config::guardar(archivoSalidas(), salidas::aJson(l));
 }
 
@@ -78,8 +78,8 @@ nlohmann::json ServicioSalidas::salidas() const {
                        {"color", s.color},
                        {"orden", s.orden},
                        {"por_omision", s.id == salidas::kPorOmision},
-                       {"andando", rt_.engine_->existeSalida(s.id)},
-                       {"escena", rt_.engine_->currentScene(s.id)},
+                       {"andando", rt_.motorPropio().existeSalida(s.id)},
+                       {"escena", rt_.motorPropio().currentScene(s.id)},
                        {"codificador", s.codificador}});
     return {{"tope", l.tope}, {"salidas", arr}};
 }
@@ -88,14 +88,14 @@ std::string ServicioSalidas::crearSalida(const std::string& id, const std::strin
     salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
     if (std::string e = salidas::agregar(l, {id, nombre, color, 0, {}, {}}); !e.empty()) return e;
     // Que la máquina dé abasto lo dice sistema_recursos: el tope es el límite que puso el operador.
-    if (!rt_.engine_->crearSalida(id, l.buscar(id)->nombre)) return rt_.engine_->lastError();
+    if (!rt_.motorPropio().crearSalida(id, l.buscar(id)->nombre)) return rt_.motorPropio().lastError();
     if (!config::guardar(archivoSalidas(), salidas::aJson(l)))
         ba::diag::registro().linea(ba::diag::Nivel::Aviso, "salidas", 0,
                                    ba::i18n::traducir("salidas", "no se pudo guardar Config/salidas.json"));
     ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
                                ba::i18n::llenar(ba::i18n::traducir("salidas", "salida nueva: «%1»"), {id}));
     rt_.aire_->writeOnAirState();
-    publicarSalidas(rt_.engine_->status());
+    publicarSalidas(rt_.motorPropio().status());
     rt_.avisar(Cambio::Salidas);
     return {};
 }
@@ -104,7 +104,7 @@ std::string ServicioSalidas::editarSalida(const std::string& id, const nlohmann:
     salidas::Lista l = salidas::leer(config::leerObjeto(archivoSalidas()));
     if (std::string e = salidas::editar(l, id, cambios); !e.empty()) return e;
     config::guardar(archivoSalidas(), salidas::aJson(l));
-    publicarSalidas(rt_.engine_->status());
+    publicarSalidas(rt_.motorPropio().status());
     rt_.avisar(Cambio::Salidas);
     return {};
 }
@@ -116,11 +116,11 @@ std::string ServicioSalidas::borrarSalida(const std::string& id, const std::stri
     std::vector<std::string> borrados;
     std::string aDonde = susDestinos; // «borrar», o la otra salida (si existe, por su id)
     if (!aDonde.empty() && aDonde != "borrar")
-        if (const std::string r = rt_.engine_->idDeSalida(aDonde); !r.empty()) aDonde = r;
+        if (const std::string r = rt_.motorPropio().idDeSalida(aDonde); !r.empty()) aDonde = r;
     if (std::string e = salidas::destinosDeBorrada(destinos, l, id, aDonde, &borrados); !e.empty()) return e;
     if (std::string e = salidas::quitar(l, id); !e.empty()) return e;
     // Lo que sale de ella (transmisiones, grabación, repetición, limpia) se para con ella.
-    if (rt_.engine_->existeSalida(id) && !rt_.engine_->borrarSalida(id)) return rt_.engine_->lastError();
+    if (rt_.motorPropio().existeSalida(id) && !rt_.motorPropio().borrarSalida(id)) return rt_.motorPropio().lastError();
     objetivoLoudness().olvidar(id);
     config::guardar(archivoSalidas(), salidas::aJson(l));
     // Lo suyo (y los destinos que salían con ella, ya cortados) no vuelve tras un corte.
@@ -130,7 +130,7 @@ std::string ServicioSalidas::borrarSalida(const std::string& id, const std::stri
     ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
                                ba::i18n::llenar(ba::i18n::traducir("salidas", "salida borrada: «%1»"), {id}));
     rt_.aire_->writeOnAirState();
-    publicarSalidas(rt_.engine_->status());
+    publicarSalidas(rt_.motorPropio().status());
     rt_.avisar(Cambio::Salidas);
     return {};
 }

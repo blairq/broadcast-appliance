@@ -558,3 +558,5 @@ json PruebaAsambleaViewModel::estadoJson(bool conAcceso) const {
 }
 
 } // namespace ba::app
+
+#include "moc_PruebaAsambleaViewModel.cpp"

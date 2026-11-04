@@ -378,3 +378,5 @@ void EnlacesViewModel::resolver(const QString& servicio, const QString& solicitu
 }
 
 } // namespace ba::app
+
+#include "moc_EnlacesViewModel.cpp"

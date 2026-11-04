@@ -5,7 +5,7 @@
 #include "ui/FrameService.hpp"
 
 #include "Vistas.hpp" // motor: Cuadro y Pixeles
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "ipc/SpoutTransport.hpp"
 #include "platform/Hilo.hpp"
 
@@ -194,7 +194,7 @@ QStringList clavesConNombre(const QStringList& claves, const std::vector<QString
 }
 } // namespace
 
-FrameService::FrameService(BroadcastEngine& engine, Encargar encargar, int guests, QObject* parent)
+FrameService::FrameService(ApiMotor& engine, Encargar encargar, int guests, QObject* parent)
     : ProveedorCuadros(parent), engine_(engine), encargar_(std::move(encargar)), pollUs_(3600, -1) {
     slots_["program"];
     slots_["scene"];
@@ -279,7 +279,7 @@ QStringList FrameService::programas() const {
 }
 
 QString FrameService::clavePropia(const QString& key) {
-    static const QString po = QString::fromLatin1(BroadcastEngine::kSalidaPorOmision);
+    static const QString po = QString::fromLatin1(ApiMotor::kSalidaPorOmision);
     if (key == "program:" + po) return QStringLiteral("program");
     if (key == "armada:" + po) return QStringLiteral("armada");
     return key;
@@ -290,7 +290,7 @@ void FrameService::setArmada(const QString& escena) {
     armada_ = escena;
     // 960 de ancho: alcanza para un monitor de tablero o un fondo, y no cuesta
     // como renderizar 1080p de una escena que ni siquiera esta al aire.
-    encargar_([e = escena.toStdString()](BroadcastEngine& m) { m.enableScenePreview("armada", e, 960); });
+    encargar_([e = escena.toStdString()](ApiMotor& m) { m.enableScenePreview("armada", e, 960); });
     if (escena.isEmpty()) slots_.erase("armada");
 }
 
@@ -333,11 +333,11 @@ void FrameService::mirarClave(const QString& clave, bool mirar) {
     const std::string canal = clave.toStdString();
     if (mirar) {
         if (n++ == 0)
-            encargar_([canal, v = vistaDeEntrada(clave), w = anchoDe(clave)](BroadcastEngine& m) { m.enableScenePreview(canal, v, w); });
+            encargar_([canal, v = vistaDeEntrada(clave), w = anchoDe(clave)](ApiMotor& m) { m.enableScenePreview(canal, v, w); });
         return;
     }
     if (n > 0 && --n == 0) {
-        encargar_([canal](BroadcastEngine& m) { m.disableScenePreview(canal); });
+        encargar_([canal](ApiMotor& m) { m.disableScenePreview(canal); });
         entradas_.erase(clave);
         slots_.erase(clave);
     }
@@ -487,7 +487,7 @@ void FrameService::poll() {
         const std::string canal = key.toStdString();
         if (engine_.scenePreviewName(canal).empty()) {
             if (vueltas_ % 30 != 0) continue; // una vez por segundo, no a 30 Hz
-            encargar_([canal, v = vistaDeEntrada(key), w = anchoDe(key)](BroadcastEngine& m) { m.enableScenePreview(canal, v, w); });
+            encargar_([canal, v = vistaDeEntrada(key), w = anchoDe(key)](ApiMotor& m) { m.enableScenePreview(canal, v, w); });
         }
         // Las miniaturas de la línea ya vienen a 5 cuadros por segundo del motor: el
         // serial solo cambia cuando hay uno nuevo.
@@ -499,7 +499,7 @@ void FrameService::poll() {
         const QString& key = it->first;
         const std::string canal = key.toStdString();
         if (t0 - it->second > 3'000'000) {
-            encargar_([canal](BroadcastEngine& m) { m.disableScenePreview(canal); });
+            encargar_([canal](ApiMotor& m) { m.disableScenePreview(canal); });
             slots_.erase(key);
             it = salidasPedidas_.erase(it);
             continue;
@@ -508,7 +508,7 @@ void FrameService::poll() {
         if (engine_.scenePreviewName(canal).empty() && (slots_.count(key) == 0 || vueltas_ % 30 == 0)) {
             slots_[key];
             encargar_([canal, bus = std::string(key.startsWith("program:") ? "programa" : "preview"),
-                       salida = key.section(':', 1).toStdString()](BroadcastEngine& m) { m.enableSalidaPreview(canal, bus, salida, 960); });
+                       salida = key.section(':', 1).toStdString()](ApiMotor& m) { m.enableSalidaPreview(canal, bus, salida, 960); });
         }
         if (engine_.renderScenePreview(canal, c, slots_[key].serieMotor)) tomar(key);
         ++it;
@@ -561,3 +561,5 @@ QJsonObject FrameService::medidas() const {
 }
 
 } // namespace ba::app
+
+#include "moc_FrameService.cpp"

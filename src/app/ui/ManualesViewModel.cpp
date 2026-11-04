@@ -147,3 +147,5 @@ void ManualesViewModel::abrirCarpeta() const {
 }
 
 } // namespace ba::app
+
+#include "moc_ManualesViewModel.cpp"

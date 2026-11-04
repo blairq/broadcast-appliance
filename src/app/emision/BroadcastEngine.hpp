@@ -78,13 +78,13 @@
 
 #include <nlohmann/json.hpp>
 
-#include "audio/LoudnessPrograma.hpp"
 #include <utility>
 #include <vector>
 
 #include "ipc/CanalesEscena.hpp"
 #include "ipc/SharedAudioRing.hpp"
 #include "ipc/SpoutTransport.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/ConfigAire.hpp"
 #include "emision/MotorFwd.hpp"
 #include "emision/NivelesMotor.hpp"
@@ -130,11 +130,15 @@ class EmisorAparte;
 /// ...
 /// eng.shutdown();
 /// ```
-class BroadcastEngine {
+///
+/// La API que usa la app (la interfaz, el MCP, las áreas) está declarada y comentada en
+/// emision/ApiMotor.hpp: acá cada uno de esos métodos va con `override`, con la misma firma
+/// y los mismos argumentos por omisión. Lo que queda declarado solo acá (el ciclo de vida,
+/// lo que usa el dueño por su puntero y las piezas de emision/) no lo ve quien llama por
+/// ApiMotor (AppRuntime::engine()).
+class BroadcastEngine final : public ApiMotor {
    public:
-    /// Por qué no anda la escena interna de un compositor o una Mezcla de GStreamer ("" si anda),
-    /// de la foto del motor (no espera su candado).
-    std::string errorDeCompositor(const std::string& nombre) const;
+    std::string errorDeCompositor(const std::string& nombre) const override;
     BroadcastEngine();
     ~BroadcastEngine();
 
@@ -145,146 +149,57 @@ class BroadcastEngine {
     bool startup(const EnginePaths& paths, const VideoConfig& video, const AudioConfig& audio);
     /// Detiene salidas y el motor. Idempotente.
     void shutdown();
-    /// El motor de GStreamer, para las piezas que trabajan sobre él (el grafo de
-    /// video, los racks, la escucha). nullptr antes de startup.
-    motor::Motor* motor() { return motor_.get(); }
-    /// La foto de las salidas (transmisiones, grabación, limpia) que publica su hilo:
-    /// no espera a nadie (la página Latencias del pipeline la lee seguido).
-    nlohmann::json salidasAhora() const { return fotoSalidas(); }
-
+    motor::Motor* motor() override { return motor_.get(); }
+    nlohmann::json salidasAhora() const override { return fotoSalidas(); }
     // --- Las salidas (ver LAS SALIDAS arriba) -------------------------------
-    static constexpr const char* kSalidaPorOmision = "principal";
-    /// Una salida nueva, andando: su programa, su preview y su mezcla en el motor
-    /// (con los volúmenes y mutes que tiene ahora la por omisión, sin nada al aire),
-    /// su loudness y su retorno al gateway si está publicado. false + lastError.
-    bool crearSalida(const std::string& id, const std::string& nombre);
-    /// Para todo lo que sale de ella (transmisiones, grabación, repetición, limpia),
-    /// suelta su retorno y la saca del motor. La por omisión no se borra.
-    bool borrarSalida(const std::string& id);
-    /// Los ids, la por omisión primera y las demás en el orden en que se crearon.
-    std::vector<std::string> salidaIds() const;
-    bool existeSalida(const std::string& id) const;
-    /// El id de la salida ("" = la por omisión), o "" si no existe.
-    std::string idDeSalida(const std::string& salida) const;
-
+    bool crearSalida(const std::string& id, const std::string& nombre) override;
+    bool borrarSalida(const std::string& id) override;
+    std::vector<std::string> salidaIds() const override;
+    bool existeSalida(const std::string& id) const override;
+    std::string idDeSalida(const std::string& salida) const override;
     // --- Escenas ------------------------------------------------------------
-    // Cada escena tiene un id estable (escenas/RefEscena.hpp). Todo lo que recibe una
-    // escena entiende su NOMBRE o su ID; el motor la conoce por el id, así que
-    // renombrarla (aunque esté al aire) no corta ni toca el preview.
-    /// `id` vacío: uno nuevo (lo dice sceneId después).
-    bool createScene(const std::string& name, const std::string& id = {});
-    /// Elimina una escena (no la actual si es la unica). Las salidas que la tenían
-    /// al aire pasan a otra con un corte.
-    bool removeScene(const std::string& name);
-    bool renameScene(const std::string& from, const std::string& to);
-    /// Nombres de las escenas en orden de creacion.
-    std::vector<std::string> sceneNames() const;
-    /// El id de una escena pedida por nombre o id ("" si no está), y su nombre.
-    std::string sceneId(const std::string& escena) const;
-    std::string sceneName(const std::string& escena) const;
-    /// Las escenas (id, nombre), en orden de creación: para resolver lo guardado.
-    escenas::TablaEscenas tablaEscenas() const;
-    /// Pone `name` al aire en la salida con la transicion configurada (setTransition).
-    bool setCurrentScene(const std::string& name, const std::string& salida = "");
-    /// Escena al aire en la salida ("" si no hay o no existe la salida). Una copia: la
-    /// referencia de antes se la podía cambiar el otro que tiene el turno.
-    std::string currentScene(const std::string& salida = "") const;
-    /// Lo mismo, el id ("" si no hay).
-    std::string currentSceneId(const std::string& salida = "") const;
+    bool createScene(const std::string& name, const std::string& id = {}) override;
+    bool removeScene(const std::string& name) override;
+    bool renameScene(const std::string& from, const std::string& to) override;
+    std::vector<std::string> sceneNames() const override;
+    std::string sceneId(const std::string& escena) const override;
+    std::string sceneName(const std::string& escena) const override;
+    escenas::TablaEscenas tablaEscenas() const override;
+    bool setCurrentScene(const std::string& name, const std::string& salida = "") override;
+    std::string currentScene(const std::string& salida = "") const override;
+    std::string currentSceneId(const std::string& salida = "") const override;
     /// El id de la escena armada en el preview de la salida ("" si nada).
     std::string armadaId(const std::string& salida = "") const;
-    /// Tipo ("cut", "fade", "swipe", "slide", "fade_to_color", "wipe") y duracion.
-    bool setTransition(const std::string& type, int durationMs);
-    /// Pone `name` al aire con OTRA transición solo esta vez (`ms` < 0 = la global).
-    bool setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida = "");
-    /// T-bar: lleva la transición a mano hacia `name` (t de 0 a 1). Con `soltar`,
-    /// termina (si pasó la mitad, queda al aire; si no, vuelve).
-    bool transicionManual(const std::string& name, float t, bool soltar, bool* alAire, const std::string& salida = "");
-    /// En medio de una transición manual (y hacia qué escena).
-    std::string manualHacia(const std::string& salida = "") const;
-    /// La escena en el PREVIEW (el bus de armada) de la salida ("" = nada armado).
-    /// Lo pide el conmutador (escenas::Conmutador): las vistas solo lo miran.
-    bool armar(const std::string& name, const std::string& salida = "");
-
+    bool setTransition(const std::string& type, int durationMs) override;
+    bool setCurrentSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida = "") override;
+    bool transicionManual(const std::string& name, float t, bool soltar, bool* alAire, const std::string& salida = "") override;
+    std::string manualHacia(const std::string& salida = "") const override;
+    bool armar(const std::string& name, const std::string& salida = "") override;
     // --- FTB y placa de seguridad (por encima de todo lo que sale) -------------
-    /// Fundido a negro de la salida; con `bajarAudio`, el audio del programa baja con él.
-    bool ftb(bool activar, int ms, bool bajarAudio, const std::string& salida = "");
-    /// La placa ("Cuarto intermedio", "Volvemos enseguida"…): fondo, texto e imagen opcional.
-    bool placa(bool activar, const std::string& texto, const std::string& imagen, int ms, const std::string& salida = "");
+    bool ftb(bool activar, int ms, bool bajarAudio, const std::string& salida = "") override;
+    bool placa(bool activar, const std::string& texto, const std::string& imagen, int ms, const std::string& salida = "") override;
     // --- DSK: capas globales encima del programa (1..4) ------------------------
-    /// Arma el contenido de la capa `capa` (1..4): escenas o fuentes, por nombre,
-    /// apiladas en ese orden. `recuadro` (opcional): {posicion, tamano, margen}.
     bool dskArmar(int capa, const std::vector<std::string>& contenido, const nlohmann::json& recuadro,
-                  const std::string& salida = "");
-    /// Sube o baja la capa con un fundido de `ms`.
-    bool dskMostrar(int capa, bool visible, int ms, const std::string& salida = "");
-    /// [{capa, visible, opacidad}] para las 4.
-    nlohmann::json dskEstado(const std::string& salida = "") const;
-    /// Las fuentes que muestran las capas que están arriba (tally, interlock de PTZ).
-    std::vector<std::string> fuentesDsk(const std::string& salida = "") const;
-    /// Sale algo hacia afuera desde ALGUNA salida: alguna transmisión (la principal o
-    /// una extra), la grabación o la señal limpia. Sin esto, lo que pasa en el programa
-    /// no lo ve nadie: ni la PTZ ni las alertas ni los candados tratan nada como «al aire».
-    /// `contarGrabacion` en false: solo lo que se transmite (el modo en vivo
-    /// puede no contar la grabación, Config/modo-vivo.json).
-    bool haySalida(bool contarGrabacion = true) const;
-    /// Lo mismo, de una salida sola ("" = la por omisión).
-    bool haySalidaEn(const std::string& salida, bool contarGrabacion = true) const;
-
-    /// LA FUENTE «BANCA CON LA PALABRA» (tipo ba_banca, ajuste `ranura` 1, 2…): en la
-    /// escena muestra la cámara de la banca de esa ranura (1 = quien tiene la
-    /// palabra; en un debate, 1 y 2). La app dice qué hay en cada ranura; sin nada,
-    /// la capa no se dibuja. Con `entera`, la capa toma la toma ENTERA de la cámara
-    /// (antes del PTZ digital) y la recorta ella: una sola cámara muestra varias
-    /// bancas a la vez sin moverse, y el plano general sigue igual.
-    struct RanuraBanca {
-        std::string entrada;          ///< la cámara ("" = nadie en esta ranura)
-        bool entera = false;          ///< recortar la toma entera (posición digital)
-        float recorte[4] = {0, 0, 0, 0}; ///< izquierda, arriba, derecha, abajo (fracciones)
-    };
-    static constexpr const char* kTipoBanca = "ba_banca";
-    /// Cuántas ranuras hay: 1 (quien habla, o el primero de un debate) y 2 (el segundo; el
-    /// debate es de a dos). Si el debate admite más, se sube acá y las Propiedades lo siguen.
-    static constexpr int kRanurasBanca = 2;
-    /// Cambia lo que muestra cada ranura y vuelve a publicar las escenas que las usan.
-    /// `forzar`: aunque no hayan cambiado (el tamaño de la cámara llegó después y el
-    /// recorte, que va en píxeles, recién ahora se puede calcular).
-    void setRanurasBanca(std::vector<RanuraBanca> ranuras, bool forzar = false);
-    /// Alguna escena tiene una fuente «Banca con la palabra» (así se sabe si dar la
-    /// palabra tiene que mover el recorte o lo hace la fuente).
-    bool hayFuenteBanca() const;
-    /// La primera escena que muestra la ranura `ranura` ("" si ninguna).
-    std::string escenaDeRanura(int ranura) const;
-    /// Las fuentes que SE VEN en el programa de una salida: las visibles de su escena
-    /// al aire y lo que muestran sus capas DSK que están arriba.
-    std::vector<std::string> fuentesEnPrograma(const std::string& salida) const;
-    /// Las que se ven en el programa de ALGUNA salida (el tally: al aire en alguna).
-    std::vector<std::string> fuentesEnPrograma() const;
-    /// `fuente` se ve en el programa de alguna salida y esa salida sale (haySalidaEn):
-    /// lo que le pase se ve en una transmisión o queda en una grabación.
-    bool fuenteAlAire(const std::string& fuente) const;
+                  const std::string& salida = "") override;
+    bool dskMostrar(int capa, bool visible, int ms, const std::string& salida = "") override;
+    nlohmann::json dskEstado(const std::string& salida = "") const override;
+    std::vector<std::string> fuentesDsk(const std::string& salida = "") const override;
+    bool haySalida(bool contarGrabacion = true) const override;
+    bool haySalidaEn(const std::string& salida, bool contarGrabacion = true) const override;
+    void setRanurasBanca(std::vector<RanuraBanca> ranuras, bool forzar = false) override;
+    bool hayFuenteBanca() const override;
+    std::string escenaDeRanura(int ranura) const override;
+    std::vector<std::string> fuentesEnPrograma(const std::string& salida) const override;
+    std::vector<std::string> fuentesEnPrograma() const override;
+    bool fuenteAlAire(const std::string& fuente) const override;
     // --- Video en vivo dentro de un gráfico (graficos/VideoEnGrafico.hpp) --------------
-    /// Las capas de video que acompañan al gráfico de la fuente `grafico` (ba_grafico):
-    /// en cada escena donde está ese gráfico, cada fuente nombrada se anima con sus claves
-    /// (si ya está en la escena, esa; si no, se suma mientras dure), arriba o debajo del
-    /// gráfico. Quedan quietas en su primera clave hasta empezarVideoDeGrafico. No se
-    /// guardan con la escena. `capas`: VideoEnGrafico::aJson. "" o el error.
-    std::string ponerVideoDeGrafico(const std::string& grafico, const nlohmann::json& capas);
-    /// El ms 0 de sus claves (g_get_monotonic_time en ns): el primer cuadro del gráfico.
-    void empezarVideoDeGrafico(const std::string& grafico, std::int64_t desdeNs);
-    /// Las saca: cada fuente vuelve a como estaba (o se va, si se había sumado).
-    void quitarVideoDeGrafico(const std::string& grafico);
-    /// Un rótulo de texto con nombre (fuera de las escenas, para una capa DSK).
-    bool textoGlobal(const std::string& nombre, const std::string& texto);
-    /// {ftb, ftb_audio, placa, placa_texto, placa_imagen}.
-    nlohmann::json estadoPlaca(const std::string& salida = "") const;
-    /// DESDE CUALQUIER HILO (el vigía de las alarmas en el plano de control, F3-03): el
-    /// pico del programa de la por omisión (dBFS, los dos canales) desde la última vez
-    /// que se pidió, sin tocar el del vúmetro (programPeaksDb).
-    float picoProgramaVigiaDb();
-    /// DESDE CUALQUIER HILO: la foto de lo que sale que publica el hilo de salidas
-    /// ({principal, grabacion, salidas: {id: {principal, grabacion, …}}}; ver status()).
-    nlohmann::json fotoSalidas() const;
+    std::string ponerVideoDeGrafico(const std::string& grafico, const nlohmann::json& capas) override;
+    void empezarVideoDeGrafico(const std::string& grafico, std::int64_t desdeNs) override;
+    void quitarVideoDeGrafico(const std::string& grafico) override;
+    bool textoGlobal(const std::string& nombre, const std::string& texto) override;
+    nlohmann::json estadoPlaca(const std::string& salida = "") const override;
+    float picoProgramaVigiaDb() override;
+    nlohmann::json fotoSalidas() const override;
     /// DESDE CUALQUIER HILO: el canal de niveles (los vúmetros de cada entrada, bus y
     /// programa; emision/NivelesMotor.hpp). Vive lo que el BroadcastEngine.
     NivelesMotor& nivelesCanal() { return nivelesCanal_; }
@@ -292,250 +207,109 @@ class BroadcastEngine {
     /// leerlo SIN el turno desde el reloj del motor (NivelesMotor::medir). Cada medidor
     /// guarda las medidas compartidas de su salida: una salida borrada no lo deja colgado.
     std::vector<NivelesMotor::Medidor> medidores();
-    /// DESDE CUALQUIER HILO: el loudness del programa de la por omisión (tiene su candado).
-    const audio::LoudnessPrograma& loudnessPrograma() const;
-
-    /// Subtítulos CEA-608 en la transmisión (todavía no: M7). Devuelve a cuántas salidas se mandó.
-    int enviarCaption(const std::string& texto, double segundos);
-
-    /// El loudness de lo que sale por la salida: M/S/I, true peak, LRA (EBU R128).
-    /// El de la por omisión vive lo que el BroadcastEngine (se puede guardar la referencia).
-    audio::LoudnessPrograma& loudness(const std::string& salida = "");
-    /// El mismo, o nullptr si no hay una salida con ese id ("" = la por omisión).
-    audio::LoudnessPrograma* loudnessDe(const std::string& salida);
-    /// Lleva el objetivo de loudness de cada salida (el suyo: Config/loudness.json; una
-    /// nueva arranca con el de la por omisión) al motor: el AGC lento si está pedido y el
-    /// techo del limitador (el del objetivo; −2 dBTP si esa salida transmite AAC por
-    /// debajo de 128 kbps, AES TD1004). Al cambiar un objetivo, al crear una salida y al
-    /// empezar a transmitir.
-    void aplicarLoudness();
-    /// El programa de la salida en imagen, para las alarmas: brillo medio (0–255) y cuántos
-    /// segundos lleva sin cambiar. `valido` false si todavía no llegó ningún cuadro (o no
-    /// hay esa salida). DESDE CUALQUIER HILO.
-    struct ProgramaVideo {
-        double luma = 0, quietoSeg = 0;
-        bool valido = false;
-    };
-    ProgramaVideo programaVideo(const std::string& salida = "") const;
+    const audio::LoudnessPrograma& loudnessPrograma() const override;
+    int enviarCaption(const std::string& texto, double segundos) override;
+    audio::LoudnessPrograma& loudness(const std::string& salida = "") override;
+    audio::LoudnessPrograma* loudnessDe(const std::string& salida) override;
+    void aplicarLoudness() override;
+    ProgramaVideo programaVideo(const std::string& salida = "") const override;
     /// Cuántos cuadros salieron del programa (el latido del aire: si no crece, algo se trabó).
     std::uint64_t cuadrosPrograma() const;
-    /// El tope de la latencia del estudio (ms; -1 = automático).
-    void ponerTopeEstudio(long long ms);
-    /// La política térmica (F4-05): dormir las vistas del motor que nadie mira (las vistas
-    /// previas, las capturas que quedaron vivas) hasta que alguien las lea. Vale también
-    /// para el motor que se rearme.
-    void soltarVistasSinMirar(bool on);
-    /// {latencia_ms, tope_ms, automatico, tarde: [entradas que pasan el tope]}.
-    nlohmann::json latenciaEstudio() const;
-    /// Bajar la latencia del estudio ahora a lo que piden las entradas sincronizadas.
-    bool bajarLatenciaEstudio();
+    void ponerTopeEstudio(long long ms) override;
+    void soltarVistasSinMirar(bool on) override;
+    nlohmann::json latenciaEstudio() const override;
+    bool bajarLatenciaEstudio() override;
 
-    /// El archivo que se está grabando (o el último) de la salida.
-    std::string archivoGrabacion(const std::string& salida = "") const;
+    std::string archivoGrabacion(const std::string& salida = "") const override;
     /// Pasa `archivo` (mkv) a `formato` (mp4/mov) sin recodificar, en otro hilo.
     /// Varios archivos seguidos (los tramos de una grabación partida), en un solo hilo.
     bool remuxVarios(const std::vector<std::string>& archivos, const std::string& formato, bool borrarOrigen);
-    bool remux(const std::string& archivo, const std::string& formato, bool borrarOrigen);
-    /// {archivo, destino, pct, andando, ok, error}.
-    nlohmann::json remuxEstado() const;
+    bool remux(const std::string& archivo, const std::string& formato, bool borrarOrigen) override;
+    nlohmann::json remuxEstado() const override;
 
     /// Compatibilidad: crea la escena "programa" y la pone al aire.
     bool buildScene();
-
     // --- Fuentes -------------------------------------------------------------
-    // Los nombres de fuente son unicos. Agregar a una escena una fuente cuyo
-    // nombre ya existe REUTILIZA esa fuente.
-    bool addSource(const std::string& scene, const SourceSpec& spec);
-    bool addSource(const SourceSpec& spec);
-    /// Saca la fuente de la escena (si no queda en ninguna, se libera).
-    bool removeSource(const std::string& scene, const std::string& name);
-    /// Sube (delta > 0) o baja (delta < 0) la fuente en el orden de la escena.
-    bool moveSource(const std::string& scene, const std::string& name, int delta);
-    /// Fuentes de la escena, de abajo hacia arriba.
-    std::vector<std::string> sceneSources(const std::string& scene) const;
-    bool setSourceVisible(const std::string& scene, const std::string& name, bool visible);
-    bool sourceVisible(const std::string& scene, const std::string& name) const;
-    /// Ubica la fuente en `rect` (fracciones del lienzo) dentro de la escena.
-    bool setSourceRect(const std::string& scene, const std::string& name, const CanvasRect& rect);
-    /// Recorta la fuente EN LA ESCENA: izquierda, arriba, derecha, abajo (fracciones, 0..1).
+    bool addSource(const std::string& scene, const SourceSpec& spec) override;
+    bool addSource(const SourceSpec& spec) override;
+    bool removeSource(const std::string& scene, const std::string& name) override;
+    bool moveSource(const std::string& scene, const std::string& name, int delta) override;
+    std::vector<std::string> sceneSources(const std::string& scene) const override;
+    bool setSourceVisible(const std::string& scene, const std::string& name, bool visible) override;
+    bool sourceVisible(const std::string& scene, const std::string& name) const override;
+    bool setSourceRect(const std::string& scene, const std::string& name, const CanvasRect& rect) override;
     bool setSourceCrop(const std::string& scene, const std::string& name, float izquierda, float arriba, float derecha,
-                       float abajo);
-    /// Transparencia, borde difuso y sombra de la fuente EN LA ESCENA.
-    bool setSourceEfectos(const std::string& scene, const std::string& name, const EfectosCapa& efectos);
-    EfectosCapa sourceEfectos(const std::string& scene, const std::string& name) const;
+                       float abajo) override;
+    bool setSourceEfectos(const std::string& scene, const std::string& name, const EfectosCapa& efectos) override;
+    EfectosCapa sourceEfectos(const std::string& scene, const std::string& name) const override;
     /// Los recortes que esperan que su fuente tenga tamaño: se aplican apenas lo tiene.
     void aplicarRecortesPendientes();
-    /// Renombra una fuente (en todas las escenas).
-    bool renameSource(const std::string& from, const std::string& to);
-    /// Tipo de la fuente ("" si no existe).
-    std::string sourceTypeId(const std::string& name) const;
-    /// TRAER (la tarjeta del grafo): lo que se ve de la entrada `entrada` en las
-    /// escenas viene de otra parte: un compositor (`compositor`, el nombre de su
-    /// fuente) o lo que publica otra entrada (`productor`, el de su basalida o
-    /// «<fuente>:video»). Ambos vacíos = lo suyo. Rearma las escenas que la usan.
-    void setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor);
-    /// ¿Existe la fuente?
-    bool sourceExists(const std::string& name) const;
-    /// Lo que mide el motor de la entrada (tamaño, latencia, filtros, error...); null si no existe.
-    nlohmann::json estadoEntrada(const std::string& name) const;
-    /// Lo visible de una escena: (fuente, rectángulo en fracciones del lienzo), de abajo hacia arriba.
-    std::vector<std::pair<std::string, CanvasRect>> itemsVisibles(const std::string& scene) const;
-    /// El reloj del estudio: sistema, ntp, ptp o red. Si cambia con el motor andando, se rearma.
-    bool ponerReloj(const std::string& tipo, const std::string& servidor, int puerto, int dominio);
-    /// El reloj pedido y, si no arrancó (PTP sin permisos, NTP que no sincroniza), por qué
-    /// (la tarjeta de preparación, F4-07).
-    std::pair<std::string, std::string> relojEstado() const;
-    /// Publica el reloj del estudio en la red (0 = no). "" o el error.
-    std::string publicarReloj(int puerto);
-    /// El canal de control «ba/control» de una entrada. "" o el error.
-    std::string controlEntrada(const std::string& name, const nlohmann::json& campos);
-    /// Settings actuales de la fuente como JSON.
-    std::string sourceSettingsJson(const std::string& name) const;
-    /// Compatibilidad: en el motor todas las fuentes andan siempre (no hace nada).
-    void holdShowing(const std::string& name, bool on);
-    /// Tamaño actual del video de una fuente (0x0 si todavia no llego imagen).
-    bool sourceSize(const std::string& name, int& width, int& height) const;
-    /// Reemplaza los settings de la fuente.
-    bool updateSourceSettings(const std::string& name, const std::string& settingsJson);
-    /// La captura sin que espere quien llama (la interfaz nunca espera): prepara
-    /// acá —lee escenas y fuentes, que son del dueño del motor (con el turno)—, espera el
-    /// cuadro en otro hilo y llama a `listo` DESDE ESE HILO (quien la usa en la
-    /// interfaz la vuelve a su hilo). `error` vacío = hay imagen (RGBA).
-    using Captura = std::function<void(const std::string& error, std::vector<std::uint8_t> rgba, int ancho, int alto)>;
-    void capturarAparte(const std::string& name, int maxWidth, Captura listo);
-    /// La imagen actual de una fuente o escena ("" = el programa, con sus capas), con ancho
-    /// de a lo sumo `maxWidth` (0 = el del lienzo), RGBA 8 bits, en dos partes (las
-    /// miniaturas de Entradas, que se cargan aparte para no trabar la interfaz):
-    /// `prepararCaptura` lee las escenas, las fuentes y el estado del motor, que
-    /// son del dueño (con el turno; sin él era una carrera que tumbaba la app);
-    /// `capturarVista` arma o reusa la vista y espera el cuadro, y se
-    /// puede llamar desde cualquier hilo. "" o el error.
+    bool renameSource(const std::string& from, const std::string& to) override;
+    std::string sourceTypeId(const std::string& name) const override;
+    void setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor) override;
+    bool sourceExists(const std::string& name) const override;
+    nlohmann::json estadoEntrada(const std::string& name) const override;
+    std::vector<std::pair<std::string, CanvasRect>> itemsVisibles(const std::string& scene) const override;
+    bool ponerReloj(const std::string& tipo, const std::string& servidor, int puerto, int dominio) override;
+    std::pair<std::string, std::string> relojEstado() const override;
+    std::string publicarReloj(int puerto) override;
+    std::string controlEntrada(const std::string& name, const nlohmann::json& campos) override;
+    std::string sourceSettingsJson(const std::string& name) const override;
+    void holdShowing(const std::string& name, bool on) override;
+    bool sourceSize(const std::string& name, int& width, int& height) const override;
+    bool updateSourceSettings(const std::string& name, const std::string& settingsJson) override;
+    void capturarAparte(const std::string& name, int maxWidth, Captura listo) override;
     std::string prepararCaptura(const std::string& name, int maxWidth, std::string& clave, int& w, int& h,
-                                bool& esEscena) const;
+                                bool& esEscena) const override;
     std::string capturarVista(const std::string& clave, int w, int h, bool esEscena, std::vector<std::uint8_t>& rgba,
-                              int& width, int& height);
-    /// Tipos de fuente que el motor sabe armar.
-    std::vector<SourceType> inputTypes() const { return tiposDeFuente(); }
-    /// Los mismos: son fijos (no miran el motor), así que se leen desde cualquier hilo.
-    static std::vector<SourceType> tiposDeFuente();
-    /// Invitados: la fuente de video va en escenas; la de AUDIO es global.
-    bool addGuestAudio(int slot);
-    /// Entrada de audio del equipo (micrófono, línea) como fuente GLOBAL.
-    bool addGlobalAudio(const SourceSpec& spec);
+                              int& width, int& height) override;
+    bool addGuestAudio(int slot) override;
+    bool addGlobalAudio(const SourceSpec& spec) override;
     /// Compatibilidad (en el motor nada queda pendiente): devuelve 0.
     int adoptPendingAudio();
-    bool removeGlobalAudio(const std::string& name);
-    /// Nombres de las entradas de audio del equipo (sin los invitados).
-    std::vector<std::string> globalAudioInputs() const;
+    bool removeGlobalAudio(const std::string& name) override;
+    std::vector<std::string> globalAudioInputs() const override;
     bool addGuestVideo(int slot);
     bool addGuestVideo(int slot, const CanvasRect& rect);
-
     // --- Audio por fuente (mezclador) ------------------------------------------
-    /// Fuentes con audio (escenas + globales), en orden.
-    std::vector<std::string> audioSources() const;
-    /// Todas las fuentes que maneja el motor, sin repetir.
-    std::vector<std::string> sourceNames() const;
-    /// El volumen (el fader) de la fuente en la mezcla de una salida. El de la por
-    /// omisión es el de siempre (se guarda con la fuente); el de las demás arranca
-    /// como el de la por omisión al crearlas y después es suyo.
-    bool setSourceVolume(const std::string& name, float mul, const std::string& salida = "");
-    /// El volumen de la fuente (su fader), SIN la ganancia de su grupo.
-    float sourceVolume(const std::string& name, const std::string& salida = "") const;
-    /// El grupo de audio de una fuente: su nombre sin los números y con los espacios en orden
-    /// («Invitado 3 (audio)» -> «Invitado (audio)»). El mismo que agrupa el mezclador.
-    static std::string grupoDeAudio(const std::string& nombre);
-    /// El volumen general de un grupo (un VCA): multiplica el volumen de cada fuente del grupo
-    /// sin tocar su fader, en el mismo control de nivel (no agrega nada al camino del audio).
-    /// En 1 (0 dB), como si no estuviera. Una fuente que se suma después al grupo ya lo trae.
-    /// Es de la mezcla de cada salida ("" = la por omisión; una nueva arranca sin ninguno).
-    void setGananciaGrupo(const std::string& grupo, float mul, const std::string& salida = "");
-    float gananciaGrupo(const std::string& grupo, const std::string& salida = "") const;
-    bool setSourceMuted(const std::string& name, bool muted, const std::string& salida = "");
-    bool sourceMuted(const std::string& name, const std::string& salida = "") const;
-    /// Pico mas reciente de la fuente en dBFS (-100 = silencio): lo que entrega la
-    /// entrada, vaya o no al Programa (el mismo de los vúmetros del Mezclador).
-    float sourcePeakDb(const std::string& name) const;
-    /// Los auriculares del operador tienen dos cosas distintas:
-    /// - la ESCUCHA FIJA: lo que la matriz manda ahí a propósito (la voz del
-    ///   asistente, la del teleprompter). Varias juntas; se guarda (audio-matriz.json).
-    ///   Suena con el fader y el mute de la salida de la escucha (setSalidaEscucha).
-    /// - el SOLO: escuchar UN canal un rato, solo él (la escucha del motor en «pfl» o
-    ///   «afl», F2-03). PFL: lo que entrega la entrada, antes del fader y del bus; AFL: con
-    ///   el fader y el mute de una salida (la que muestra el Mezclador). Uno solo a la vez;
-    ///   mientras dura, la escucha fija espera sin tocarse (vuelve al soltarlo) y no se guarda.
-    bool setSourceMonitoring(const std::string& name, bool on);
-    /// Si suena en los auriculares (escucha fija o solo).
-    bool sourceMonitoring(const std::string& name) const;
-    /// Solo la escucha fija (lo que muestra y guarda la matriz).
-    bool sourceEscuchaFija(const std::string& name) const;
-    /// El solo: `modo` "pfl" o "afl" (`salida`: de cuál es el fader del AFL; "" = la por
-    /// omisión). `name` "" lo suelta. Falla si la fuente o la salida no existen.
-    bool setPfl(const std::string& name, const std::string& modo = "pfl", const std::string& salida = "");
-    std::string pfl() const;
-    /// "pfl" o "afl" (lo del solo prendido; "" sin solo).
-    std::string pflModo() const;
-    /// La salida de la escucha fija: de cuál son su fader y su mute (su id; "" al pedirla =
-    /// la por omisión). No se guarda. Falla si no existe.
-    bool setSalidaEscucha(const std::string& salida);
-    std::string salidaEscucha() const;
-    /// Atrasa (ms > 0) o adelanta la fuente para que su audio coincida con su video.
-    bool setSourceSyncOffset(const std::string& name, int ms);
-    int sourceSyncOffset(const std::string& name) const;
-    /// A qué pistas va la fuente (1 = el programa; 2..6 = la grabación multipista).
-    bool setSourcePistas(const std::string& name, const std::vector<int>& pistas);
-    std::vector<int> sourcePistas(const std::string& name) const;
-
+    std::vector<std::string> audioSources() const override;
+    std::vector<std::string> sourceNames() const override;
+    bool setSourceVolume(const std::string& name, float mul, const std::string& salida = "") override;
+    float sourceVolume(const std::string& name, const std::string& salida = "") const override;
+    void setGananciaGrupo(const std::string& grupo, float mul, const std::string& salida = "") override;
+    float gananciaGrupo(const std::string& grupo, const std::string& salida = "") const override;
+    bool setSourceMuted(const std::string& name, bool muted, const std::string& salida = "") override;
+    bool sourceMuted(const std::string& name, const std::string& salida = "") const override;
+    float sourcePeakDb(const std::string& name) const override;
+    bool setSourceMonitoring(const std::string& name, bool on) override;
+    bool sourceMonitoring(const std::string& name) const override;
+    bool sourceEscuchaFija(const std::string& name) const override;
+    bool setPfl(const std::string& name, const std::string& modo = "pfl", const std::string& salida = "") override;
+    std::string pfl() const override;
+    std::string pflModo() const override;
+    bool setSalidaEscucha(const std::string& salida) override;
+    std::string salidaEscucha() const override;
+    bool setSourceSyncOffset(const std::string& name, int ms) override;
+    int sourceSyncOffset(const std::string& name) const override;
+    bool setSourcePistas(const std::string& name, const std::vector<int>& pistas) override;
+    std::vector<int> sourcePistas(const std::string& name) const override;
     // --- Medios ------------------------------------------------------------------
-    struct MediaInfo {
-        std::string name;
-        std::string state; ///< playing | paused | stopped | ended | error | none
-        std::int64_t durationMs = 0;
-        std::int64_t timeMs = 0;
-    };
-    /// Fuentes reproducibles y su estado.
-    std::vector<MediaInfo> mediaSources() const;
-    /// Reproduce un archivo como fuente GLOBAL de audio (reemplaza lo que sonaba con ese nombre).
-    bool playMedia(const std::string& name, const std::string& file, bool loop = false, float volume = 1.0f);
-    /// Para lo que este sonando y libera la fuente.
-    bool stopMedia(const std::string& name);
-    /// Rebobina y arranca una fuente de medios que YA existe.
-    bool restartMedia(const std::string& name);
-    /// Lleva un medio a `ms`.
-    bool seekMedia(const std::string& name, std::int64_t ms);
-    /// Para un medio sin sacarlo.
-    bool pararMedia(const std::string& name);
-
+    std::vector<MediaInfo> mediaSources() const override;
+    bool playMedia(const std::string& name, const std::string& file, bool loop = false, float volume = 1.0f) override;
+    bool stopMedia(const std::string& name) override;
+    bool restartMedia(const std::string& name) override;
+    bool seekMedia(const std::string& name, std::int64_t ms) override;
+    bool pararMedia(const std::string& name) override;
     // --- Descubrir capacidades -------------------------------------------------
-    struct ListItem {
-        std::string name;
-        std::string value;
-        bool disabled = false;
-    };
-    /// true si el tipo de fuente es uno que el motor sabe armar.
-    bool sourceTypeExists(const std::string& typeId) const;
-    /// Nombre de la placa de video (para el diagnóstico).
-    /// Con qué dibuja (no depende del estado del motor: desde cualquier hilo).
-    static std::string graphicsDeviceName();
-    struct EncoderInfo {
-        std::string id, name, codec;
-        bool hardware = false;
-    };
-    /// Codificadores de video disponibles (los de la placa marcados). De las fábricas de
-    /// GStreamer, no del estado del motor: desde cualquier hilo.
-    static std::vector<EncoderInfo> videoEncoders();
+    bool sourceTypeExists(const std::string& typeId) const override;
 
     // --- Cambios en caliente -------------------------------------------------
     /// true si hay grabacion o transmision en curso (en alguna salida).
     bool outputsActive() const;
-    /// Cambia resolucion/fps. Solo sin salidas activas: rearma el motor con todo lo que había.
-    /// Con `conElMotorApagado` (F3-09, la GPU perdida) también con salidas: las para, corre
-    /// eso con el motor viejo ya apagado (rearmar la GPU) y arma el nuevo con el lienzo que
-    /// devuelve; las salidas las retoma quien llama.
-    bool resetVideo(const VideoConfig& video, const std::function<VideoConfig()>& conElMotorApagado = {});
+    bool resetVideo(const VideoConfig& video, const std::function<VideoConfig()>& conElMotorApagado = {}) override;
     /// Compatibilidad: los codificadores se crean por salida. Solo sin salidas activas.
     bool resetEncoders();
-    /// Una copia (ver currentScene).
-    VideoConfig videoConfig() const {
+    VideoConfig videoConfig() const override {
         const TurnoMotor::Guarda turno(turno_);
         return video_;
     }
@@ -549,110 +323,41 @@ class BroadcastEngine {
     /// LAS SALIDAS arriba). Una salida que se crea después se publica sola.
     bool publishReturnFeeds();
     void stopReturnFeeds();
-    /// El tamaño más grande con que el gateway le manda el programa a una sesión
-    /// (Configuración → Sala, gateway.programaW/H: 1280×720 de fábrica). El retorno se
-    /// publica a ese tamaño (el de la salida si es más chica), escalado y en BGRA en la
-    /// GPU (F2-13): bajarlo a 1920×1080 para que el gateway lo achicara en la CPU era
-    /// copiar y recorrer 2,25 veces lo que se manda. Antes de publishReturnFeeds; si
-    /// cambia andando, el canal se rehace (el gateway se vuelve a suscribir solo).
-    void ponerTopeRetorno(int ancho, int alto);
-    /// ¿Alguien mira el retorno de la salida (invitados en la sala, integrantes
-    /// remotos, quien mire BA.Salida.<id> en el gateway)? Sin nadie, la vista que lo
-    /// baja en cada cuadro se suelta (el canal queda publicado); con alguien, vuelve.
-    /// La por omisión arranca en uso; las demás, sin nadie.
-    void retornoEnUso(bool si, const std::string& salida = "");
-
-    /// Una escena que no es el programa, para las pantallas de la sala: la pone
-    /// en el canal `k` (BA.Escena.<k>, 0..ipc::kCanalesEscena-1) y la manda al
-    /// Proceso B mientras esté ahí; vacía, lo suelta. La escena se compone aparte
-    /// y sigue andando aunque no esté al aire. Dos pantallas con la misma escena
-    /// comparten canal: eso lo decide quien reparte los canales (Pantallas).
-    /// Lo que se le encargó al motor y falló después: las órdenes que pueden
-    /// tardar van en cola y vuelven enseguida (la interfaz no espera), así que
-    /// su error llega por acá, desde el hilo del motor.
-    /// Un aviso del motor de algo que pasó después de pedirlo: TIPADO (quien lo muestra
-    /// decide por el código y el nivel, nunca comparando el texto, que sale traducido).
-    /// Definido en emision/MotorFwd.hpp (se nombra sin incluir el motor).
-    using AvisoMotor = ::ba::app::AvisoMotor;
-    void alFallarMotor(std::function<void(const AvisoMotor&)> fn);
+    void ponerTopeRetorno(int ancho, int alto) override;
+    void retornoEnUso(bool si, const std::string& salida = "") override;
+    void alFallarMotor(std::function<void(const AvisoMotor&)> fn) override;
     /// Avisa cuando cambia el audio de una fuente: `que` es "escucha" (fija o PFL),
     /// "pistas", "retardo", "volumen", "mute" o "alta" (se creó, se rehízo o se renombró). Lo pida quien lo pida (la matriz, el
     /// Mezclador, el asistente, el AFV, una escena que se carga, volver como estaba):
     /// quien lo muestra se entera siempre. Se llama en el hilo que hizo el cambio.
     void alCambiarAudioFuente(std::function<void(const std::string& fuente, const char* que)> fn);
-    bool escenaACanal(int k, const std::string& escena);
-    std::string escenaDeCanal(int k) const;
-    /// Las escenas (por nombre, sin repetir) que se están MOSTRANDO además del aire y el
-    /// preview de las salidas. Es el registro del motor, no hay otro:
-    ///   - `vistas`: las que pidió la interfaz (monitores y ventanas de escena, el multiview,
-    ///     las distribuciones de pantallas, las miniaturas vivas: todo pasa por
-    ///     enableScenePreview);
-    ///   - `canales`: las de los canales de escena (BA.Escena.<k>), que SALEN de la máquina:
-    ///     las pantallas de la sala y los retornos de escena a invitados e integrantes.
-    /// Para la sala (sala/CapasRemotos): quien sale en una de estas no se pausa.
-    struct EscenasMostradas {
-        std::vector<std::string> vistas, canales;
-        bool operator==(const EscenasMostradas&) const = default;
-    };
-    EscenasMostradas escenasMostradas() const;
-    /// Los que no son Pantallas (las vistas de la sesión remota) toman un canal con
-    /// dueño: el que ya tiene esa escena o uno libre (-1 si no hay). Pantallas no
-    /// suelta un canal con dueños; el último dueño que lo suelta, lo apaga.
-    int tomarCanalEscena(const std::string& escena, const std::string& dueno);
-    /// Suelta los canales de `dueno` salvo los de `salvo` (los que acaba de volver a tomar:
-    /// así un reparto nuevo no apaga y prende lo que sigue igual).
-    void soltarCanalesEscena(const std::string& dueno, const std::set<int>& salvo = {});
-    bool canalEscenaConDuenos(int k) const;
-
-    /// Lo que de verdad pasó con una orden de salida que corre en el hilo de salidas
-    /// (startRecording, startStreaming): que devuelvan true es «encolada», no «hecha». El
-    /// resultado llega después a quien pidió, por `AlResultado`, DESDE EL HILO DE SALIDAS
-    /// (quien lo recibe se lo encarga a su hilo). `que`: "grabar" o "transmitir".
-    /// Definidos en emision/MotorFwd.hpp (se nombran sin incluir el motor).
-    using ResultadoOrden = ::ba::app::ResultadoOrden;
-    using AlResultado = ::ba::app::AlResultado;
-
-    /// Transmite. Si YA está transmitiendo: al mismo destino no hace nada
-    /// (ultimoInicio = YaIgual); a OTRO destino falla (YaOtroDestino), salvo
-    /// `cambiarEnCaliente`, que corta y arranca al nuevo. Con true, lo que pasó llega por
-    /// `alTerminar` (ver ResultadoOrden).
+    bool escenaACanal(int k, const std::string& escena) override;
+    std::string escenaDeCanal(int k) const override;
+    EscenasMostradas escenasMostradas() const override;
+    int tomarCanalEscena(const std::string& escena, const std::string& dueno) override;
+    void soltarCanalesEscena(const std::string& dueno, const std::set<int>& salvo = {}) override;
+    bool canalEscenaConDuenos(int k) const override;
     bool startStreaming(const StreamConfig& stream, const EncoderConfig& enc, bool cambiarEnCaliente = false,
-                        const std::string& salida = "", AlResultado alTerminar = {});
-    enum class Inicio { Iniciado, YaIgual, YaOtroDestino, Error };
-    /// Lo que hizo el último startStreaming DE ESTE HILO (como lastError).
-    Inicio ultimoInicio() const;
-    /// El destino al aire, enmascarado (servidor y los últimos 4 de la clave).
-    std::string destinoActivo(const std::string& salida = "") const;
-
+                        const std::string& salida = "", AlResultado alTerminar = {}) override;
+    Inicio ultimoInicio() const override;
+    std::string destinoActivo(const std::string& salida = "") const override;
     // --- Destinos adicionales (respaldo, otras plataformas) --------------------
-    /// Un destino extra (su id es único entre todas las salidas) con el programa de `salida`.
-    /// `serverRespaldo`: el punto de ingest de respaldo (misma clave); sale a los dos a la vez.
     bool startExtra(const std::string& id, const std::string& server, const std::string& key, const EncoderConfig& enc,
-                    const std::string& salida = "", const std::string& serverRespaldo = "");
-    void stopExtra(const std::string& id); ///< esté en la salida que esté
-    void stopExtras();                     ///< los de todas las salidas
-    /// {id: {activo, reconectando, perdidos, cuadros, bytes, destino, salida}}, de todas las salidas.
-    nlohmann::json extrasEstado() const;
-    /// {principal: {...}, extras: {id: {...}}, saltados_encoder, lag_render}.
-    nlohmann::json saludSalidas() const;
-    /// Detiene la transmision (no toca la grabacion).
-    void stopStreaming(const std::string& salida = "");
-
-    /// Arranca la grabacion del programa (MKV en tramos; MP4/MOV se pasan al terminar). Con
-    /// true (encolada), lo que pasó llega por `alTerminar` (ver ResultadoOrden).
+                    const std::string& salida = "", const std::string& serverRespaldo = "") override;
+    void stopExtra(const std::string& id) override; ///< esté en la salida que esté
+    void stopExtras() override;                     ///< los de todas las salidas
+    nlohmann::json extrasEstado() const override;
+    nlohmann::json saludSalidas() const override;
+    void stopStreaming(const std::string& salida = "") override;
     bool startRecording(const RecordConfig& rec, const EncoderConfig& enc, const std::string& salida = "",
-                        AlResultado alTerminar = {});
-    void stopRecording(const std::string& salida = "");
-    /// {activa, archivo, copia, copia_activa, calidad, encoder, pistas, tramos}.
-    nlohmann::json grabacionEstado(const std::string& salida = "") const;
-
+                        AlResultado alTerminar = {}) override;
+    void stopRecording(const std::string& salida = "") override;
+    nlohmann::json grabacionEstado(const std::string& salida = "") const override;
     // --- Repetición ---------------------------------------------------------------
-    /// Guarda los últimos `segundos` del programa (0 = apagar). `dir`: donde quedan los clips.
-    bool setReplay(int segundos, const std::string& dir, const EncoderConfig& enc, const std::string& salida = "");
-    /// Guarda el clip; llega por `ultimoReplay()` cuando termina de escribir.
-    bool guardarReplay(const std::string& salida = "");
-    std::string ultimoReplay(const std::string& salida = "") const;
-    nlohmann::json replayEstado(const std::string& salida = "") const;
+    bool setReplay(int segundos, const std::string& dir, const EncoderConfig& enc, const std::string& salida = "") override;
+    bool guardarReplay(const std::string& salida = "") override;
+    std::string ultimoReplay(const std::string& salida = "") const override;
+    nlohmann::json replayEstado(const std::string& salida = "") const override;
 
     // --- El disco en apuros: el disco, para la grabación del programa --------
     // Si el disco no da abasto (lo que espera en el colchón de una grabación, o
@@ -662,84 +367,40 @@ class BroadcastEngine {
     // Cuando el disco anda bien de nuevo (30 s), todo sigue solo.
     /// "preguntar" (avisa y ofrece), "auto" (lo hace solo) o "nunca" (solo avisa).
     std::string modoDisco() const;
-    /// Configuración → Grabación: cuánto espera lo grabado para entrar al disco
-    /// hasta «apuros», y cuánto todo al día hasta salir.
-    void ponerUmbralesDisco(double apurosS, int recuperadoS);
-    std::string setModoDisco(const std::string& modo); ///< "" o el error (se guarda en Config/disco.json)
-    /// Darle (o devolverle) el disco al programa ahora.
-    void priorizarPrograma(bool si);
-    /// {apuros, atraso_s, registro_trabado_ms, prioridad, automatica, modo, pausadas[], desde_s,
-    ///  restante: {horas, libre_gb, kbps, volumenes[{volumen, libre_gb, kbps, horas, que[]}]} (lo que
-    ///  escribe AHORA en todas las salidas: grabación, copia, señal limpia e ISO, sumado por disco),
-    ///  mismo_volumen: [{salida, grabacion, copia}] (copias que van al mismo disco que su grabación)}
-    nlohmann::json discoEstado() const;
-    /// Lo que escribe en disco la grabación de una salida (video + audio de cada pista):
-    /// lo usa al arrancarla y quien calcula de antemano para cuánto alcanza el disco.
-    /// `conPistas` false: solo la del programa (el emisor aparte todavía no graba las 2-6).
-    static int kbpsGrabacion(const RecordConfig& rec, const EncoderConfig& enc, bool conPistas = true);
-    /// Para probar (modo --test): la grabación del programa, como con el disco trabado `ms`.
-    void simularDiscoTrabado(int ms);
+    void ponerUmbralesDisco(double apurosS, int recuperadoS) override;
+    std::string setModoDisco(const std::string& modo) override; ///< "" o el error (se guarda en Config/disco.json)
+    void priorizarPrograma(bool si) override;
+    nlohmann::json discoEstado() const override;
+    void simularDiscoTrabado(int ms) override;
 
-    /// Alguna salida perdió un codificador en el aire y sigue con otro (la lista negra
-    /// del motor; las salidas se rearman solas en el hilo de salidas).
-    bool encoderRespaldoActivo() const;
-
+    bool encoderRespaldoActivo() const override;
     // --- Medir la sincronía labios/voz con un aplauso -----------------------------
-    /// En el programa de `salida` ("" = la por omisión): una cámara contra su micrófono.
-    bool empezarMedicionSincro(const std::string& salida = "");
-    /// {ok, retardo_ms, dispersion_ms, aplausos, confiable, problema, golpes_audio, golpes_video}.
-    nlohmann::json terminarMedicionSincro();
-    bool midiendoSincro() const;
-    /// Las pistas (máscara: bit 1..5 = pistas 2..6) que usa la grabación del programa.
-    int pistasGrabacionMask() const;
-
+    bool empezarMedicionSincro(const std::string& salida = "") override;
+    nlohmann::json terminarMedicionSincro() override;
+    bool midiendoSincro() const override;
+    int pistasGrabacionMask() const override;
     // --- Grabacion POR ENTRADA ------------------------------------------------
-    // Cada entrada a su propio archivo, además del programa: con su video y su
-    // audio (o el del programa si no tiene). Cada una es un encode más.
-    struct GrabacionIndividual {
-        std::string source;
-        std::string path;
-        bool audioPropio = false;
-        bool activa = false;
-        std::uint64_t bytes = 0; ///< lo que ya fue al archivo (sin preguntarle al disco)
-        bool pausada = false;    ///< el disco, para el programa
-    };
-    static constexpr int kMaxIndividuales = 8;
-    bool startSourceRecording(const std::string& source, const std::string& dir, const EncoderConfig& enc);
-    /// La señal limpia (el programa sin DSK, placa ni negro) a un destino de red o a un archivo.
+    bool startSourceRecording(const std::string& source, const std::string& dir, const EncoderConfig& enc) override;
     bool startCleanFeed(const std::string& destino, const std::string& clave, const std::string& dir,
-                        const EncoderConfig& enc, const std::string& salida = "");
-    void stopCleanFeed(const std::string& salida = "");
-    nlohmann::json cleanFeedEstado(const std::string& salida = "") const;
-    bool stopSourceRecording(const std::string& source);
-    void stopAllSourceRecordings();
-    std::vector<GrabacionIndividual> sourceRecordings() const;
-
+                        const EncoderConfig& enc, const std::string& salida = "") override;
+    void stopCleanFeed(const std::string& salida = "") override;
+    nlohmann::json cleanFeedEstado(const std::string& salida = "") const override;
+    bool stopSourceRecording(const std::string& source) override;
+    void stopAllSourceRecordings() override;
+    std::vector<GrabacionIndividual> sourceRecordings() const override;
     // --- Vista previa y medicion (para la UI) -------------------------------
-    /// La vista previa del programa a `width` x `height` (BGRA, la escala el motor).
-    bool enablePreview(int width, int height);
+    bool enablePreview(int width, int height) override;
     void disablePreview();
-    /// Vista previa CONTINUA de una escena (o fuente) aunque no esté al aire, por canal
-    /// ("editor", "armada"…): varios canales a la vez.
-    bool enableScenePreview(const std::string& canal, const std::string& name, int maxWidth);
-    bool enableScenePreview(const std::string& name, int maxWidth) { return enableScenePreview("editor", name, maxWidth); }
-    /// Lo mismo para un bus de una salida (PLAN-SALIDAS, etapa 5): su programa (`bus`
-    /// "programa") o su preview ("preview"), tal como salen, en el canal `canal` (se
-    /// lee con renderScenePreview y se suelta con disableScenePreview, como las demás).
-    bool enableSalidaPreview(const std::string& canal, const std::string& bus, const std::string& salida, int maxWidth);
-    void disableScenePreview(const std::string& canal);
+    bool enableScenePreview(const std::string& canal, const std::string& name, int maxWidth) override;
+    bool enableScenePreview(const std::string& name, int maxWidth) override { return enableScenePreview("editor", name, maxWidth); }
+    bool enableSalidaPreview(const std::string& canal, const std::string& bus, const std::string& salida, int maxWidth) override;
+    void disableScenePreview(const std::string& canal) override;
     /// Diagnóstico de parpadeos (BA_MEDIR_PREVIEW=1): ver medirVista en el .cpp.
     void medirVista(const std::string& clave);
-    void disableScenePreview() { disableScenePreview("editor"); }
-    /// El último cuadro de ese canal (BGRA) si es más nuevo que `serial`: comparte los
-    /// bytes con la vista del motor (motor::Pixeles), no los copia (F3-11). DESDE CUALQUIER
-    /// HILO (la interfaz los lee a 60 Hz sin el turno: F3-03); pedir y soltar una vista, no.
-    bool renderScenePreview(const std::string& canal, motor::Cuadro& out, std::uint64_t& serial);
-    /// DESDE CUALQUIER HILO.
-    std::string scenePreviewName(const std::string& canal) const;
-    /// El ultimo frame de vista previa (BGRA) si es mas nuevo que `serial`, sin copiarlo
-    /// (como renderScenePreview). DESDE CUALQUIER HILO.
-    bool latestPreview(motor::Cuadro& out, std::uint64_t& serial) const;
+    void disableScenePreview() override { disableScenePreview("editor"); }
+    bool renderScenePreview(const std::string& canal, motor::Cuadro& out, std::uint64_t& serial) override;
+    std::string scenePreviewName(const std::string& canal) const override;
+    bool latestPreview(motor::Cuadro& out, std::uint64_t& serial) const override;
     /// Picos del programa desde la ultima llamada, en dBFS (L, R). -100 = silencio.
     void programPeaksDb(float& left, float& right, const std::string& salida = "");
 
@@ -747,24 +408,16 @@ class BroadcastEngine {
     /// AAC con que transmite): lo atiende el dueño en cada vuelta del motor (también antes de
     /// leer lo pedido). Ver emision/SalidaMotor.hpp.
     void atenderSalidas();
-    /// Estado actual (para la UI y el HealthBlock).
-    EngineStatus status() const;
-    /// El último error DE ESTE HILO (ver «Estrategia de errores»).
-    const std::string& lastError() const;
+    EngineStatus status() const override;
+    const std::string& lastError() const override;
     /// DESDE CUALQUIER HILO.
     bool ready() const { return started_; }
     /// El arranque falló porque este programa no tiene GStreamer (build sin motor, bundle
     /// incompleto). Una marca y no el texto de lastError(), que sale traducido.
     bool sinGStreamer() const { return sinGStreamer_; }
-
-    /// EL TURNO (emision/TurnoMotor.hpp): lo toma cada método de la API; quien hace varias
-    /// cosas seguidas que tienen que verse juntas (AppRuntime, los conmutadores) lo toma por
-    /// todo lo que dura, y el plano de control lo pide con tope (TurnoMotor::tomarHasta).
-    const TurnoMotor& turno() const { return turno_; }
-
-    /// Lo que oye el invitado del slot: "mix_minus" (de fábrica) o "programa".
-    void setRetornoInvitado(int slot, const std::string& modo);
-    std::string retornoInvitado(int slot) const;
+    const TurnoMotor& turno() const override { return turno_; }
+    void setRetornoInvitado(int slot, const std::string& modo) override;
+    std::string retornoInvitado(int slot) const override;
 
    private:
     // Las piezas (cada una con su dueño de hilo en su cabecera; el resumen, arriba en

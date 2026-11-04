@@ -141,3 +141,5 @@ nlohmann::json VentanillaMotor::estado() const {
 }
 
 } // namespace ba::app
+
+#include "moc_VentanillaMotor.cpp"

@@ -47,6 +47,7 @@
 #include "platform/Paths.hpp"
 #include "ui/RielConfig.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/EscritorioViewModel.hpp"
 
 namespace ba::app::mcp {
 namespace {

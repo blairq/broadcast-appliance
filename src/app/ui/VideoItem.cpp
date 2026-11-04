@@ -261,3 +261,5 @@ QSGNode* VideoItem::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
 }
 
 } // namespace ba::app
+
+#include "moc_VideoItem.cpp"

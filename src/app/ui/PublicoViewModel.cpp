@@ -219,3 +219,5 @@ void PublicoViewModel::pedirEnlace(bool remoto) {
 }
 
 } // namespace ba::app
+
+#include "moc_PublicoViewModel.cpp"

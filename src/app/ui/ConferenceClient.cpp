@@ -475,3 +475,5 @@ void ConferenceClient::send(const QByteArray& verb, const QString& path, const Q
 }
 
 } // namespace ba::app
+
+#include "moc_ConferenceClient.cpp"

@@ -173,3 +173,5 @@ json ResolucionModel::plan(const std::string& entrada) {
 }
 
 } // namespace ba::app::resolucion
+
+#include "moc_ResolucionModel.cpp"

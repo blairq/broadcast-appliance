@@ -164,3 +164,5 @@ QStringList EscritorioViewModel::ventanasAbiertas() const {
 }
 
 } // namespace ba::app
+
+#include "moc_EscritorioViewModel.cpp"

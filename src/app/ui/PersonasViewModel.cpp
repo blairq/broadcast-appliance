@@ -913,3 +913,5 @@ void PersonasViewModel::revisarFuentes() {
 #endif // BA_HAVE_ROSTROS
 
 } // namespace ba::app
+
+#include "moc_PersonasViewModel.cpp"

@@ -351,3 +351,5 @@ QString AppViewModel::reiniciarPrograma(const QString& aviso) {
 }
 
 } // namespace ba::app
+
+#include "moc_AppViewModel.cpp"

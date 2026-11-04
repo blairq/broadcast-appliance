@@ -33,6 +33,9 @@
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/AppViewModel.hpp"
+#include "ui/ControlViewModel.hpp"
+#include "ui/EmisionViewModel.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;

@@ -28,7 +28,7 @@
 
 #include <atomic>
 
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/FotoMotor.hpp"
 #include "emision/FuentesApp.hpp"
 #include "comun/HoraMonotonica.hpp"
@@ -51,7 +51,7 @@ namespace fs = std::filesystem;
 
 namespace {
 
-BroadcastEngine* motorApp() { return fuentes::motorApp(); }
+ApiMotor* motorApp() { return fuentes::motorApp(); }
 
 /// La foto del motor (F3-03): qué fuentes hay, de qué tipo y el audio de cada una. La pone
 /// MezclaViewModel (RackManager::setFoto); se lee en el hilo de la interfaz. Sin ella (la
@@ -68,14 +68,14 @@ std::shared_ptr<const FotoMotor> fotoUi() {
 
 bool existe(const std::string& f) {
     if (const auto fo = fotoUi()) return !fo->tipoDe(f).empty();
-    BroadcastEngine* e = motorApp();
+    ApiMotor* e = motorApp();
     return e != nullptr && e->sourceExists(f);
 }
 
 /// ¿Tiene audio? (una cámara de GStreamer con `audio` apagado, no).
 bool conAudio(const std::string& f) {
     if (const auto fo = fotoUi()) return fo->mezcla.canal(f) != nullptr;
-    BroadcastEngine* e = motorApp();
+    ApiMotor* e = motorApp();
     if (e == nullptr) return false;
     const auto v = e->audioSources();
     return std::find(v.begin(), v.end(), f) != v.end();
@@ -86,7 +86,7 @@ nlohmann::json ajustesDe(const std::string& f) { return fuentes::ajustesDe(f); }
 /// El tipo del motor de una fuente ("" si no existe).
 std::string tipoDe(const std::string& f) {
     if (const auto fo = fotoUi()) return fo->tipoDe(f);
-    BroadcastEngine* e = motorApp();
+    ApiMotor* e = motorApp();
     return e != nullptr ? e->sourceTypeId(f) : std::string();
 }
 
@@ -417,7 +417,7 @@ std::string RackManager::setOutput(const std::string& source, const std::string&
     if (!hay) return ba::i18n::traducir("rack", "esa salida de audio ya no esta");
     monitorId_ = device;
     monitorName_ = nombre;
-    if (BroadcastEngine* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(device);
+    if (ApiMotor* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(device);
     it->second->rack->addOutput(device, nombre);
     syncMonitors();
     saveMonitor();
@@ -440,7 +440,7 @@ std::string RackManager::setAuriculares(const std::string& device) {
     monitorId_ = device;
     monitorName_ = nombre;
     // La escucha del motor (PFL, voces) sale por el mismo lado.
-    if (BroadcastEngine* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(device);
+    if (ApiMotor* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(device);
     syncMonitors();
     saveMonitor();
     emit changed();
@@ -493,7 +493,7 @@ void RackManager::restoreMonitor() {
             monitorName_ = name.empty() ? n : name;
         }
     if (!monitorId_.empty())
-        if (BroadcastEngine* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(monitorId_);
+        if (ApiMotor* e = motorApp(); e != nullptr && e->motor() != nullptr) e->motor()->escuchaDispositivo(monitorId_);
     syncMonitors();
 }
 
@@ -508,7 +508,7 @@ json RackManager::audioSources() const {
     std::vector<std::string> nombres;
     if (const auto fo = fotoUi()) {
         nombres = fo->mezcla.nombres();
-    } else if (BroadcastEngine* e = motorApp()) {
+    } else if (ApiMotor* e = motorApp()) {
         nombres = e->audioSources();
     } else {
         return list;
@@ -604,7 +604,7 @@ json RackManager::estudio() const {
         if (const auto fo = fotoUi()) {
             vol = fo->mezcla.volumen(nombre);
             mudo = fo->mezcla.mudo(nombre);
-        } else if (BroadcastEngine* eng = motorApp()) {
+        } else if (ApiMotor* eng = motorApp()) {
             vol = eng->sourceVolume(nombre);
             mudo = eng->sourceMuted(nombre);
         }
@@ -1161,7 +1161,7 @@ struct RackManager::Toma {
     int toma = 0; ///< la del motor (escucharEntrada)
     std::shared_ptr<anillo::Ring> ring = std::make_shared<anillo::Ring>();
     ~Toma() {
-        BroadcastEngine* e = motorApp();
+        ApiMotor* e = motorApp();
         if (toma != 0 && e != nullptr && e->motor() != nullptr) e->motor()->dejarDeEscucharEntrada(toma);
     }
 };
@@ -1296,7 +1296,7 @@ std::set<std::string> RackManager::fuentesConRack() const {
 }
 
 void RackManager::sincronizarEntradas() {
-    BroadcastEngine* eng = motorApp();
+    ApiMotor* eng = motorApp();
     if (eng == nullptr || eng->motor() == nullptr) return;
     std::set<std::string> quiero;
     for (const auto& [nombre, f] : filters_) {

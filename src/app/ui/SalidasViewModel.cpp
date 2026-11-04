@@ -317,7 +317,7 @@ escenas::Conmutador& SalidasViewModel::conmutadorActivo() const {
 }
 
 QString SalidasViewModel::activa() const {
-    return qs(activaId().empty() ? std::string(BroadcastEngine::kSalidaPorOmision) : activaId());
+    return qs(activaId().empty() ? std::string(ApiMotor::kSalidaPorOmision) : activaId());
 }
 
 void SalidasViewModel::setActiva(const QString& id) {
@@ -547,3 +547,5 @@ QStringList SalidasViewModel::textosDePlaca(const QString& usado) {
 }
 
 } // namespace ba::app
+
+#include "moc_SalidasViewModel.cpp"

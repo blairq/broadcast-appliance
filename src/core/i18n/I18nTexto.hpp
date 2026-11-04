@@ -4,7 +4,7 @@
 // Lo mínimo para marcar y traducir textos, sin nada pesado: solo <string> e
 // <initializer_list>. Lo incluyen cientos de archivos, así que acá no entra nada más
 // (ni el perfil de un idioma, ni json, ni <filesystem>): eso está en I18nIdioma.hpp y en
-// I18nPerfiles.hpp. El cuadro completo del sistema de idiomas, en I18n.hpp.
+// I18nPerfiles.hpp. El cuadro completo del sistema de idiomas, en I18n.cpp.
 //
 // Marcar un texto para traducir (lo encuentra `make i18n-actualizar`, con lupdate):
 //   ba::i18n::traducir("contexto", "Texto en español")

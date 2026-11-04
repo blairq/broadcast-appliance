@@ -106,3 +106,5 @@ nlohmann::json EnergiaAire::estado() const {
 }
 
 } // namespace ba::app
+
+#include "moc_EnergiaAire.cpp"

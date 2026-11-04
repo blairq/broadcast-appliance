@@ -60,7 +60,7 @@ namespace ba::app::mcp {
 
 namespace {
 
-json listToJson(const std::vector<BroadcastEngine::ListItem>& items) {
+json listToJson(const std::vector<ApiMotor::ListItem>& items) {
     json out = json::array();
     for (const auto& i : items) {
         json e{{"name", i.name}, {"value", i.value}};
@@ -263,7 +263,7 @@ void McpService::registerSystemTools() {
         MonitoresModel* mon = vm_.monitoresModelo();
         t.run = [&rt, reg, mon](const json&, Done done) {
             json encoders = json::array();
-            for (const auto& enc : BroadcastEngine::videoEncoders())
+            for (const auto& enc : ApiMotor::videoEncoders())
                 encoders.push_back(
                     {{"id", enc.id}, {"name", enc.name}, {"codec", enc.codec}, {"hardware", enc.hardware}});
             const QStorageInfo disk(QString::fromStdWString((rt.dataRoot() / "Recordings").wstring()));
@@ -281,7 +281,7 @@ void McpService::registerSystemTools() {
                      {"audioInputs", reg ? delRegistro(*reg, "microfono") : listToJson(ba::app::audio::entradasDeAudio(rt.engine()))},
                      {"audioOutputs", reg ? delRegistro(*reg, "salida_audio") : json::array()},
                      {"videoDevices", reg ? delRegistro(*reg, "camara_local") : listToJson(ba::app::video::camarasDelEquipo(rt.engine()))},
-                     {"gpu", {{"renderer", BroadcastEngine::graphicsDeviceName()}, {"cards", gpusJson()}}},
+                     {"gpu", {{"renderer", ApiMotor::graphicsDeviceName()}, {"cards", gpusJson()}}},
                      {"videoEncoders", encoders}}));
         };
         core_.addTool(std::move(t));
@@ -323,7 +323,7 @@ void McpService::registerSystemTools() {
         dispositivos::Dispositivos* reg = vm_.equipos();
         t.run = [&rt, reg](const json&, Done done) {
             if (reg == nullptr) {
-                BroadcastEngine& e = rt.engine();
+                ApiMotor& e = rt.engine();
                 return done(ToolResult().data(json{{"inputs", listToJson(ba::app::audio::entradasDeAudio(e))},
                                                    {"outputs", json::array()}}));
             }

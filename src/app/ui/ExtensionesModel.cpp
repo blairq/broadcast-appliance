@@ -219,3 +219,5 @@ void ExtensionesModel::prender(const QString& id) {
 }
 
 } // namespace ba::app
+
+#include "moc_ExtensionesModel.cpp"

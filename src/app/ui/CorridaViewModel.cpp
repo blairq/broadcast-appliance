@@ -254,3 +254,5 @@ CorridaViewModel::Publico CorridaViewModel::publico() const {
 }
 
 } // namespace ba::app
+
+#include "moc_CorridaViewModel.cpp"

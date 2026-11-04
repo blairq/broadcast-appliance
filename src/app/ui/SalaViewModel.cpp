@@ -331,3 +331,5 @@ void SalaViewModel::publicarParticipantes(control::BusEventos& bus) const {
 }
 
 } // namespace ba::app
+
+#include "moc_SalaViewModel.cpp"

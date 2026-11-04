@@ -1,5 +1,5 @@
 // ============================================================================
-// src/app/arranque/AppRuntime.cpp — ver AppRuntime.hpp
+// src/app/arranque/AppRuntime.cpp — ver RuntimeConfig.hpp
 //
 // El núcleo de la fachada: leer la configuración, arrancar y cerrar, el hilo dueño, las
 // vueltas (ticControl, ticMotor, latirInterfaz), guardar, y lo que delega en cada pieza.
@@ -119,7 +119,7 @@ LauncherSettings& AppRuntime::launcher(std::source_location donde) {
     return launcher_;
 }
 
-BroadcastEngine& AppRuntime::engine(std::source_location donde) {
+ApiMotor& AppRuntime::engine(std::source_location donde) {
     engine_->turno().contarDirecta(donde);
     return *engine_;
 }
@@ -132,7 +132,9 @@ const TurnoMotor& AppRuntime::turno() const { return engine_->turno(); }
 
 void AppRuntime::alFallarMotor(std::function<void(const AvisoMotor&)> fn) { engine_->alFallarMotor(std::move(fn)); }
 
-BroadcastEngine& AppRuntime::motorEntreHilos() { return *engine_; }
+ApiMotor& AppRuntime::motorEntreHilos() { return *engine_; }
+
+ApiMotor& AppRuntime::motorPropio() const { return *engine_; }
 
 OperatorFeed& AppRuntime::operatorFeed() { return *operator_; }
 

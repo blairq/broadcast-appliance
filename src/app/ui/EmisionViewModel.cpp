@@ -3,6 +3,7 @@
 #include "ui/EmisionViewModel.hpp"
 
 #include "arranque/RuntimeMotor.hpp"
+#include "audio/LoudnessPrograma.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "control/BusEventos.hpp"
 #include "emision/RetornosInvitados.hpp"
@@ -52,7 +53,7 @@ struct Grabar {
 /// Cómo salió salir al aire (BroadcastEngine::ultimoInicio).
 struct Transmitir {
     bool ok = false;
-    BroadcastEngine::Inicio inicio{};
+    ApiMotor::Inicio inicio{};
     std::string activo, error;
 };
 
@@ -210,14 +211,14 @@ void EmisionViewModel::startStreaming(const QString& server, const QString& key)
                     emit vm.notify(tr("Al aire"), "ok");
             }));
             t.inicio = rt.engine().ultimoInicio();
-            *igual = t.ok && t.inicio == BroadcastEngine::Inicio::YaIgual;
+            *igual = t.ok && t.inicio == ApiMotor::Inicio::YaIgual;
             t.activo = rt.engine().destinoActivo();
             t.error = rt.lastError();
             return t;
         },
         [this, server, key](const Transmitir& t) {
             if (t.ok) return; // lo dice la respuesta del motor (aLaVista)
-            if (t.inicio == BroadcastEngine::Inicio::YaOtroDestino) {
+            if (t.inicio == ApiMotor::Inicio::YaOtroDestino) {
                 emit pedirCambioDestino(qs(t.activo), server, key);
             } else {
                 emit notify(tr("No se pudo transmitir: %1").arg(qs(t.error)), "error");
@@ -360,7 +361,7 @@ void EmisionViewModel::isoTodasUi(bool grabar) {
     pedir(
         "iso_todas",
         [](AppRuntime& rt) {
-            BroadcastEngine& motor = rt.engine();
+            ApiMotor& motor = rt.engine();
             std::string errores;
             for (const std::string& f : motor.sceneSources(motor.currentScene())) {
                 bool ya = false;
@@ -467,3 +468,5 @@ nlohmann::json EmisionViewModel::saludSerie(const std::string& destino, int minu
 }
 
 } // namespace ba::app
+
+#include "moc_EmisionViewModel.cpp"

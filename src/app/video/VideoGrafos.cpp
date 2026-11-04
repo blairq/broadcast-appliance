@@ -15,7 +15,7 @@
 #include "diag/Registro.hpp"
 #include "fault/ModoSeguro.hpp"
 #include "i18n/I18nTexto.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/FotoMotor.hpp"
 #include "emision/TurnoMotor.hpp"
 #include "Piezas.hpp" // motor::redElectricaDelSistema, cadenciasDeLaRed
@@ -270,7 +270,7 @@ bool VideoGrafos::tieneSenal(const json& st) {
 }
 
 bool VideoGrafos::esEntrada(const std::string& n) const {
-    BroadcastEngine& e = rt_.engine();
+    ApiMotor& e = rt_.engine();
     const std::string type = e.sourceTypeId(n);
     const json s = json::parse(e.sourceSettingsJson(n), nullptr, false);
     // Los micrófonos y el audio de los invitados también son ba_gst_fuente, pero
@@ -3086,7 +3086,7 @@ void VideoGrafos::publicarVista() {
 void VideoGrafos::aportar(FotoMotor& foto, unsigned partes) {
     // Corre en el dueño, con el turno (AppRuntime::publicarFoto): lee el motor y cfg_.
     if ((partes & FotoMotor::Video) != 0) foto.video = vista_;
-    BroadcastEngine& e = rt_.engine();
+    ApiMotor& e = rt_.engine();
     // Las fuentes que miran las cámaras y las entradas (con su tamaño, que llega cuando la
     // cámara arranca: se rearma también con la revisión de cada 1,5 s).
     if (FotoMotor::rearmar(FotoMotor::kFuentesVideo, partes)) {
@@ -3170,3 +3170,5 @@ void VideoGrafos::cargar() {
 }
 
 } // namespace ba::app::video
+
+#include "moc_VideoGrafos.cpp"

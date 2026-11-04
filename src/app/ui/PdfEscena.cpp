@@ -341,3 +341,5 @@ void PdfEscena::tic() {
 }
 
 } // namespace ba::app
+
+#include "moc_PdfEscena.cpp"

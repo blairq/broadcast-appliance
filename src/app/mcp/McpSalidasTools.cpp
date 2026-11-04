@@ -204,7 +204,7 @@ void McpService::registerSalidasTools() {
                 std::string err;
                 const std::string id = core_.resolverSalida(pedida, err); // "" = la por omisión
                 if (!err.empty()) return done(ToolResult::error(err));
-                s.setActiva(QString::fromStdString(id.empty() ? std::string(BroadcastEngine::kSalidaPorOmision) : id));
+                s.setActiva(QString::fromStdString(id.empty() ? std::string(ApiMotor::kSalidaPorOmision) : id));
             }
             const QVariantMap datos = s.activaDatos();
             done(ToolResult().data(json{{"activa", s.activa().toStdString()},

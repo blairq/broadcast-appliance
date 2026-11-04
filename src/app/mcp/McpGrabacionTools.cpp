@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/mcp/McpGrabacionTools.cpp — Herramientas MCP del motor: lo que oye cada invitado, el disco, las pruebas con --test (diag_*), la grabación (remux, ajustes, por entrada), los destinos extra, la repetición y la señal limpia.
 //
-// Una familia de McpService::registerTools() (ver mcp/McpRegistro.hpp: el orden en que
+// Una familia de McpService::registerTools() (ver mcp/McpService.hpp: el orden en que
 // se registran es el de siempre). El texto de cada herramienta es el que estaba en
 // McpService.cpp.
 // ============================================================================
@@ -12,7 +12,28 @@
 #endif
 #include <windows.h> // diag_probar_caida: HeapCreate
 #endif
-#include "mcp/McpRegistro.hpp"
+#include "fault/ModoSeguro.hpp"
+#include "mcp/McpFamilia.hpp"
+#include "Piezas.hpp"
+#include <QCoreApplication>
+#include <QTimer>
+#include "diag/Acoples.hpp" // el bloque de BA_DIAG_ACOPLES (diag_acoples): la Mac compila sin él
+#include "fault/FallasProgramadas.hpp"
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "arranque/RuntimeMotor.hpp"
+#include "emision/RetornosInvitados.hpp"
+#include "emision/VentanillaMotor.hpp"
+#include "platform/Hilo.hpp"
+#include "ui/EmisionViewModel.hpp"
+#include "ui/EscenasViewModel.hpp"
 
 using ::ba::app::errorDe;
 
@@ -565,7 +586,7 @@ void McpService::registerGrabacionTools() {
             vm.ventanilla().pedir(
                 &vm, "grabacion_individual",
                 [&rt, arrancar, parar, todas = a.value("todas", false)]() mutable {
-                    BroadcastEngine& e = rt.engine();
+                    ApiMotor& e = rt.engine();
                     if (todas) {
                         // Las de la escena al aire que NO se están grabando ya (como «grabar todas» de la
                         // interfaz): pedirlas de nuevo daba un error por cada una.
@@ -592,7 +613,7 @@ void McpService::registerGrabacionTools() {
                                                  }()},
                                                 {"audioPropio", g.audioPropio},
                                                 {"activa", g.activa}});
-                    return json{{"grabando", grabando}, {"noSePudo", fallaron}, {"tope", BroadcastEngine::kMaxIndividuales}};
+                    return json{{"grabando", grabando}, {"noSePudo", fallaron}, {"tope", ApiMotor::kMaxIndividuales}};
                 },
                 [done](const json& r) { done(ToolResult().data(r)); });
         };

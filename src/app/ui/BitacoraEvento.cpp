@@ -448,3 +448,5 @@ void BitacoraEvento::armar() {
 }
 
 } // namespace ba::app
+
+#include "moc_BitacoraEvento.cpp"

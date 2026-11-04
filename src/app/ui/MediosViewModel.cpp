@@ -438,3 +438,5 @@ QString MediosViewModel::rutaAbsoluta(const QString& relativa) const {
 bool MediosViewModel::sePuedeDesarmar(const QString& ruta) const { return medios::sePuedeDesarmar(ruta); }
 
 } // namespace ba::app
+
+#include "moc_MediosViewModel.cpp"

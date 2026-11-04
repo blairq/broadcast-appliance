@@ -384,3 +384,5 @@ void PadronViewModel::pedirInvitacion(const QVariantMap& quien, bool remoto, std
 }
 
 } // namespace ba::app
+
+#include "moc_PadronViewModel.cpp"

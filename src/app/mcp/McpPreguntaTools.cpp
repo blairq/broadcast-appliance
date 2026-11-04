@@ -27,7 +27,7 @@
 #include <QJsonObject>
 
 #include "arranque/RuntimeMotor.hpp"
-#include "emision/BroadcastEngine.hpp"
+#include "emision/ApiMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "mcp/McpCore.hpp"
 #include "ui/ConferenceClient.hpp"
@@ -35,6 +35,7 @@
 #include "ui/EventoViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/AsambleaViewModel.hpp"
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/Quorum.hpp"
 #include "control/BusEventos.hpp"

@@ -124,3 +124,5 @@ void ScopeVista::mirar() {
 }
 
 } // namespace ba::app
+
+#include "moc_ScopeVista.cpp"

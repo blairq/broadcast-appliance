@@ -533,3 +533,5 @@ std::string VideoViewModel::legalizar() const { return v().value("legalizar", st
 json VideoViewModel::estudioJson() const { return v().value("estudio", json::object()); }
 
 } // namespace ba::app
+
+#include "moc_VideoViewModel.cpp"

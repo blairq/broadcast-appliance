@@ -800,3 +800,5 @@ QString GuionViewModel::medioPath(const QString& rel) const {
 }
 
 } // namespace ba::app
+
+#include "moc_GuionViewModel.cpp"

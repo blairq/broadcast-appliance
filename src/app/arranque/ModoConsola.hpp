@@ -19,7 +19,7 @@
 //   La clave de transmision NUNCA va en el archivo: se lee de la variable de
 //   entorno que indique `stream.keyEnv` (por defecto BA_STREAM_KEY).
 //
-// Hilos: el bucle de runOperate es el dueño del motor (arranque/AppRuntime.hpp); las
+// Hilos: el bucle de runOperate es el dueño del motor (arranque/RuntimeConfig.hpp); las
 // señales (SIGINT/SIGTERM) solo prenden la marca de cierre (AppRuntime::requestStop).
 // ============================================================================
 

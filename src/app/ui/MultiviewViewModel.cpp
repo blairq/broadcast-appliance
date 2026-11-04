@@ -223,3 +223,5 @@ int MultiviewViewModel::cerrarVentanas() {
 }
 
 } // namespace ba::app
+
+#include "moc_MultiviewViewModel.cpp"
