@@ -1,0 +1,14 @@
+# clang-tidy del proyecto: por ahora SOLO misc-include-cleaner («incluí lo que usás, no
+# incluyas lo que no usás»), la regla del diseño físico (docs/local/PLAN-DISENO-FISICO.md:
+# un header es un contrato mínimo). No es parte del build ni de `make test`: se corre a mano
+# sobre los archivos que cambiaron, con `make lint-includes` (tools/diag/lint-includes.py).
+Checks: '-*,misc-include-cleaner'
+# Solo lo nuestro (src/); extern/, third_party/ y lo generado (moc, _autogen) no.
+HeaderFilterRegex: '.*/src/(core|app|motor|gateway|emisor|launcher|grafico|gst-plugins|tablero-web|web|lspdsp)/.*'
+WarningsAsErrors: ''
+CheckOptions:
+  # Headers que se incluyen a propósito por un «paraguas» o que son de terceros con su propia
+  # forma de incluirse: Qt (<QString> trae qstring.h), GStreamer/GLib (gst/gst.h), nlohmann
+  # (json.hpp trae detail/…), mbedtls, libwebrtc y lo generado por moc/uic/rcc.
+  misc-include-cleaner.IgnoreHeaders: 'Qt[A-Za-z]*/.*;q[a-z0-9_]+\.h;Q[A-Za-z0-9]+;.*_autogen/.*;moc_.*;ui_.*\.h;gst/.*;glib/.*;glib\.h;gobject/.*;gio/.*;nlohmann/detail/.*;mbedtls/.*;psa/.*;api/.*;rtc_base/.*;modules/.*;third_party/.*;sdk/.*'
+  misc-include-cleaner.DeduplicateFindings: true
