@@ -105,7 +105,7 @@ Queda por hacer (ver [`docs/historia/PLAN_MULTIPLATAFORMA.md`](../../docs/histor
 .
 ├── CMakeLists.txt            # build raíz (C++20, FetchContent, layout §5.1)
 ├── versions.cmake            # versiones FIJADAS de dependencias de terceros
-├── Makefile                  # envuelve a CMake (dev/build/prod/docs/test/release/win)
+├── Makefile, mk/             # envuelven a CMake (compilar/test/app/paquetes/publicar; el resto por tema en mk/)
 ├── pyproject.toml            # metadatos + config de pytest (suite de invariantes)
 ├── requirements-dev.txt      # pytest (para la suite Python)
 ├── readthedocs.yaml          # config de ReadTheDocs (Sphinx)
@@ -162,7 +162,7 @@ compila en Linux y Windows; "plataforma-gated (Windows)" = solo se trae/usa bajo
 | LSP Plugins | `1.2.35` | LGPL-3.0 | Módulos del rack de audio (`plugins/lsp/`; Windows: compilado desde fuente) |
 | GStreamer | `1.28.7` (Linux desde fuente; macOS framework oficial) / `1.26.11` (Windows, oficial MSVC) | LGPL-2.1 (con plugins GPL) | Motor de emisión |
 | Qt 6 | `6.6.3` | LGPL-3.0 (dual) | Interfaz (vendoreado; Windows y Linux) |
-| Spout2 (SDK) | `2.0.0.0` | — | Se descarga (Windows) pero el código no lo usa: el video entre procesos va por memoria compartida (`ipc/SpoutTransport`) |
+| Spout2 (SDK) | `2.0.0.0` | — | No se descarga ni lo usa el código: el video entre procesos va por memoria compartida (`ipc/SpoutTransport`) |
 | libwebrtc | `M123` (`123.0.6312.5`) | BSD-3-Clause | Gateway (precompilado de Shiguredo; Windows y Linux) |
 | cloudflared | `2024.11.0` | — | Túnel (binario por plataforma) |
 

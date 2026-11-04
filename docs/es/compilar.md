@@ -14,11 +14,11 @@ build las trae por `FetchContent` (self-contained) en la versión fijada en
 host.
 
 Los **assets de despliegue** de Windows (los del bloque "plataforma-gated" de
-[Dependencias](arquitectura.md#dependencias): Qt, GStreamer, libwebrtc M123, Spout2,
-cloudflared, VC++ redist y LSP) no se instalan a mano ni por `FetchContent`:
+[Dependencias](arquitectura.md#dependencias): Qt, GStreamer, libwebrtc M123,
+cloudflared y LSP) no se instalan a mano ni por `FetchContent`:
 `make deps-win` los descarga a `extern/` (gitignored, idempotente, verificado
-por SHA-256). Hay targets individuales `make deps-qt`, `deps-gstreamer-win`, `deps-webrtc`, `deps-spout`,
-`deps-cloudflared`, `deps-vcredist` y `deps-lsp` (y `deps-status`/`deps-clean`).
+por SHA-256). Hay targets individuales `make deps-qt`, `deps-gstreamer-win`, `deps-webrtc`,
+`deps-cloudflared` y `deps-lsp-win` (y `deps-status`/`deps-clean`; `make pasos` los lista).
 
 ### Herramientas obligatorias
 
@@ -186,16 +186,39 @@ secas muestra la ayuda.
 | Comando | Qué hace |
 |---|---|
 | `make deps` | lo de terceros para compilar acá, en `extern/` (`deps-mac`, `deps-linux`, `deps-windows`) |
-| `make compilar` | compila en `build/`, sin tests |
-| `make probar` | los tests, con caché (`probar-rapido` sin los lentos, `probar-todo` sin caché) |
-| `make app` | el programa armado para usarlo acá (Mac: la `.app` en ~25 s; `app-mac-de-cero` la rehace) |
+| `make compilar` | compila en `build/`, sin tests (configura CMake solo si hace falta) |
+| `make test` / `make probar` | compila lo que cambió y corre solo los tests cuya huella cambió (`test-rapido` sin los lentos; `test-explicar` dice qué correría y por qué) |
+| `make test-completo` / `make probar-todo` | todos los tests, sin caché (antes de publicar) |
+| `make app` | el programa armado para usarlo acá (Mac: la `.app` en ~14 s sin cambios; `app-mac-de-cero` la rehace) |
 | `make paquete-mac` / `paquete-linux` / `paquete-windows` | un paquete en `dist/` con su `.sha256`; Linux y Windows en Docker si la máquina es una Mac |
 | `make paquetes` | los tres |
 | `make publicar` | **todo**: los tres paquetes de cero, con todos los tests, y los sube a un release de GitHub |
 
 Los nombres de antes (`build`, `test`, `release`, `win`, `test-win`,
 `dist-win`, `macos`, `dmg-macos`…) siguen: son los pasos sueltos que usan los
-comandos de arriba, Docker y el CI. `make pasos` los lista.
+comandos de arriba, Docker y el CI. `make pasos` los lista. El
+[`Makefile`](../../Makefile) tiene los comandos del día; el resto está por tema en
+[`mk/`](../../mk) (versiones y SHA-256 de lo de terceros, deps, desarrollo, linux,
+mac, windows, tablero-web, modelos, publicar).
+
+**Lo óptimo va solo, sin flags a mano:**
+
+- `-j`: los núcleos de la máquina; si está el árbitro de agentes
+  (`~/.claude/arbitro/bin/turno`), el que da `turno jobs`. `JOBS=n` lo fija.
+- CMake se configura solo si hace falta
+  ([`tools/ci/preparar-build.sh`](../../tools/ci/preparar-build.sh)): si `build/`
+  no está configurado o cambió una opción pedida (`PERFILAR`, `DIAG_ACOPLES`…).
+  Si no, `cmake --build` vuelve a configurar solo cuando cambia un `CMakeLists.txt`.
+  `make app` y `make test` no cambian las opciones de un `build/` que ya existe.
+- En la Mac: Ninja, `arm64` y macOS 13.3 en todo configure (así un worktree comparte
+  la caché de ccache con el árbol principal) y `ZERO_AR_DATE=1` (enlaces
+  reproducibles: reenlazar lo mismo da el mismo binario y la caché de tests no
+  vuelve a correrlo).
+- En un worktree de git, `extern/` y `build/modelo-mac` son enlaces a los del
+  árbol principal (los crea el Makefile si faltan).
+- ccache: lo usa el `CMakeLists.txt` si está en el PATH (también en Docker y el CI).
+- Linux y Windows desde una Mac: `make paquete-linux` / `paquete-windows`, en
+  Docker ([`tools/ci/compilar-en-docker.sh`](../../tools/ci/compilar-en-docker.sh)).
 
 ### (a) Linux nativo
 

@@ -84,7 +84,7 @@ Al final escribe `manifest.json` (la verificación de integridad del launcher).
 
 `make app-mac-de-cero` arma todo de cero (borra `release/` y la .app): unos 2,5
 minutos. Para probar un cambio, `make app` hace lo mismo sin
-borrar nada y tarda unos 25 segundos:
+borrar nada y tarda unos 14 segundos sin cambios (si `build/` no está configurado, por ejemplo en un worktree nuevo, lo configura primero):
 
 - firma solo los binarios nuevos o cambiados, en paralelo
   (`tools/deps/firmar-macos.sh`, con su cache en `build/firmas-*.txt`);

@@ -105,7 +105,7 @@ Still to do (see [`docs/historia/PLAN_MULTIPLATAFORMA.md`](../../docs/historia/P
 .
 ├── CMakeLists.txt            # root build (C++20, FetchContent, §5.1 layout)
 ├── versions.cmake            # PINNED versions of third-party dependencies
-├── Makefile                  # wraps CMake (dev/build/prod/docs/test/release/win)
+├── Makefile, mk/             # wrap CMake (compilar/test/app/paquetes/publicar; the rest by topic in mk/)
 ├── pyproject.toml            # metadata + pytest config (invariants suite)
 ├── requirements-dev.txt      # pytest (for the Python suite)
 ├── readthedocs.yaml          # ReadTheDocs config (Sphinx)
@@ -162,7 +162,7 @@ on Linux and Windows; "platform-gated (Windows)" = only fetched/used under
 | LSP Plugins | `1.2.35` | LGPL-3.0 | Audio rack modules (`plugins/lsp/`; Windows: built from source) |
 | GStreamer | `1.28.7` (Linux from source; macOS official framework) / `1.26.11` (Windows, official MSVC) | LGPL-2.1 (with GPL plugins) | Broadcast engine |
 | Qt 6 | `6.6.3` | LGPL-3.0 (dual) | UI (vendored; Windows and Linux) |
-| Spout2 (SDK) | `2.0.0.0` | — | Downloaded (Windows) but unused by the code: video between processes goes through shared memory (`ipc/SpoutTransport`) |
+| Spout2 (SDK) | `2.0.0.0` | — | Not downloaded nor used by the code: video between processes goes through shared memory (`ipc/SpoutTransport`) |
 | libwebrtc | `M123` (`123.0.6312.5`) | BSD-3-Clause | Gateway (Shiguredo prebuilt; Windows and Linux) |
 | cloudflared | `2024.11.0` | — | Tunnel (per-platform binary) |
 

@@ -33,6 +33,10 @@ Configurar y compilar
    cmake -S . -B build
    cmake --build build -j4
 
+Lo normal es ``make compilar``: hace lo mismo con el ``-j`` de la máquina (o el
+del árbitro de agentes) y solo vuelve a configurar si hace falta
+(``tools/ci/preparar-build.sh``; ver ``docs/es/compilar.md``).
+
 El build por defecto va a **Release** (el artefacto portable es Release).
 Si no se pide nada, `CMAKE_BUILD_TYPE` se fija a `Release`.
 
@@ -81,7 +85,7 @@ nada que compilar casi no rehace nada, y cada paso dice qué salteó y por qué
 (líneas ``[atajo]``, ``[instalar]``, ``[tests-cache]``). Todo por **contenido**
 (``tools/ci/huellas.py``), nunca por fechas:
 
-- ``deps-win`` / ``deps-linux``: no se verifican si no cambiaron ``Makefile``,
+- ``deps-win`` / ``deps-linux``: no se verifican si no cambiaron ``Makefile``, ``mk/``,
   ``versions.cmake``, ``tools/deps/``, ``cmake/toolchains/`` ni lo que hay en
   ``extern/`` (qué dependencias y sus ``.version``). La clave queda en
   ``extern/.atajos/``.
