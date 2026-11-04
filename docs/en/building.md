@@ -333,12 +333,8 @@ Two suites:
   `test_audio_rack`, `test_audio_modules`),
   UI (`test_dashboard_model`,
   `test_qml_syntax_*`) and gateway (`test_room`, `test_gateway_http`,
-  `test_wireguard`, `test_ipstack`, `test_webrtc_loopback`,
-  `test_gateway_integration`).
-
-  `test_gateway_integration` (the legacy test against the Windows SDK) is
-  reported as **Skipped**; real WebRTC on Linux is tested by
-  `test_webrtc_loopback`. Details in [`docs/desarrollo/tests.rst`](../../docs/desarrollo/tests.rst).
+  `test_wireguard`, `test_ipstack`, `test_webrtc_loopback`). Real WebRTC is
+  tested by `test_webrtc_loopback`. Details in [`docs/desarrollo/tests.rst`](../../docs/desarrollo/tests.rst).
 
 - **Python (pytest)** — repository invariants suite in
   [`tests/`](../../tests/) (docs, packaging, pins, C++ tests):

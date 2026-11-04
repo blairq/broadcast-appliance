@@ -26,8 +26,8 @@ Ejecutar
    ctest --test-dir build
 
 Estado verificado (último build conocido bueno, 2026-09-18): **30 tests,
-29 Passed + 1 Skipped** (``test_gateway_integration``: el test viejo del SDK de
-Windows; el WebRTC real de Linux lo cubre ``test_webrtc_loopback``).
+29 Passed + 1 Skipped** (``test_gateway_integration``, borrado el 2026-11-04: nunca
+corría; el WebRTC real lo cubre ``test_webrtc_loopback``).
 ``test_ba_sources_real`` solo se registra si libobs está en ``extern/obs-linux``.
 
 Caché de tests, rápidos y lentos
@@ -182,8 +182,6 @@ Viven en `src/gateway/tests/`:
   espectadores: una PeerConnection recvonly recibe la camara (y otra la
   pantalla) del invitado reenviadas codificadas, sin re-codificar. SKIP (77)
   sin red.
-- `test_gateway_integration` — el test historico contra el SDK de Windows;
-  sin ese SDK se reporta *Skipped*.
 
 Tests de la interfaz (Proceso A)
 --------------------------------
