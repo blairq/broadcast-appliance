@@ -58,6 +58,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QVariant> // QVariantList de los Q_INVOKABLE: el moc necesita el tipo completo
 
 #include <nlohmann/json.hpp>
 
