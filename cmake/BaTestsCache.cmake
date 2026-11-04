@@ -25,7 +25,7 @@
 # el json). Medido en la Mac (ctest -j1, Release) el 2026-10-26.
 set(BA_TESTS_LENTOS
     test_retraso_propio test_composicion test_motor_app test_motor test_salidas
-    test_grafico_proceso test_motor_retornos test_qml_syntax test_cloudflared
+    test_grafico_proceso test_motor_retornos test_cloudflared
     test_superres_vivo test_sondas test_baanillo test_motor_salidas)
 
 # Los de TIEMPO REAL (lazos de audio, el motor con su reloj, WebRTC de punta a punta):
