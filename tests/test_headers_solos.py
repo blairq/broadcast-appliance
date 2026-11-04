@@ -40,6 +40,7 @@ import sys
 
 RAIZ = pathlib.Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(RAIZ / "tools" / "diag"))
+import banderas  # noqa: E402
 import niveles  # noqa: E402
 
 # Los headers (relativos a src/) que hoy no compilan solos. SOLO PUEDE BAJAR.
@@ -98,7 +99,10 @@ def targets_de(comp: niveles.Componente) -> list[str]:
 
 
 def argumentos(e: dict) -> list[str]:
-    args = e.get("arguments") or shlex.split(e["command"])
+    """Las banderas del TU sin el lanzador, la salida, la fuente ni el header precompilado
+    (tools/diag/banderas.py): el header se compila SOLO, sin lo que el PCH ya trajo. Lo que se
+    saca no entra en la clave de la caché: con PCH o sin él, la misma clave."""
+    args = banderas.sin_lanzador(e.get("arguments") or shlex.split(e["command"]))
     out, saltar = [], False
     fuente = pathlib.Path(e["directory"], e["file"]).resolve()
     for i, a in enumerate(args):
@@ -118,9 +122,7 @@ def argumentos(e: dict) -> list[str]:
         except (OSError, ValueError):
             pass
         out.append(a)
-    if out and pathlib.Path(out[0]).name in ("ccache", "sccache"):
-        out = out[1:]
-    return out
+    return banderas.sin_pch(banderas.sin_lanzador(out))
 
 
 # --- un header -----------------------------------------------------------------------------
@@ -325,6 +327,33 @@ def test_las_flags_sacan_salida_fuente_y_ccache():
     e = {"directory": "/b", "file": "/s/x.cpp",
          "command": "/usr/bin/ccache /usr/bin/c++ -DX=1 -I/s -O3 -o a/x.cpp.o -c /s/x.cpp -MD -MT a -MF a.d"}
     assert argumentos(e) == ["/usr/bin/c++", "-DX=1", "-I/s", "-O3"]
+
+
+def test_las_flags_sacan_el_header_precompilado():
+    """Con PCH (cmake/BaPch.cmake) el comando trae el .pch y el -include de cmake_pch.hxx: el
+    header se compila sin eso (si no, no se ven los includes que le faltan) y con la misma clave
+    de caché que sin PCH."""
+    sin = "/usr/bin/c++ -DX=1 -I/s -O3 -o a/x.cpp.o -c /s/x.cpp"
+    pch = "/b/d/CMakeFiles/ba_pch_qt.dir/cmake_pch.hxx"
+    casos = [
+        # clang (Mac): lo que escribe CMake, y ccache con sus clave=valor adelante.
+        "/usr/bin/ccache sloppiness=include_file_ctime,pch_defines /usr/bin/c++ -DX=1 -I/s -O3 -Winvalid-pch "
+        f"-Xclang -include-pch -Xclang {pch}.pch -Xclang -include -Xclang {pch} -o a/x.cpp.o -c /s/x.cpp",
+        # gcc (Linux).
+        f"/usr/bin/c++ -DX=1 -I/s -O3 -Winvalid-pch -include {pch} -o a/x.cpp.o -c /s/x.cpp",
+    ]
+    base = argumentos({"directory": "/b", "file": "/s/x.cpp", "command": sin})
+    assert base == ["/usr/bin/c++", "-DX=1", "-I/s", "-O3"]
+    for c in casos:
+        e = {"directory": "/b", "file": "/s/x.cpp", "command": c}
+        assert argumentos(e) == base, c
+        assert _clave(argumentos(e), "c++") == _clave(base, "c++")
+    # Un -include que no es el del PCH se queda.
+    e = {"directory": "/b", "file": "/s/x.cpp", "command": "/usr/bin/c++ -include /s/config.h -c /s/x.cpp"}
+    assert argumentos(e) == ["/usr/bin/c++", "-include", "/s/config.h"]
+    # clang-cl.
+    assert banderas.sin_pch(["clang-cl", "/DX", "/Yucmake_pch.hxx", "/FpCMakeFiles/t.dir/cmake_pch.cxx.pch",
+                             "/FIC:/b/CMakeFiles/t.dir/cmake_pch.hxx", "/O2"]) == ["clang-cl", "/DX", "/O2"]
 
 
 # --- por partes, desde ctest ------------------------------------------------------------------
