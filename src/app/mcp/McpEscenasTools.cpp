@@ -1,12 +1,27 @@
 // ============================================================================
 // src/app/mcp/McpEscenasTools.cpp — Herramientas MCP del motor: escenas: listar, crear, copiar, ordenar, la transición, el bus de preview (armar, mirar, TAKE).
 //
-// Una familia de McpService::registerTools() (ver mcp/McpRegistro.hpp: el orden en que
+// Una familia de McpService::registerTools() (ver mcp/McpService.hpp: el orden en que
 // se registran es el de siempre). El texto de cada herramienta es el que estaba en
 // McpService.cpp.
 // ============================================================================
 
-#include "mcp/McpRegistro.hpp"
+#include "i18n/I18nTexto.hpp"
+#include "escenas/Conmutador.hpp"
+#include "mcp/McpService.hpp"
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "arranque/RuntimeMotor.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "mcp/InterfazMcp.hpp"
+#include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
 

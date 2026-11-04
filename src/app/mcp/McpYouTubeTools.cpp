@@ -16,6 +16,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/SalaViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
 
 namespace ba::app::mcp {

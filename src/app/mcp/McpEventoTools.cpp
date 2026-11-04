@@ -52,6 +52,7 @@
 #include "ui/HistoricoConsulta.hpp"
 #include "ui/HistoricoViewModel.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/EstadoAireViewModel.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;

@@ -11,8 +11,9 @@
 // se vacía junto con la interfaz). Las señales (notify, mostrarQr…) se emiten en
 // StudioViewModel.
 //
-// Trae los ViewModels que traía ui/StudioViewModel.hpp a quien lo incluía, para que cada
-// herramienta siga viendo los mismos modelos (el bus de eventos, quien lo usa lo incluye).
+// No trae los ViewModels de área (ui/AreasStudio.hpp, Ola 4): los declara, y cada herramienta
+// incluye el del área que usa (vm_.escenas() → ui/EscenasViewModel.hpp). Así tocar un
+// ViewModel de área recompila las herramientas que lo usan, no el MCP entero.
 // ============================================================================
 #pragma once
 
@@ -31,7 +32,6 @@
 #include <chrono>
 #include <cstdint>
 #include <functional>
-#include "ui/AreasStudio.hpp"
 
 #include <deque>
 #include <map>
@@ -221,6 +221,21 @@ class SourcesModel;
 class SourceTypesModel;
 class StudioViewModel;
 class VideoViewModel;
+
+// Los ViewModels de área (ui/AreasStudio.hpp): declarados; quien usa uno incluye su header.
+class AppViewModel;
+class AsambleaViewModel;
+class AsistenteViewModel;
+class ControlViewModel;
+class EmisionViewModel;
+class EscenasViewModel;
+class EscritorioViewModel;
+class EstadoAireViewModel;
+class ImagenViewModel;
+class MezclaViewModel;
+class MultiviewViewModel;
+class SalaViewModel;
+class SalidasViewModel;
 
 class InterfazMcp : public QObject {
    public:

@@ -123,7 +123,15 @@ class McpService : public QObject {
     void registerControlTools();
     void registerSalidasTools(); ///< salidas_listar, salida_crear/editar/borrar (McpSalidasTools.cpp)
     void registerVivosTools(); ///< cuentas_*, vivos_listar, vivo_crear, salida_destino_* (McpVivosTools.cpp)
-    // Las familias de registerTools(), en su orden (mcp/McpRegistro.hpp; cada una en su .cpp).
+    // Las familias de registerTools(): registerTools() (McpService.cpp) registra lo general
+    // (las categorías, la botonera, el control web, el guion, el tema, las preguntas, el
+    // sincronizador, el perfil y el estado) y después llama a cada una, SIEMPRE EN ESTE
+    // ORDEN (el de tools/list), cada una en su McpXTools.cpp: escenas y el bus de preview,
+    // las fuentes de cada escena, el audio de la mezcla, transmitir y grabar, los informes
+    // de la sesión, el debate entre dos, el recinto y las bancas, disco/diag_*/grabación/
+    // destinos/repetición/señal limpia, los ajustes. Son funciones llamadas, no registros por
+    // inicializadores estáticos (docs/local/inventario-autorregistro.md): mover o partir los
+    // archivos no cambia qué se registra ni en qué orden. Cada .cpp incluye lo que usa.
     void registerEscenasTools();
     void registerFuentesTools();
     void registerMezclaTools();

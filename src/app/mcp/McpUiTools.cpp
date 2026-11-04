@@ -30,6 +30,7 @@
 #include "ui/MultiviewViewModel.hpp"
 #include "ui/RielConfig.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/EscritorioViewModel.hpp"
 #include "ui/SystemViewModel.hpp"
 
 namespace ba::app::mcp {

@@ -1,12 +1,29 @@
 // ============================================================================
 // src/app/mcp/McpRecintoTools.cpp — Herramientas MCP del motor: el recinto: la grilla de bancas, apuntar y enfocar, la toma de cada banca (asamblea/Cuerpo).
 //
-// Una familia de McpService::registerTools() (ver mcp/McpRegistro.hpp: el orden en que
+// Una familia de McpService::registerTools() (ver mcp/McpService.hpp: el orden en que
 // se registran es el de siempre). El texto de cada herramienta es el que estaba en
 // McpService.cpp.
 // ============================================================================
 
-#include "mcp/McpRegistro.hpp"
+#include "i18n/I18nTexto.hpp"
+#include "mcp/McpService.hpp"
+#include "ptz/ControlCamaras.hpp"
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "arranque/RuntimeMotor.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "asamblea/Bancas.hpp"
+#include "asamblea/CuerpoViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
+#include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
 

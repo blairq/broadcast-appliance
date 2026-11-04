@@ -15,6 +15,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/AsistenteViewModel.hpp"
 
 #include <QCoreApplication>
 #include <QPointer>

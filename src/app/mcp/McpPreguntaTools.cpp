@@ -35,6 +35,7 @@
 #include "ui/EventoViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/AsambleaViewModel.hpp"
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/Quorum.hpp"
 #include "control/BusEventos.hpp"

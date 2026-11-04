@@ -1,12 +1,28 @@
 // ============================================================================
 // src/app/mcp/McpMezclaTools.cpp — Herramientas MCP del motor: audio de la mezcla: volumen, silencio, niveles, grupos.
 //
-// Una familia de McpService::registerTools() (ver mcp/McpRegistro.hpp: el orden en que
+// Una familia de McpService::registerTools() (ver mcp/McpService.hpp: el orden en que
 // se registran es el de siempre). El texto de cada herramienta es el que estaba en
 // McpService.cpp.
 // ============================================================================
 
-#include "mcp/McpRegistro.hpp"
+#include "i18n/I18nTexto.hpp"
+#include "mcp/McpService.hpp"
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "arranque/RuntimeMotor.hpp"
+#include "emision/VentanillaMotor.hpp"
+#include "audio/Matriz.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "mcp/InterfazMcp.hpp"
+#include "ui/MezclaViewModel.hpp"
 
 using ::ba::app::errorDe;
 

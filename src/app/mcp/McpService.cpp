@@ -1,12 +1,76 @@
 // ============================================================================
 // src/app/mcp/McpService.cpp — arranque del servidor MCP y herramientas del
 // motor: lo general y el estado; las familias (escenas, fuentes, audio, salidas,
-// configuracion…), cada una en su archivo (ver mcp/McpRegistro.hpp).
+// configuracion…), cada una en su archivo (ver mcp/McpService.hpp).
 // (Imagenes: McpImageTools.cpp · Sala y oradores: McpRoomTools.cpp ·
 //  Interfaz y sistema: McpUiTools.cpp · Ayuda: McpHelp.cpp)
 // ============================================================================
 
-#include "mcp/McpRegistro.hpp"
+#include "McpRenombres.hpp"
+#include "arranque/EnergiaAire.hpp"
+#include "fault/ModoSeguro.hpp"
+#include "i18n/I18nTexto.hpp"
+#include "diag/Perfil.hpp"
+#include "sala/CupoSala.hpp"
+#include "sala/SeguridadSala.hpp"
+#include "escenas/Conmutador.hpp"
+#include "mcp/McpService.hpp"
+#include "Piezas.hpp"
+#include <QRandomGenerator>
+#include "agent/AgentViewModel.hpp"
+#include "agent/Despachador.hpp"
+#include "agent/Roles.hpp"
+#include "agent/Voz.hpp"
+#include "mcp/McpTraza.hpp"
+#include "ui/PersonasViewModel.hpp"
+#include <QBuffer>
+#include <QDir>
+#include <QJsonDocument>
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "arranque/RuntimeMotor.hpp"
+#include "arranque/PlanoControl.hpp"
+#include "ajustes/Ajustes.hpp"
+#include <QThread>
+#include <QThreadPool>
+#include "emision/InputSpecs.hpp"
+#include "emision/SeguridadAire.hpp"
+#include "emision/VentanillaMotor.hpp"
+#include "mcp/McpBotoneraTools.hpp"
+#include "mcp/McpControlWebTools.hpp"
+#include "mcp/McpEventoTools.hpp"
+#include "mcp/McpTemaTools.hpp"
+#include "mcp/McpHttp.hpp"
+#include "mcp/McpPreguntaTools.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "platform/Paths.hpp"
+#include "agent/Notificador.hpp"
+#include "ui/AtencionViewModel.hpp"
+#include "ui/ConferenceClient.hpp"
+#include "ui/SystemViewModel.hpp"
+#include "ui/ConferenceViewModel.hpp"
+#include "ui/EventoViewModel.hpp"
+#include "ui/TemaEventoViewModel.hpp"
+#include "ui/OperatorMessages.hpp"
+#include "ui/RecursosViewModel.hpp"
+#include "control/BusEventos.hpp"
+#include "video/ElementosGst.hpp"
+#include "ui/SettingsModel.hpp"
+#include "mcp/InterfazMcp.hpp"
+#include "platform/Hilo.hpp"
+#include "ui/AppViewModel.hpp"
+#include "ui/EmisionViewModel.hpp"
+#include "ui/EscenasViewModel.hpp"
+#include "ui/EstadoAireViewModel.hpp"
+#include "ui/SalaViewModel.hpp"
+#include "ui/SalidasViewModel.hpp"
 
 using ::ba::app::errorDe;
 
@@ -1224,7 +1288,7 @@ void McpService::registerTools() {
         core_.addTool(std::move(t));
     }
 
-    // Las familias (mcp/McpRegistro.hpp), en el orden de siempre.
+    // Las familias (mcp/McpService.hpp), en el orden de siempre.
     registerEscenasTools();
     registerFuentesTools();
     registerMezclaTools();

@@ -1,12 +1,39 @@
 // ============================================================================
 // src/app/mcp/McpTransmisionTools.cpp — Herramientas MCP del motor: salidas: transmitir y grabar.
 //
-// Una familia de McpService::registerTools() (ver mcp/McpRegistro.hpp: el orden en que
+// Una familia de McpService::registerTools() (ver mcp/McpService.hpp: el orden en que
 // se registran es el de siempre). El texto de cada herramienta es el que estaba en
 // McpService.cpp.
 // ============================================================================
 
-#include "mcp/McpRegistro.hpp"
+#include "i18n/I18nTexto.hpp"
+#include "sala/SeguridadSala.hpp"
+#include "escenas/RespaldoEntradas.hpp"
+#include "mcp/McpService.hpp"
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "arranque/RuntimeMotor.hpp"
+#include "mcp/McpHttp.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "platform/Paths.hpp"
+#include "agent/SubtitulosCC.hpp"
+#include "agent/Vocabulario.hpp"
+#include "asamblea/Bancas.hpp"
+#include "asamblea/SeguirMicrofono.hpp"
+#include "asamblea/OrdenDelDia.hpp"
+#include "asamblea/CuerpoViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
+#include "ui/AppViewModel.hpp"
+#include "ui/AsambleaViewModel.hpp"
+#include "ui/EstadoAireViewModel.hpp"
+#include "ui/SalaViewModel.hpp"
 
 using ::ba::app::errorDe;
 

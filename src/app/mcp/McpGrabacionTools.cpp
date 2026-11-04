@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/mcp/McpGrabacionTools.cpp — Herramientas MCP del motor: lo que oye cada invitado, el disco, las pruebas con --test (diag_*), la grabación (remux, ajustes, por entrada), los destinos extra, la repetición y la señal limpia.
 //
-// Una familia de McpService::registerTools() (ver mcp/McpRegistro.hpp: el orden en que
+// Una familia de McpService::registerTools() (ver mcp/McpService.hpp: el orden en que
 // se registran es el de siempre). El texto de cada herramienta es el que estaba en
 // McpService.cpp.
 // ============================================================================
@@ -12,7 +12,29 @@
 #endif
 #include <windows.h> // diag_probar_caida: HeapCreate
 #endif
-#include "mcp/McpRegistro.hpp"
+#include "fault/ModoSeguro.hpp"
+#include "i18n/I18nTexto.hpp"
+#include "mcp/McpService.hpp"
+#include "Piezas.hpp"
+#include <QCoreApplication>
+#include "fault/FallasProgramadas.hpp"
+#include <algorithm>
+#include <cstdlib>
+#include <chrono>
+#include <thread>
+#include <cmath>
+#include <cstring>
+#include <memory>
+#include <set>
+#include <fstream>
+#include "arranque/RuntimeMotor.hpp"
+#include "emision/RetornosInvitados.hpp"
+#include "emision/VentanillaMotor.hpp"
+#include "mcp/McpToolsCommon.hpp"
+#include "mcp/InterfazMcp.hpp"
+#include "platform/Hilo.hpp"
+#include "ui/EmisionViewModel.hpp"
+#include "ui/EscenasViewModel.hpp"
 
 using ::ba::app::errorDe;
 

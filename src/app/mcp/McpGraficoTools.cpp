@@ -12,6 +12,7 @@
 #include <memory>
 #include <set>
 
+#include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
