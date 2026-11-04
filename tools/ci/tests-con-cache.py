@@ -5,7 +5,7 @@
 #
 # La clave de cada test es el sha256 de TODO lo que puede cambiar su resultado:
 #   - su ejecutable y las bibliotecas que carga, siguiendo la cadena entera
-#     (macOS: otool -l con @rpath/@loader_path; Linux: ldd; Windows: la tabla de
+#     (macOS: otool -l con @rpath/@loader_path; Linux: DT_NEEDED/DT_RPATH/DT_RUNPATH leídos del ELF acá mismo, sin procesos; Windows: la tabla de
 #     importaciones de cada PE con llvm-objdump, como tools/deps/check-portable-win.sh
 #     y con el mismo formato de caché «sha<TAB>dll dll...»). Lo del sistema
 #     (/usr/lib, /System, las DLL de Wine) no: lo cubre la versión del sistema;
@@ -125,6 +125,66 @@ def tipo_binario(p):
     return None
 
 
+def leer_dinamica_elf(p):
+    """[DT_NEEDED, DT_RPATH, DT_RUNPATH] de un ELF (listas de texto), leyendo el archivo: la
+    sección dinámica (PT_DYNAMIC) y su tabla de textos (DT_STRTAB, una dirección virtual que
+    se pasa a posición en el archivo con los PT_LOAD). Lo que no se puede leer: vacío."""
+    import struct
+    try:
+        with open(p, "rb") as f:
+            datos = f.read()
+    except OSError:
+        return [[], [], []]
+    if datos[:4] != b"\x7fELF" or len(datos) < 64:
+        return [[], [], []]
+    de64 = datos[4] == 2
+    e = "<" if datos[5] == 1 else ">"
+    try:
+        if de64:
+            phoff, = struct.unpack_from(e + "Q", datos, 0x20)
+            phentsize, phnum = struct.unpack_from(e + "HH", datos, 0x36)
+            ph, dyn = e + "IIQQQQQQ", e + "qQ"   # p_type p_flags p_offset p_vaddr p_paddr p_filesz ...
+        else:
+            phoff, = struct.unpack_from(e + "I", datos, 0x1C)
+            phentsize, phnum = struct.unpack_from(e + "HH", datos, 0x2A)
+            ph, dyn = e + "IIIIIIII", e + "iI"   # p_type p_offset p_vaddr p_paddr p_filesz ...
+        cargas, dinamica = [], None
+        for i in range(phnum):
+            c = struct.unpack_from(ph, datos, phoff + i * phentsize)
+            if de64:
+                tipo, off, vaddr, filesz = c[0], c[2], c[3], c[5]
+            else:
+                tipo, off, vaddr, filesz = c[0], c[1], c[2], c[4]
+            if tipo == 1:      # PT_LOAD
+                cargas.append((vaddr, off, filesz))
+            elif tipo == 2:    # PT_DYNAMIC
+                dinamica = (off, filesz)
+        if dinamica is None:
+            return [[], [], []]
+        entradas = []
+        tam = struct.calcsize(dyn)
+        for i in range(dinamica[1] // tam):
+            tag, val = struct.unpack_from(dyn, datos, dinamica[0] + i * tam)
+            if tag == 0:       # DT_NULL
+                break
+            entradas.append((tag, val))
+        strtab = next((v for t, v in entradas if t == 5), None)  # DT_STRTAB
+        base = next((o + strtab - va for va, o, fs in cargas if va <= strtab < va + fs), None) if strtab is not None else None
+        if base is None:
+            return [[], [], []]
+
+        def texto(desp):
+            fin = datos.index(b"\0", base + desp)
+            return datos[base + desp:fin].decode("utf-8", "surrogateescape")
+
+        needed = [texto(v) for t, v in entradas if t == 1]              # DT_NEEDED
+        rpath = [d for t, v in entradas if t == 15 for d in texto(v).split(":") if d]    # DT_RPATH
+        runpath = [d for t, v in entradas if t == 29 for d in texto(v).split(":") if d]  # DT_RUNPATH
+        return [needed, rpath, runpath]
+    except (struct.error, ValueError):
+        return [[], [], []]
+
+
 class Cierre:
     """Las bibliotecas que carga un binario, siguiendo toda la cadena."""
 
@@ -135,6 +195,7 @@ class Cierre:
         self.objdump = objdump
         self.candado = threading.Lock()
         self.macho = self._leer_json("macho.json")
+        self.elf = self._leer_json("elf.json")
         self.pe = {}
         try:
             with open(os.path.join(cache_dir, "importaciones-pe.tsv")) as f:
@@ -158,10 +219,11 @@ class Cierre:
         if not self.cambio:
             return
         os.makedirs(self.cache_dir, exist_ok=True)
-        tmp = os.path.join(self.cache_dir, "macho.json.tmp.%d" % os.getpid())
-        with open(tmp, "w") as f:
-            json.dump(self.macho, f, separators=(",", ":"))
-        os.replace(tmp, os.path.join(self.cache_dir, "macho.json"))
+        for nombre, datos in (("macho.json", self.macho), ("elf.json", self.elf)):
+            tmp = os.path.join(self.cache_dir, "%s.tmp.%d" % (nombre, os.getpid()))
+            with open(tmp, "w") as f:
+                json.dump(datos, f, separators=(",", ":"))
+            os.replace(tmp, os.path.join(self.cache_dir, nombre))
         tmp = os.path.join(self.cache_dir, "importaciones-pe.tsv.tmp.%d" % os.getpid())
         with open(tmp, "w") as f:
             for h in sorted(self.pe):
@@ -241,13 +303,60 @@ class Cierre:
         return orden
 
     # --- Linux -------------------------------------------------------------
+    # Antes, `ldd` por test: lanzar el cargador de cada uno. Bajo Rosetta (Docker en una Mac)
+    # eran ~1,5 s por test y 15 minutos para los 600, en cada corrida, de a uno (lanzar
+    # procesos desde varios hilos traba Rosetta). Ahora se lee la tabla dinámica de cada ELF
+    # acá mismo (DT_NEEDED, DT_RPATH, DT_RUNPATH), una vez por contenido (elf.json, como
+    # macho.json), y se resuelve como ld.so: sin procesos, y en paralelo.
+    def _info_elf(self, p):
+        h = self.memo.archivo(p)
+        if h is None:
+            return [], [], []
+        with self.candado:
+            if h in self.elf:
+                return self.elf[h]
+        v = leer_dinamica_elf(p)
+        with self.candado:
+            self.elf[h] = v
+            self.cambio = True
+        return v
+
     def _elf(self, exe):
-        r = subprocess.run(["ldd", exe], capture_output=True, text=True)
-        orden = [exe]
-        for linea in r.stdout.splitlines():
-            m = re.search(r"=>\s*(/\S+)", linea) or re.match(r"\s*(/\S+)\s+\(", linea)
-            if m and not es_sistema(m.group(1)):
-                orden.append(m.group(1))
+        ld_path = [d for d in os.environ.get("LD_LIBRARY_PATH", "").split(":") if d]
+        orden, por_nombre = [exe], {}
+        # A lo ancho, como ld.so: (objeto, los DT_RPATH de la cadena de quienes lo cargaron;
+        # el de cada uno cuenta si ese no tiene DT_RUNPATH).
+        cola = [(os.path.abspath(exe), [])]
+        vistos = {os.path.realpath(exe)}
+        while cola:
+            p, cadena_cargadores = cola.pop(0)
+            needed, rpath, runpath = self._info_elf(os.path.realpath(p))
+            origen = os.path.dirname(p)
+            sub = lambda ds: [d.replace("${ORIGIN}", origen).replace("$ORIGIN", origen) for d in ds]
+            cadena = ([] if runpath else sub(rpath)) + cadena_cargadores
+            # Con DT_RUNPATH no se mira ningún DT_RPATH; después LD_LIBRARY_PATH y su DT_RUNPATH.
+            buscar = ([] if runpath else cadena) + ld_path + sub(runpath)
+            for n in needed:
+                if n in por_nombre:  # ld.so carga cada soname una vez
+                    continue
+                r = None
+                if "/" in n:
+                    r = n if os.path.exists(n) else None
+                else:
+                    for d in buscar:
+                        c = os.path.join(d, n)
+                        if os.path.exists(c):
+                            r = os.path.normpath(c)
+                            break
+                por_nombre[n] = r
+                if r is None or es_sistema(r):
+                    continue
+                real = os.path.realpath(r)
+                if real in vistos:
+                    continue
+                vistos.add(real)
+                orden.append(r)
+                cola.append((r, cadena))
         return orden
 
     # --- Windows (bajo Wine) ----------------------------------------------
@@ -486,22 +595,24 @@ def leer_entradas(arbol):
         return None
 
 
-def hilos():
+def hilos(procesos=True):
     """Cuántos hilos para calcular las claves. TESTS_CACHE_HILOS lo fija. Bajo Rosetta (el
-    contenedor x86 de Docker en una Mac) UNO: lanzar llvm-objdump desde varios hilos a la
-    vez trabó el proceso entero (17 hilos esperando un candado de Rosetta, 47 minutos,
-    sin hijos). Lo que se lee queda en la caché de importaciones: lento solo la primera vez."""
+    contenedor x86 de Docker en una Mac) UNO si calcular lanza procesos (llvm-objdump, en
+    Wine): lanzarlos desde varios hilos a la vez trabó el proceso entero (17 hilos esperando
+    un candado de Rosetta, 47 minutos, sin hijos); lo que se lee queda en la caché de
+    importaciones. Los ELF se leen acá mismo, sin procesos: en paralelo también bajo Rosetta."""
     v = os.environ.get("TESTS_CACHE_HILOS", "")
     if v.isdigit() and int(v) > 0:
         return int(v)
-    if os.path.exists("/mnt/lima-rosetta") or os.path.exists("/proc/sys/fs/binfmt_misc/rosetta"):
+    if procesos and (os.path.exists("/mnt/lima-rosetta") or os.path.exists("/proc/sys/fs/binfmt_misc/rosetta")):
         return 1
     return min(16, (os.cpu_count() or 4) * 2)
 
 
-def calcular(cache, items, fn):
-    """fn(item) -> (clave, partes), en paralelo (sha256 suelta el GIL), salvo bajo Rosetta."""
-    n = hilos()
+def calcular(cache, items, fn, procesos=True):
+    """fn(item) -> (clave, partes), en paralelo (sha256 suelta el GIL), salvo bajo Rosetta si
+    lanza procesos."""
+    n = hilos(procesos)
     if n == 1:
         return [fn(i) for i in items]
     with concurrent.futures.ThreadPoolExecutor(max_workers=n) as ex:
@@ -597,7 +708,7 @@ def modo_ctest(argv):
     if sin_cache() and not (a.explicar or a.explicar_todo):
         claves = [(None, None)] * len(tests)
     else:
-        claves = calcular(cache, tests, una)
+        claves = calcular(cache, tests, una, procesos=sys.platform == "darwin")  # otool; en Linux, ninguno
     if a.explicar:
         for t, (k, partes) in zip(tests, claves):
             if t["name"] == a.explicar:
