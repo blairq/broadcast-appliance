@@ -352,6 +352,18 @@ if(BA_APP_QT_OK)
                 arranque/ArchivoConfig.hpp)
     list(APPEND BA_APP_BIBLIOTECAS ba_app_base)
 
+    # El HTTPS propio y lo que lo usa sin depender de ningún área (nivel 1.5, como
+    # ba_app_base): el cliente (mbedTLS), las descargas, las guías de las cuentas, la
+    # captura de páginas web y la prueba de capacidad. net/AccesoRemoto (el túnel visto
+    # desde la interfaz: usa evento, sala, emision, plugins y ui) sigue en ba-app.
+    ba_biblioteca(ba_app_net NIVEL 1.5
+        DEPENDE ba_app_comun ba_core mbedtls mbedx509 mbedcrypto Qt6::Core Qt6::Gui
+        FUENTES net/HttpsClient.hpp net/HttpsClient.cpp net/AsyncHttp.hpp net/Credentials.hpp
+                net/AccountGuides.hpp net/AccountGuides.cpp net/CapturaWeb.hpp net/CapturaWeb.cpp
+                net/ClienteCapacidad.hpp net/ClienteCapacidad.cpp net/Descargas.hpp net/Descargas.cpp)
+    ba_biblioteca_completa(ba_app_net net "/AccesoRemoto\\.cpp$")
+    list(APPEND BA_APP_BIBLIOTECAS ba_app_net)
+
     # El evento: el guion, la línea de tiempo, la carpeta del evento y lo que se publica de él.
     # APdf.cpp usa carrusel/Conversion (todavía en ba-app): lo resuelve quien enlaza.
     # mbedcrypto: core/crypto/Sha256.hpp (FotosConfig, CierreEvento) incluye <mbedtls/sha256.h>.
@@ -836,9 +848,9 @@ endif()
     add_test(NAME test_mcp_busqueda COMMAND test_mcp_busqueda)
 
     # YouTube: cliente OAuth + Data API contra un Google falso, y HTTPS real.
-    add_executable(test_youtube tests/test_youtube.cpp youtube/YouTubeClient.cpp net/HttpsClient.cpp)
+    add_executable(test_youtube tests/test_youtube.cpp youtube/YouTubeClient.cpp)
     target_include_directories(test_youtube PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_youtube PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_youtube PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
     target_compile_definitions(test_youtube PRIVATE BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     set_target_properties(test_youtube PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_youtube COMMAND test_youtube)
@@ -994,10 +1006,9 @@ endif()
     target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)
     set_target_properties(test_argumentos_locales PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_argumentos_locales COMMAND test_argumentos_locales)
-    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp agent/ArgumentosLocales.cpp net/Descargas.cpp
-                   net/HttpsClient.cpp)
+    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp agent/ArgumentosLocales.cpp)
     target_include_directories(test_modelos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_modelos_locales PRIVATE ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_modelos_locales PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)
     target_compile_definitions(test_modelos_locales PRIVATE BA_TEST_TMP="${CMAKE_CURRENT_BINARY_DIR}"
         BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     set_target_properties(test_modelos_locales PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1007,17 +1018,17 @@ endif()
 
     # La cola unica de descargas: duplicados, por tipo, cancelar y seguir una
     # descarga cortada (contra un servidor local, sin red).
-    add_executable(test_descargas tests/test_descargas.cpp net/Descargas.cpp net/HttpsClient.cpp)
+    add_executable(test_descargas tests/test_descargas.cpp)
     target_include_directories(test_descargas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_descargas PRIVATE ba_core Qt6::Core Qt6::Network mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_descargas PRIVATE ba_app_net ba_core Qt6::Core Qt6::Network mbedtls mbedx509 mbedcrypto)
     set_target_properties(test_descargas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_descargas COMMAND test_descargas)
 
     # Buscar la ultima version de los agentes en su fuente oficial (con red;
     # sin red se saltea).
-    add_executable(test_agent_updates tests/test_agent_updates.cpp agent/Actualizacion.cpp net/HttpsClient.cpp)
+    add_executable(test_agent_updates tests/test_agent_updates.cpp agent/Actualizacion.cpp)
     target_include_directories(test_agent_updates PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_agent_updates PRIVATE ba_core Qt6::Core mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_agent_updates PRIVATE ba_app_net ba_core Qt6::Core mbedtls mbedx509 mbedcrypto)
     target_compile_definitions(test_agent_updates PRIVATE
         BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem"
         BA_AGENTES_JSON="${CMAKE_CURRENT_SOURCE_DIR}/agent/agentes.json"
@@ -1270,10 +1281,10 @@ endif()
     add_test(NAME test_registro_agente COMMAND test_registro_agente)
     # El ciclo entero contra un servidor de chat-completions falso (streaming, tiempos, la cola).
     add_executable(test_registro_agente_totem tests/test_registro_agente_totem.cpp registro/AgenteTotem.cpp
-                   registro/AgenteTotem.hpp agent/ChatEnVivo.cpp net/HttpsClient.cpp registro/AgenteRegistro.cpp
+                   registro/AgenteTotem.hpp agent/ChatEnVivo.cpp registro/AgenteRegistro.cpp
                    registro/Conversacion.cpp registro/Totems.cpp)
     target_include_directories(test_registro_agente_totem PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_registro_agente_totem PRIVATE ba_core Qt6::Core Qt6::Network mbedtls mbedx509 mbedcrypto
+    target_link_libraries(test_registro_agente_totem PRIVATE ba_app_net ba_core Qt6::Core Qt6::Network mbedtls mbedx509 mbedcrypto
                           nlohmann_json::nlohmann_json)
     set_target_properties(test_registro_agente_totem PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_registro_agente_totem COMMAND test_registro_agente_totem)
@@ -1469,9 +1480,9 @@ endif()
         set_tests_properties(test_ndi PROPERTIES SKIP_RETURN_CODE 77)
     endif()
     # Guias para conectar YouTube/Twitch/Facebook (misma fuente que el MCP).
-    add_executable(test_account_guides tests/test_account_guides.cpp net/AccountGuides.cpp)
+    add_executable(test_account_guides tests/test_account_guides.cpp)
     target_include_directories(test_account_guides PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_account_guides PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_account_guides PRIVATE ba_app_net ba_core Qt6::Core)
     set_target_properties(test_account_guides PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_account_guides COMMAND test_account_guides)
     # Disparadores (alertas) con entradas y reloj falsos.
@@ -1766,9 +1777,9 @@ endif()
     set_target_properties(test_sesion_evento PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_sesion_evento COMMAND test_sesion_evento)
     # Los discursos del teleprompter: carpetas, nombres y que nada salga de la raiz.
-    add_executable(test_captura_web tests/test_captura_web.cpp net/CapturaWeb.cpp net/CapturaWeb.hpp)
+    add_executable(test_captura_web tests/test_captura_web.cpp)
     target_include_directories(test_captura_web PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_captura_web PRIVATE ba_core Qt6::Core Qt6::Gui)
+    target_link_libraries(test_captura_web PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui)
     if(APPLE)
         set(_ba_chs "${CMAKE_SOURCE_DIR}/extern/chrome-headless/mac-arm64/chrome-headless-shell")
     elseif(WIN32)
@@ -1779,9 +1790,9 @@ endif()
     target_compile_definitions(test_captura_web PRIVATE BA_TEST_CHROME="${_ba_chs}")
     set_target_properties(test_captura_web PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_captura_web COMMAND test_captura_web)
-    add_executable(test_manuales tests/test_manuales.cpp ui/ManualesViewModel.cpp ui/ManualesViewModel.hpp net/CapturaWeb.cpp)
+    add_executable(test_manuales tests/test_manuales.cpp ui/ManualesViewModel.cpp ui/ManualesViewModel.hpp)
     target_include_directories(test_manuales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_manuales PRIVATE ba_core Qt6::Core Qt6::Gui)
+    target_link_libraries(test_manuales PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui)
     target_compile_definitions(test_manuales PRIVATE BA_TEST_IDIOMAS="${CMAKE_SOURCE_DIR}/assets/idiomas")
     set_target_properties(test_manuales PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_manuales COMMAND test_manuales)
@@ -1802,16 +1813,16 @@ endif()
     set_target_properties(test_cast PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_cast COMMAND test_cast)
 
-    add_executable(test_twitch tests/test_twitch.cpp twitch/TwitchClient.cpp net/HttpsClient.cpp)
+    add_executable(test_twitch tests/test_twitch.cpp twitch/TwitchClient.cpp)
     target_include_directories(test_twitch PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_twitch PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_twitch PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
     set_target_properties(test_twitch PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_twitch COMMAND test_twitch)
 
     # Facebook: login, Paginas, vivos RTMPS, comentarios y subida por partes contra un Graph falso.
-    add_executable(test_facebook tests/test_facebook.cpp facebook/FacebookClient.cpp net/HttpsClient.cpp)
+    add_executable(test_facebook tests/test_facebook.cpp facebook/FacebookClient.cpp)
     target_include_directories(test_facebook PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_facebook PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_facebook PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui Qt6::Network mbedtls mbedx509 mbedcrypto)
     set_target_properties(test_facebook PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_facebook COMMAND test_facebook)
     # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:

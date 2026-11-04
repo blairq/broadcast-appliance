@@ -57,6 +57,9 @@ componente emisor          1.5 emisor/Pedido.*               : ba_emisor_pedido
 # errores, los nombres de la app para Config/). Antes comun era un área más (nivel 2) y
 # todo el que lo incluía sumaba deuda «entre iguales» por usar algo que está más abajo.
 componente app/base        1.5 app/comun/ app/ui/CapturaError.hpp app/ui/ListaConClave.hpp app/ui/ListaObjetos.* app/ui/JsonListModel.* app/ui/FiltroCatalogo.* app/arranque/ArchivoConfig.hpp : ba_app_base
+# El HTTPS propio y lo que lo usa sin depender de ningún área (ba_app_net). net/AccesoRemoto
+# (el túnel visto desde la interfaz) queda en app/net, nivel 2.
+componente app/net-base    1.5 app/net/HttpsClient.* app/net/AsyncHttp.hpp app/net/Credentials.hpp app/net/AccountGuides.* app/net/CapturaWeb.* app/net/ClienteCapacidad.* app/net/Descargas.* : ba_app_net
 
 # --- nivel 2: los modelos de área de la app ------------------------------------------------
 componente app/agent        2  app/agent/
