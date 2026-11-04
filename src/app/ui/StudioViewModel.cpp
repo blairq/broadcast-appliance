@@ -93,6 +93,7 @@
 #include "ui/RegistroViewModel.hpp"
 #include "ui/RielConfig.hpp"
 #include "ui/RotuladorViewModel.hpp"
+#include "ui/SeccionesConfig.hpp"
 #include "ui/SettingsModel.hpp"
 #include "ui/TemaEventoViewModel.hpp"
 #include "ui/TotemsViewModel.hpp"
@@ -1356,27 +1357,9 @@ QObject* StudioViewModel::extensiones() const { return extensiones_.get(); }
 QObject* StudioViewModel::riel() const { return riel_.get(); }
 
 void StudioViewModel::setSeccionConfig(const QString& pedida) {
-    // Los nombres de antes de reordenar Configuración (2026-10-11), por si el
-    // asistente o una guía los usan todavía.
-    static const QHash<QString, QString> kAntes{{"Escena", "Video"},
-                                                {"Gateway", "Red de la conferencia"},
-                                                {"Red", "Red de la conferencia"},
-                                                {"Sala", "Conferencia"},
-                                                {"Red de la sala", "Red de la conferencia"},
-                                                {"Acceso directo", "Cloudflare"},
-                                                {"Acceso remoto", "Cloudflare"},
-                                                {"cloudflare", "Cloudflare"},
-                                                {"WireGuard", "Túnel propio (WireGuard)"},
-                                                {"wireguard", "Túnel propio (WireGuard)"},
-                                                {"Túnel propio", "Túnel propio (WireGuard)"},
-                                                {"Sistema", "Sistema y datos"},
-                                                {"Barra de navegación", "Apariencia"},
-                                                {"Barra de navegacion", "Apariencia"},
-                                                {"Audio y voz", "Voz del sistema"},
-                                                {"Voz del operador", "Voz del sistema"},
-                                                {"pinggy", "Pinggy"},
-                                                {"capacidad", "Capacidad"}};
-    const QString s = kAntes.value(pedida, pedida);
+    // Siempre la clave de la sección (un nombre viejo o el título que se ve, también):
+    // con el título, la página mostraba la sección vacía (ui/SeccionesConfig.hpp).
+    const QString s = secciones::canonica(pedida, settings_ ? settings_->titulosSecciones() : QVariantMap{});
     if (s == seccionConfig_) return;
     seccionConfig_ = s;
     emit seccionConfigChanged();
