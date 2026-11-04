@@ -27,6 +27,18 @@ project(
     LANGUAGES C CXX
 )
 
+# compile_commands.json siempre (lo que se compila no cambia: solo se escribe el json).
+# Lo usan la vigilancia del diseño físico (test_headers_solos_*, cmake/BaNiveles.cmake:
+# sin el json no se registra y nadie se entera), tools/dev/chequear.py y
+# `make lint-includes`. Va antes de crear cualquier target (la propiedad
+# EXPORT_COMPILE_COMMANDS se toma al crearlo). Quien lo apague a propósito
+# (-DCMAKE_EXPORT_COMPILE_COMMANDS=OFF o la variable de entorno) manda. Ojo: con Ninja y
+# Makefiles, CMake ya dejó la variable en la caché VACÍA al llegar acá (DEFINED da
+# verdadero): «nadie la fijó» es «vacía».
+if("${CMAKE_EXPORT_COMPILE_COMMANDS}" STREQUAL "" AND "$ENV{CMAKE_EXPORT_COMPILE_COMMANDS}" STREQUAL "")
+    set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE BOOL "Escribir compile_commands.json (ver el CMakeLists raíz)" FORCE)
+endif()
+
 # Windows (MSVC/clang-cl): el launcher y el gateway se compilan con la CRT
 # ESTATICA en un sub-build propio (cmake/BaWinStaticPart.cmake). Con esta
 # opcion en ON, este mismo arbol ES ese sub-build: solo core+launcher+gateway.
