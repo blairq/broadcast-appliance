@@ -46,18 +46,53 @@ def _gst_bin(nombre: str) -> str | None:
     return None
 
 
+def _bajo_emulacion() -> str | None:
+    """Por qué esta máquina no mide tiempos de verdad (como bajoRosetta/bajoWine de
+    src/core/tests/Puntualidad.hpp), o None: el Linux x86_64 de Docker en una Mac ARM."""
+    try:
+        with open("/proc/cpuinfo", encoding="utf-8", errors="replace") as f:
+            if "VirtualApple" in f.read():
+                return "Rosetta (el Linux x86_64 de Docker en una Mac ARM)"
+    except OSError:
+        pass
+    return None
+
+
+def _factor_tiempo() -> float:
+    """Cuánto estirar los plazos de una prueba con tiempos: 1 en una máquina de verdad, 3 bajo
+    emulación (todo, desde arrancar un proceso hasta codificar, tarda varias veces más).
+    BA_TEST_TIEMPO_REAL_ESTRICTO=1 lo deja en 1 (como en C++)."""
+    if os.environ.get("BA_TEST_TIEMPO_REAL_ESTRICTO", "") not in ("", "0"):
+        return 1.0
+    return 3.0 if _bajo_emulacion() else 1.0
+
+
+def _gst_listo(gst_launch: str, elementos: tuple[str, ...] = ("x264enc", "flvmux", "rtmp2sink")) -> float:
+    """El registro de plugins de GStreamer armado ANTES de medir nada. La primera vez que corre
+    GStreamer en una máquina (un contenedor nuevo de Docker, siempre) recorre todos los plugins
+    vendoreados: bajo Rosetta, más de un minuto, y la prueba lo contaba como si la transmisión
+    no llegara. Devuelve los segundos que tardó (casi 0 si el registro ya estaba)."""
+    inspect = os.path.join(os.path.dirname(gst_launch), "gst-inspect-1.0" + (".exe" if gst_launch.endswith(".exe") else ""))
+    t = time.time()
+    if os.path.isfile(inspect):
+        for e in elementos:
+            subprocess.run([inspect, e], capture_output=True, timeout=600)
+    return time.time() - t
+
+
 def _publicar(gst_launch: str, puerto: int, cuadros: int) -> int:
     tubo = (f"videotestsrc is-live=true num-buffers={cuadros} pattern=ball ! video/x-raw,width=320,height=240,framerate=30/1 "
             f"! x264enc tune=zerolatency key-int-max=30 speed-preset=ultrafast ! h264parse ! flvmux name=m streamable=true "
             f"! rtmp2sink location=rtmp://127.0.0.1:{puerto}/live/caos "
             f"audiotestsrc is-live=true wave=silence num-buffers={cuadros // 3} ! audioconvert ! avenc_aac ! aacparse ! m.")
-    return subprocess.run([gst_launch, "-q", "-e"] + tubo.split(), capture_output=True, timeout=60).returncode
+    return subprocess.run([gst_launch, "-q", "-e"] + tubo.split(), capture_output=True, timeout=60 * _factor_tiempo()).returncode
 
 
 def test_rtmp_server_against_rtmp2sink(tmp_path: Path) -> None:
     gst_launch = _gst_bin("gst-launch-1.0")
     if gst_launch is None:
         pytest.skip("no vendored GStreamer (extern/ or dist/)")
+    _gst_listo(gst_launch)
     s = rtmp_local.ServidorRtmp(0, str(tmp_path)).iniciar()
     try:
         t0 = time.time()
@@ -83,7 +118,7 @@ def test_rtmp_server_against_rtmp2sink(tmp_path: Path) -> None:
     assert len(flv) >= 2
     discoverer = _gst_bin("gst-discoverer-1.0")
     if discoverer:
-        r = subprocess.run([discoverer, str(flv[0])], capture_output=True, text=True, timeout=60)
+        r = subprocess.run([discoverer, str(flv[0])], capture_output=True, text=True, timeout=60 * _factor_tiempo())
         assert r.returncode == 0 and "Duration" in r.stdout, r.stdout + r.stderr
 
 

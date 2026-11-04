@@ -476,8 +476,9 @@ class Banco:
                     self.tool("stream_stop")  # andaba pero no llegaba nada: de nuevo
                     time.sleep(1)
                 self.tool("stream_start", {"server": f"rtmp://127.0.0.1:{self.rtmp.puerto}/live", "key": "caos"})
+            # 30 s, o --plazo-s si es más: en una máquina lenta (emulada) se le da más plazo a todo.
             t = time.time()
-            while time.time() < t + 30 and self.rtmp.primer_video_desde(t) is None:
+            while time.time() < t + max(30.0, self.a.plazo_s) and self.rtmp.primer_video_desde(t) is None:
                 time.sleep(0.3)
             if self.rtmp.primer_video_desde(t) is not None:
                 break
@@ -812,9 +813,15 @@ class Corte(Exception):
 
 
 def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list, corte: str | None,
-            nocturno: bool = False) -> dict:
+            nocturno: bool = False, pedidos: list[str] | None = None) -> dict:
     esc = {}
-    for nombre, reps in b.resultados.items():
+    # Todos los escenarios pedidos, también los que no llegaron a correr porque el banco cortó
+    # antes (al preparar, o en el aire de antes de la primera repetición): figuran con
+    # «no_corrio» y el motivo, no faltan del informe.
+    todos = dict(b.resultados)
+    for nombre in pedidos or []:
+        todos.setdefault(nombre, [])
+    for nombre, reps in todos.items():
         corridas = [r for r in reps if not r.get("saltado") and not r.get("no_aplica")]
         rto = [r.get("rto_s") for r in corridas]
         esc[nombre] = {
@@ -835,6 +842,7 @@ def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list
             "modo_seguro": any(r.get("modo_seguro") for r in corridas),
             "saltado": next((r["saltado"] for r in reps if r.get("saltado")), None),
             "no_aplica": next((r["no_aplica"] for r in reps if r.get("no_aplica")), None),
+            "no_corrio": (corte or "no llegó a correr") if not reps else None,
         }
     j = {"banco": "caos F1-14", "fecha": datetime.datetime.now().isoformat(timespec="seconds"), "app": b.app.version(),
          "maquina": {"sistema": platform.system(), "version": platform.release(), "nodo": platform.node()},
@@ -869,8 +877,9 @@ def informe(b: Banco, carpeta: str, mkv: dict, rtmp_ses: list, rtmp_huecos: list
            "Detectado p50 (s) | Backoff (s) | Anillos p50 (s) | 1.er cuadro p50/p95 (s) | No volvió |",
            "|---|---|---|---|---|---|---|---|---|---|---|---|"]
     for n, e in esc.items():
-        if e["saltado"] or e["no_aplica"]:
-            que = f"saltado: {e['saltado']}" if e["saltado"] else f"no aplica: {e['no_aplica']}"
+        if e["saltado"] or e["no_aplica"] or e["no_corrio"]:
+            que = (f"saltado: {e['saltado']}" if e["saltado"] else f"no aplica: {e['no_aplica']}" if e["no_aplica"]
+                   else f"no corrió: {e['no_corrio']}")
             md.append(f"| {n} | — | {que} | | | | | | | | | |")
             continue
         back = ", ".join(str(x) for x in e["backoff_s"]) or "—"
@@ -1010,7 +1019,7 @@ def main() -> int:
             rtmp.parar()
             if lanzado is not None and lanzado.poll() is None:
                 lanzado.kill()
-    j = informe(b, carpeta, mkv, ses, huecos, corte, a.nocturno)
+    j = informe(b, carpeta, mkv, ses, huecos, corte, a.nocturno, pedidos=escenarios)
     log("informe:", os.path.join(carpeta, "caos.md"))
     if corte and not b.resultados:
         return 2

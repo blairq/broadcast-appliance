@@ -144,6 +144,26 @@ def test_informe_nocturno_del_banco(tmp_path: Path) -> None:
     assert guardado["nocturno"] is True and guardado["app"]["version"] == "1.2.3"
 
 
+def test_informe_con_corte_lista_lo_que_no_corrio(tmp_path: Path) -> None:
+    """Si el banco corta antes de llegar a un escenario (al preparar, o en el aire de antes de
+    la primera repetición), el informe igual lo lista, con «no_corrio» y el motivo; y la
+    comparación lo cuenta como regresión en vez de no verlo."""
+    banco = _modulo("banco_caos_t2", REPO / "tools" / "caos" / "banco.py")
+    corte = "la transmisión no llega al servidor RTMP local"
+    b = types.SimpleNamespace(resultados={"kill_web": [{"saltado": "no corre ba-web"}]},
+                              a=types.SimpleNamespace(plazo_s=20.0, no_esperar_estable=False),
+                              app=types.SimpleNamespace(version=lambda: {"version": "1.2.3", "generado": "hoy"}),
+                              modo="normal", estable_s=120.0, esperado_estable_s=0.0)
+    j = banco.informe(b, str(tmp_path / "x"), {}, [], [], corte, pedidos=["codificador_tx", "kill_web"])
+    cod = j["escenarios"]["codificador_tx"]
+    assert set(j["escenarios"]) == {"codificador_tx", "kill_web"}
+    assert cod["no_corrio"] == corte and cod["repeticiones"] == [] and cod["no_volvio"] == 0
+    assert j["escenarios"]["kill_web"]["no_corrio"] is None and j["escenarios"]["kill_web"]["saltado"]
+    assert "no corrió: " + corte in (tmp_path / "x" / "caos.md").read_text(encoding="utf-8")
+    c = comparar.comparar(None, j)
+    assert [(r["escenario"], r["que"]) for r in c["regresiones"]] == [("codificador_tx", "no_corrio")]
+
+
 def test_tarea_nocturna_apagada(tmp_path: Path) -> None:
     """La tarea de cada sistema (tools/caos/nocturno/instalar.py) sale APAGADA y bien formada."""
     import plistlib

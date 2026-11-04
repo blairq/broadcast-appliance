@@ -70,6 +70,11 @@ def comparar(antes: dict | None, ahora: dict, tolerancia: float = TOLERANCIA, ma
         if e.get("saltado") or e.get("no_aplica"):
             continue
         veces = len([r for r in e.get("repeticiones", []) if not r.get("saltado") and not r.get("no_aplica")])
+        if e.get("no_corrio"):
+            # El banco cortó antes de llegar a este escenario: no midió nada.
+            regresiones.append({"escenario": nombre, "que": "no_corrio", "antes": None, "ahora": None,
+                                "texto": "no corrió: " + str(e["no_corrio"])})
+            continue
         if e.get("no_volvio"):
             regresiones.append({"escenario": nombre, "que": "no_volvio", "antes": (previos.get(nombre) or {}).get("no_volvio"),
                                 "ahora": e["no_volvio"], "texto": f"no volvió {e['no_volvio']} de {veces}"})

@@ -93,6 +93,11 @@ def test_bench_against_fake_app(tmp_path: Path) -> None:
     gst = _rtmp_test._gst_bin("gst-launch-1.0")
     if gst is None or os.name == "nt":
         pytest.skip("no vendored GStreamer (extern/ or dist/)")
+    # The plugin registry is built before anything is timed (over a minute under Rosetta the
+    # first time: the bench used to count it as «the transmission does not reach the server»).
+    _rtmp_test._gst_listo(gst)
+    # Deadlines stretched on an emulated machine (Docker's x86_64 Linux on an ARM Mac).
+    f = _rtmp_test._factor_tiempo()
     falso = tmp_path / "bin" / "64bit" / "ba-mcp"
     falso.parent.mkdir(parents=True)
     falso.write_text(f"#!/bin/sh\nexec '{sys.executable}' -I '{REPO / 'tests' / 'caos_mcp_falso.py'}'\n", encoding="utf-8")
@@ -103,9 +108,14 @@ def test_bench_against_fake_app(tmp_path: Path) -> None:
     salida = tmp_path / "informe"
     r = subprocess.run([sys.executable, "-I", str(REPO / "tools" / "caos" / "banco.py"), "--ba-mcp", str(falso),
                         "--datos", str(tmp_path / "datos"), "--escenarios", "codificador_tx,kill_web", "--repeticiones", "2",
-                        "--plazo-s", "20", "--estable-s", "1", "--espera-app-s", "20", "--salida", str(salida), "--no-matar"],
-                       env=env, capture_output=True, text=True, timeout=240)
+                        "--plazo-s", str(20 * f), "--estable-s", "1", "--espera-app-s", str(20 * f), "--salida", str(salida),
+                        "--no-matar"],
+                       env=env, capture_output=True, text=True, timeout=240 * f)
     print(r.stdout[-4000:], r.stderr[-2000:])
+    j = json.loads((salida / "caos.json").read_text(encoding="utf-8"))
+    # The report lists every scenario asked for, also when the bench stopped before running it.
+    assert set(j["escenarios"]) == {"codificador_tx", "kill_web"}, j["escenarios"]
+    assert j["corte"] is None, f"the bench stopped: {j['corte']}\n{r.stdout[-3000:]}"
     e = json.loads(estado.read_text(encoding="utf-8"))
     llamadas = [c[0] for c in e["llamadas"]]
     prueba = next(c[1]["nombre"] for c in e["llamadas"] if c[0] == "evento_nuevo")
@@ -118,12 +128,11 @@ def test_bench_against_fake_app(tmp_path: Path) -> None:
     assert ["evento_cambiar", {"nombre": "Evento del operador", "aunque_este_al_aire": True}] in e["llamadas"]
     assert llamadas.index("evento_cambiar") > llamadas.index("stream_stop")
     assert e.get("gst") is None, "nothing left publishing"
-    j = json.loads((salida / "caos.json").read_text(encoding="utf-8"))
     assert j["app"]["version"] == "9.9.9"
     cod = j["escenarios"]["codificador_tx"]
     assert len(cod["repeticiones"]) == 2 and cod["no_volvio"] == 0, cod
     assert all(x["disparada"] and x["volvio"] for x in cod["repeticiones"])
-    assert 1.0 <= cod["rto_p50_s"] < 15  # the fake reconnects a second after the failure and cod["rto_p95_s"] >= cod["rto_p50_s"]
+    assert 1.0 <= cod["rto_p50_s"] < 15 * f  # the fake reconnects a second after the failure and cod["rto_p95_s"] >= cod["rto_p50_s"]
     assert j["escenarios"]["kill_web"]["saltado"]
     assert len(j["rtmp"]["sesiones"]) >= 3, "the fake reconnected after each injected failure"
     md = (salida / "caos.md").read_text(encoding="utf-8")
