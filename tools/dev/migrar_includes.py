@@ -19,6 +19,12 @@ Cada parte trae la de arriba (I18nPerfiles → I18nIdioma → I18nTexto): un arc
 siempre UNA línea. Se miran los usos calificados (`i18n::X`, también `ba::i18n::X`); en un
 archivo con `using namespace ba::i18n` o dentro de `namespace ba::i18n {`, también los sin
 calificar. Los comentarios y los textos entre comillas no cuentan.
+
+json-fwd: en los headers que se nombran, `#include <nlohmann/json.hpp>` pasa a
+`#include "json/JsonFwd.hpp"` (declaraciones; json.hpp cuesta ~1 s de frontend por TU).
+Solo para headers que lo nombran en firmas, referencias o punteros: cada uno tiene que
+compilar solo con JsonFwd, y quien lo usa entero tiene que incluir json.hpp por su cuenta.
+    python3 tools/dev/migrar_includes.py json-fwd --aplicar src/core/ajustes/Ajustes.hpp ...
 """
 import argparse
 import pathlib
@@ -169,13 +175,34 @@ def migrar_i18n(aplicar: bool, raices) -> int:
     return 0
 
 
+JSON_INCLUDE = re.compile(r'^(\s*#\s*include\s*)<nlohmann/json\.hpp>(.*)$')
+
+
+def migrar_json_fwd(aplicar: bool, headers) -> int:
+    for h in headers:
+        f = RAIZ / h
+        lineas = f.read_bytes().decode("utf-8").split("\n")
+        hecho = False
+        for k, l in enumerate(lineas):
+            m = JSON_INCLUDE.match(l)
+            if m:
+                lineas[k] = f'{m.group(1)}"json/JsonFwd.hpp"{m.group(2)}'
+                hecho = True
+        print(f"{h}: {'JsonFwd' if hecho else 'sin <nlohmann/json.hpp>, sin cambios'}")
+        if aplicar and hecho:
+            f.write_bytes("\n".join(lineas).encode("utf-8"))
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("migracion", choices=["i18n"])
+    ap.add_argument("migracion", choices=["i18n", "json-fwd"])
     ap.add_argument("--aplicar", action="store_true", help="escribir los cambios (sin esto, solo los muestra)")
-    ap.add_argument("raices", nargs="*", default=["src"], help="carpetas a recorrer (por omisión, src)")
+    ap.add_argument("rutas", nargs="*", help="i18n: carpetas a recorrer (por omisión, src); json-fwd: los headers")
     a = ap.parse_args()
-    raices = [RAIZ / r for r in a.raices]
+    if a.migracion == "json-fwd":
+        return migrar_json_fwd(a.aplicar, a.rutas)
+    raices = [RAIZ / r for r in (a.rutas or ["src"])]
     return migrar_i18n(a.aplicar, raices)
 
 
