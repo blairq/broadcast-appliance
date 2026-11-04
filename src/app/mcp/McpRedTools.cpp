@@ -15,7 +15,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "red/Red.hpp"
 #include "ui/OperatorMessages.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "video/Diagnostico.hpp"
 #include "video/VideoGrafos.hpp"
 

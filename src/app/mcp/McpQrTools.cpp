@@ -19,7 +19,7 @@
 #include "ui/EventoViewModel.hpp"
 #include "ui/QrViewModel.hpp"
 #include "sala/Direcciones.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
@@ -149,7 +149,7 @@ void McpService::registerQrTools() {
                 {"description", QT_TRANSLATE_NOOP("mcp", "verde (de fábrica), azul, rojo, amarillo, naranja, violeta, rosa, celeste, gris o #rrggbb")}}}}}};
         t.examples = {R"({"texto": "https://sala.ejemplo.com/invitados/#room=sala1", "descripcion": "Enlace para los invitados", "color": "verde"})",
                       R"({"texto": "https://sala.ejemplo.com/sesion/", "descripcion": "Sesión remota", "color": "azul"})"};
-        StudioViewModel* vmp = &vm_;
+        InterfazMcp* vmp = &vm_;
         t.run = [vmp](const json& a, Done done) {
             const std::string texto = a.value("texto", std::string());
             if (texto.empty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "falta `texto`")));
@@ -341,7 +341,7 @@ void McpService::registerQrTools() {
             "esperan (`pendientes`) y quiénes (`solicitudes`): solo para informar; los aprueba el operador en "
             "Servicios (el control web, también con control_web_resolver, que pide su aprobación).");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
-        StudioViewModel* vmp = &vm_;
+        InterfazMcp* vmp = &vm_;
         t.run = [vmp](const json&, Done done) {
             EnlacesViewModel* e = vmp->enlacesVm();
             if (e == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));
@@ -366,7 +366,7 @@ void McpService::registerQrTools() {
             "y, si falta alguno, `motivo_local`/`motivo_remoto`. Para los de la sala, pasá el local; el remoto es "
             "para quien está afuera. Los enlaces con clave (tablero, prompter, rótulos…) dalos con su herramienta.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
-        StudioViewModel* vmp = &vm_;
+        InterfazMcp* vmp = &vm_;
         t.run = [vmp](const json&, Done done) { done(ToolResult().data(vmp->direcciones().catalogo())); };
         core_.addTool(std::move(t));
     }
@@ -388,7 +388,7 @@ void McpService::registerQrTools() {
                           {{"id", {{"type", "string"}, {"enum", {"invitados", "companion", "satellite", "tunel"}}}},
                            {"activo", {{"type", "boolean"}}}}}};
         t.examples = {R"({"id": "invitados", "activo": false})"};
-        StudioViewModel* vmp = &vm_;
+        InterfazMcp* vmp = &vm_;
         t.run = [vmp](const json& a, Done done) {
             EnlacesViewModel* e = vmp->enlacesVm();
             if (e == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "no disponible")));

@@ -12,7 +12,7 @@
 #include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
@@ -52,7 +52,7 @@ void McpService::registerAssistantTools() {
                     "seguí la guía de puesta en marcha (help {\"topic\": \"puesta-en-marcha\"}) en el orden "
                     "que dice, y volvé a mirar hasta que `todo_bien` sea true.");
         t.inputSchema = {{"type", "object"}, {"properties", json::object()}};
-        StudioViewModel* vm = &vm_;
+        InterfazMcp* vm = &vm_;
         t.run = [vm](const json&, Done done) {
             agent::EstadoIA* e = vm->estadoIAModelo();
             if (e == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "El estado de la IA no está disponible.")));

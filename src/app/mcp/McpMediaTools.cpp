@@ -25,7 +25,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "medios/Medios.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 
@@ -58,7 +58,7 @@ void McpService::registerMediaTools() {
         ba::i18n::traducir("mcp", "Buscar, ver y usar en escenas los archivos de las carpetas de medios del sistema: Media/ (la "
         "biblioteca), Shares/ (lo que compartieron los invitados) y Recordings/."));
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     const QString root = QString::fromStdWString(rt.dataRoot().wstring());
     QDir(root).mkpath("Media");
 

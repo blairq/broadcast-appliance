@@ -34,7 +34,7 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/PersonasViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/Quorum.hpp"
 #include "control/BusEventos.hpp"
@@ -46,7 +46,7 @@ using json = nlohmann::json;
 
 } // namespace
 
-void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt) {
+void registerPreguntaTools(McpCore& core, InterfazMcp& vm, AppRuntime& rt) {
     core.addCategory("preguntas", ba::i18n::traducir("mcp", "Preguntas del público"),
                      ba::i18n::traducir("mcp", "La cola de lo que pregunta la gente, del salón y de las plataformas, para "
                      "moderarla y sacarla al aire."));

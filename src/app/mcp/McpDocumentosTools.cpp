@@ -14,7 +14,7 @@
 #include "platform/Paths.hpp"
 #include "ui/DocumentosViewModel.hpp"
 #include "ui/PdfEscena.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 #include <algorithm>
 #include "ui/CapturaError.hpp"

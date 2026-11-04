@@ -24,7 +24,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/CuentasViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/VivosViewModel.hpp"
 
 namespace ba::app::mcp {

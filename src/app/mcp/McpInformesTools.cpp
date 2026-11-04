@@ -13,7 +13,7 @@ using ::ba::app::errorDe;
 namespace ba::app::mcp {
 
 void McpService::registerInformesTools() {
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
 
     // --- Los informes del resultado de la sesión (asamblea/InformesResultado) ---------
     {

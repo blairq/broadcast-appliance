@@ -47,7 +47,7 @@
 #include <cstdio>
 #include <memory>
 #include <string>
-
+#include "mcp/InterfazMcp.hpp"
 #include "agent/AgentViewModel.hpp"
 #include "agent/HijosDeLaApp.hpp"
 #include "agent/ModelosLocales.hpp"
@@ -606,7 +606,7 @@ int runGui(int argc, char** argv) {
 
         // Servidor MCP: un asistente de IA maneja y ve toda la app (127.0.0.1 + token).
         relojGui.restart();
-        mcp::McpService mcpService(rt, vm);
+        mcp::McpService mcpService(rt, *new InterfazMcp(vm)); // lo que el MCP ve de vm (su hija)
         // Cada herramienta en su hilo y el transporte en el del plano de control (F3-03).
         mcpService.setPlano(plano);
         ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: el servidor MCP, %1 ms"),

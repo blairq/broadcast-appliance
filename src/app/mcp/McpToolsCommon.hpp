@@ -20,7 +20,7 @@
 
 namespace ba::app {
 class AppRuntime;
-class StudioViewModel;
+class InterfazMcp;
 struct FotoMotor;
 namespace escenas {
 class Conmutador;
@@ -85,7 +85,7 @@ void esperarHasta(Obj* obj, Senal senal, std::function<std::optional<ToolResult>
 }
 
 /// Estado de la sala tal como lo publica B (snapshot vigente, sin pedirlo).
-json roomSnapshot(StudioViewModel& vm);
+json roomSnapshot(InterfazMcp& vm);
 /// Participante por id, nombre exacto (sin mayusculas) o prefijo unico.
 bool resolveParticipant(const json& snapshot, const std::string& query, json& out, std::string& err);
 /// Clave del FrameService con su video vivo en A ("guest:N", "lobby:K",
@@ -100,9 +100,9 @@ std::string avisoReiniciaMotor();
 // --- Las salidas (PLAN-SALIDAS; ver McpSalidasTools.cpp) ---------------------
 /// El conmutador (aire, armada, take, T-bar, AFV) de la salida de la llamada en
 /// curso (McpCore::salidaDe): el de las herramientas de escenas con `salida`.
-escenas::Conmutador& conmutadorDe(const McpCore& core, StudioViewModel& vm, const json& args);
+escenas::Conmutador& conmutadorDe(const McpCore& core, InterfazMcp& vm, const json& args);
 /// El de una salida ya resuelta ("" = la por omisión).
-escenas::Conmutador& conmutadorDe(StudioViewModel& vm, const std::string& salida);
+escenas::Conmutador& conmutadorDe(InterfazMcp& vm, const std::string& salida);
 /// [{id, nombre, color, por_omision, escena, armada, streaming, reconectando,
 /// recording, destinos, limpia, repeticion, placa}], la por omisión primera. De la foto
 /// del motor (en la interfaz: StudioViewModel::ventanilla().foto()).

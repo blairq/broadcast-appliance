@@ -41,7 +41,7 @@
 #include "pantallas/Monitores.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "Piezas.hpp" // motor::derivaDePlacas
 
 #if defined(__linux__)

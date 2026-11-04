@@ -14,7 +14,7 @@ namespace ba::app::mcp {
 
 void McpService::registerConfigTools() {
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
 
     // --- Configuracion -------------------------------------------------------------
     {

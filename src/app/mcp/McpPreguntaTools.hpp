@@ -5,13 +5,13 @@
 
 namespace ba::app {
 class AppRuntime;
-class StudioViewModel;
+class InterfazMcp;
 } // namespace ba::app
 
 namespace ba::app::mcp {
 class McpCore;
 
 /// La cola de preguntas del publico y la pagina desde donde se mandan.
-void registerPreguntaTools(McpCore& core, StudioViewModel& vm, AppRuntime& rt);
+void registerPreguntaTools(McpCore& core, InterfazMcp& vm, AppRuntime& rt);
 
 } // namespace ba::app::mcp

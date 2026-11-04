@@ -12,14 +12,14 @@
 #include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 #include <functional>
 
 namespace ba::app::mcp {
 
 void McpService::registerGrillaTools() {
-    StudioViewModel* vmp = &vm_;
+    InterfazMcp* vmp = &vm_;
     const std::string ajustesAyuda = ba::i18n::traducir("mcp", 
         "origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), "
         "solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando "

@@ -18,7 +18,7 @@
 #include "arranque/RuntimeConfig.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::app::mcp {

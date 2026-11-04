@@ -14,7 +14,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "plugins/Plugins.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "agent/Notificador.hpp"
 
 namespace ba::app::mcp {

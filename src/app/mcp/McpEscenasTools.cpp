@@ -14,7 +14,7 @@ namespace ba::app::mcp {
 
 void McpService::registerEscenasTools() {
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     // Por el nombre (lo de siempre) o por el id estable que da scene_list.
     const auto sceneExists = [&rt](const std::string& s) { return !rt.engine().sceneId(s).empty(); };
     const auto noScene = [&rt](const std::string& s) {

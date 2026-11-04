@@ -21,7 +21,7 @@
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/ExtensionesModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 
@@ -30,7 +30,7 @@ void McpService::registerRegistroTools() {
                       ba::i18n::traducir("mcp", "Lo que pasó en los tres procesos: leerlo, filtrarlo y decidir "
                                                 "cuánto se registra."));
 
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
 
 
     {

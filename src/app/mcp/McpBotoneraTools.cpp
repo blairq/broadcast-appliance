@@ -32,7 +32,7 @@
 #include "mcp/McpFoto.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
@@ -50,7 +50,7 @@ json objetoCelda() {
 
 } // namespace
 
-void registerBotoneraTools(McpCore& core, StudioViewModel& vm) {
+void registerBotoneraTools(McpCore& core, InterfazMcp& vm) {
     core.addCategory("botonera", ba::i18n::traducir("mcp", "Botonera y eventos"),
                      ba::i18n::traducir("mcp", "La superficie de control (tablet por QR, Stream Deck, MIDI por plugin) y "
                                                "el bus de eventos de la app (lo que está al aire, salidas, niveles, "

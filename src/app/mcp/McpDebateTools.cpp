@@ -13,7 +13,7 @@ using ::ba::app::errorDe;
 namespace ba::app::mcp {
 
 void McpService::registerDebateTools() {
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
 
     // --- El debate entre dos (asamblea/Debate) --------------------------------------
     if (vm.debate() != nullptr) {

@@ -15,7 +15,7 @@
 
 namespace ba::app {
 class EventoViewModel;
-class StudioViewModel;
+class InterfazMcp;
 namespace mcp {
 
 class McpCore;
@@ -27,7 +27,7 @@ class McpCore;
 ///        sigue existiendo (vacia) y nada se rompe.
 using FichaDe = std::function<std::pair<bool, std::string>(const std::string& personaId)>;
 
-void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm, FichaDe fichaDe);
+void registerEventoTools(McpCore& core, EventoViewModel& ev, InterfazMcp& vm, FichaDe fichaDe);
 /// Lo que la línea necesita del resto de la app, pasado de afuera (así McpLineaTools
 /// no depende del motor, del orden del día ni de las plantillas). Vacías = no hay.
 struct LineaFuentes {

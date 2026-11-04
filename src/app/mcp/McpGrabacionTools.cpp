@@ -22,7 +22,7 @@ void McpService::registerGrabacionTools() {
     AppRuntime& rt = rt_;
     // Si corre con --test: de la configuración que publica el dueño (la foto), sin entrar.
     const bool modoPrueba = vm_.ventanilla().foto().configuracion.app->modoPrueba;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
 
     {
         Tool t;

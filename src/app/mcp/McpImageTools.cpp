@@ -44,7 +44,7 @@
 #include "sala/ParticipantesSala.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/FrameService.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/VideoViewModel.hpp"
 #include "video/Scopes.hpp"
 #include "video/VideoGrafos.hpp"
@@ -74,7 +74,7 @@ void renderAparte(AppRuntime& rt, const std::string& name, int maxWidth,
     });
 }
 
-bool feedImage(StudioViewModel& vm, const std::string& key, QImage& out) {
+bool feedImage(InterfazMcp& vm, const std::string& key, QImage& out) {
     auto* frames = static_cast<FrameService*>(vm.frames());
     std::uint64_t serial = 0;
     return frames->latest(QString::fromStdString(key), out, serial) && !out.isNull();
@@ -165,7 +165,7 @@ void McpService::registerImageTools() {
         "imagenes", ba::i18n::traducir("mcp", "Imágenes y video (visión)"),
         ba::i18n::traducir("mcp", "Ver el programa, cualquier fuente o escena, cada persona, la app, y secuencias en el tiempo."));
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     auto* self = this;
     // Por referencia local: los lambdas de las herramientas no capturan `this`.
     McpCore& core = core_;

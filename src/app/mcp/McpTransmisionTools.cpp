@@ -14,7 +14,7 @@ namespace ba::app::mcp {
 
 void McpService::registerTransmisionTools() {
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
 
     // --- Salidas -------------------------------------------------------------------
     {

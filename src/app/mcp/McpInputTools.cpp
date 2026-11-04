@@ -24,7 +24,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "video/Camaras.hpp"
 
 namespace ba::app::mcp {
@@ -57,7 +57,7 @@ void McpService::registerInputTools() {
         ba::i18n::traducir("mcp", "Cámaras y capturadoras conectadas a la máquina (hardware) y cámaras/señales "
                                   "por la red (RTSP, RTMP, SRT, HLS, UDP). Quedan como fuentes de las escenas."));
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     const auto layoutOf = [](const json& a, SourceSpec& spec, std::string& err) {
         spec.rect = CanvasRect{0.0f, 0.0f, 1.0f, 1.0f};
         return !a.contains("layout") ||

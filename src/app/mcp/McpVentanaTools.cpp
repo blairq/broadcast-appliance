@@ -46,7 +46,7 @@
 #include "i18n/I18nTexto.hpp"
 #include "platform/Paths.hpp"
 #include "ui/RielConfig.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 namespace {
@@ -806,7 +806,7 @@ void McpService::registerVentanaTools() {
                            {"recuadros", esquemaRecuadros()}}}};
         t.examples = {R"({"url": "http://127.0.0.1:8787/prompter/", "ancho": 430, "alto": 900})",
                       R"({"url": "<local de enlaces_listar>", "ancho": 1440, "alto": 900, "archivo": "es/capturas/web-01-evento.png"})"};
-        StudioViewModel* vmp = &vm_;
+        InterfazMcp* vmp = &vm_;
         t.run = [this, vmp](const json& a, Done done) {
             const DestinoImagen destinoImg = destinoImagen(core_, rt_.dataRoot());
             const QUrl url(QString::fromStdString(a.value("url", std::string())));

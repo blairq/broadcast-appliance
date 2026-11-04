@@ -348,7 +348,7 @@ json modelRows(const QAbstractItemModel& m) {
 // Servicio
 // ============================================================================
 
-McpService::McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent)
+McpService::McpService(AppRuntime& rt, InterfazMcp& vm, QObject* parent)
     : QObject(parent), rt_(rt), vm_(vm),
       settings_(std::make_unique<SettingsModel>(rt, vm.ventanilla())) {
     // El cupo en caliente, como en la GUI: sin esto, settings_set con el cupo
@@ -872,7 +872,7 @@ QString McpService::token() const { return http_ ? http_->token() : QString(); }
 
 FuentesDeFoto McpService::fuentesDeFoto() {
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     FuentesDeFoto f;
     // El documento de aire y el latido: «desde cualquier hilo» (AppRuntime.hpp; ya los lee
     // la foto de emergencia desde el control). La foto de las salidas la publica el hilo
@@ -984,7 +984,7 @@ MandoDeAire McpService::mandoDeAire() {
     // setTurno): los conmutadores, la seguridad del aire y lo que sale del runtime lo toman
     // también (son de a uno con la interfaz) y avisan a las vistas en su hilo (enDueno).
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     MandoDeAire m;
     const auto conm = [&vm](const std::string& salida) -> escenas::Conmutador& { return conmutadorDe(vm, salida); };
     m.escenas = [&rt]() { return rt.engine().sceneNames(); };
@@ -1076,7 +1076,7 @@ void McpService::registerTools() {
     registerPreguntaTools(core_, vm_, rt_);
 
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     // La invariante, puesta una vez y para todas: lo que se toca por MCP queda
     // guardado. El despachador la aplica a TODA herramienta que modifica algo,
     // asi ninguna superficie nueva depende de que su autor se acuerde (y ninguna

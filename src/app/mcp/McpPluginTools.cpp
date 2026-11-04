@@ -14,7 +14,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "plugins/Plugins.hpp"
 #include "ui/OperatorMessages.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 #include <QPointer>
 

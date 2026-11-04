@@ -36,7 +36,7 @@
 #include "audio/RackManager.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/RielConfig.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 
@@ -79,7 +79,7 @@ void McpService::registerAudioTools() {
                       "conectados con cables, con medidores por modulo, analizador (LUFS, espectro, piso de "
                       "ruido) y medicion "
                       "fuera de linea. Guia: help {\"topic\": \"audio_rack\"}."));
-    StudioViewModel* vm = &vm_;
+    InterfazMcp* vm = &vm_;
     auto mgr = [vm]() { return vm->racks(); };
 
     {

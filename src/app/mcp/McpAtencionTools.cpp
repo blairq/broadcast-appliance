@@ -19,12 +19,12 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/AtencionViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 
 void McpService::registerAtencionTools() {
-    StudioViewModel* vm = &vm_;
+    InterfazMcp* vm = &vm_;
     const auto atencion = [vm]() { return vm->atencionVm(); };
     const auto sinAtencion = []() {
         return ToolResult::error(ba::i18n::traducir("mcp", "Esta compilación no tiene la atención a quien se conecta (falta el motor de voz)."));

@@ -29,7 +29,7 @@
 #include "ui/FrameService.hpp"
 #include "ui/MultiviewViewModel.hpp"
 #include "ui/RielConfig.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/SystemViewModel.hpp"
 
 namespace ba::app::mcp {
@@ -46,7 +46,7 @@ json idsDePaginas() {
 }
 
 /// El indice de pagina de un id, o -1.
-int paginaDeId(StudioViewModel& vm, const std::string& id) {
+int paginaDeId(InterfazMcp& vm, const std::string& id) {
     auto* riel = static_cast<RielConfig*>(vm.riel());
     return riel == nullptr ? -1 : riel->paginaDeId(QString::fromStdString(id));
 }
@@ -59,7 +59,7 @@ void McpService::registerUiTools() {
         ba::i18n::traducir("mcp", "Navegar páginas, avisos en pantalla, tarjetas del dashboard, fondo y ventanas de salida "
         "(multiview en otro monitor)."));
     core_.addCategory("sistema", ba::i18n::traducir("mcp", "Sistema"), ba::i18n::traducir("mcp", "Videos disponibles, registros, salud, salir."));
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     auto* self = this;
     auto* dash = static_cast<DashboardModel*>(vm.dashboard());
     // Las ventanas sueltas (pantallas/Ventanas.hpp): video, páginas y paneles.

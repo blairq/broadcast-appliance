@@ -14,7 +14,7 @@
 #include "agent/Voz.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 #include <QCoreApplication>
 #include <QPointer>

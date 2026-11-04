@@ -16,7 +16,7 @@
 #include "i18n/I18nTexto.hpp"
 #include "ui/Discursos.hpp"
 #include "ui/PrompterViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;

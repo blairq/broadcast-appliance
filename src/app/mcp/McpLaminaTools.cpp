@@ -28,7 +28,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/CarruselViewModel.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 

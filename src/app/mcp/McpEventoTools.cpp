@@ -51,7 +51,7 @@
 #include "ui/EventoViewModel.hpp"
 #include "ui/HistoricoConsulta.hpp"
 #include "ui/HistoricoViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
@@ -96,7 +96,7 @@ QVariantMap aVariantMap(const json& j) {
 
 void registrarPadron(McpCore& core, EventoViewModel& ev, FichaDe fichaDe);
 
-void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm, FichaDe fichaDe) {
+void registerEventoTools(McpCore& core, EventoViewModel& ev, InterfazMcp& vm, FichaDe fichaDe) {
     core.addCategory("evento", ba::i18n::traducir("mcp", "Guion del evento"),
                      ba::i18n::traducir("mcp", "El storyboard: bloques, cues, tiempos previstos y el recorrido en vivo."));
 

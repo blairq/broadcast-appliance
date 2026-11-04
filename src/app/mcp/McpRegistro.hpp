@@ -119,6 +119,6 @@
 #include "video/FuentesCaptura.hpp"
 #include "Capturas.hpp" // del motor: hayCapturaDeVentana
 #include "ui/SettingsModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "platform/Hilo.hpp"
 #include "ui/CapturaError.hpp"

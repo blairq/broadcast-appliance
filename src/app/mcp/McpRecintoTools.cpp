@@ -13,7 +13,7 @@ using ::ba::app::errorDe;
 namespace ba::app::mcp {
 
 void McpService::registerRecintoTools() {
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
 
     // --- El recinto: la grilla de bancas (asamblea/Cuerpo) ------------------------
     {

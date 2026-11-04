@@ -38,7 +38,7 @@ class QThreadPool;
 namespace ba::app {
 class AppRuntime;
 class PlanoControl;
-class StudioViewModel;
+class InterfazMcp;
 class PropertiesModel;
 class SettingsModel;
 } // namespace ba::app
@@ -50,7 +50,7 @@ class McpHttp;
 class McpService : public QObject {
     Q_OBJECT
    public:
-    McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent = nullptr);
+    McpService(AppRuntime& rt, InterfazMcp& vm, QObject* parent = nullptr);
     ~McpService() override;
 
     /// Ventana principal (capturas y navegacion). Antes de start().
@@ -149,7 +149,7 @@ class McpService : public QObject {
 
    private:
     AppRuntime& rt_;
-    StudioViewModel& vm_;
+    InterfazMcp& vm_;
     McpCore core_;
     std::unique_ptr<McpHttp> http_;
     PlanoControl* plano_ = nullptr;
