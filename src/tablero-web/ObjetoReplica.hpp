@@ -15,6 +15,9 @@
 //     que devuelven algo no pueden esperar a la red dentro de un binding: devuelven lo último
 //     que contestó la app para esos argumentos (al principio, undefined), y cuando llega la
 //     respuesta cambia `replicaRev`, que la función leyó: el binding se reevalúa solo.
+//     Cuando el objeto cambia, lo que devolvieron sus funciones puede estar viejo: se marca
+//     sucio y sube `replicaRev`, así los bindings VIVOS se reevalúan y piden de nuevo (cada
+//     clave, como mucho una vez por segundo). Lo que ningún binding volvió a leer se olvida.
 //   - Perezoso: los valores se piden («abrir») la primera vez que la vista lee una
 //     propiedad; hasta entonces valen lo de su tipo (0, "", [], {}, null).
 //   - Escribir una propiedad desde la QML (Studio.dashboard.backgroundDim += 0.1) la cambia
@@ -67,6 +70,8 @@ class ObjetoReplica : public QAbstractListModel {
     void leida(int indice);
     void escrita(int indice);
     void pedirOtraVez();
+    /// Que los bindings vivos vuelvan a leer (sube replicaRev) dentro de `ms`, una vez.
+    void reevaluarEn(qint64 ms);
 
     ClienteReplica* cliente_;
     QString id_;
@@ -84,6 +89,8 @@ class ObjetoReplica : public QAbstractListModel {
     QHash<QString, qint64> pedidoMs_;
     QHash<QString, qint64> usadoMs_;   ///< la última vez que un binding la leyó
     QSet<QString> enCamino_;            ///< pedidas que todavía no volvieron (no se piden de nuevo)
+    QSet<QString> sucias_;              ///< el objeto cambió después de su respuesta: hay que volver a pedirlas
+    bool reevaluacionProgramada_ = false;
     int rev_ = 0;
     bool funcionesArmadas_ = false;
 };

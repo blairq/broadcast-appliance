@@ -5,9 +5,11 @@
 #include "ui/ProveedorCuadros.hpp"
 
 #include <QBuffer>
+#include <QCoreApplication>
 #include <QDateTime>
 #include <QElapsedTimer>
 #include <QImageWriter>
+#include <QThread>
 #include <QThreadPool>
 
 #include <algorithm>
@@ -124,46 +126,59 @@ void CuadrosWeb::vuelta() {
                 int w = 0, h = 0;
                 const QByteArray jpg = comprimir(img, ancho, kCalidad, &w, &h);
                 const std::int64_t us = reloj.nsecsElapsed() / 1000;
+                // El mensaje entero, en texto, acá (base64 incluido): la interfaz solo reparte.
+                const QByteArray msg = jpg.isEmpty() ? QByteArray() : mensaje(k, serial, t, w, h, us, jpg);
+                const auto bytes = static_cast<std::int64_t>(jpg.size());
+                const bool enLaInterfaz = QThread::currentThread() == QCoreApplication::instance()->thread();
                 if (!*vivo) return;
                 QMetaObject::invokeMethod(
-                    this, [this, vivo, k, ancho, serial, t, jpg, w, h, us]() {
-                        if (*vivo) listo(k, ancho, serial, t, jpg, w, h, us);
+                    this, [this, vivo, k, ancho, serial, msg, bytes, us, enLaInterfaz]() {
+                        if (*vivo) listo(k, ancho, serial, msg, bytes, us, enLaInterfaz);
                     },
                     Qt::QueuedConnection);
             });
         }
 }
 
-void CuadrosWeb::listo(const std::string& clave, int ancho, std::uint64_t serial, std::int64_t t, const QByteArray& jpg,
-                       int w, int h, std::int64_t us) {
+QByteArray CuadrosWeb::mensaje(const std::string& clave, std::uint64_t serial, std::int64_t t, int w, int h, std::int64_t us,
+                               const QByteArray& jpg) {
+    // Lo chico con nlohmann (la clave puede necesitar escapes); el JPEG, pegado al final.
+    std::string cabeza = json{{"type", "replica"}, {"op", "cuadro"}, {"clave", clave}, {"s", serial},
+                              {"t", t},          {"w", w},          {"h", h},         {"us", us}}
+                             .dump();
+    cabeza.pop_back(); // la «}» del final: sigue el jpg
+    const QByteArray b64 = jpg.toBase64();
+    QByteArray out;
+    out.reserve(static_cast<qsizetype>(cabeza.size()) + b64.size() + 12);
+    out.append(cabeza.data(), static_cast<qsizetype>(cabeza.size()));
+    out.append(R"(,"jpg":")");
+    out.append(b64);
+    out.append("\"}");
+    return out;
+}
+
+void CuadrosWeb::listo(const std::string& clave, int ancho, std::uint64_t serial, const QByteArray& msg, std::int64_t bytes,
+                       std::int64_t us, bool enLaInterfaz) {
     enCurso_.erase(std::make_tuple(clave, ancho, serial));
-    if (jpg.isEmpty()) return;
+    if (msg.isEmpty()) return;
     ++cuentas_.cuadros;
-    cuentas_.bytes += static_cast<std::uint64_t>(jpg.size());
+    cuentas_.bytes += static_cast<std::uint64_t>(bytes);
     cuentas_.usComprimir += static_cast<std::uint64_t>(us);
+    if (enLaInterfaz) ++cuentas_.armadosEnLaInterfaz;
     const std::int64_t ahora = ahoraMs();
-    json msg;
-    bool armado = false;
+    // Todos los que esperan este cuadro, en un solo envío.
+    std::vector<std::string> a;
     for (auto& [cid, ps] : pedidos_)
         for (Pedido& p : ps) {
             if (p.clave != clave || p.ancho != ancho || serial <= p.enviado) continue;
-            if (!armado) {
-                msg = {{"type", "replica"},
-                       {"op", "cuadro"},
-                       {"clave", clave},
-                       {"s", serial},
-                       {"t", t},
-                       {"w", w},
-                       {"h", h},
-                       {"us", us},
-                       {"jpg", jpg.toBase64().toStdString()}};
-                armado = true;
-            }
             p.enviado = serial;
             p.ultimoMs = ahora;
-            ++cuentas_.enviados;
-            if (enviar) enviar(cid, msg);
+            if (a.empty() || a.back() != cid) a.push_back(cid);
         }
+    if (a.empty()) return;
+    cuentas_.enviados += a.size();
+    ++cuentas_.pedidos;
+    if (enviar) enviar(a, msg);
 }
 
 } // namespace ba::app::control

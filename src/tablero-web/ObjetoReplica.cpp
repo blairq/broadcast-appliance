@@ -8,6 +8,9 @@
 #include <QJSEngine>
 #include <QJsonDocument>
 #include <QQmlEngine>
+#include <QTimer>
+
+#include <algorithm>
 
 #include <private/qqmlopenmetaobject_p.h>
 
@@ -184,31 +187,42 @@ void ObjetoReplica::ponerFilas(const QVector<QVariantList>& nuevas) {
 }
 
 void ObjetoReplica::pedirOtraVez() {
-    // Lo que devuelven las funciones depende de los datos: si cambiaron, se vuelve a
-    // preguntar (cada clave, como mucho dos veces por segundo).
-    // Solo lo que algún binding leyó hace poco (lo demás quedó de una vista que ya no está o
-    // de argumentos viejos), lo que no está ya en camino, y cada clave como mucho una vez por
-    // segundo: así un objeto que cambia seguido no inunda la conexión de pedidos.
+    // Lo que devuelven las funciones depende de los datos: el objeto cambió, así que todo lo
+    // que ya se preguntó queda sucio y los bindings que lo muestran se reevalúan (replicaRev):
+    // al leer, replicaLlamar lo vuelve a pedir (cada clave, como mucho una vez por segundo).
+    // Antes se adivinaba por la hora de la última lectura y un binding que llevaba más de 3 s
+    // en pantalla quedaba con el valor viejo (nadie lo reevaluaba).
+    if (llamadas_.isEmpty()) return;
+    for (auto it = llamadas_.cbegin(); it != llamadas_.cend(); ++it) sucias_.insert(it.key());
+    meta_->setValue(kRev, ++rev_); // los bindings vivos leen de nuevo (y renuevan usadoMs_) acá mismo
+    // Lo que ningún binding leyó en 10 s es de una vista que ya no está (o de argumentos viejos).
     const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
     for (auto it = llamadas_.begin(); it != llamadas_.end();) {
         if (ahora - usadoMs_.value(it.key()) > 10000) {
             cache_.remove(it.key());
             pedidoMs_.remove(it.key());
             usadoMs_.remove(it.key());
+            sucias_.remove(it.key());
             it = llamadas_.erase(it);
             continue;
-        }
-        if (!enCamino_.contains(it.key()) && ahora - pedidoMs_.value(it.key()) >= 1000 && ahora - usadoMs_.value(it.key()) < 3000) {
-            pedidoMs_[it.key()] = ahora;
-            enCamino_.insert(it.key());
-            cliente_->llamar(id_, it.value().first, it.value().second);
         }
         ++it;
     }
 }
 
+void ObjetoReplica::reevaluarEn(qint64 ms) {
+    if (reevaluacionProgramada_) return;
+    reevaluacionProgramada_ = true;
+    QTimer::singleShot(static_cast<int>(std::max<qint64>(0, ms)), this, [this]() {
+        reevaluacionProgramada_ = false;
+        if (!sucias_.isEmpty()) meta_->setValue(kRev, ++rev_);
+    });
+}
+
 void ObjetoReplica::resultado(const QString& clave, const QVariant& v) {
     enCamino_.remove(clave);
+    // Si el objeto cambió mientras la pregunta iba y venía, la respuesta puede ser vieja.
+    if (sucias_.contains(clave)) reevaluarEn(1000 - (QDateTime::currentMSecsSinceEpoch() - pedidoMs_.value(clave)));
     const auto it = cache_.constFind(clave);
     if (it != cache_.constEnd() && it.value() == v) return;
     cache_.insert(clave, v);
@@ -229,11 +243,24 @@ QVariant ObjetoReplica::replicaLlamar(const QString& nombre, const QVariantList&
             pedidoMs_.clear();
             usadoMs_.clear();
             enCamino_.clear();
+            sucias_.clear();
         }
         llamadas_.insert(clave, {nombre, args});
         pedidoMs_.insert(clave, QDateTime::currentMSecsSinceEpoch());
         enCamino_.insert(clave);
         cliente_->llamar(id_, nombre, args);
+    } else if (sucias_.contains(clave) && !enCamino_.contains(clave)) {
+        // El objeto cambió después de la última respuesta: preguntar de nuevo (una vez por segundo).
+        const qint64 ahora = QDateTime::currentMSecsSinceEpoch();
+        const qint64 falta = 1000 - (ahora - pedidoMs_.value(clave));
+        if (falta <= 0) {
+            sucias_.remove(clave);
+            pedidoMs_[clave] = ahora;
+            enCamino_.insert(clave);
+            cliente_->llamar(id_, nombre, args);
+        } else {
+            reevaluarEn(falta);
+        }
     }
     return cache_.value(clave);
 }

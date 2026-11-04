@@ -7,6 +7,9 @@
 //   funciones de los botones llegan a la app; las que devuelven algo responden en el
 //   binding; escribir una propiedad desde la QML llega a la app; un perfil que no es
 //   «todo» no ve nada; lo negado no sale; un cuadro de video se comprime y se descomprime.
+//   Lo que pesa no va en el hilo de la interfaz: con varios aparatos cada propiedad se lee una
+//   vez por lote, y el mensaje de cada cuadro (JPEG, base64, texto) se arma en el hilo que
+//   comprime y sale una sola vez para todos los que lo piden.
 
 #include <QAbstractListModel>
 #include <QMap>
@@ -28,6 +31,7 @@
 #include "ObjetoReplica.hpp"
 #include "control/CuadrosWeb.hpp"
 #include "control/ReplicaPublicador.hpp"
+#include "ui/ProveedorCuadros.hpp"
 
 using ba::app::control::ReplicaPublicador;
 using json = nlohmann::json;
@@ -100,6 +104,34 @@ class Lista : public QAbstractListModel {
     }
    signals:
     void cambio();
+};
+
+/// Cuenta cuántas veces se lee su propiedad (la app la lee en el hilo de la interfaz).
+class Contado : public QObject {
+    Q_OBJECT
+    Q_PROPERTY(int nivel READ nivel NOTIFY cambio)
+   public:
+    int n = 0;
+    mutable int lecturas = 0;
+    int nivel() const {
+        ++lecturas;
+        return n;
+    }
+   signals:
+    void cambio();
+};
+
+/// Un servicio de cuadros sin motor: siempre el mismo cuadro, con un serial nuevo cuando se pide.
+class CuadrosFalsos : public ba::app::ProveedorCuadros {
+   public:
+    QImage img;
+    std::uint64_t serial = 1;
+    bool ultimo(const QString&, QImage& out, std::uint64_t& s, std::int64_t) const override {
+        if (s == serial) return false;
+        out = img;
+        s = serial;
+        return true;
+    }
 };
 
 class Raiz : public QObject {
@@ -315,6 +347,32 @@ int main(int argc, char** argv) {
     ObjetoReplica* lista = cli.objeto("Studio.lista");
     CHECK(lista != nullptr && lista->data(lista->index(0), Qt::UserRole + 2).toInt() == 10, "un dato que cambió en una fila");
     CHECK(vista->property("tit").toString() == "título de x (3)", "lo que devuelve una función se vuelve a pedir si cambió el objeto");
+    // Un binding que lleva más de 3 s en pantalla sin reevaluarse (antes quedaba con el valor
+    // viejo: solo se volvía a pedir lo leído hace poco).
+    {
+        QEventLoop espera;
+        QTimer::singleShot(3500, &espera, &QEventLoop::quit);
+        espera.exec();
+        raiz.c += 1;
+        emit raiz.contadorCambio();
+        bombear(pub, cli);
+        {
+            QEventLoop otra;
+            QTimer::singleShot(1100, &otra, &QEventLoop::quit);
+            otra.exec();
+        }
+        bombear(pub, cli);
+        CHECK(vista->property("tit").toString() == "título de x (4)",
+              "y también lo que un binding muestra hace rato (no queda viejo)");
+        raiz.c -= 1;
+        emit raiz.contadorCambio();
+        {
+            QEventLoop otra;
+            QTimer::singleShot(1100, &otra, &QEventLoop::quit);
+            otra.exec();
+        }
+        bombear(pub, cli);
+    }
 
     // --- Desde la web.
     anotado.clear();
@@ -428,6 +486,64 @@ int main(int argc, char** argv) {
                                                     {"jpg", jpg.toBase64().toStdString()}}
                                                    .dump()));
     CHECK(llego, "y del otro lado se descomprime");
+
+    // --- Con varios aparatos, lo de la interfaz no crece por aparato: cada propiedad se lee
+    // UNA vez por lote (y el mismo valor va a todos los de la misma salida).
+    {
+        Contado contado;
+        ReplicaPublicador pub4(&contado);
+        pub4.setPermitidas({});
+        int enviados = 0;
+        pub4.ganchos().enviar = [&](const std::string&, const json&) { ++enviados; };
+        for (int i = 0; i < 4; ++i) pub4.entrada("t" + std::to_string(i), "ap", json::array({"*"}), {{"op", "hola"}});
+        enviados = 0;
+        contado.lecturas = 0;
+        contado.n = 7;
+        emit contado.cambio();
+        pub4.vaciar();
+        CHECK(pub4.conexiones() == 4 && enviados == 4, "cuatro aparatos reciben el cambio");
+        CHECK(contado.lecturas == 1, "y la propiedad se leyó una sola vez para los cuatro");
+    }
+
+    // --- Un cuadro para tres aparatos: se arma en el hilo que comprime y sale UNA vez.
+    {
+        CuadrosFalsos fuente;
+        fuente.img = QImage(1280, 720, QImage::Format_RGB32);
+        fuente.img.fill(Qt::blue);
+        ba::app::control::CuadrosWeb cw(&fuente);
+        std::vector<std::pair<std::vector<std::string>, QByteArray>> salidos;
+        cw.enviar = [&](const std::vector<std::string>& cids, const QByteArray& m) { salidos.emplace_back(cids, m); };
+        const json pedido = json::array({{{"clave", "progr\"am"}, {"ancho", 640}, {"fps", 30}}});
+        for (const char* c : {"a", "b", "c"}) cw.pedir(c, pedido);
+        QEventLoop espera;
+        QTimer corte;
+        corte.setSingleShot(true);
+        QObject::connect(&corte, &QTimer::timeout, &espera, &QEventLoop::quit);
+        QTimer mirar;
+        QObject::connect(&mirar, &QTimer::timeout, &espera, [&]() {
+            if (!salidos.empty()) espera.quit();
+        });
+        corte.start(3000);
+        mirar.start(5);
+        espera.exec();
+        cw.pedir("a", json::array());
+        cw.pedir("b", json::array());
+        cw.pedir("c", json::array());
+        CHECK(salidos.size() == 1 && salidos[0].first == std::vector<std::string>({"a", "b", "c"}),
+              "un cuadro pedido por tres aparatos sale en un solo envío");
+        CHECK(cw.cuentas().armadosEnLaInterfaz == 0 && cw.cuentas().cuadros >= 1,
+              "y su mensaje (JPEG, base64, texto) se armó fuera del hilo de la interfaz");
+        const json m = salidos.empty() ? json() : json::parse(salidos[0].second.toStdString(), nullptr, false);
+        bool decodifica = false;
+        if (m.is_object() && m.contains("jpg") && m["jpg"].is_string()) {
+            QImage im;
+            im.loadFromData(QByteArray::fromBase64(QByteArray::fromStdString(m["jpg"].get<std::string>())), "JPEG");
+            decodifica = im.width() == 640 && im.height() == 360;
+        }
+        CHECK(m.is_object() && m.value("type", "") == "replica" && m.value("op", "") == "cuadro" &&
+                  m.value("clave", "") == "progr\"am" && m.value("w", 0) == 640 && m.value("s", 0) == 1 && decodifica,
+              "el mensaje armado es JSON válido (con la clave escapada) y el JPEG se lee");
+    }
 
     pub.cerrada("c1");
     CHECK(pub.conexiones() == 0 && videoPedido.empty(), "al irse la conexión se suelta todo (también el video)");

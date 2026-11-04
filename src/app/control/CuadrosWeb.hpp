@@ -7,6 +7,11 @@
 // ProveedorCuadros), se achica, se comprime en JPEG en otro hilo y sale por el control web
 // como {type:"replica", op:"cuadro", clave, s, t, w, h, jpg}.
 //
+// En el hilo de la interfaz solo queda lo barato: tomar el último cuadro (FrameService lo
+// recibe del motor; NUNCA un grab de la ventana QML) y repartir. Achicar, comprimir, pasar a
+// base64 y armar el mensaje en texto es del hilo que comprime; el mensaje sale UNA vez por
+// cuadro para todos los aparatos que lo piden (ControlWebGateway lo pega sin leerlo).
+//
 // Por qué cuadros JPEG y no WebRTC (docs/local/tablero-web-latencia.md tiene las medidas):
 //   - es la misma escena de QML: el video queda DENTRO de la vista (las tarjetas de vidrio
 //     lo difuminan, los menús van encima), igual que en la app; un <video> encima del
@@ -51,21 +56,26 @@ class CuadrosWeb : public QObject {
     using json = nlohmann::json;
     explicit CuadrosWeb(ProveedorCuadros* fuente, QObject* parent = nullptr);
     ~CuadrosWeb() override;
-    /// Mandarle `msg` a esa conexión (por el gateway).
-    std::function<void(const std::string& conexion, const json& msg)> enviar;
+    /// Mandarles `msg` (el mensaje ya en texto JSON) a esas conexiones (por el gateway).
+    std::function<void(const std::vector<std::string>& conexiones, const QByteArray& msg)> enviar;
     /// Lo que pide esa conexión ([{clave, ancho, fps}]; [] = nada).
     void pedir(const std::string& conexion, const json& claves);
     /// Calidad del JPEG (1-100).
     static constexpr int kCalidad = 72;
 
-    /// Lo que costó (para medir): cuadros comprimidos, bytes y microsegundos de compresión.
+    /// Lo que costó (para medir): cuadros comprimidos, bytes y microsegundos de compresión;
+    /// `enviados`: a cuántas conexiones, `pedidos`: en cuántos envíos al gateway;
+    /// `armadosEnLaInterfaz`: mensajes armados en el hilo de la interfaz (tiene que ser 0).
     struct Cuentas {
-        std::uint64_t cuadros = 0, bytes = 0, usComprimir = 0, enviados = 0;
+        std::uint64_t cuadros = 0, bytes = 0, usComprimir = 0, enviados = 0, pedidos = 0, armadosEnLaInterfaz = 0;
     };
     const Cuentas& cuentas() const { return cuentas_; }
 
     /// Achica y comprime (lo que hace el hilo; público para las pruebas).
     static QByteArray comprimir(const QImage& img, int ancho, int calidad, int* w, int* h);
+    /// El mensaje del cuadro en texto JSON (lo que hace el hilo; público para las pruebas).
+    static QByteArray mensaje(const std::string& clave, std::uint64_t serial, std::int64_t t, int w, int h, std::int64_t us,
+                              const QByteArray& jpg);
 
    private:
     struct Pedido {
@@ -81,8 +91,8 @@ class CuadrosWeb : public QObject {
     };
     struct Trabajo; ///< una compresión en curso (clave, ancho, serial)
     void vuelta();
-    void listo(const std::string& clave, int ancho, std::uint64_t serial, std::int64_t t, const QByteArray& jpg, int w, int h,
-               std::int64_t us);
+    void listo(const std::string& clave, int ancho, std::uint64_t serial, const QByteArray& msg, std::int64_t bytes,
+               std::int64_t us, bool enLaInterfaz);
 
     QPointer<ProveedorCuadros> fuente_;
     std::map<std::string, std::vector<Pedido>> pedidos_;
