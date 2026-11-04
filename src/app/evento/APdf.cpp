@@ -178,3 +178,5 @@ void APdf::archivo(const QString& origen, const QString& destino, Listo listo) {
 }
 
 } // namespace ba::app
+
+#include "moc_APdf.cpp"

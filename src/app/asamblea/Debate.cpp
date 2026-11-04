@@ -283,3 +283,5 @@ void Debate::iniciarUi(const QString& a, const QString& b, const QString& t) {
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_Debate.cpp"

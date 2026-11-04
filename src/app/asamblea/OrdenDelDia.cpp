@@ -315,3 +315,5 @@ QString OrdenDelDia::puntoUi(int n, const QString& estado, const QString& result
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_OrdenDelDia.cpp"

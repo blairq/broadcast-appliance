@@ -387,3 +387,5 @@ bool InformesResultado::guardarUi(const QString& id, const QString& texto, const
 QVariantMap InformesResultado::generarUi(const QString& id) { return aQv(generar(id.toStdString())).toMap(); }
 
 } // namespace ba::app::asamblea
+
+#include "moc_InformesResultado.cpp"

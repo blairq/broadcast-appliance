@@ -193,3 +193,5 @@ void JsonListModel::append(const QJsonObject& item) {
 }
 
 } // namespace ba::app
+
+#include "moc_JsonListModel.cpp"

@@ -195,3 +195,5 @@ void ConferenciaDcn::conectarUi(const QVariantMap& config) {
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_ConferenciaDcn.cpp"

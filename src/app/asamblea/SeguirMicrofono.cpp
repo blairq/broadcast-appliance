@@ -228,3 +228,5 @@ void SeguirMicrofono::configurarUi(const QVariantMap& c) {
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_SeguirMicrofono.cpp"

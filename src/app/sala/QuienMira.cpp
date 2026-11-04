@@ -47,3 +47,5 @@ void QuienMira::revisar() {
 }
 
 } // namespace ba::app::sala
+
+#include "moc_QuienMira.cpp"

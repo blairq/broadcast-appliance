@@ -75,3 +75,5 @@ void LugaresConGente::mirar(const ResumenSala* r) {
 }
 
 } // namespace ba::app::sala
+
+#include "moc_LugaresConGente.cpp"

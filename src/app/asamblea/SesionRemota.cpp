@@ -1121,3 +1121,5 @@ void SesionRemota::ponerFoto(const QString& id, const QByteArray& jpeg) {
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_SesionRemota.cpp"

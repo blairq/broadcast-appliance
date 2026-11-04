@@ -203,3 +203,5 @@ QVariantMap CuerpoViewModel::buscar(const QString& clave) const {
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_CuerpoViewModel.cpp"

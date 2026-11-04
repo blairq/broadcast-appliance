@@ -116,3 +116,5 @@ bool GeneradorHinchada::andando() const {
 }
 
 } // namespace ba::app::sala
+
+#include "moc_GeneradorCarga.cpp"

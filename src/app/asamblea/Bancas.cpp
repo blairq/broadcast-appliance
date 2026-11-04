@@ -309,3 +309,5 @@ json Bancas::oradorParaZocalo() const {
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_Bancas.cpp"

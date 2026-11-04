@@ -136,3 +136,5 @@ void RecintoModel::recalcular() {
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_RecintoModel.cpp"

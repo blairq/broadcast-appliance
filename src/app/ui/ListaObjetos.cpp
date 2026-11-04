@@ -110,3 +110,5 @@ QHash<int, QByteArray> ListaObjetos::roleNames() const {
 }
 
 } // namespace ba::app
+
+#include "moc_ListaObjetos.cpp"

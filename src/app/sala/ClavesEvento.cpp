@@ -88,3 +88,5 @@ void ClavesEvento::mandar() {
 }
 
 } // namespace ba::app::sala
+
+#include "moc_ClavesEvento.cpp"

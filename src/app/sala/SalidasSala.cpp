@@ -30,3 +30,5 @@ int SalidasSala::miranPrograma() const { return sala_.online() ? miranPrograma_ 
 QJsonObject SalidasSala::miranSalidas() const { return sala_.online() ? miranSalidas_ : QJsonObject(); }
 
 } // namespace ba::app::sala
+
+#include "moc_SalidasSala.cpp"

@@ -471,3 +471,5 @@ void Presidencia::avisarPunto(const json& p) {
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_Presidencia.cpp"

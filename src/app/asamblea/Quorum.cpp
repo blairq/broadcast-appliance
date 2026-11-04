@@ -250,3 +250,5 @@ bool Quorum::cargarCsvUi(const QString& asunto, const QString& csv, const QStrin
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_Quorum.cpp"

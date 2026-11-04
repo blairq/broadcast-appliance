@@ -128,3 +128,5 @@ void FiltroCatalogo::filtrar() {
 }
 
 } // namespace ba::app
+
+#include "moc_FiltroCatalogo.cpp"

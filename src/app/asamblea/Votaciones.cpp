@@ -166,3 +166,5 @@ void Votaciones::abrirEnCelularesUi(const QString& tema, const QString& menu, in
 }
 
 } // namespace ba::app::asamblea
+
+#include "moc_Votaciones.cpp"

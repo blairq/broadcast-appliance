@@ -101,3 +101,5 @@ QString Direcciones::via() const {
 }
 
 } // namespace ba::app::sala
+
+#include "moc_Direcciones.cpp"

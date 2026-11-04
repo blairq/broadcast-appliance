@@ -110,3 +110,5 @@ void GuardadoEnEvento::restaurar() {
 }
 
 } // namespace ba::app::sala
+
+#include "moc_GuardadoEnEvento.cpp"
