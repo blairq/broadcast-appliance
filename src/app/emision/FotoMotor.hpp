@@ -360,7 +360,12 @@ struct FotoMotor {
     static constexpr Arrastre kDsk{Superficies, Salidas};
     /// temaWeb: es de la configuración (Ajustes).
     static constexpr Arrastre kTemaWeb{Superficies, Ajustes};
-    static constexpr Arrastre kArrastres[] = {kFuentesVideo, kAlAire, kConfigImagen, kDsk, kTemaWeb};
+    /// fuentes: también las globales, que nacen y se van sin tocar una escena (un micrófono
+    /// de la máquina, los canales de una placa, el monitor de la voz): el motor lo avisa como
+    /// cambio de audio (alta/baja), que ensucia Mezcla. Sin esto el rack de un micrófono
+    /// recién agregado decía «no existe la fuente».
+    static constexpr Arrastre kFuentes{Escenas, Mezcla};
+    static constexpr Arrastre kArrastres[] = {kFuentesVideo, kAlAire, kConfigImagen, kDsk, kTemaWeb, kFuentes};
 
     /// ¿Se rearma el campo `a` con estas partes sucias? (Su parte o las que lo mueven.)
     static constexpr bool rearmar(const Arrastre& a, unsigned sucias) { return (sucias & (a.de | a.por)) != 0; }
