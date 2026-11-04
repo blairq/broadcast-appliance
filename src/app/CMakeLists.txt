@@ -333,6 +333,27 @@ if(BA_MDNS_OK)
     target_compile_definitions(ba_app_comun INTERFACE BA_HAVE_MDNS=1)
 endif()
 
+# --- Las bibliotecas de la app (docs del diseño físico: cmake/BaBiblioteca.cmake) ---------
+# Cada fuente se compila una vez, en su biblioteca; ba-app y los tests la enlazan. Sin Qt
+# (la validación cruzada sin interfaz) no hay bibliotecas: las fuentes quedan en ba-app.
+set(BA_APP_BIBLIOTECAS "")
+if(BA_APP_QT_OK)
+    # Lo básico que usan todas las áreas, sin depender de ninguna (nivel 1.5, debajo de las
+    # áreas): lo de comun/, las listas genéricas de la vista (ListaConClave, ListaObjetos,
+    # JsonListModel, FiltroCatalogo), el contrato de errores (CapturaError) y los nombres de la
+    # app para leer y guardar Config/ (arranque/ArchivoConfig). Esos archivos siguen en ui/ y
+    # arranque/; tools/diag/niveles.txt los pone en el componente app/base.
+    ba_biblioteca(ba_app_base NIVEL 1.5
+        DEPENDE ba_app_comun ba_core Qt6::Core
+        FUENTES comun/Duracion.hpp comun/FotoEntreHilos.hpp comun/HoraMonotonica.hpp comun/JsonSignals.hpp
+                comun/Restante.hpp comun/UsoCpu.hpp comun/UsoPorVistas.hpp
+                ui/CapturaError.hpp ui/ListaConClave.hpp ui/ListaObjetos.hpp ui/ListaObjetos.cpp
+                ui/JsonListModel.hpp ui/JsonListModel.cpp ui/FiltroCatalogo.hpp ui/FiltroCatalogo.cpp
+                arranque/ArchivoConfig.hpp)
+    list(APPEND BA_APP_BIBLIOTECAS ba_app_base)
+    ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
+endif()
+
 if(MSVC)
     add_executable(ba-app WIN32 ${BA_APP_SOURCES})
 else()
@@ -579,21 +600,21 @@ endif()
     set_target_properties(test_dashboard_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_dashboard_model COMMAND test_dashboard_model)
     # La lista que se actualiza en su lugar por clave (ui/ListaObjetos, sobre ui/ListaConClave): avisa lo justo.
-    add_executable(test_lista_con_clave tests/test_lista_con_clave.cpp ui/ListaObjetos.cpp)
+    add_executable(test_lista_con_clave tests/test_lista_con_clave.cpp)
     target_include_directories(test_lista_con_clave PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_lista_con_clave PRIVATE Qt6::Core)
+    target_link_libraries(test_lista_con_clave PRIVATE ba_app_base Qt6::Core)
     set_target_properties(test_lista_con_clave PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_lista_con_clave COMMAND test_lista_con_clave)
     # La única búsqueda de los catálogos (ui/FiltroCatalogo).
-    add_executable(test_filtro_catalogo tests/test_filtro_catalogo.cpp ui/FiltroCatalogo.cpp ui/ListaObjetos.cpp)
+    add_executable(test_filtro_catalogo tests/test_filtro_catalogo.cpp)
     target_include_directories(test_filtro_catalogo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_filtro_catalogo PRIVATE Qt6::Core)
+    target_link_libraries(test_filtro_catalogo PRIVATE ba_app_base Qt6::Core)
     set_target_properties(test_filtro_catalogo PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_filtro_catalogo COMMAND test_filtro_catalogo)
     # El recinto: una fila por banca con lo de sus cinco fuentes ya cruzado.
-    add_executable(test_recinto_model tests/test_recinto_model.cpp asamblea/RecintoModel.cpp ui/ListaObjetos.cpp)
+    add_executable(test_recinto_model tests/test_recinto_model.cpp asamblea/RecintoModel.cpp)
     target_include_directories(test_recinto_model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_recinto_model PRIVATE Qt6::Core)
+    target_link_libraries(test_recinto_model PRIVATE ba_app_base Qt6::Core)
     set_target_properties(test_recinto_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_recinto_model COMMAND test_recinto_model)
     # Los formularios por esquema: el tipo de cada campo y sus errores (ui/Formulario).
@@ -626,9 +647,9 @@ endif()
     # orden físico, ids estables, asignación, persistencia y espera, sin monitores reales.
     add_executable(test_pantallas_catalogo tests/test_pantallas_catalogo.cpp pantallas/Catalogo.cpp
                    pantallas/Monitores.cpp pantallas/Ventanas.cpp
-                   pantallas/BuscadorCatalogo.cpp ui/FiltroCatalogo.cpp ui/ListaObjetos.cpp)
+                   pantallas/BuscadorCatalogo.cpp)
     target_include_directories(test_pantallas_catalogo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pantallas_catalogo PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Qml)
+    target_link_libraries(test_pantallas_catalogo PRIVATE ba_app_base ba_core Qt6::Core Qt6::Gui Qt6::Qml)
     set_target_properties(test_pantallas_catalogo PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pantallas_catalogo COMMAND test_pantallas_catalogo)
     # Las distribuciones de pantallas (Pantallas locales → Distribuciones): relativas ↔
@@ -636,9 +657,9 @@ endif()
     # capturar → aplicar igual, persistencia; con monitores de prueba.
     add_executable(test_pantallas_distribuciones tests/test_pantallas_distribuciones.cpp pantallas/Catalogo.cpp
                    pantallas/Monitores.cpp pantallas/Ventanas.cpp pantallas/Distribuciones.cpp
-                   pantallas/BuscadorCatalogo.cpp ui/FiltroCatalogo.cpp ui/ListaObjetos.cpp)
+                   pantallas/BuscadorCatalogo.cpp)
     target_include_directories(test_pantallas_distribuciones PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pantallas_distribuciones PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Qml)
+    target_link_libraries(test_pantallas_distribuciones PRIVATE ba_app_base ba_core Qt6::Core Qt6::Gui Qt6::Qml)
     set_target_properties(test_pantallas_distribuciones PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pantallas_distribuciones COMMAND test_pantallas_distribuciones)
     # Las pantallas de la red (Chromecast) y lo que muestran: lo guardado, la búsqueda, el
@@ -726,9 +747,9 @@ endif()
     # Con 200 entradas/canales/invitados, una foto que cambia UNA cosa hace trabajo de una
     # (las trabas de 2-6 s del 2026-11-03): los tamaños de las entradas, el índice de canales,
     # el modelo de filas de la Matriz y los lugares de los rótulos.
-    add_executable(test_trabajo_por_foto tests/test_trabajo_por_foto.cpp ui/ListaObjetos.cpp ui/ListaObjetos.hpp)
+    add_executable(test_trabajo_por_foto tests/test_trabajo_por_foto.cpp)
     target_include_directories(test_trabajo_por_foto PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_trabajo_por_foto PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_trabajo_por_foto PRIVATE ba_app_base ba_core Qt6::Core)
     set_target_properties(test_trabajo_por_foto PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_trabajo_por_foto COMMAND test_trabajo_por_foto)
     add_test(NAME test_mcp COMMAND test_mcp)
@@ -1426,9 +1447,9 @@ endif()
     set_target_properties(test_botonera PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_botonera COMMAND test_botonera)
     # El contrato único de suscripción de las vistas (comun/UsoPorVistas): cuenta por vista.
-    add_executable(test_uso_por_vistas tests/test_uso_por_vistas.cpp comun/UsoPorVistas.hpp)
+    add_executable(test_uso_por_vistas tests/test_uso_por_vistas.cpp)
     target_include_directories(test_uso_por_vistas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_uso_por_vistas PRIVATE Qt6::Core)
+    target_link_libraries(test_uso_por_vistas PRIVATE ba_app_base Qt6::Core)
     set_target_properties(test_uso_por_vistas PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_uso_por_vistas COMMAND test_uso_por_vistas)
     # Los vúmetros a pedido (ui/RelojNiveles): solo con alguien mirando y algo que suene.
@@ -1506,9 +1527,9 @@ endif()
     set_target_properties(test_evento_abierto PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_evento_abierto COMMAND test_evento_abierto)
     # Un solo contrato de errores: las acciones avisan; el MCP y las pruebas los capturan.
-    add_executable(test_captura_error tests/test_captura_error.cpp ui/CapturaError.hpp)
+    add_executable(test_captura_error tests/test_captura_error.cpp)
     target_include_directories(test_captura_error PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_captura_error PRIVATE Qt6::Core)
+    target_link_libraries(test_captura_error PRIVATE ba_app_base Qt6::Core)
     set_target_properties(test_captura_error PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_captura_error COMMAND test_captura_error)
     # El control web (dashboard /control/): emparejar, perfiles, llamar, confirmar y mirar
@@ -1592,15 +1613,14 @@ endif()
     set_target_properties(test_notificador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_notificador COMMAND test_notificador)
     # Lo que arrastra ConferenceClient: la foto de la sala se resume en su lector (sala/ResumenSala).
-    set(BA_SALA_RESUMEN sala/ResumenSala.cpp sala/ResumenSala.hpp sala/OradoresSalaReglas.cpp ui/JsonListModel.cpp
-                        ui/JsonListModel.hpp)
+    set(BA_SALA_RESUMEN sala/ResumenSala.cpp sala/ResumenSala.hpp sala/OradoresSalaReglas.cpp)
     # La foto de la sala fuera de la interfaz: el resumen y los cambios por fila en el hilo del
     # lector, la última gana (200 invitados a 10 Hz con la interfaz lenta), y la interfaz
     # aplicando solo lo que cambió.
     add_executable(test_resumen_sala tests/test_resumen_sala.cpp ${BA_SALA_RESUMEN} ui/ConferenceClient.cpp
                    ui/ConferenceClient.hpp)
     target_include_directories(test_resumen_sala PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_resumen_sala PRIVATE ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_resumen_sala PRIVATE ba_app_base ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_resumen_sala PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_resumen_sala COMMAND test_resumen_sala)
     set_tests_properties(test_resumen_sala PROPERTIES TIMEOUT 60)
@@ -1608,14 +1628,14 @@ endif()
     add_executable(test_latido_aire tests/test_latido_aire.cpp emision/LatidoAire.cpp emision/AvisoFueraDeUi.cpp
                    agent/Notificador.cpp agent/Notificador.hpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp ${BA_SALA_RESUMEN})
     target_include_directories(test_latido_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_latido_aire PRIVATE ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_latido_aire PRIVATE ba_app_base ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_latido_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_latido_aire COMMAND test_latido_aire)
     set_tests_properties(test_latido_aire PROPERTIES TIMEOUT 60)
     # A le vuelve a decir a B lo de estado cuando B no lo sabe (G-7): con una B de mentira.
     add_executable(test_republicadores tests/test_republicadores.cpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp ${BA_SALA_RESUMEN})
     target_include_directories(test_republicadores PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_republicadores PRIVATE ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_republicadores PRIVATE ba_app_base ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_republicadores PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_republicadores COMMAND test_republicadores)
     set_tests_properties(test_republicadores PROPERTIES TIMEOUT 60)
@@ -1623,7 +1643,7 @@ endif()
     add_executable(test_pagina_publico tests/test_pagina_publico.cpp sala/PaginaPublico.cpp sala/Pedido.cpp
                    ui/ConferenceClient.cpp ui/ConferenceClient.hpp ${BA_SALA_RESUMEN})
     target_include_directories(test_pagina_publico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pagina_publico PRIVATE ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_pagina_publico PRIVATE ba_app_base ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_pagina_publico PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pagina_publico COMMAND test_pagina_publico)
     set_tests_properties(test_pagina_publico PROPERTIES TIMEOUT 60)
@@ -1764,41 +1784,41 @@ endif()
     add_test(NAME test_facebook COMMAND test_facebook)
     # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:
     # propiedades asignadas dos veces, tipos o ids que no existen).
-    add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp ui/ListaObjetos.cpp ui/FiltroCatalogo.cpp
+    add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp
                    pantallas/BuscadorCatalogo.cpp ui/FilaViva.cpp ui/FilaViva.hpp
                    ui/Reloj.cpp ui/Reloj.hpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp ui/ChatHilo.cpp ui/ChatHilo.hpp)
     target_include_directories(test_qml_carga PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_qml_carga PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
+    target_link_libraries(test_qml_carga PRIVATE ba_app_base Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_qml_carga PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_qml_carga COMMAND test_qml_carga)
     # Banco de la sala con mucha gente (no es de ctest: se corre a mano, ver el .cpp). Con
     # QT_QML_DEBUG para poder medir los bindings con qmlprofiler.
     add_executable(bench_sala_conferencia tests/bench_sala_conferencia.cpp ui/VideoItem.cpp ui/VideoItem.hpp
-                   ui/ProveedorCuadros.cpp ui/ProveedorCuadros.hpp ui/JsonListModel.cpp)
+                   ui/ProveedorCuadros.cpp ui/ProveedorCuadros.hpp)
     target_include_directories(bench_sala_conferencia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(bench_sala_conferencia PRIVATE Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Qml Qt6::Quick)
+    target_link_libraries(bench_sala_conferencia PRIVATE ba_app_base Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Qml Qt6::Quick)
     target_compile_definitions(bench_sala_conferencia PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml" QT_QML_DEBUG)
     set_target_properties(bench_sala_conferencia PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     # La grilla de la sala con 120 (SalaParticipantes de verdad, sin GPU): sin binding loop,
     # sin un VideoItem por persona, la reserva sin pedir cuadros.
     add_executable(test_sala_grilla tests/test_sala_grilla.cpp ui/VideoItem.cpp ui/VideoItem.hpp
-                   ui/ProveedorCuadros.cpp ui/ProveedorCuadros.hpp ui/JsonListModel.cpp)
+                   ui/ProveedorCuadros.cpp ui/ProveedorCuadros.hpp)
     target_include_directories(test_sala_grilla PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_sala_grilla PRIVATE Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Qml Qt6::Quick)
+    target_link_libraries(test_sala_grilla PRIVATE ba_app_base Qt6::Core Qt6::Gui Qt6::GuiPrivate Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_sala_grilla PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_sala_grilla PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_sala_grilla COMMAND test_sala_grilla)
     # La lista genérica de la vista avisa solo las filas y los roles que cambiaron.
-    add_executable(test_json_list_model tests/test_json_list_model.cpp ui/JsonListModel.cpp ui/FilaViva.cpp ui/FilaViva.hpp)
+    add_executable(test_json_list_model tests/test_json_list_model.cpp ui/FilaViva.cpp ui/FilaViva.hpp)
     target_include_directories(test_json_list_model PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_json_list_model PRIVATE Qt6::Core)
+    target_link_libraries(test_json_list_model PRIVATE ba_app_base Qt6::Core)
     set_target_properties(test_json_list_model PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_json_list_model COMMAND test_json_list_model)
     # El selector de herramientas de la Botonera: busca y filtra por sección.
-    add_executable(test_selector_herramientas tests/test_selector_herramientas.cpp ui/ListaObjetos.cpp ui/FiltroCatalogo.cpp)
+    add_executable(test_selector_herramientas tests/test_selector_herramientas.cpp)
     target_include_directories(test_selector_herramientas PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_selector_herramientas PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
+    target_link_libraries(test_selector_herramientas PRIVATE ba_app_base Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_selector_herramientas PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_selector_herramientas PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_selector_herramientas COMMAND test_selector_herramientas)
@@ -1812,8 +1832,9 @@ else()
     ba_falta("Interfaz (Qt)" "falta el Qt vendoreado ('make deps-qt-host')")
 endif()
 # Al final: sus raíces de include ya están (ba-app las tiene propias o por ba_motor y
-# ba_emisor_pedido) y el orden de los -I de ba-app no cambia.
-target_link_libraries(ba-app PRIVATE ba_app_comun)
+# ba_emisor_pedido) y el orden de los -I de ba-app no cambia. Las bibliotecas, de la más
+# alta a la más baja (el enlazador de Linux resuelve una .a con las que vienen después).
+target_link_libraries(ba-app PRIVATE ${BA_APP_BIBLIOTECAS} ba_app_comun)
 
 # --- Instalación ------------------------------------------------------------
 # Proceso A va a bin/64bit/ (spec §5.1).

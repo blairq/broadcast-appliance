@@ -51,13 +51,19 @@ componente gst-plugins     1   gst-plugins/                  : gstbacaptura gstb
 componente app/escritorio  1   app/escritorio/               : ba-control
 componente emisor          1.5 emisor/Pedido.*               : ba_emisor_pedido
 
+# --- nivel 1.5: lo básico de la app, debajo de todas las áreas (ba_app_base) ----------------
+# Lo que usan las áreas sin depender de ninguna: solo ba_core y Qt. comun/ entero y piezas
+# sueltas que viven en ui/ y arranque/ (las listas genéricas de la vista, el contrato de
+# errores, los nombres de la app para Config/). Antes comun era un área más (nivel 2) y
+# todo el que lo incluía sumaba deuda «entre iguales» por usar algo que está más abajo.
+componente app/base        1.5 app/comun/ app/ui/CapturaError.hpp app/ui/ListaConClave.hpp app/ui/ListaObjetos.* app/ui/JsonListModel.* app/ui/FiltroCatalogo.* app/arranque/ArchivoConfig.hpp : ba_app_base
+
 # --- nivel 2: los modelos de área de la app ------------------------------------------------
 componente app/agent        2  app/agent/
 componente app/asamblea     2  app/asamblea/
 componente app/audio        2  app/audio/
 componente app/camaras      2  app/camaras/
 componente app/carrusel     2  app/carrusel/
-componente app/comun        2  app/comun/
 componente app/control      2  app/control/
 componente app/dispositivos 2  app/dispositivos/
 componente app/emision      2  app/emision/
