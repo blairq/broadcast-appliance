@@ -1,0 +1,107 @@
+# Mapa de niveles del diseño físico (lo lee tools/diag/niveles.py; lo hace cumplir
+# tests/test_niveles.py).
+#
+# Regla: un componente solo incluye y enlaza componentes de nivel MÁS BAJO. Dos del mismo
+# nivel no se incluyen ni se enlazan entre sí (si hace falta, una interfaz chica en el nivel
+# de abajo, o inyección por constructor). Lo que hoy no cumple es deuda en
+# tests/test_niveles.py y solo puede bajar.
+#
+#   0  ba_core y lo que no depende de nada propio
+#   1  ba_motor, ba_gateway_*, y los programas aparte que solo usan ba_core
+#   2  los modelos de área de la app (src/app/<área>/)
+#   3  ba_app_ui: Studio y los ViewModels (ui/), el arranque (arranque/) y la QML (qml/)
+#   4  los programas: main.cpp de ba-app y los que enlazan bibliotecas de nivel 1 o más
+#
+# Un nivel puede llevar decimales (1.5) para un componente que va entre dos niveles del
+# plan sin ser de ninguno (emisor/Pedido: lo usa la app y usa el motor).
+#
+# Líneas:
+#
+#   componente <nombre> <nivel> <ruta>... [: <target>...]
+#       <ruta>: relativa a src/; con «/» al final es una carpeta (con sus subcarpetas),
+#       sin «/» es un archivo, y con «*» es un patrón de nombre (emisor/Pedido.*).
+#       Cada archivo de C/C++ de src/ (menos los de tests/) cae en el componente de la
+#       ruta MÁS LARGA que lo contiene; un archivo sin componente es un error.
+#       <target>: los targets de CMake que salen de ese componente (para revisar
+#       target_link_libraries). Un target que no está acá no se revisa (terceros, tests).
+#
+#   raiz <carpeta>/ <dir>...
+#       Dónde busca un `#include "x"` un archivo de <carpeta> cuando no está al lado (los
+#       -I de su target, en el mismo orden). Por defecto: core.
+#
+# Las bibliotecas que se declaran con `ba_biblioteca(<nombre> NIVEL <n> DEPENDE ...
+# FUENTES ...)` (Ola 2, cmake/BaBiblioteca.cmake) registran su nivel ahí: niveles.py las lee
+# de los CMakeLists, toma su nivel y revisa que coincida con el de los componentes de sus
+# FUENTES. Acá alcanza con que la carpeta tenga su línea; el target puede ir en cualquiera
+# de los dos lados (si va en los dos, con el mismo nivel).
+
+# --- nivel 0 -------------------------------------------------------------------------------
+componente core            0   core/                         : ba_core ba_codigos ba_core_cr
+componente lspdsp          0   lspdsp/
+componente web             0   web/                          : ba-web
+componente pinggy          0   pinggy/                       : ba-pinggy
+componente modelo-llama    0   modelo-llama/
+
+# --- nivel 1 -------------------------------------------------------------------------------
+componente motor           1   motor/                        : ba_motor
+componente gateway         1   gateway/                      : ba_gateway_obj ba_gateway_logica ba_gateway_rtc
+componente launcher        1   launcher/                     : BroadcastAppliance
+componente grafico         1   grafico/                      : ba-grafico
+componente gst-plugins     1   gst-plugins/                  : gstbacaptura gstbafiltros gstbaaudio gstbaipc gstbaplugins gstbasuperres gstbarostros
+componente app/escritorio  1   app/escritorio/               : ba-control
+componente emisor          1.5 emisor/Pedido.*               : ba_emisor_pedido
+
+# --- nivel 2: los modelos de área de la app ------------------------------------------------
+componente app/agent        2  app/agent/
+componente app/asamblea     2  app/asamblea/
+componente app/audio        2  app/audio/
+componente app/camaras      2  app/camaras/
+componente app/carrusel     2  app/carrusel/
+componente app/comun        2  app/comun/
+componente app/control      2  app/control/
+componente app/dispositivos 2  app/dispositivos/
+componente app/emision      2  app/emision/
+componente app/escenas      2  app/escenas/
+componente app/evento       2  app/evento/
+componente app/facebook     2  app/facebook/
+componente app/graficos     2  app/graficos/
+componente app/mcp          2  app/mcp/
+componente app/medios       2  app/medios/
+componente app/net          2  app/net/
+componente app/pantallas    2  app/pantallas/
+componente app/plugins      2  app/plugins/
+componente app/ptz          2  app/ptz/
+componente app/red          2  app/red/
+componente app/registro     2  app/registro/
+componente app/resolucion   2  app/resolucion/
+componente app/rostros      2  app/rostros/
+componente app/sala         2  app/sala/
+componente app/term         2  app/term/
+componente app/tiempos      2  app/tiempos/
+componente app/twitch       2  app/twitch/
+componente app/video        2  app/video/
+componente app/vivos        2  app/vivos/
+componente app/youtube      2  app/youtube/
+
+# --- nivel 3: la interfaz (la futura ba_app_ui) --------------------------------------------
+componente app/ui           3  app/ui/ app/arranque/ app/qml/
+
+# --- nivel 4: los programas ----------------------------------------------------------------
+componente app/main         4  app/main.cpp                  : ba-app
+componente app/mcp-puente   4  app/mcp/bridge/               : ba-mcp
+componente app/tools        4  app/tools/
+componente emisor/programa  4  emisor/                       : ba-emisor
+componente gateway/programa 4  gateway/main.cpp              : ba-gateway
+componente tablero-web      4  tablero-web/                  : ba-tablero
+
+# --- dónde se resuelven los #include "…" (los -I de cada target) ---------------------------
+raiz app/          app core lspdsp motor emisor
+raiz core/         core
+raiz motor/        motor core
+raiz gateway/      gateway gateway/net/lwip-port core
+raiz emisor/       emisor motor core
+raiz launcher/     launcher core
+raiz grafico/      grafico core
+raiz gst-plugins/  core core/ipc
+raiz tablero-web/  tablero-web app core
+raiz web/          web
