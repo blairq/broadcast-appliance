@@ -3,7 +3,8 @@
 
 It speaks MCP over stdio like the real bridge. Its "app" lives in a JSON state file
 (CAOS_FALSO_ESTADO), because the bench opens a new bridge after every restart. On
-stream_start it publishes with the VENDORED GStreamer (CAOS_FALSO_GST: gst-launch) to the
+stream_start it publishes with the VENDORED GStreamer (CAOS_FALSO_GST: gst-launch; CAOS_FALSO_H264: its
+H.264 encoder) to the
 bench's local RTMP server; diag_falla codificador/sumidero of the transmission drops that
 connection after `en_s` and publishes again a second later, as the real app reconnects.
 Every tool call is appended to the state's `llamadas`, so the test can check what the
@@ -47,7 +48,10 @@ def vive(pid) -> bool:
 
 def publicar(url: str) -> int:
     tubo = ("videotestsrc is-live=true pattern=ball ! video/x-raw,width=320,height=240,framerate=30/1 ! "
-            "x264enc tune=zerolatency key-int-max=30 speed-preset=ultrafast ! h264parse ! flvmux streamable=true ! "
+            # The H.264 encoder the vendored GStreamer has (CAOS_FALSO_H264: x264enc on macOS,
+            # openh264enc on Linux; tests/test_caos_rtmp.py picks it).
+            f"{os.environ.get('CAOS_FALSO_H264', 'x264enc tune=zerolatency key-int-max=30 speed-preset=ultrafast')} ! "
+            "h264parse ! flvmux streamable=true ! "
             f"rtmp2sink location={url}")
     p = subprocess.Popen([os.environ["CAOS_FALSO_GST"], "-q"] + tubo.split(), stdout=subprocess.DEVNULL,
                          stderr=subprocess.DEVNULL, start_new_session=True)

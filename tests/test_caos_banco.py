@@ -25,6 +25,9 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parent.parent
+# What the child processes read that does not reach them through their arguments (the fake
+# app runs from a shell script in a temporary folder): tools/ci/pytest-con-cache.py.
+ENTRADAS_DE_HIJOS = ["tests/caos_mcp_falso.py"]
 _spec = importlib.util.spec_from_file_location("banco_caos", REPO / "tools" / "caos" / "banco.py")
 banco = importlib.util.module_from_spec(_spec)
 _spec.loader.exec_module(banco)
@@ -90,12 +93,12 @@ def test_modos() -> None:
 
 
 def test_bench_against_fake_app(tmp_path: Path) -> None:
-    gst = _rtmp_test._gst_bin("gst-launch-1.0")
-    if gst is None or os.name == "nt":
-        pytest.skip("no vendored GStreamer (extern/ or dist/)")
-    # The plugin registry is built before anything is timed (over a minute under Rosetta the
-    # first time: the bench used to count it as «the transmission does not reach the server»).
-    _rtmp_test._gst_listo(gst)
+    if os.name == "nt":
+        pytest.skip("the fake app is a shell script")
+    # The vendored gst-launch and the H.264 encoder it has (on Linux there is no x264enc: the
+    # fake failed to publish and the bench stopped with «the transmission does not reach the
+    # local RTMP server»).
+    gst, h264, _ = _rtmp_test._gst_y_codificadores()
     # Deadlines stretched on an emulated machine (Docker's x86_64 Linux on an ARM Mac).
     f = _rtmp_test._factor_tiempo()
     falso = tmp_path / "bin" / "64bit" / "ba-mcp"
@@ -104,7 +107,7 @@ def test_bench_against_fake_app(tmp_path: Path) -> None:
     falso.chmod(falso.stat().st_mode | stat.S_IXUSR)
     (tmp_path / "manifest.json").write_text(json.dumps({"version": "9.9.9", "generated_at": "hoy"}), encoding="utf-8")
     estado = tmp_path / "estado.json"
-    env = dict(os.environ, CAOS_FALSO_ESTADO=str(estado), CAOS_FALSO_GST=gst)
+    env = dict(os.environ, CAOS_FALSO_ESTADO=str(estado), CAOS_FALSO_GST=gst, CAOS_FALSO_H264=h264)
     salida = tmp_path / "informe"
     r = subprocess.run([sys.executable, "-I", str(REPO / "tools" / "caos" / "banco.py"), "--ba-mcp", str(falso),
                         "--datos", str(tmp_path / "datos"), "--escenarios", "codificador_tx,kill_web", "--repeticiones", "2",
