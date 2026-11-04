@@ -287,7 +287,15 @@ void probarCola() {
     // que romper la última (un corte a mitad) no vuelve al estado de antes del cambio.
     c.escribirGeneracion(g, "{\"estado\":\"grabando\"}");
     c.escribirGeneracion(g, "{\"estado\":\"grabando y transmitiendo\"}");
-    CHECK(c.vaciar(), "vacía (con la igualación de la otra generación)");
+    {
+        // El que vacía (el cierre de la app) no espera la demora de la igualación (1 s):
+        // el 2026-11-03 el cierre pasaba de 2 s y el vigía lo daba por trabado.
+        const auto t0 = std::chrono::steady_clock::now();
+        CHECK(c.vaciar(), "vacía (con la igualación de la otra generación)");
+        const auto ms =
+            std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::steady_clock::now() - t0).count();
+        CHECK(ms < 800, "vaciar no espera la demora de la igualación");
+    }
     {
         const DosGeneraciones dg(g);
         std::uint64_t sa = 0, sb = 0;
