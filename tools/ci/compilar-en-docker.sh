@@ -21,14 +21,20 @@
 # por fechas:
 #   - deps-win/deps-linux: no se verifican si no cambiaron Makefile,
 #     versions.cmake, tools/deps/, el toolchain ni lo que hay en extern/;
+#   - pip install: solo si cambió requirements-dev.lock;
+#   - compilar: una vez (ctest y dist-linux no lo repiten);
 #   - tests (ctest en Linux, Wine en Windows): los que ya pasaron con las mismas
 #     entradas no se corren (tools/ci/tests-con-cache.py);
+#   - pytest: por archivo, sin lo que ya corrió ctest, y con caché por lo que lee
+#     cada archivo (tools/ci/pytest-con-cache.py);
 #   - release-win/release: instalación incremental (tools/ci/instalar-incremental.sh);
-#     chequeo de portabilidad y manifest solo si cambió el bundle;
+#     strip de Linux, chequeo de portabilidad y manifest solo si cambió el bundle;
 #   - .zip/.tar.gz y su copia a dist/ de acá: solo si cambió el bundle;
 #   - símbolos de Windows: solo si cambió el bundle.
+# Lo de adentro del contenedor está en tools/ci/receta-docker.sh. Cada corrida deja su
+# registro en dist/logs/ (y los de lo que falló, en dist/logs/<corrida>/).
 # SIN_CACHE=1 lo hace todo de cero (`make publicar` lo pone solo).
-# TESTS_SIN_CACHE=1, TESTS_SIN_LENTOS=1, TESTS_JOBS y TESTS_WIN_JOBS también llegan adentro.
+# TESTS_SIN_CACHE=1, TESTS_SIN_LENTOS=1, TESTS_JOBS, TESTS_WIN_JOBS y PYTEST_ARGS también llegan adentro.
 # ============================================================================
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -84,16 +90,10 @@ d run --rm --platform linux/amd64 \
     -e SHA="$SHA" -e QUE="$QUE" -e CORRIDA="$CORRIDA" -e PERFILAR="${PERFILAR:-0}" -e DIAG_ACOPLES="${DIAG_ACOPLES:-1}" \
     -e SIN_CACHE="${SIN_CACHE:-0}" -e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
     -e TESTS_SIN_LENTOS="${TESTS_SIN_LENTOS:-0}" ${TESTS_WIN_JOBS:+-e TESTS_WIN_JOBS="$TESTS_WIN_JOBS"} ${TESTS_JOBS:+-e TESTS_JOBS="$TESTS_JOBS"} \
+    ${PYTEST_ARGS:+-e PYTEST_ARGS="$PYTEST_ARGS"} \
     ba-compilar bash -c '
 set -euo pipefail
-# Cuánto tarda cada etapa (al final, un resumen): para saber dónde se va el tiempo.
-T0=$(date +%s); TE=$T0; RESUMEN=""
-etapa() { local t=$(date +%s); RESUMEN="$RESUMEN$(printf "  %-28s %4d s" "$1" $((t - TE)))\n"; TE=$t; }
-resumen() {
-    printf "\n[tiempos] total %d s\n%b" $(( $(date +%s) - T0 )) "$RESUMEN"
-    ccache -s 2>/dev/null | grep -iE "hits|misses|cache size" | sed "s/^/  ccache: /" || true
-}
-trap resumen EXIT
+export T0=$(date +%s)
 ccache -z >/dev/null 2>&1 || true
 # La caché de ccache, en su propio volumen (ba-ccache): en /root del contenedor
 # (--rm) se perdía en cada corrida y ccache no aceleraba nada.
@@ -102,80 +102,7 @@ git config --global --add safe.directory "*"
 cd /trabajo/ba
 git fetch -q /repo.git "$SHA"
 git checkout -q -f "$SHA"
-[ -x .venv/bin/python ] || python3 -m venv .venv
-etapa "checkout"
-J=$(nproc)
-# Solo los paquetes de ESTA versión: el volumen guarda los de versiones viejas y el
-# comodín sin versión los volvía a copiar a dist/.
-VER=$(sed -n "/^project(/,/)/s/.*VERSION \([0-9.]*\).*/\1/p" CMakeLists.txt | head -1)
-SUF=""; [ "$PERFILAR" = 1 ] && SUF="-perfil"   # PERFILAR=1: un build que mide (diag/Perfil)
-[ "$SIN_CACHE" != 0 ] && echo "[compilar-en-docker] SIN_CACHE=1: todo de cero (sin caché de tests ni atajos)"
-# A dist/ de la Mac: solo si cambió (el .zip son 800 MB por el volumen compartido).
-# El .commit, siempre: el mismo contenido es lo que sale de este commit.
-llevar() {
-    local f="$1" n; n="$(basename "$1")"
-    if [ -f "/salida/$n" ] && cmp -s "$f.sha256" "/salida/$n.sha256" 2>/dev/null; then
-        echo "[atajo] copia de $n a dist/: salteada (mismo sha256 que el que ya está)"
-    else
-        cp "$f" "$f.sha256" /salida/
-    fi
-    cp "$f.commit" /salida/
-}
-if [ "$QUE" != win ]; then
-    make deps-linux JOBS=$J
-    etapa "deps-linux"
-    make build JOBS=$J PERFILAR=$PERFILAR
-    etapa "compilar (linux)"
-    make test
-    etapa "tests (ctest)"
-    .venv/bin/pip install -q -r requirements-dev.lock
-    etapa "pip install"
-    .venv/bin/pytest -q
-    etapa "pytest"
-    make dist-linux JOBS=$J PERFILAR=$PERFILAR
-    etapa "dist-linux"
-    for f in dist/*-$VER-linux-x64$SUF.tar.gz; do llevar "$f"; done
-    mkdir -p /salida/simbolos && cp -rn dist/simbolos/linux /salida/simbolos/ 2>/dev/null || true
-    etapa "copia a dist/"
-fi
-if [ "$QUE" != linux ]; then
-    make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
-    etapa "deps-win"
-    make -o deps-win win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
-    etapa "compilar (win)"
-    # Los tests de Windows corren bajo Wine. En una Mac, Wine va encima de
-    # Rosetta y se cae de vez en cuando (rc 133) en tests que en el runner del
-    # CI pasan: cada corrida, uno distinto. Por eso un fallo aca NO frena el
-    # .zip, pero se informa y la corrida termina con error: no es verde.
-    tests_win=0
-    touch /tmp/antes-de-wine
-    make -o deps-win -o win test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
-    if [ "$tests_win" != 0 ]; then
-        # Los registros de los tests que corrieron en esta vuelta, a dist/logs/<corrida>/ de la
-        # Mac (en el volumen los pisa la próxima corrida).
-        mkdir -p "/salida/logs/$CORRIDA"
-        find build/win/wine-logs -maxdepth 1 -name "*.log" -newer /tmp/antes-de-wine -exec cp {} "/salida/logs/$CORRIDA/" \;
-        echo "[compilar-en-docker] registros de Wine de esta vuelta: dist/logs/$CORRIDA/"
-    fi
-    etapa "tests bajo Wine"
-    make -o deps-win -o win release-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
-    etapa "release-win (install+chequeo+manifest)"
-    make -o release-win dist-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
-    etapa "zip (7z)"
-    for f in dist/*-$VER-windows-x64$SUF.zip; do llevar "$f"; done
-    etapa "copia a dist/"
-    # Los binarios y los .pdb de este build, al almacén de dist/simbolos (en la
-    # Mac): para leer después las pilas de sus volcados (tools/caidas/analizar.py).
-    # Si el bundle es el mismo que la última vez, ya están.
-    python3 tools/ci/huellas.py atajo --nombre "símbolos de Windows" --clave-en build/win/atajos/simbolos.json \
-        --memo build/win/atajos/huellas.json --entrada release-win --salida /salida/simbolos/compilaciones.jsonl -- \
-        python3 tools/caidas/simbolos.py guardar --release release-win --buscar build/win extern/gstreamer-win-pdb \
-        --destino /salida/simbolos --commit "$SHA" || echo "ATENCION: no se guardaron los símbolos" >&2
-    etapa "símbolos"
-    if [ "$tests_win" != 0 ]; then
-        echo "ATENCION: los tests de Windows (bajo Wine) fallaron: ver arriba. El .zip se armo igual." >&2
-        exit 3
-    fi
-fi
+# El resto, del mismo commit (tools/ci/receta-docker.sh).
+exec bash tools/ci/receta-docker.sh
 '
 log "listo: $(ls "$ROOT"/dist/*-linux-x64.tar.gz "$ROOT"/dist/*-windows-x64.zip 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
