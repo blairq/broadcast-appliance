@@ -26,7 +26,7 @@ import subprocess
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-CARPETAS = ["src", "datos", "assets/idiomas", "docs", "tools", "resources", "plantillas", "Makefile", "CLAUDE.md"]
+CARPETAS = ["src", "datos", "assets/idiomas", "docs", "tools", "resources", "plantillas", "Makefile", "mk", "CLAUDE.md"]
 EXT = {".cpp", ".hpp", ".h", ".mm", ".c", ".qml", ".js", ".py", ".json", ".jsonl", ".md", ".txt", ".html",
        ".css", ".sh", ".yml", ".yaml", ".toml", ".csv", ""}
 NO_TOCAR = [re.compile(p) for p in (
