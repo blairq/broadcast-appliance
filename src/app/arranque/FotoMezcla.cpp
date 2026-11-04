@@ -27,11 +27,11 @@ void PublicadorFoto::seguirCanalesDelMotor() {
     // que sale una vuelta después de armar una entrada: el aviso de alta llega antes y la
     // Mezcla se rearmaba sin ella. Sin esto, un micrófono recién agregado no tenía canal (ni
     // rack: «no tiene audio») hasta que otra cosa tocara la mezcla.
-    if (rt_.engine_.audioSources() != trabajo_.mezcla.nombres()) marcar(FotoMotor::Mezcla);
+    if (rt_.engine_->audioSources() != trabajo_.mezcla.nombres()) marcar(FotoMotor::Mezcla);
 }
 
 void PublicadorFoto::armarMezcla(FotoMotor::MezclaAudio& m) {
-    const BroadcastEngine& eng = rt_.engine_;
+    const BroadcastEngine& eng = *rt_.engine_;
     // Los canales de antes se guardan: si los nuevos son iguales, la foto sigue con esos (el
     // mismo valor compartido: ni se copian ni se recorren al compararlos).
     const Compartido<std::vector<FotoMotor::CanalAudio>> antes = m.canales;

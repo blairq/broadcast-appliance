@@ -7,6 +7,20 @@
 
 #include "arranque/AppRuntime.hpp"
 
+#include <nlohmann/json.hpp>
+
+#include "audio/ObjetivoLoudness.hpp"
+#include "emision/BroadcastEngine.hpp"
+#include "emision/DocumentoAire.hpp"
+#include "emision/FotoMotor.hpp"
+#include "emision/LatidoAire.hpp"
+#include "emision/OperatorFeed.hpp"
+#include "emision/PedidosSalida.hpp"
+#include "emision/SalidasConfig.hpp"
+#include "ipc/ControlService.hpp"
+#include "ipc/HealthBlock.hpp"
+#include "persist/ArchivoConfig.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
@@ -68,7 +82,9 @@ std::atomic<bool> g_stop{false};
 // ============================================================================
 
 AppRuntime::AppRuntime()
-    : salud_(std::make_unique<SaludProceso>(*this)),
+    : engine_(std::make_unique<BroadcastEngine>()),
+      salud_(std::make_unique<SaludProceso>(*this)),
+      operator_(std::make_unique<OperatorFeed>()),
       foto_(std::make_unique<PublicadorFoto>(*this)),
       escenas_(std::make_unique<RepositorioEscenas>(*this)),
       servicioSalidas_(std::make_unique<ServicioSalidas>(*this)),
@@ -77,6 +93,50 @@ AppRuntime::AppRuntime()
       invitados_(std::make_unique<Invitados>(*this)) {}
 
 AppRuntime::~AppRuntime() { salud_->esperarReinicio(); }
+
+// ============================================================================
+// Lo que es del dueño, a mano, y lo que se lee desde cualquier hilo (antes inline en el
+// header: el motor y el feed van por unique_ptr y el header no los incluye)
+// ============================================================================
+
+AppConfig& AppRuntime::config(std::source_location donde) {
+    engine_->turno().entrarDirecto(donde);
+    return cfg_;
+}
+
+const AppConfig& AppRuntime::config(std::source_location donde) const {
+    engine_->turno().entrarDirecto(donde);
+    return cfg_;
+}
+
+GatewaySettings& AppRuntime::gateway(std::source_location donde) {
+    engine_->turno().entrarDirecto(donde);
+    return gateway_;
+}
+
+LauncherSettings& AppRuntime::launcher(std::source_location donde) {
+    engine_->turno().entrarDirecto(donde);
+    return launcher_;
+}
+
+BroadcastEngine& AppRuntime::engine(std::source_location donde) {
+    engine_->turno().contarDirecta(donde);
+    return *engine_;
+}
+
+NivelesMotor& AppRuntime::niveles() { return engine_->nivelesCanal(); }
+
+bool AppRuntime::haySalida(bool contarGrabacion) const { return engine_->haySalida(contarGrabacion); }
+
+const TurnoMotor& AppRuntime::turno() const { return engine_->turno(); }
+
+void AppRuntime::alFallarMotor(std::function<void(const AvisoMotor&)> fn) { engine_->alFallarMotor(std::move(fn)); }
+
+BroadcastEngine& AppRuntime::motorEntreHilos() { return *engine_; }
+
+OperatorFeed& AppRuntime::operatorFeed() { return *operator_; }
+
+void AppRuntime::setLobbyMonitor(int slot, bool on) { operator_->setLobbyMonitor(slot, on); }
 
 // ============================================================================
 // El hilo dueño, los errores y el cierre pedido
@@ -243,9 +303,9 @@ int AppRuntime::start() {
     {
         const nlohmann::json r = config::leerObjeto(ba::persist::archivoConfig("video-reloj.json"));
         if (!r.empty()) {
-            engine_.ponerReloj(r.value("tipo", std::string("sistema")), r.value("servidor", std::string()),
+            engine_->ponerReloj(r.value("tipo", std::string("sistema")), r.value("servidor", std::string()),
                                r.value("puerto", 0), r.value("dominio", 0));
-            if (r.value("publicar_puerto", 0) > 0) engine_.publicarReloj(r.value("publicar_puerto", 0));
+            if (r.value("publicar_puerto", 0) > 0) engine_->publicarReloj(r.value("publicar_puerto", 0));
         }
     }
     // Los tipos que pinta la app (antes de cargar escenas: sus valores de fábrica).
@@ -257,13 +317,13 @@ int AppRuntime::start() {
     fuentespdf::registrar();
     grilla::registrarTipo();
     marca(ba::i18n::traducir("arranque", "el reloj y los tipos de fuente"));
-    if (!engine_.startup(paths, cfg_.video, AudioConfig{})) {
-        errorDelHilo() = engine_.lastError();
+    if (!engine_->startup(paths, cfg_.video, AudioConfig{})) {
+        errorDelHilo() = engine_->lastError();
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("arranque", "el motor no arranco: %1"), {errorDelHilo()}).c_str());
         salud_->terminado();
         salud_->pararLatidoArranque();
-        if (engine_.sinGStreamer()) {
+        if (engine_->sinGStreamer()) {
             std::printf("ba-app: %s\n",
                         ba::i18n::traducir("arranque", "sin GStreamer en el programa (bin/64bit): el bundle está incompleto.").c_str());
             return ba::platform::exit_code::kEnvironment;
@@ -271,11 +331,11 @@ int AppRuntime::start() {
         return 2;
     }
     marca(ba::i18n::traducir("arranque", "el motor"));
-    aplicarAjustesMotor(cfg_, engine_); // placa sin uso, entradas, transmisión, disco (Configuración)
+    aplicarAjustesMotor(cfg_, *engine_); // placa sin uso, entradas, transmisión, disco (Configuración)
     salud_->latir();
     started_ = true;
     // El audio de cada fuente cambió (por el camino que sea): la parte Mezcla de la foto.
-    engine_.alCambiarAudioFuente([this](const std::string& f, const char* que) { foto_->anotarCambioAudio(f, que); });
+    engine_->alCambiarAudioFuente([this](const std::string& f, const char* que) { foto_->anotarCambioAudio(f, que); });
     // Los cambios de ajustes que piden piezas sin el motor a mano (rótulos,
     // gráficos) pasan por acá: así quedan también en la configuración.
     fuentes::ponerCambiar([this](const std::string& n, const nlohmann::json& c) { return updateSourceSettings(n, c.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace)); });
@@ -284,7 +344,7 @@ int AppRuntime::start() {
     // El latido que mira los cuadros del motor (hilo propio): una traba de la
     // interfaz ya no hace que el supervisor corte el aire. Desde acá late él.
     salud_->pararLatidoArranque();
-    salud_->iniciarLatidoAire(root_, [this]() -> std::uint64_t { return engine_.cuadrosPrograma(); });
+    salud_->iniciarLatidoAire(root_, [this]() -> std::uint64_t { return engine_->cuadrosPrograma(); });
 
     marca(ba::i18n::traducir("arranque", "loudness y latido"));
     arranque::avisar(ba::i18n::traducir("arranque", "Preparando los lugares de los invitados…"));
@@ -304,27 +364,27 @@ int AppRuntime::start() {
         save();
     }
     marca(ba::i18n::traducir("arranque", "las escenas"));
-    engine_.setCurrentScene(cfg_.currentScene);
+    engine_->setCurrentScene(cfg_.currentScene);
     // Las demás salidas (Config/salidas.json), con las fuentes ya puestas: cada una
     // arranca con los volúmenes de la por omisión (su escena vuelve abajo, con al-aire.json).
     servicioSalidas_->crearSalidasGuardadas();
     // El retorno, al tamaño con que el gateway lo manda (escalado en la GPU, F2-13).
-    engine_.ponerTopeRetorno(gateway_.programVideoW, gateway_.programVideoH);
-    if (cfg_.returnFeeds && !engine_.publishReturnFeeds()) {
+    engine_->ponerTopeRetorno(gateway_.programVideoW, gateway_.programVideoH);
+    if (cfg_.returnFeeds && !engine_->publishReturnFeeds()) {
         std::printf("ba-app: %s\n",
-                    ba::i18n::llenar(ba::i18n::traducir("arranque", "sin retorno hacia B: %1"), {engine_.lastError()}).c_str());
+                    ba::i18n::llenar(ba::i18n::traducir("arranque", "sin retorno hacia B: %1"), {engine_->lastError()}).c_str());
     }
     marca(ba::i18n::traducir("arranque", "la escena al aire y el retorno"));
     // Lobby: la voz de quien espera (monitoreo) y lo que ve del operador.
-    operator_.startLobbyMonitor(gateway_.lobbySlots);
-    if (!operator_.configure(engine_, cfg_.operatorVideo, cfg_.operatorAudio)) {
+    operator_->startLobbyMonitor(gateway_.lobbySlots);
+    if (!operator_->configure(*engine_, cfg_.operatorVideo, cfg_.operatorAudio)) {
         std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "feed del operador incompleto (fuente inexistente)").c_str());
     }
 
     marca(ba::i18n::traducir("arranque", "el lobby y el operador"));
     {
         std::string candidatos;
-        for (const auto& id : engine_.videoEncoderCandidates(cfg_.encoder)) candidatos += " " + id;
+        for (const auto& id : engine_->videoEncoderCandidates(cfg_.encoder)) candidatos += " " + id;
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("arranque", "codificadores candidatos:%1"), {candidatos}).c_str());
     }
@@ -346,7 +406,7 @@ int AppRuntime::start() {
     inicio::revisar();
     // El tope de la latencia del estudio guardado (P0.6).
     if (cfg_.estudioTopeMs != -1) {
-        engine_.ponerTopeEstudio(cfg_.estudioTopeMs);
+        engine_->ponerTopeEstudio(cfg_.estudioTopeMs);
     }
     // Que no falte ningún elemento de GStreamer sin que se sepa (P0.3).
     marca(ba::i18n::traducir("arranque", "estado y latencia"));
@@ -382,11 +442,11 @@ void AppRuntime::ticMotor() {
     // que se guardaron la última vez que se lo tuvo). Si la interfaz tiene el turno, trabada
     // en algo suyo, los vúmetros y el loudness no se quedan quietos.
     const auto medirSinTurno = [this]() {
-        if (started_) engine_.nivelesCanal().medir(vueltasReloj_ % NivelesMotor::kLoudnessCadaVueltas == 0);
+        if (started_) engine_->nivelesCanal().medir(vueltasReloj_ % NivelesMotor::kLoudnessCadaVueltas == 0);
     };
     // El resto, con el turno: si la interfaz lo tiene (una vista que todavía entra directo,
     // trabada adentro), esa parte se saltea esta vuelta. El dueño no espera a la interfaz.
-    const TurnoMotor& turno = engine_.turno();
+    const TurnoMotor& turno = engine_->turno();
     if (!turno.tomarHasta(TurnoMotor::participa() ? 5 : 0)) {
         ++vueltasSinTurno_;
         ba::diag::Metricas::proceso()
@@ -402,9 +462,9 @@ void AppRuntime::ticMotor() {
     } soltar{turno};
     ++ticsMotor_;
     // Lo que contó el hilo de salidas del motor (lo que no arrancó, el AAC con que transmite).
-    engine_.atenderSalidas();
+    engine_->atenderSalidas();
     if (started_) {
-        const EngineStatus st = engine_.status();
+        const EngineStatus st = engine_->status();
         hayAire_ = st.streaming || st.recording;
         ajustesAire(); // la copia de los ajustes de aire, para el plano de control
         // (Un codificador que se cae en el aire, una grabación o una transmisión que se
@@ -419,17 +479,17 @@ void AppRuntime::ticMotor() {
         // enganchan cuando llegan: una vez por segundo. (En el motor nuevo no queda nada que
         // adoptar: BroadcastEngine::adoptPendingAudio devuelve 0; el audio de cada entrada lo
         // engancha el motor en su hilo, sin este reloj.)
-        if (ticsMotor_ % 10 == 0) engine_.adoptPendingAudio();
+        if (ticsMotor_ % 10 == 0) engine_->adoptPendingAudio();
         // Los medidores de cada salida (el pico del programa, el loudness), para medir sin el
         // turno: el vúmetro de arriba y el de la salida activa los toman del canal de niveles.
-        NivelesMotor& nv = engine_.nivelesCanal();
-        nv.setPorOmision(engine_.idDeSalida(""));
-        nv.ponerMedidores(engine_.medidores());
+        NivelesMotor& nv = engine_->nivelesCanal();
+        nv.setPorOmision(engine_->idDeSalida(""));
+        nv.ponerMedidores(engine_->medidores());
         // Las fuentes con audio, según la foto del motor (sale después de armar una entrada).
         foto_->seguirCanalesDelMotor();
     }
     medirSinTurno();
-    engine_.aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
+    engine_->aplicarRecortesPendientes(); // los de cámaras que recién tienen tamaño
     // La foto que lee la interfaz: lo que se mueve solo (lo que sale, las medidas) en cada
     // vuelta; lo de la emisión (grabación, ISO, limpia, disco) y del equipo (el reloj, las
     // sesiones de codificador) dos veces por segundo.
@@ -439,7 +499,7 @@ void AppRuntime::ticMotor() {
 }
 
 void AppRuntime::stop() {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     if (!started_) {
         return;
     }
@@ -450,13 +510,13 @@ void AppRuntime::stop() {
     // Las grabaciones por entrada, ANTES que el resto: cada una tiene su vista
     // de render y su archivo abierto, y si el cierre las deja vivas el archivo
     // queda sin cerrar (o sea, sin indice y a veces sin poder abrirse).
-    engine_.stopAllSourceRecordings();
-    engine_.stopCleanFeed();
+    engine_->stopAllSourceRecordings();
+    engine_->stopCleanFeed();
     salud_->latido().detener(); // antes de apagar el motor (lee sus cuadros)
     std::printf("ba-app: %s\n", ba::i18n::traducir("arranque", "cerrando (salidas, escena, motor)").c_str());
     salud_->cerrarCanal();
-    operator_.shutdown(); // antes de apagar el motor: suelta vista y fuentes
-    engine_.shutdown();
+    operator_->shutdown(); // antes de apagar el motor: suelta vista y fuentes
+    engine_->shutdown();
     salud_->terminado();
     // Lo encolado para el disco (el estado de aire de recién, los ajustes), escrito
     // antes de irse.
@@ -471,7 +531,7 @@ void AppRuntime::stop() {
 // ============================================================================
 
 bool AppRuntime::setOperatorFeed(const std::string& videoSource, const std::string& audioSource) {
-    const bool ok = operator_.configure(engine_, videoSource, audioSource);
+    const bool ok = operator_->configure(*engine_, videoSource, audioSource);
     cfg_.operatorVideo = videoSource;
     cfg_.operatorAudio = audioSource;
     fotoSucia(FotoMotor::Configuracion); // el micrófono del operador (la voz lo lee de la foto)
@@ -480,8 +540,8 @@ bool AppRuntime::setOperatorFeed(const std::string& videoSource, const std::stri
 }
 
 bool AppRuntime::applyVideo(const VideoConfig& v) {
-    if (!engine_.resetVideo(v)) {
-        errorDelHilo() = engine_.lastError();
+    if (!engine_->resetVideo(v)) {
+        errorDelHilo() = engine_->lastError();
         return false;
     }
     cfg_.video = v;
@@ -490,8 +550,8 @@ bool AppRuntime::applyVideo(const VideoConfig& v) {
 }
 
 bool AppRuntime::applyEncoder(const EncoderConfig& e) {
-    if (!engine_.resetEncoders()) {
-        errorDelHilo() = engine_.lastError();
+    if (!engine_->resetEncoders()) {
+        errorDelHilo() = engine_->lastError();
         return false;
     }
     cfg_.encoder = e;
@@ -562,7 +622,7 @@ std::string AppRuntime::crearSalida(const std::string& id, const std::string& no
 }
 std::string AppRuntime::editarSalida(const std::string& id, const nlohmann::json& cambios) { return servicioSalidas_->editarSalida(id, cambios); }
 std::string AppRuntime::borrarSalida(const std::string& id, const std::string& susDestinos) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return servicioSalidas_->borrarSalida(id, susDestinos);
 }
 EncoderConfig AppRuntime::codificadorDe(const std::string& salida) const { return servicioSalidas_->codificadorDe(salida); }
@@ -585,16 +645,16 @@ void AppRuntime::setCarpetaDelEvento(fs::path carpeta) {
 
 void AppRuntime::retomarGrabaciones() {
     if (!esDueno() && encolarEnDueno_) return encolarEnDueno_([this]() { retomarGrabaciones(); });
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     aire_->retomarGrabaciones();
 }
 
 bool AppRuntime::startRecording(const std::string& salida, AlResultado listo) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return emision_->startRecording(salida, std::move(listo));
 }
 void AppRuntime::stopRecording(const std::string& salida) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     emision_->stopRecording(salida);
 }
 bool AppRuntime::startSourceRecording(const std::string& source) { return emision_->startSourceRecording(source); }
@@ -609,16 +669,16 @@ std::string AppRuntime::aplicarReplay() { return emision_->aplicarReplay(); }
 std::string AppRuntime::ponerReplay(int segundos, const std::string& salida) { return emision_->ponerReplay(segundos, salida); }
 bool AppRuntime::startStreaming(const std::string& server, const std::string& key, bool cambiarEnCaliente,
                                 const std::string& salida, AlResultado listo) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return emision_->startStreaming(server, key, cambiarEnCaliente, salida, std::move(listo));
 }
 void AppRuntime::stopStreaming(const std::string& salida) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     emision_->stopStreaming(salida);
 }
 bool AppRuntime::salirAlAireManual(const std::string& server, const std::string& key, bool cambiarEnCaliente,
                                    const std::string& salida, AlResultado listo) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return emision_->salirAlAireManual(server, key, cambiarEnCaliente, salida, std::move(listo));
 }
 void AppRuntime::alVivoManual(std::function<void(const std::string& servidor)> f) { emision_->alVivoManual(std::move(f)); }
@@ -628,19 +688,19 @@ bool AppRuntime::recordStopWanted() const { return !emision_->pedidos().de(salid
 nlohmann::json AppRuntime::destinos() const { return emision_->destinos(); }
 std::string AppRuntime::guardarDestino(const nlohmann::json& d, std::string* idOut) { return emision_->guardarDestino(d, idOut); }
 std::string AppRuntime::borrarDestino(const std::string& id) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return emision_->borrarDestino(id);
 }
 std::string AppRuntime::iniciarDestino(const std::string& id) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return emision_->iniciarDestino(id);
 }
 nlohmann::json AppRuntime::discoGrabacion() const {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return emision_->discoGrabacion();
 }
 void AppRuntime::detenerDestino(const std::string& id) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     emision_->detenerDestino(id);
 }
 
@@ -657,15 +717,15 @@ std::vector<std::string> AppRuntime::sceneFolders() const { return escenas_->sce
 std::vector<std::string> AppRuntime::orderedSceneNames() const { return escenas_->orderedSceneNames(); }
 bool AppRuntime::moveScene(const std::string& name, const std::string& before) { return escenas_->moveScene(name, before); }
 bool AppRuntime::setScene(const std::string& name, const std::string& salida) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return escenas_->setScene(name, salida);
 }
 bool AppRuntime::setSceneCon(const std::string& name, const std::string& tipo, int ms, const std::string& salida) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return escenas_->setSceneCon(name, tipo, ms, salida);
 }
 void AppRuntime::anotarEscenaAlAire(const std::string& name, const std::string& salida) {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     escenas_->anotarEscenaAlAire(name, salida);
 }
 bool AppRuntime::setTransition(const std::string& type, int durationMs) { return escenas_->setTransition(type, durationMs); }
@@ -709,11 +769,11 @@ void AppRuntime::aireCambio() { aire_->aireCambio(); }
 std::vector<std::string> AppRuntime::avisosPersistencia() const { return aire_->avisosPersistencia(); }
 void AppRuntime::avisarPersistencia(const std::string& texto) { aire_->avisarPersistencia(texto); }
 std::vector<std::string> AppRuntime::cerrarGrabacionesPorEnergia() {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     return aire_->cerrarGrabacionesPorEnergia();
 }
 void AppRuntime::retomarGrabacionesPorEnergia() {
-    const TurnoMotor::Guarda turno(engine_.turno());
+    const TurnoMotor::Guarda turno(engine_->turno());
     aire_->retomarGrabacionesPorEnergia();
 }
 bool AppRuntime::emergenciaEnergia() const { return aire_->emergenciaEnergia(); }

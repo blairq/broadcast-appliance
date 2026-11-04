@@ -26,7 +26,9 @@
 #include <string>
 #include <vector>
 
-#include "emision/BroadcastEngine.hpp"
+#include <nlohmann/json.hpp>
+
+#include "emision/ConfigAire.hpp"
 #include "ipc/LugaresSala.hpp"
 
 namespace ba::app {
