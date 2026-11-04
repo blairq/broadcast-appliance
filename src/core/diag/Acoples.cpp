@@ -21,6 +21,8 @@
 #include <execinfo.h>
 #endif
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cstdio>
 #include <cstdlib>

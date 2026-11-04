@@ -7,6 +7,8 @@
 #include "i18n/I18nTexto.hpp"
 #include "platform/Paths.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <mutex>
 #include <set>
 

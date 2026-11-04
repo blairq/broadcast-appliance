@@ -4,6 +4,8 @@
 
 #include "i18n/I18nTexto.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>

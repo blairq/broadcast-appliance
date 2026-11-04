@@ -24,6 +24,8 @@
 // ============================================================================
 #pragma once
 
+#include <nlohmann/json.hpp>
+
 #include <QObject>
 #include <QString>
 #include <QVariantList>

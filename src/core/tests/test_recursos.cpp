@@ -12,6 +12,8 @@
 //   - el hilo mide solo y avisa en cada vuelta.
 #include "diag/Recursos.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <atomic>
 #include <chrono>
 #include <cstdio>

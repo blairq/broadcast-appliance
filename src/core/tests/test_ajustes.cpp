@@ -5,6 +5,8 @@
 // rompe nada.
 #include "ajustes/Ajustes.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <atomic>
 #include <cstdio>
 #include <thread>

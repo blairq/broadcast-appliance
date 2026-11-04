@@ -3,6 +3,8 @@
 // ============================================================================
 #include "tema/TemaWeb.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <charconv>
 #include <fstream>
 #include <iterator>

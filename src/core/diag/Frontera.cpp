@@ -1,6 +1,8 @@
 // src/core/diag/Frontera.cpp — el registro de fronteras y su JSON (ver Frontera.hpp)
 #include "diag/Frontera.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <map>

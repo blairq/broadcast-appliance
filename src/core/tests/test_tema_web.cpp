@@ -5,6 +5,8 @@
 // barras) y que cada familia de páginas reciba lo que dice el alcance.
 #include "tema/TemaWeb.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <clocale>
 #include <cmath>
 #include <cstdio>

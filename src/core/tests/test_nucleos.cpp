@@ -10,6 +10,8 @@
 //   8. /proc/interrupts de una placa sin RSS: las CPU que la atienden.
 //   9. La topología del sistema y armarGrupoGateway("") no se caen.
 
+#include <nlohmann/json.hpp>
+
 #include <cstdio>
 #include <set>
 #include <string>

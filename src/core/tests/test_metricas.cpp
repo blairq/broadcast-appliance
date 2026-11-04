@@ -6,6 +6,8 @@
 
 #include "diag/Metricas.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <cmath>
 #include <cstdio>
 #include <string>

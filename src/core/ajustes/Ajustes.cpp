@@ -3,6 +3,8 @@
 // ============================================================================
 #include "ajustes/Ajustes.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <mutex>
 #include <shared_mutex>
 

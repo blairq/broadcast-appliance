@@ -7,6 +7,8 @@
 #include "platform/Hilo.hpp"
 #include "i18n/I18nTexto.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>

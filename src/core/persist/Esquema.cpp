@@ -6,6 +6,8 @@
 #include "diag/Registro.hpp"
 #include "i18n/I18nTexto.hpp"
 
+#include <nlohmann/json.hpp>
+
 namespace ba::persist {
 
 int esquemaDe(const nlohmann::json& j) {

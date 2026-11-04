@@ -2,6 +2,8 @@
 
 #include "diag/PoliticaTermica.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <limits>
 

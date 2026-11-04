@@ -8,6 +8,8 @@
 
 #include "persist/ArchivoConfig.hpp"
 
+#include <nlohmann/json.hpp>
+
 namespace ba::app::config {
 
 /// El objeto del archivo migrado a su esquema, o {} si no está o no es un objeto.
