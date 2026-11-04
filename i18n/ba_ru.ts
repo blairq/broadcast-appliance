@@ -50017,7 +50017,7 @@ Datos (de %2): %3</source>
 <context>
     <name>config</name>
     <message>
-        <location filename="../src/core/persist/Esquema.cpp" line="+24"/>
+        <location filename="../src/core/persist/Esquema.cpp" line="+26"/>
         <source>%1: lo escribió una versión más nueva (esquema %2; esta lee hasta el %3): se lee como está</source>
         <translation>%1: записано более новой версией (схема %2; эта читает до %3): читается как есть</translation>
     </message>
@@ -50027,7 +50027,7 @@ Datos (de %2): %3</source>
         <translation>%1: схема %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+209"/>
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+211"/>
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1: записано более новой версией (эта пишет схему %2): не перезаписывается, изменение не сохранено</translation>
     </message>
@@ -50981,7 +50981,7 @@ Datos (de %2): %3</source>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+172"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+174"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>цикл интерфейса задержался на %1 мс (выполнялось: %2)</translation>
     </message>
@@ -51027,7 +51027,7 @@ Datos (de %2): %3</source>
         <translation>--detectar-acoples: в этой программе нет детектора</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+160"/>
+        <location filename="../src/core/diag/Acoples.cpp" line="+162"/>
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>детектор связей ВКЛЮЧЁН: каждый путь интерфейса в обход модели ждёт на %1 мс дольше и записывается (только для тестов)</translation>
     </message>
@@ -57242,7 +57242,7 @@ Datos (de %2): %3</source>
         <translation>Broadcast Appliance: устанавливает или обновляет эхо измерителя канала на этом сервере (вставлять от root; можно повторять).</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/Nucleos.cpp" line="+390"/>
+        <location filename="../src/core/platform/Nucleos.cpp" line="+392"/>
         <source>macOS no deja elegir núcleos</source>
         <translation>macOS не позволяет выбирать ядра</translation>
     </message>
@@ -91511,7 +91511,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>perfil</name>
     <message>
-        <location filename="../src/core/diag/Perfil.cpp" line="+471"/>
+        <location filename="../src/core/diag/Perfil.cpp" line="+473"/>
         <source>perfil %1: %2 núcleos, %3 MB</source>
         <translation>профиль %1: ядер %2, %3 МБ</translation>
     </message>
