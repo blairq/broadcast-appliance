@@ -11,6 +11,7 @@
 #include <QCoreApplication>
 #include <QEvent>
 #include <QQuickWindow>
+#include <QSet>
 
 #include <string>
 
@@ -72,8 +73,12 @@ bool VigiaInterfaz::nativeEventFilter(const QByteArray& tipo, void* mensaje, qin
 
 void VigiaInterfaz::engancharVentana(QObject* ventana) {
     auto* w = qobject_cast<QQuickWindow*>(ventana);
-    if (w == nullptr || w->property("_baVigiaQsg").toBool()) return;
-    w->setProperty("_baVigiaQsg", true);
+    // Una sola vez por ventana: el registro es de este vigía (en la interfaz), no una
+    // propiedad dinámica leída por su nombre (que compila aunque no exista).
+    static QSet<const QQuickWindow*> enganchadas;
+    if (w == nullptr || enganchadas.contains(w)) return;
+    enganchadas.insert(w);
+    QObject::connect(w, &QObject::destroyed, [w]() { enganchadas.remove(w); });
     auto& v = diag::VigiaBucle::interfaz();
     // Directas: afterAnimating corre en la interfaz justo antes de pedirle la
     // sincronización al hilo de render (y quedarse esperándolo); las otras dos, en

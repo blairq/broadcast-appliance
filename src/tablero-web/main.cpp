@@ -17,6 +17,7 @@
 #include <QDirIterator>
 #include <QFont>
 #include <QFontDatabase>
+#include <QMetaProperty>
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -101,17 +102,25 @@ void baCuadro(std::string clave, emscripten::val pixeles, int w, int h, double t
 /// Para las pruebas de punta a punta (tools/test/tablero-web.py): dónde está en la página lo
 /// que muestra `texto` (propiedad text o texto), o los ítems que tienen la propiedad `prop`
 /// («dbArrastre»: los faders). JSON [{x, y, w, h}] en píxeles de la página. Solo lo visible.
+// Para la automatización de pruebas: lee una propiedad de un item cualquiera de la escena SOLO si
+// su clase la declara (por QMetaObject). Inválido si no existe: nunca un QVariant vacío callado.
+QVariant leerSiHay(const QObject* o, const char* nombre) {
+    const QMetaObject* mo = o->metaObject();
+    const int i = mo->indexOfProperty(nombre);
+    return i >= 0 ? mo->property(i).read(o) : QVariant();
+}
+
 std::string buscarEn(const QString& texto, const QByteArray& prop) {
     QJsonArray out;
     std::function<void(QQuickItem*)> recorrer = [&](QQuickItem* it) {
         if (!it || !it->isVisible()) return;
         const bool coincide = !prop.isEmpty() ? it->metaObject()->indexOfProperty(prop.constData()) >= 0
-                                              : (it->property("text").toString() == texto || it->property("texto").toString() == texto);
+                                              : (leerSiHay(it, "text").toString() == texto || leerSiHay(it, "texto").toString() == texto);
         if (coincide && it->width() > 0) {
             const QRectF r = it->mapRectToScene(QRectF(0, 0, it->width(), it->height()));
             QJsonObject o{{"x", r.x()}, {"y", r.y()}, {"w", r.width()}, {"h", r.height()}};
             // El estado de un botón que se prende (M, PFL…), para verificar lo que muestra.
-            if (it->metaObject()->indexOfProperty("on") >= 0) o.insert("on", it->property("on").toBool());
+            if (const QVariant on = leerSiHay(it, "on"); on.isValid()) o.insert("on", on.toBool());
             out.append(o);
         }
         for (QQuickItem* h : it->childItems()) recorrer(h);
