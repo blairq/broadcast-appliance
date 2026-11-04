@@ -4,6 +4,7 @@
 // operador con el PTZ de una cámara: arranca quieta y la mueve. (En 2026-10 se
 // caía con «gst_gl_filter_filter_texture: assertion 'gst_is_gl_memory (out_tex)'»:
 // al dejar de ser pasante, el filtro no tenía de dónde sacar texturas.)
+#include "tests/Puntualidad.hpp" // bajoWine
 #include <gst/gst.h>
 
 #include <atomic>
@@ -67,6 +68,10 @@ std::string probar(const char* elemento, std::function<void(int)> cambiar) {
 int main(int argc, char** argv) {
     g_setenv("GST_PLUGIN_PATH", BA_TEST_GST_PLUGINS, TRUE);
     gst_init(&argc, &argv);
+    if (ba::pruebas::bajoWine()) { // probar si hay GL ya aborta (un g_error no se ataja)
+        std::printf("SKIP: %s\n", "bajo Wine GStreamer-GL aborta al crear su ventana (gstglwindow_win32.c: internal_win_id == hWnd; sin placa ni escritorio): no se puede probar ahí");
+        return 77;
+    }
     if (gst_element_factory_find("baptzgl") == nullptr || gst_element_factory_find("glupload") == nullptr) {
         std::printf("test_ptz_gl: SKIP (sin baptzgl u OpenGL)\n");
         return 0;

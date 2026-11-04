@@ -14,6 +14,7 @@
 // y se mira que lleguen del otro lado. Un elemento que no se puede armar en
 // esta máquina (le falta un modelo, un plugin de Python) se informa y se saltea.
 // ============================================================================
+#include "tests/Puntualidad.hpp" // bajoWine
 #include <gst/gst.h>
 
 #include <atomic>
@@ -154,8 +155,10 @@ int main(int argc, char** argv) {
         {"basombra", Tipo::Video, "margen=16 alfa=0.6 borde=4"}, {"basombragl", Tipo::Gl, "margen=16 alfa=0.6 borde=4"},
     };
     int fallas = 0;
+    const bool sinGl = ba::pruebas::bajoWine(); // el g_error de GL no se ataja: ni se intenta
+    if (sinGl) std::printf("(los de GL, salteados: %s)\n", "bajo Wine GStreamer-GL aborta al crear su ventana (gstglwindow_win32.c: internal_win_id == hWnd; sin placa ni escritorio): no se puede probar ahí");
     for (const Caso& k : casos) {
-        const std::string r = probar(k);
+        const std::string r = sinGl && k.tipo == Tipo::Gl ? std::string("salteado: bajo Wine sin GL") : probar(k);
         std::printf("%-14s %-20s %s\n", k.elemento, k.props, r.c_str());
         if (r.rfind("FALLA", 0) == 0) ++fallas;
     }
