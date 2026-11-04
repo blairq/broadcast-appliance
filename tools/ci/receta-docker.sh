@@ -110,7 +110,13 @@ if [ "$QUE" != linux ]; then
     tests_win=0
     touch /tmp/inicio-de-etapa
     make -o deps-win -o win test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
-    [ "$tests_win" = 0 ] || guardar_registros build/win/wine-logs
+    if [ "$tests_win" != 0 ]; then
+        # Solo los de los que fallaron (rc ni 0 ni 77; «rc segundos nombre registro exe»).
+        mkdir -p "/salida/logs/$CORRIDA"
+        awk '$1 != "0" && $1 != "77" { print $4 }' build/win/wine-logs/.resultados 2>/dev/null |
+            while read -r r; do cp "$r" "/salida/logs/$CORRIDA/"; done
+        echo "[compilar-en-docker] registros de lo que falló: dist/logs/$CORRIDA/"
+    fi
     etapa "tests bajo Wine (con caché)"
     make -o deps-win -o win release-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     etapa "release-win (instalar, chequeo, manifest)"
