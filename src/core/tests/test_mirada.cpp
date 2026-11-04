@@ -410,10 +410,14 @@ int main() {
     // Como el gateway y la app al arrancar: sin App Nap ni temporizadores agrupados (en macOS
     // una espera de 30 ms se estira varios ms si no; en Windows, el temporizador fino).
     ba::platform::sinAhorroDeEnergia();
+    // ¿La máquina deja correr a tiempo MIENTRAS se mide? Sin la sonda solo se miraba después
+    // («ahora»): con la suite en paralelo la carga ya había pasado y un chequeo de tiempo daba
+    // FALLO en vez de SKIP (tests/Puntualidad.hpp).
+    ba::pruebas::SondaPuntualidad sonda;
     testCuenta();
     testCanal();
     testAntesDespues();
     testReposo();
     if (g_fallos + g_fallosTiempo == 0) std::printf("test_mirada: OK\n");
-    return ba::pruebas::resultadoConTiempos("test_mirada", g_fallos, g_fallosTiempo);
+    return ba::pruebas::resultadoConTiempos("test_mirada", g_fallos, g_fallosTiempo, &sonda);
 }
