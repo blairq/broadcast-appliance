@@ -1291,3 +1291,5 @@ void AlertEngine::load() {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_AlertEngine.cpp"

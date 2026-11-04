@@ -2572,3 +2572,5 @@ void AgentViewModel::reinstalar(const QString& runtime, bool deCero) {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_AgentViewModel.cpp"

@@ -253,3 +253,5 @@ void VocesRack::decirCon(const nlohmann::json& tarjeta, const QString& texto) {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_VocesRack.cpp"

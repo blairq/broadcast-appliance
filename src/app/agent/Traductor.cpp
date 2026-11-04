@@ -949,3 +949,5 @@ void Traductor::glosarioGrupoUi(const QString& grupo, bool activo) {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_Traductor.cpp"

@@ -294,3 +294,5 @@ void Subtitulos::tic() {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_Subtitulos.cpp"

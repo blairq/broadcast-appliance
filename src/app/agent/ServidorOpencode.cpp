@@ -133,3 +133,5 @@ void ServidorOpencode::parar() {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_ServidorOpencode.cpp"

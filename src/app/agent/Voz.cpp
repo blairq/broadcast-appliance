@@ -1493,3 +1493,5 @@ bool Voz::eventFilter(QObject* obj, QEvent* ev) {
 }
 
 } // namespace ba::app::agent
+
+#include "moc_Voz.cpp"
