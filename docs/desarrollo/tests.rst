@@ -43,6 +43,7 @@ corriendo todo.
    make test                 # con caché; los lentos, solo si cambió lo que prueban
    make test-rapido          # sin los de la etiqueta «lento» (TESTS_SIN_LENTOS=1)
    make test-completo        # todo, sin caché (TESTS_SIN_CACHE=1)
+   make test-explicar        # sin correr nada: qué correría y por qué
    python3 tools/ci/tests-con-cache.py --test-dir build --explicar test_motor
 
 La **clave** de cada test es el sha256 de todo lo que puede cambiar su resultado:
@@ -65,7 +66,11 @@ La **clave** de cada test es el sha256 de todo lo que puede cambiar su resultado
   ``LANG``, ``LC_*``), la versión de ctest (o de Wine), la del sistema y la del
   propio script.
 
-Solo se anota un test que pasó (0) o se salteó (77); un fallo nunca. Todo por
+Solo se anota un test que pasó (0) o se salteó (77); un fallo nunca. De cada uno
+se guardan también las partes de su clave: antes de correr un test, ``make test``
+dice **por qué** corre (``corre test_x: cambió ruta src/app/evento/Evento.cpp (y 2
+más)``, ``nunca pasó``...), y ``make test-explicar`` lo dice de todos sin correr
+nada, para auditar que no corra nada de más. Todo por
 **contenido**, nunca por fechas: para no releer gigas cada vez, el sha256 de cada
 archivo se recuerda con su tamaño, mtime, ctime e inodo (``tools/ci/huellas.py``;
 el ctime cambia con cualquier escritura y nadie lo puede volver atrás). La caché
@@ -87,6 +92,21 @@ release todo corre sin caché: ``make publicar`` pone ``SIN_CACHE=1``.
 ctest y el corredor de Wine). ``make test`` los corre solo si cambió lo que
 prueban; ``make test-rapido`` (o ``TESTS_SIN_LENTOS=1``, también para
 ``tools/ci/test-win.sh``) los deja afuera; ``make publicar``, siempre.
+
+**Tiempo real**: los que miden milisegundos de verdad (lazos de audio, el motor
+con su reloj, WebRTC de punta a punta; ``BA_TESTS_TIEMPO_REAL``) llevan además la
+etiqueta ``tiempo_real`` y ``RUN_SERIAL``: ctest no corre nada más mientras tanto.
+
+**Chequeos de Python y QML, por área**: los de ``tests/`` que recorren ``src/``
+(escritor único, temporales, json de literales, ramas por idioma, llamadas que
+lupdate no lee, el C++ de la interfaz y los ganchos del detector de acoples)
+corren de a un área, ``test_py_area_<área>`` (``cmake/BaTestsPy.cmake``,
+``tests/areas.py``): un área es un componente de ``tools/diag/niveles.txt`` (o
+``resto``) y la prueba mira solo sus archivos y sus filas de las tablas de deuda.
+Los demás (``test_py_i18n``, ``test_py_acoples_qml``, ``test_py_republicadores``...)
+declaran exactamente lo que leen. ``qmllint`` es un test por archivo
+(``test_qml_syntax_<carpeta>_<Archivo>``): tocar un ``.qml`` corre su qmllint y las
+pruebas que cargan la QML.
 
 Tests de `ba_core`
 ------------------
@@ -224,9 +244,9 @@ Tests de la interfaz (Proceso A)
   opción inválida devuelve las válidas.
 - `test_dashboard_model` — disposicion del dashboard (encaje magnetico,
   ventanas de salida, persistencia).
-- `test_qml_syntax` — pasa `qmllint` (del Qt vendoreado) por todos los QML y
-  falla ante errores de sintaxis (un QML roto no rompe el build: rompe el
-  arranque).
+- `test_qml_syntax_<carpeta>_<Archivo>` — pasa `qmllint` (del Qt vendoreado) por
+  ese QML y falla ante errores de sintaxis (un QML roto no rompe el build: rompe
+  el arranque). Uno por archivo: la caché corre solo el del que cambió.
 
 Tests del módulo OBS (`ba-sources`)
 -----------------------------------

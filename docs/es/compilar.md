@@ -309,7 +309,7 @@ Dos suites:
   (`test_shadow_copy`), audio (`test_clap_host`, `test_audio_dsp`,
   `test_audio_rack`, `test_audio_modules`),
   interfaz (`test_dashboard_model`,
-  `test_qml_syntax`) y gateway (`test_room`, `test_gateway_http`,
+  `test_qml_syntax_*`) y gateway (`test_room`, `test_gateway_http`,
   `test_wireguard`, `test_ipstack`, `test_webrtc_loopback`,
   `test_gateway_integration`).
 
