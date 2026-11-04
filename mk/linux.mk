@@ -79,6 +79,15 @@ release:
 	@# Incremental: solo se copia lo que cambió y se borra lo que ya no se instala
 	@# (lo de una receta vieja no queda). SIN_CACHE=1: de cero.
 	tools/ci/instalar-incremental.sh $(BUILD_DIR) release
+	@# Linux: la depuración afuera (dist/simbolos/linux) y el bundle sin ella, ANTES del
+	@# manifest (antes iba después, en dist-linux: el manifest llevaba el sha256 de los
+	@# binarios sin strip y el .tar.gz los de con strip). Deja la fecha de cada binario como
+	@# la instaló cmake: la próxima instalación los ve al día y no los vuelve a copiar.
+	@# Solo si cambió el bundle.
+	@if [ "$$(uname -s)" = Linux ]; then python3 tools/ci/huellas.py atajo --nombre "release (strip de los símbolos)" \
+	  --clave-en $(BUILD_DIR)/atajos/simbolos-linux.json --memo $(BUILD_DIR)/atajos/huellas.json \
+	  --entrada release --excluir manifest.json --entrada tools/caidas/simbolos-linux.sh --salida dist/simbolos/linux \
+	  -- tools/caidas/simbolos-linux.sh release dist/simbolos/linux; fi
 	@# Linux: el bundle no puede depender de bibliotecas de terceros del sistema.
 	@# Sin manifest el launcher verifica cero archivos y la comprobacion de
 	@# integridad no sirve de nada. Solo lo que no cambia al usar el programa.
@@ -91,13 +100,18 @@ release:
 	    if [ "$$(uname -s)" = Linux ]; then tools/deps/check-portable.sh release || exit 1; fi; \
 	    BA_MANIFEST_CACHE=$(BUILD_DIR)/atajos/manifest-cache.txt tools/deploy --solo-manifest release'
 
-dist-linux:
+# Configurado en Release y compilado: lo que arma el paquete. La receta de Docker
+# (tools/ci/receta-docker.sh) lo hace una vez y después le pasa `-o compilado-release`
+# a dist-linux: cada «nada que compilar» de make bajo Rosetta son ~40 s.
+.PHONY: compilado-release
+compilado-release:
 	@$(CONFIGURAR) $(BUILD_DIR) $(BA_CMAKE_PERFIL) $(BA_CMAKE_PLATAFORMA) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
+
+dist-linux: compilado-release
 	@# Incremental (`make release`; SIN_CACHE=1 lo arma de cero).
 	$(MAKE) release
 	@mkdir -p dist
-	tools/caidas/simbolos-linux.sh release dist/simbolos/linux
 	@# El .tar.gz, solo si el contenido del bundle cambió desde el último (clave al lado).
 	@python3 tools/ci/huellas.py atajo --nombre "tar.gz de Linux" --clave-en $(DIST_LINUX).clave \
 	  --memo $(BUILD_DIR)/atajos/huellas.json --entrada release --texto "$(DIST_LINUX) tar -czf" \
