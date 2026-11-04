@@ -14,7 +14,7 @@
 #include <QJsonObject>
 #include <QUrl>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/Registro.hpp"
 

@@ -16,7 +16,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoProceso.hpp"
 #include "graficos/GraficoSource.hpp"
@@ -28,7 +28,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 namespace {

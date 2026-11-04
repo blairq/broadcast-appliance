@@ -22,13 +22,13 @@
 #include "medios/Medios.hpp"
 #include "i18n/I18nTexto.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/CarruselViewModel.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 

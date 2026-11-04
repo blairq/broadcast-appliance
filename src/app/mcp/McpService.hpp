@@ -38,7 +38,7 @@ class QThreadPool;
 namespace ba::app {
 class AppRuntime;
 class PlanoControl;
-class StudioViewModel;
+class InterfazMcp;
 class PropertiesModel;
 class SettingsModel;
 } // namespace ba::app
@@ -50,7 +50,7 @@ class McpHttp;
 class McpService : public QObject {
     Q_OBJECT
    public:
-    McpService(AppRuntime& rt, StudioViewModel& vm, QObject* parent = nullptr);
+    McpService(AppRuntime& rt, InterfazMcp& vm, QObject* parent = nullptr);
     ~McpService() override;
 
     /// Ventana principal (capturas y navegacion). Antes de start().
@@ -123,6 +123,16 @@ class McpService : public QObject {
     void registerControlTools();
     void registerSalidasTools(); ///< salidas_listar, salida_crear/editar/borrar (McpSalidasTools.cpp)
     void registerVivosTools(); ///< cuentas_*, vivos_listar, vivo_crear, salida_destino_* (McpVivosTools.cpp)
+    // Las familias de registerTools(), en su orden (mcp/McpRegistro.hpp; cada una en su .cpp).
+    void registerEscenasTools();
+    void registerFuentesTools();
+    void registerMezclaTools();
+    void registerTransmisionTools();
+    void registerInformesTools();
+    void registerDebateTools();
+    void registerRecintoTools();
+    void registerGrabacionTools();
+    void registerConfigTools();
     /// Marcas de la salvaguarda (contenido no confiable, herramientas mediadas)
     /// y la aprobacion en la barra del operador.
     void applySecurity();
@@ -139,7 +149,7 @@ class McpService : public QObject {
 
    private:
     AppRuntime& rt_;
-    StudioViewModel& vm_;
+    InterfazMcp& vm_;
     McpCore core_;
     std::unique_ptr<McpHttp> http_;
     PlanoControl* plano_ = nullptr;

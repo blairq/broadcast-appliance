@@ -33,7 +33,7 @@
 
 #include "i18n/I18nTexto.hpp"
 #include "arranque/ArchivoConfig.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 

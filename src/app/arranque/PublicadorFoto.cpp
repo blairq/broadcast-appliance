@@ -70,7 +70,7 @@ void PublicadorFoto::publicarFoto() {
     if (!publicarFoto_ || !rt_.started_) return;
     const unsigned sucias = fotoSucia_.exchange(0);
     if ((sucias & FotoMotor::Todas) == 0) return;
-    const TurnoMotor::Guarda turno(rt_.engine_.turno());
+    const TurnoMotor::Guarda turno(rt_.engine_->turno());
     // Se rearma lo sucio sobre la de trabajo (lo demás sigue como estaba) y se compara
     // SOLO lo sucio: la foto nueva (una copia) se hace solo si algo cambió de verdad.
     armarFoto(trabajo_, sucias);
@@ -110,7 +110,7 @@ std::shared_ptr<const FotoMotor> PublicadorFoto::ultimaFoto() const {
 void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
     // Lo del dueño que se lee acá: la configuración y el motor (con el turno).
     AppConfig& cfg = rt_.cfg_;
-    BroadcastEngine& eng = rt_.engine_;
+    BroadcastEngine& eng = *rt_.engine_;
     // --- Escenas: el orden del operador, la carpeta, si está protegida y las fuentes ------
     if ((p & FotoMotor::Escenas) != 0) {
         // Se arman aparte y se asignan: si quedaron iguales, la foto sigue con las de antes

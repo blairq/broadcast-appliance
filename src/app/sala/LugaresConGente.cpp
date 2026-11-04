@@ -5,7 +5,7 @@
 #include "sala/LugaresConGente.hpp"
 
 #include "Motor.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "ipc/LugaresSala.hpp"

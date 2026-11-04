@@ -11,7 +11,7 @@
 #include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/Calibracion.hpp"

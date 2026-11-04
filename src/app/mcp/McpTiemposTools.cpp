@@ -11,7 +11,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "tiempos/TiemposModel.hpp"
 #include "resolucion/ResolucionModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "video/CatalogoGst.hpp"
 #include "video/VideoGrafos.hpp"
 

@@ -21,7 +21,7 @@
 #include <set>
 
 #include "i18n/I18nTexto.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "ipc/LugaresSala.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/ControlSala.hpp"
@@ -39,7 +39,7 @@
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/AtencionViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
@@ -48,7 +48,7 @@ namespace ba::app::mcp {
 
 // --- Utilidades compartidas -------------------------------------------------------
 
-json roomSnapshot(StudioViewModel& vm) {
+json roomSnapshot(InterfazMcp& vm) {
     auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
     return toJson(conf->client().snapshot()); // sin pasar por texto (toJson)
 }
@@ -127,7 +127,7 @@ void McpService::registerRoomTools() {
     core_.addCategory("oradores", ba::i18n::traducir("mcp", "Modo oradores"),
                       ba::i18n::traducir("mcp", "Fila de oradores con reloj: al aire por turno, orden, tiempos, carrusel."));
 
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     AppRuntime& rt = rt_;
     auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
 

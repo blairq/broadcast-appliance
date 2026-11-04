@@ -11,7 +11,7 @@
 #include <QPointer>
 #include <QSet>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "ui/AireDeCuentas.hpp"
 #include "arranque/AppSettings.hpp"
 #include "ui/GrabacionesModel.hpp"

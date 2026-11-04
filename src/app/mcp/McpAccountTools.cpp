@@ -31,7 +31,7 @@
 #include "ui/CuentasViewModel.hpp"
 #include "ui/FacebookViewModel.hpp"
 #include "ui/OperatorMessages.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/TwitchViewModel.hpp"
 #include "ui/YouTubeViewModel.hpp"
 

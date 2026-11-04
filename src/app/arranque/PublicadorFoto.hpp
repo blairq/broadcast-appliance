@@ -29,7 +29,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "emision/FotoMotor.hpp"
 
 namespace ba::app {

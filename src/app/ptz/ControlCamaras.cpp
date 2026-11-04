@@ -6,7 +6,7 @@
 #include "platform/Paths.hpp"
 
 #include "ajustes/Ajustes.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "emision/InputSpecs.hpp"

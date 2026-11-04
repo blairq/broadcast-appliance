@@ -94,7 +94,7 @@ DEUDA_INCLUDES = {
     "app/mcp -> app/rostros": 1,
     "app/mcp -> app/sala": 16,
     "app/mcp -> app/tiempos": 1,
-    "app/mcp -> app/ui": 184,
+    "app/mcp -> app/ui": 131,
     "app/mcp -> app/video": 17,
     "app/medios -> app/emision": 1,
     "app/medios -> app/ui": 1,

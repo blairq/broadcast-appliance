@@ -1,7 +1,7 @@
 // src/app/audio/Mezclador.cpp — ver el .hpp
 #include "audio/Mezclador.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "audio/Calibracion.hpp"
 #include "audio/LoudnessPrograma.hpp"
 #include "audio/Matriz.hpp"

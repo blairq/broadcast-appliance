@@ -39,14 +39,14 @@
 #include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 #if BA_HAVE_ROSTROS
 #include <cmath>
 
 #include <QImage>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "rostros/Personas.hpp"
 #include "rostros/QuienEs.hpp"
 #include "rostros/Rostros.hpp"
@@ -70,7 +70,7 @@ namespace {
 /// y el primer `rostro_guardar` pisa el archivo con una libreta a la que le
 /// faltan las fichas recién anotadas —trabajo perdido sin un solo error—.
 /// Además los modelos se cargan una vez y no dos.
-PersonasViewModel* libretaViva(StudioViewModel& vm) { return static_cast<PersonasViewModel*>(vm.personas()); }
+PersonasViewModel* libretaViva(InterfazMcp& vm) { return static_cast<PersonasViewModel*>(vm.personas()); }
 
 json fichaJson(const ba::rostros::Persona& p) {
     return json{{"id", p.id},     {"nombre", p.nombre},      {"cargo", p.cargo},    {"nota", p.nota},

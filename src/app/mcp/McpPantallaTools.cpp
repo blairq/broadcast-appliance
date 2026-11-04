@@ -31,7 +31,7 @@
 #include "pantallas/Monitores.hpp"
 #include "ui/PantallasViewModel.hpp"
 #include "ui/QrViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;

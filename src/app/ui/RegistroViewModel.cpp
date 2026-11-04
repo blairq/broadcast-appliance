@@ -16,7 +16,7 @@
 #include <QThreadPool>
 #include <QTimer>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "diag/LectorDeLogs.hpp"
 #include "diag/Registro.hpp"

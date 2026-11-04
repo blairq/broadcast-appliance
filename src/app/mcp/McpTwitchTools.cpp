@@ -10,7 +10,7 @@
 #include "mcp/McpPlataformas.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/TwitchViewModel.hpp"
 
 namespace ba::app::mcp {

@@ -28,7 +28,7 @@
 #include "i18n/I18nTexto.hpp"
 #include "diag/Metricas.hpp"
 #include "diag/VigiaBucle.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "arranque/InicioConElSistema.hpp"
@@ -41,7 +41,7 @@
 #include "pantallas/Monitores.hpp"
 #include "ui/InputsViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "Piezas.hpp" // motor::derivaDePlacas
 
 #if defined(__linux__)

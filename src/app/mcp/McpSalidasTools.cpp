@@ -17,7 +17,7 @@
 //     herramientas de escenas (cada una lo pide acá, ninguna lo resuelve sola).
 // ============================================================================
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "diag/Recursos.hpp"
 #include "escenas/Conmutador.hpp"
@@ -26,17 +26,17 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/RecursosViewModel.hpp"
 #include "ui/SalidasViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 
-escenas::Conmutador& conmutadorDe(StudioViewModel& vm, const std::string& salida) {
+escenas::Conmutador& conmutadorDe(InterfazMcp& vm, const std::string& salida) {
     // callTool ya validó la salida; si justo la borraron, la por omisión (no se cae).
     escenas::Conmutador* c = vm.conmutadores().de(salida);
     return c != nullptr ? *c : vm.conmutadores().porOmision();
 }
 
-escenas::Conmutador& conmutadorDe(const McpCore& core, StudioViewModel& vm, const json& args) {
+escenas::Conmutador& conmutadorDe(const McpCore& core, InterfazMcp& vm, const json& args) {
     return conmutadorDe(vm, core.salidaDe(args));
 }
 
@@ -58,7 +58,7 @@ json resumenSalidas(const FotoMotor& f) {
 
 void McpService::registerSalidasTools() {
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     // Lo que el núcleo necesita para las herramientas de salida: qué salidas hay
     // (para validar `salida`, por id o nombre) y si una sale (la guarda de aire).
     // La lista, la que publica el reloj del motor (se lee desde cualquier hilo: el núcleo

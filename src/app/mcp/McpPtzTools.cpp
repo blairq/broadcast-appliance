@@ -16,9 +16,9 @@
 #include "ptz/ControlCamaras.hpp"
 #include "ptz/Interlock.hpp"
 #include "ui/Seguidor.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 
 #include <QCoreApplication>
 #include <QFile>

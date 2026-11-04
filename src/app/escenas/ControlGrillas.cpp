@@ -7,7 +7,7 @@
 #include "i18n/I18nTexto.hpp"
 
 #include "ajustes/Ajustes.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "escenas/FuenteGrilla.hpp"
 #include "asamblea/SesionRemota.hpp"

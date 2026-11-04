@@ -2,7 +2,7 @@
 
 #include "ui/EmisionViewModel.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "audio/ObjetivoLoudness.hpp"
 #include "control/BusEventos.hpp"
 #include "emision/RetornosInvitados.hpp"

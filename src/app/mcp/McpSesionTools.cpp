@@ -8,7 +8,7 @@
 
 #include "asamblea/Votaciones.hpp"
 #include "asamblea/Presidencia.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
 #include "asamblea/Quorum.hpp"
@@ -17,7 +17,7 @@
 #include "mcp/McpToolsCommon.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 #include <algorithm>
 
@@ -314,7 +314,7 @@ void McpService::registerSesionTools() {
                                {"required", {"fuente"}},
                                {"properties", {{"nombre", {{"type", "string"}}}, {"fuente", {{"type", "string"}}}}}}}}}}}};
         t.examples = {R"({"canales": [{"nombre": "Salida principal", "fuente": "programa"}, {"nombre": "Plano general", "fuente": "Cámara del frente"}]})"};
-        StudioViewModel* vmp = &vm_;
+        InterfazMcp* vmp = &vm_;
         t.run = [s, vmp](const json& a, Done done) {
             if (a.contains("canales")) {
                 for (const auto& c : a["canales"]) {

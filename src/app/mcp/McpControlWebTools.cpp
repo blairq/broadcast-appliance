@@ -22,13 +22,13 @@
 #include "control/ControlWebGateway.hpp"
 #include "mcp/McpCore.hpp"
 #include "i18n/I18nTexto.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "ui/ControlViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 
-void registerControlWebTools(McpCore& core, StudioViewModel& vm) {
+void registerControlWebTools(McpCore& core, InterfazMcp& vm) {
     core.addCategory("control_web", ba::i18n::traducir("mcp", "Control web"),
                      ba::i18n::traducir("mcp", "Los aparatos del dashboard web /control/ (tablet, notebook, PC de la red local): emparejar, "
                      "aprobar, el perfil de cada uno (qué categorías de herramientas puede usar) y quitarlos."));

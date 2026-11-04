@@ -20,6 +20,12 @@ siempre UNA línea. Se miran los usos calificados (`i18n::X`, también `ba::i18n
 archivo con `using namespace ba::i18n` o dentro de `namespace ba::i18n {`, también los sin
 calificar. Los comentarios y los textos entre comillas no cuentan.
 
+runtime: cada `#include "arranque/AppRuntime.hpp"` (el paraguas) pasa a la parte que usa:
+  - RuntimeConfig.hpp  la clase AppRuntime y su configuración (AppSettings);
+  - RuntimeAire.hpp    + el documento de aire, las salidas guardadas, la foto, el latido…;
+  - RuntimeMotor.hpp   + el motor (engine(), motorEntreHilos(), turno(), niveles()).
+    python3 tools/dev/migrar_includes.py runtime --aplicar
+
 json-fwd: en los headers que se nombran, `#include <nlohmann/json.hpp>` pasa a
 `#include "json/JsonFwd.hpp"` (declaraciones; json.hpp cuesta ~1 s de frontend por TU).
 Solo para headers que lo nombran en firmas, referencias o punteros: cada uno tiene que
@@ -175,6 +181,101 @@ def migrar_i18n(aplicar: bool, raices) -> int:
     return 0
 
 
+RT_INCLUDE = re.compile(r'^(\s*#\s*include\s*)"arranque/AppRuntime\.hpp"(.*)$')
+RT_PARTES = ("arranque/RuntimeConfig.hpp", "arranque/RuntimeAire.hpp", "arranque/RuntimeMotor.hpp")
+# Lo que trae RuntimeMotor.hpp y no RuntimeAire.hpp: el motor y lo que incluye su header.
+RT_MOTOR = re.compile(
+    r"\bengine\s*\(|\bmotorEntreHilos\s*\(|\bBroadcastEngine\b|\bturno\s*\(\s*\)|\bniveles\s*\(\s*\)"
+    r"|\bNivelesMotor\b|\bTurnoMotor\b|\bNivelAudio\b|\bLoudnessPrograma\b|\bPonderacionK\b"
+    r"|\bkCanalesEscena\b|\bCanalesEscena\b|\bSharedAudioRing\b|\bSpoutTransport\b|\bCanalesRegistro\b"
+    r"|\bTablaEscenas\b|\bkPrefijoId\b"
+    r"|\bstd::(future|promise|async|deque|condition_variable|array)\b")
+# Lo que trae RuntimeAire.hpp y no RuntimeConfig.hpp.
+RT_AIRE = re.compile(
+    r"\blatido\s*\(|\bLatidoAire\b|\boperatorFeed\s*\(|\bOperatorFeed\b|\bdocumentoAire\s*\(|\bDocumentoAire\b"
+    r"|\baireAnterior\s*\(|\bAlAire\b|\bsalidas::|\bPedidosSalida\b|\bFotoMotor\b|\bultimaFoto\s*\("
+    r"|\baportarALaFoto\s*\(|\bsetFoto\s*\(|\bobjetivoLoudness\s*\(|\bObjetivoLoudness\b|\bControlService\b"
+    r"|\bHealthBlock\b|\bArchivoConfig\b|\bpersist::|\bipc::")
+# Los que necesitan más de lo que dicen sus nombres (lo usan a través de otro header que no lo
+# incluye por su cuenta), o menos (un header que no debe arrastrar el motor a quien lo incluye).
+# «archivo»: índice en RT_PARTES.
+RT_FORZAR: dict[str, int] = {
+    # Las piezas del runtime: sus headers nombran la clase; sus .cpp incluyen lo que usan.
+    "src/app/arranque/PublicadorFoto.hpp": 0,
+    "src/app/arranque/ServicioEmision.hpp": 0,
+}
+
+
+def nivel_runtime(rel: str, texto: str) -> int:
+    if rel in RT_FORZAR:
+        return RT_FORZAR[rel]
+    codigo = sin_comentarios_ni_textos(texto)
+    if RT_MOTOR.search(codigo):
+        return 2
+    if RT_AIRE.search(codigo):
+        return 1
+    return 0
+
+
+def migrar_runtime(aplicar: bool, raices) -> int:
+    """Cada `#include "arranque/AppRuntime.hpp"` (el paraguas) pasa a la parte que el archivo
+    usa (RuntimeConfig → RuntimeAire → RuntimeMotor; cada una trae la anterior: una sola
+    línea, y la deuda de test_niveles no sube). Un header que lo incluía sube a la mayor
+    entre la suya y la de quienes lo incluyen sin incluir el runtime por su cuenta."""
+    textos = {}
+    for f in archivos(raices):
+        rel = f.relative_to(RAIZ).as_posix()
+        if rel.startswith("src/app/arranque/") and rel.rsplit("/", 1)[1] in (
+                "AppRuntime.hpp", "RuntimeConfig.hpp", "RuntimeAire.hpp", "RuntimeMotor.hpp"):
+            continue
+        textos[rel] = f.read_bytes().decode("utf-8")
+    directo = {r for r, t in textos.items() if any(RT_INCLUDE.match(l) for l in t.split("\n"))}
+    nivel = {r: nivel_runtime(r, t) for r, t in textos.items()}
+    headers = [r for r in textos if r.endswith((".hpp", ".h"))]
+    incluidos = {}
+    for r, t in textos.items():
+        incluidos[r] = {h for s in INCLUDE.findall(t) for h in headers if h == s or h.endswith("/" + s)}
+    def trae(r, vistos):
+        out = set()
+        for h in incluidos[r]:
+            if h in vistos:
+                continue
+            vistos.add(h)
+            if h in directo:
+                out.add(h)
+            out |= trae(h, vistos)
+        return out
+    cambio = True
+    while cambio:
+        cambio = False
+        for r in sorted(textos):
+            if r in directo or nivel[r] == 0:
+                continue
+            ps = trae(r, {r})
+            if not ps or max(nivel[h] for h in ps) >= nivel[r]:
+                continue
+            for h in ps:
+                if nivel[h] < nivel[r] and h not in RT_FORZAR:
+                    nivel[h] = nivel[r]
+                    print(f"  (sube {h} a {RT_PARTES[nivel[h]]}: lo usa {r} a través de él)", file=sys.stderr)
+                    cambio = True
+    cuenta = {}
+    for rel in sorted(directo):
+        parte = RT_PARTES[nivel[rel]]
+        cuenta[parte] = cuenta.get(parte, 0) + 1
+        print(f"{rel}: {parte}")
+        lineas = textos[rel].split("\n")
+        for k, l in enumerate(lineas):
+            m = RT_INCLUDE.match(l)
+            if m:
+                lineas[k] = f'{m.group(1)}"{parte}"{m.group(2)}'
+        if aplicar:
+            (RAIZ / rel).write_bytes("\n".join(lineas).encode("utf-8"))
+    for parte, n in sorted(cuenta.items()):
+        print(f"  {parte}: {n}", file=sys.stderr)
+    return 0
+
+
 JSON_INCLUDE = re.compile(r'^(\s*#\s*include\s*)<nlohmann/json\.hpp>(.*)$')
 
 
@@ -196,13 +297,15 @@ def migrar_json_fwd(aplicar: bool, headers) -> int:
 
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("migracion", choices=["i18n", "json-fwd"])
+    ap.add_argument("migracion", choices=["i18n", "json-fwd", "runtime"])
     ap.add_argument("--aplicar", action="store_true", help="escribir los cambios (sin esto, solo los muestra)")
     ap.add_argument("rutas", nargs="*", help="i18n: carpetas a recorrer (por omisión, src); json-fwd: los headers")
     a = ap.parse_args()
     if a.migracion == "json-fwd":
         return migrar_json_fwd(a.aplicar, a.rutas)
     raices = [RAIZ / r for r in (a.rutas or ["src"])]
+    if a.migracion == "runtime":
+        return migrar_runtime(a.aplicar, raices)
     return migrar_i18n(a.aplicar, raices)
 
 

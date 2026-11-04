@@ -6,7 +6,7 @@
 
 #include "i18n/I18nTexto.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "diag/Registro.hpp"
 
 #include <QPointer>

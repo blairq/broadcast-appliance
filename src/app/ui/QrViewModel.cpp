@@ -25,7 +25,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "diag/Registro.hpp"
 #include "qr/Iconos.hpp"
 #include "qr/Qr.hpp"

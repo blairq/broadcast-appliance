@@ -21,7 +21,7 @@
 #include "agent/Voz.hpp"
 #include "agent/VozIdioma.hpp"
 #include "i18n/I18nTexto.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "audio/MonitorVoz.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"

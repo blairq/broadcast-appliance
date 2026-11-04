@@ -11,7 +11,7 @@
 
 #include "video/Sincronia.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "diag/Registro.hpp"
 #include "fault/ModoSeguro.hpp"
 #include "i18n/I18nTexto.hpp"

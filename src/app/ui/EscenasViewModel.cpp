@@ -2,7 +2,7 @@
 
 #include "ui/EscenasViewModel.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/AjustesEscenas.hpp"

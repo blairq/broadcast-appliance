@@ -7,14 +7,14 @@
 
 #include <QJsonDocument>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "arranque/AppSettings.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "i18n/I18nIdioma.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/SettingsModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 
@@ -160,7 +160,7 @@ void McpService::registerHelp() {
         core_.addTopic(HelpTopic{t.id, ba::i18n::traducir("mcp", t.title), ba::i18n::traducir("mcp", t.summary),
                                  ba::i18n::leer(std::string("ayuda/") + t.id + ".md")});
 
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     SettingsModel* settings = settings_.get();
     // Se leen en la interfaz (McpCore, resources/read): lo del motor, de su foto (F3-03).
     core_.addResource(

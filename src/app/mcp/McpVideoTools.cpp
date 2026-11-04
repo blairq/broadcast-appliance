@@ -17,7 +17,7 @@
 #include "Mapa.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/VideoViewModel.hpp"
 #include "video/Diagnostico.hpp"
 #include "video/BancoSuperRes.hpp"

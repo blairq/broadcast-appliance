@@ -28,7 +28,7 @@
 #include "sala/EnlacesSala.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/RackManager.hpp"
@@ -529,7 +529,7 @@ void McpService::registerModeloTools() {
         t.examples = {
             R"({"fuente": "Micrófono", "modo": "continuo", "nombre": "Orador", "archivo": true})",
             R"({"fuente": "Micrófono", "modo": "continuo", "nombre": "Orador", "rotulo": "Subtítulos"})"};
-        StudioViewModel* vmp = &vm_;
+        InterfazMcp* vmp = &vm_;
         t.run = [voz, vmp](const json& a, Done done) {
 #if defined(BA_HAVE_CLAP)
             audio::RackManager* racks = vmp->racks();

@@ -4,14 +4,14 @@
 #pragma once
 
 namespace ba::app {
-class StudioViewModel;
+class InterfazMcp;
 namespace mcp {
 
 class McpCore;
 
 /// Registra la categoría "control_web" (control_web_*) y le pasa el servidor al
 /// control web (control/ControlWeb), que corre las herramientas de los aparatos.
-void registerControlWebTools(McpCore& core, StudioViewModel& vm);
+void registerControlWebTools(McpCore& core, InterfazMcp& vm);
 
 } // namespace mcp
 } // namespace ba::app

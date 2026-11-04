@@ -10,7 +10,7 @@
 #include <memory>
 #include <sstream>
 #include <vector>
-
+#include "arranque/RuntimeMotor.hpp"
 #include "arranque/AireDurable.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "diag/Registro.hpp"
@@ -104,7 +104,7 @@ ServicioEmision::AlResultado ServicioEmision::alResultado(std::uint64_t orden, A
 
 bool ServicioEmision::startRecording(const std::string& salida, AlResultado listo) {
     AppRuntime::errorDelHilo().clear(); // el de una llamada anterior no es de esta (el resultado real llega en `listo`)
-    const std::string id = rt_.engine_.idDeSalida(salida);
+    const std::string id = rt_.engine_->idDeSalida(salida);
     if (id.empty()) {
         AppRuntime::errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
         return false;
@@ -124,12 +124,12 @@ bool ServicioEmision::startRecording(const std::string& salida, AlResultado list
         fs::create_directories(rec.copiaDir, e2);
     }
     fs::create_directories(rec.directory, ec);
-    const EngineStatus antes = rt_.engine_.status();
+    const EngineStatus antes = rt_.engine_->status();
     const PedidoSalida antesPedido = pedidos_.de(id);
     const std::uint64_t orden = pedidos_.pedir(id, true);
-    if (!rt_.engine_.startRecording(rec, rt_.codificadorDe(id), id, alResultado(orden, std::move(listo)))) {
+    if (!rt_.engine_->startRecording(rec, rt_.codificadorDe(id), id, alResultado(orden, std::move(listo)))) {
         pedidos_.devolver(id, true, orden, antesPedido);
-        AppRuntime::errorDelHilo() = rt_.engine_.lastError();
+        AppRuntime::errorDelHilo() = rt_.engine_->lastError();
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("grabacion", "la grabación no arrancó: %1"), {AppRuntime::errorDelHilo()}).c_str());
         return false;
@@ -137,9 +137,9 @@ bool ServicioEmision::startRecording(const std::string& salida, AlResultado list
     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("grabacion", "grabando en %1"), {rec.directory}).c_str());
     // El integrado del loudness arranca con la sesión (si no había nada saliendo de esa salida).
     if (porOmision) {
-        if (!antes.streaming && !antes.recording) rt_.engine_.loudness().reiniciar();
-    } else if (!rt_.engine_.haySalidaEn(id)) {
-        rt_.engine_.loudness(id).reiniciar();
+        if (!antes.streaming && !antes.recording) rt_.engine_->loudness().reiniciar();
+    } else if (!rt_.engine_->haySalidaEn(id)) {
+        rt_.engine_->loudness(id).reiniciar();
     }
     rt_.aire_->writeOnAirState();
     rt_.avisar(Cambio::Salidas);
@@ -153,8 +153,8 @@ bool ServicioEmision::startSourceRecording(const std::string& source) {
     // que despues nadie encuentre nada.
     const std::string dir = carpetaGrabacion() + "/entradas";
     fs::create_directories(dir, ec);
-    if (!rt_.engine_.startSourceRecording(source, dir, rt_.cfg_.encoder)) {
-        AppRuntime::errorDelHilo() = rt_.engine_.lastError();
+    if (!rt_.engine_->startSourceRecording(source, dir, rt_.cfg_.encoder)) {
+        AppRuntime::errorDelHilo() = rt_.engine_->lastError();
         return false;
     }
     ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
@@ -164,8 +164,8 @@ bool ServicioEmision::startSourceRecording(const std::string& source) {
 }
 
 bool ServicioEmision::stopSourceRecording(const std::string& source) {
-    if (!rt_.engine_.stopSourceRecording(source)) {
-        AppRuntime::errorDelHilo() = rt_.engine_.lastError();
+    if (!rt_.engine_->stopSourceRecording(source)) {
+        AppRuntime::errorDelHilo() = rt_.engine_->lastError();
         return false;
     }
     ba::diag::registro().linea(ba::diag::Nivel::Info, "grabacion", 0,
@@ -175,16 +175,16 @@ bool ServicioEmision::stopSourceRecording(const std::string& source) {
 }
 
 void ServicioEmision::stopAllSourceRecordings() {
-    rt_.engine_.stopAllSourceRecordings();
+    rt_.engine_->stopAllSourceRecordings();
     rt_.avisar(Cambio::Salidas);
 }
 
 void ServicioEmision::stopRecording(const std::string& salida) {
-    const std::string id = rt_.engine_.idDeSalida(salida);
+    const std::string id = rt_.engine_->idDeSalida(salida);
     if (id.empty()) return;
     pedidos_.dejarDePedir(id, true);
     rt_.aire_->writeOnAirState();
-    rt_.engine_.stopRecording(id);
+    rt_.engine_->stopRecording(id);
     rt_.avisar(Cambio::Salidas);
 }
 
@@ -202,7 +202,7 @@ std::string ServicioEmision::grabarAparte(const std::string& fuente) {
     const double horas = d.value("horas", -1.0);
     if (horas >= 0 && horas < AppRuntime::kDiscoMinimoAparteH)
         return ba::i18n::traducir("grabacion", "Queda disco para menos de media hora: liberá espacio antes de sumar grabaciones aparte.");
-    if (static_cast<int>(rt_.engine_.sourceRecordings().size()) >= BroadcastEngine::kMaxIndividuales)
+    if (static_cast<int>(rt_.engine_->sourceRecordings().size()) >= BroadcastEngine::kMaxIndividuales)
         return ba::i18n::llenar(ba::i18n::traducir("grabacion", "Ya se graban %1 aparte (el tope): pará alguna."),
                                 {std::to_string(BroadcastEngine::kMaxIndividuales)});
     if (!startSourceRecording(fuente)) return AppRuntime::errorDelHilo();
@@ -224,7 +224,7 @@ bool ServicioEmision::salirAlAireManual(const std::string& server, const std::st
         };
     }
     if (!startStreaming(server, key, cambiarEnCaliente, salida, std::move(alTerminar))) return false;
-    *igual = rt_.engine_.ultimoInicio() == BroadcastEngine::Inicio::YaIgual;
+    *igual = rt_.engine_->ultimoInicio() == BroadcastEngine::Inicio::YaIgual;
     return true;
 }
 
@@ -232,7 +232,7 @@ bool ServicioEmision::startStreaming(const std::string& server, const std::strin
                                      const std::string& salida, AlResultado listo) {
     AppRuntime::errorDelHilo().clear(); // el de una llamada anterior no es de esta (el resultado real llega en `listo`)
     const AjustesAire a = ajustesAire();
-    const std::string id = rt_.engine_.idDeSalida(salida);
+    const std::string id = rt_.engine_->idDeSalida(salida);
     if (id.empty()) {
         AppRuntime::errorDelHilo() = ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
         return false;
@@ -250,15 +250,15 @@ bool ServicioEmision::startStreaming(const std::string& server, const std::strin
         StreamConfig sc = a.stream;
         sc.server = server;
         sc.key = key;
-        const bool salia = rt_.engine_.haySalidaEn(id);
+        const bool salia = rt_.engine_->haySalidaEn(id);
         const PedidoSalida antesPedido = pedidos_.de(id);
         const std::uint64_t orden = pedidos_.pedir(id, false);
-        if (!rt_.engine_.startStreaming(sc, rt_.codificadorDe(id), cambiarEnCaliente, id, alResultado(orden, std::move(listo)))) {
+        if (!rt_.engine_->startStreaming(sc, rt_.codificadorDe(id), cambiarEnCaliente, id, alResultado(orden, std::move(listo)))) {
             pedidos_.devolver(id, false, orden, antesPedido);
-            AppRuntime::errorDelHilo() = rt_.engine_.lastError();
+            AppRuntime::errorDelHilo() = rt_.engine_->lastError();
             return false;
         }
-        if (!salia) rt_.engine_.loudness(id).reiniciar();
+        if (!salia) rt_.engine_->loudness(id).reiniciar();
         // Para volver tras un corte: adónde (la clave, cifrada).
         ba::security::CredentialStore::bundle().write(
             credencialDeSalida(id), nlohmann::json{{"server", server}, {"key", key}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
@@ -287,18 +287,18 @@ bool ServicioEmision::startStreaming(const std::string& server, const std::strin
         AppRuntime::errorDelHilo() = ba::i18n::traducir("salidas", "no hay servidor de transmisión configurado");
         return false;
     }
-    const EngineStatus antes = rt_.engine_.status();
+    const EngineStatus antes = rt_.engine_->status();
     const PedidoSalida antesPedido = pedidos_.de(id);
     const std::uint64_t orden = pedidos_.pedir(id, false);
-    if (!rt_.engine_.startStreaming(sc, a.encoder, cambiarEnCaliente, {}, alResultado(orden, std::move(listo)))) {
+    if (!rt_.engine_->startStreaming(sc, a.encoder, cambiarEnCaliente, {}, alResultado(orden, std::move(listo)))) {
         pedidos_.devolver(id, false, orden, antesPedido);
-        AppRuntime::errorDelHilo() = rt_.engine_.lastError();
+        AppRuntime::errorDelHilo() = rt_.engine_->lastError();
         std::printf("ba-app: %s\n",
                     ba::i18n::llenar(ba::i18n::traducir("salidas", "la transmisión no arrancó: %1"), {AppRuntime::errorDelHilo()}).c_str());
         return false;
     }
     std::printf("ba-app: %s\n", ba::i18n::llenar(ba::i18n::traducir("salidas", "transmitiendo a %1"), {sc.server}).c_str());
-    if (!antes.streaming && !antes.recording) rt_.engine_.loudness().reiniciar();
+    if (!antes.streaming && !antes.recording) rt_.engine_->loudness().reiniciar();
     if (!sc.key.empty()) {
         ba::security::CredentialStore::bundle().write(
             kStreamCredential, nlohmann::json{{"server", sc.server}, {"key", sc.key}}.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace));
@@ -310,11 +310,11 @@ bool ServicioEmision::startStreaming(const std::string& server, const std::strin
 }
 
 void ServicioEmision::stopStreaming(const std::string& salida) {
-    const std::string id = rt_.engine_.idDeSalida(salida);
+    const std::string id = rt_.engine_->idDeSalida(salida);
     if (id.empty()) return;
     pedidos_.dejarDePedir(id, false);
     rt_.aire_->writeOnAirState();
-    rt_.engine_.stopStreaming(id);
+    rt_.engine_->stopStreaming(id);
     rt_.avisar(Cambio::Salidas);
 }
 
@@ -331,7 +331,7 @@ nlohmann::json ServicioEmision::destinosGuardados() const {
 }
 
 nlohmann::json ServicioEmision::destinosConEstado(const nlohmann::json& guardados) const {
-    const nlohmann::json est = rt_.engine_.extrasEstado();
+    const nlohmann::json est = rt_.engine_->extrasEstado();
     nlohmann::json out = nlohmann::json::array();
     for (nlohmann::json d : guardados) {
         const std::string id = d.value("id", std::string());
@@ -357,7 +357,7 @@ std::string ServicioEmision::guardarDestino(const nlohmann::json& d, std::string
     nlohmann::json lista = leerDestinos();
     std::string id = d.value("id", std::string());
     // La salida de la que toma el programa (sin campo = la por omisión): tiene que existir.
-    if (d.contains("salida") && !d.value("salida", std::string()).empty() && !rt_.engine_.existeSalida(d.value("salida", std::string())))
+    if (d.contains("salida") && !d.value("salida", std::string()).empty() && !rt_.engine_->existeSalida(d.value("salida", std::string())))
         return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {d.value("salida", std::string())});
     nlohmann::json* existente = nullptr;
     for (auto& x : lista)
@@ -456,30 +456,30 @@ std::string ServicioEmision::guardarDestino(const nlohmann::json& d, std::string
 
 std::string ServicioEmision::aplicarReplay() {
     const int s = rt_.cfg_.replaySegundos;
-    if (!rt_.engine_.setReplay(s, rt_.cfg_.rec.directory + "/repeticiones", rt_.cfg_.encoder))
-        return ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: %1"), {rt_.engine_.lastError()});
+    if (!rt_.engine_->setReplay(s, rt_.cfg_.rec.directory + "/repeticiones", rt_.cfg_.encoder))
+        return ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: %1"), {rt_.engine_->lastError()});
     return s > 0 ? ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: guarda los últimos %1 s."), {std::to_string(s)})
                  : ba::i18n::traducir("salidas", "Repetición apagada.");
 }
 
 std::string ServicioEmision::ponerReplay(int segundos, const std::string& salida) {
-    const std::string id = rt_.engine_.idDeSalida(salida);
+    const std::string id = rt_.engine_->idDeSalida(salida);
     if (id.empty()) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay una salida «%1»"), {salida});
     segundos = std::clamp(segundos, 0, 600);
     if (id == salidas::kPorOmision) {
         rt_.cfg_.replaySegundos = segundos;
         rt_.save();
         const std::string nota = aplicarReplay();
-        return segundos > 0 && !rt_.engine_.replayEstado().value("activa", false) ? nota : std::string();
+        return segundos > 0 && !rt_.engine_->replayEstado().value("activa", false) ? nota : std::string();
     }
-    if (!rt_.engine_.setReplay(segundos, rt_.cfg_.rec.directory + "/repeticiones", rt_.codificadorDe(id), id))
-        return ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: %1"), {rt_.engine_.lastError()});
+    if (!rt_.engine_->setReplay(segundos, rt_.cfg_.rec.directory + "/repeticiones", rt_.codificadorDe(id), id))
+        return ba::i18n::llenar(ba::i18n::traducir("salidas", "Repetición: %1"), {rt_.engine_->lastError()});
     rt_.avisar(Cambio::Salidas);
     return {};
 }
 
 void ServicioEmision::detenerSenalLimpia(const std::string& salida) {
-    rt_.engine_.stopCleanFeed(salida);
+    rt_.engine_->stopCleanFeed(salida);
     rt_.avisar(Cambio::Salidas);
 }
 
@@ -496,7 +496,7 @@ std::string ServicioEmision::iniciarSenalLimpia(const std::string& destino, cons
         dir = carpetaGrabacion() + "/limpia";
         fs::create_directories(dir, ec);
     }
-    if (!rt_.engine_.startCleanFeed(url, clave, dir, rt_.codificadorDe(salida), salida)) return rt_.engine_.lastError();
+    if (!rt_.engine_->startCleanFeed(url, clave, dir, rt_.codificadorDe(salida), salida)) return rt_.engine_->lastError();
     ba::diag::registro().linea(ba::diag::Nivel::Info, "salidas", 0,
                                destino.empty() ? ba::i18n::llenar(ba::i18n::traducir("salidas", "señal limpia grabando en %1"), {dir})
                                                : ba::i18n::llenar(ba::i18n::traducir("salidas", "señal limpia a %1"), {destino}));
@@ -509,7 +509,7 @@ std::string ServicioEmision::borrarDestino(const std::string& id) {
     for (const auto& x : lista)
         if (x.value("id", std::string()) != id) nueva.push_back(x);
     if (nueva.size() == lista.size()) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1»"), {id});
-    rt_.engine_.stopExtra(id);
+    rt_.engine_->stopExtra(id);
     pedidos_.sacarDestino(id);
     rt_.aire_->writeOnAirState();
     ba::security::CredentialStore::bundle().remove("stream-" + id);
@@ -527,14 +527,14 @@ std::string ServicioEmision::iniciarDestino(const std::string& id) {
         alguno = true;
         std::string clave;
         ba::security::CredentialStore::bundle().read("stream-" + did, clave);
-        if (rt_.engine_.startExtra(did, d.value("url", std::string()), clave, rt_.codificadorDe(salidas::salidaDeDestino(d)),
+        if (rt_.engine_->startExtra(did, d.value("url", std::string()), clave, rt_.codificadorDe(salidas::salidaDeDestino(d)),
                                salidas::salidaDeDestino(d),
                                d.value("url_respaldo", std::string()))) {
             // Pedido en su salida (vuelve tras un corte), en ninguna otra.
-            const std::string sal = rt_.engine_.idDeSalida(salidas::salidaDeDestino(d));
+            const std::string sal = rt_.engine_->idDeSalida(salidas::salidaDeDestino(d));
             if (!sal.empty()) pedidos_.ponerDestino(sal, did);
         } else
-            errores += (errores.empty() ? "" : "; ") + did + ": " + rt_.engine_.lastError();
+            errores += (errores.empty() ? "" : "; ") + did + ": " + rt_.engine_->lastError();
     }
     if (!alguno) return ba::i18n::llenar(ba::i18n::traducir("salidas", "no hay un destino «%1» (stream_destinos los lista)"), {id});
     rt_.aire_->writeOnAirState();
@@ -551,7 +551,7 @@ nlohmann::json ServicioEmision::discoGrabacion() const {
     // Lo que ya escribe el motor (todas las salidas: grabación, copia, señal limpia, ISO)
     // y, si la de la por omisión no graba, lo que sumaría al arrancarla (con su copia):
     // el disco se reparte entre todo lo que va a él.
-    const nlohmann::json estado = rt_.engine_.discoEstado();
+    const nlohmann::json estado = rt_.engine_->discoEstado();
     std::vector<ba::platform::EscrituraDisco> e;
     for (const nlohmann::json& v : estado.value("restante", nlohmann::json::object()).value("volumenes", nlohmann::json::array())) {
         std::string que;
@@ -559,7 +559,7 @@ nlohmann::json ServicioEmision::discoGrabacion() const {
         e.push_back({que, v.value("carpeta", std::string()), v.value("kbps", 0.0)});
     }
     const int kbps = BroadcastEngine::kbpsGrabacion(rec, a.encoder);
-    const bool graba = rt_.engine_.grabacionEstado().value("activa", false);
+    const bool graba = rt_.engine_->grabacionEstado().value("activa", false);
     if (!graba) {
         e.push_back({ba::i18n::traducir("emision", "grabación"), rec.directory, static_cast<double>(kbps)});
         if (!rec.copiaDir.empty())
@@ -582,9 +582,9 @@ void ServicioEmision::detenerDestino(const std::string& id) {
     pedidos_.sacarDestino(id);
     rt_.aire_->writeOnAirState();
     if (id == "todos")
-        rt_.engine_.stopExtras();
+        rt_.engine_->stopExtras();
     else
-        rt_.engine_.stopExtra(id);
+        rt_.engine_->stopExtra(id);
     rt_.avisar(Cambio::Salidas);
 }
 

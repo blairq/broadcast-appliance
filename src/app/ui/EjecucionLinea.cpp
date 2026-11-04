@@ -13,7 +13,7 @@
 #include <algorithm>
 #include <cmath>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/Votaciones.hpp"
 #include "control/Dsk.hpp"

@@ -22,12 +22,12 @@
 #include <algorithm>
 #include <cstring>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "diag/Registro.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "ui/FrameService.hpp"
 #include "ui/StudioViewModel.hpp"
-
+#include "ui/SalaViewModel.hpp"
 #if BA_HAVE_ROSTROS
 #include "evento/Evento.hpp"
 #include "rostros/Personas.hpp"

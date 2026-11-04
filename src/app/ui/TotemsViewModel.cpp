@@ -27,7 +27,7 @@
 #include "agent/ServidorModeloLocal.hpp"
 #include "agent/Voz.hpp"
 #include "ajustes/Ajustes.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "diag/Registro.hpp"
 #include "documentos/Documento.hpp"
 #include "documentos/Mrz.hpp"

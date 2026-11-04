@@ -8,7 +8,7 @@
 
 #include "dispositivos/Registro.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "audio/EntradasAudio.hpp"
 #include "audio/UnificarEntradas.hpp"
 #include "ajustes/Ajustes.hpp"

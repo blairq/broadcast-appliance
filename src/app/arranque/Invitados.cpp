@@ -10,7 +10,7 @@
 #include <vector>
 
 #include "Motor.hpp" // motor: el retorno del invitado sin audio
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "i18n/I18nTexto.hpp"
 
@@ -49,7 +49,7 @@ void Invitados::ajustar(int n) {
     const int antes = cfg.guests;
     cfg.guests = n;
     rt_.gateway_.guests = n;
-    for (int slot = antes + 1; slot <= n; ++slot) audioDeInvitado(rt_.engine_, cfg.guestAudio, slot);
+    for (int slot = antes + 1; slot <= n; ++slot) audioDeInvitado(*rt_.engine_, cfg.guestAudio, slot);
     // Y el video de los lugares nuevos (la cámara y la pantalla de cada uno): sin
     // esto, con el cupo en 4 se veían solo 2 invitados en Entradas. Ocultas en la
     // primera escena, como las del arranque: el operador las pone donde quiera.
@@ -84,7 +84,7 @@ void Invitados::ajustar(int n) {
 
 void Invitados::agregar() {
     AppConfig& cfg = rt_.cfg_;
-    BroadcastEngine& engine = rt_.engine_;
+    BroadcastEngine& engine = *rt_.engine_;
     // Audio de invitados: global (canal propio), siempre en la mezcla.
     for (int slot = 1; slot <= cfg.guests; ++slot) audioDeInvitado(engine, cfg.guestAudio, slot);
     // Video: si ninguna escena tiene invitados (config nueva o vieja), se

@@ -7,7 +7,7 @@
 #include <chrono>
 #include <cstdio>
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "diag/Correlacion.hpp"
 #include "diag/Registro.hpp"
 #include "i18n/I18nTexto.hpp"

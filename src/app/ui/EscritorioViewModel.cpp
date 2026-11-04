@@ -2,7 +2,7 @@
 
 #include "ui/EscritorioViewModel.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeAire.hpp"
 #include "diag/DiarioDeArranque.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "pantallas/Catalogo.hpp"

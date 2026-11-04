@@ -13,12 +13,12 @@
 
 namespace ba::app {
 class AppRuntime;
-class StudioViewModel;
+class InterfazMcp;
 } // namespace ba::app
 
 namespace ba::app::mcp {
 
 /// {listo, faltas: [{que, detalle, como}], avisos: [...], resumen: {...}}. `listo` = sin faltas.
-nlohmann::json revisarAsamblea(StudioViewModel& vm);
+nlohmann::json revisarAsamblea(InterfazMcp& vm);
 
 } // namespace ba::app::mcp

@@ -15,10 +15,10 @@
 #include "agent/AgentViewModel.hpp"
 #include "agent/ControlSistema.hpp"
 #include "i18n/I18nTexto.hpp"
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeConfig.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::app::mcp {

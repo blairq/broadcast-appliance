@@ -19,13 +19,13 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/OperatorMessages.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 namespace ba::app::mcp {
 
 namespace {
 
-json roomChatItems(StudioViewModel& vm) {
+json roomChatItems(InterfazMcp& vm) {
     auto* conf = static_cast<ConferenceViewModel*>(vm.conference());
     return json::parse(QJsonDocument(static_cast<JsonListModel*>(conf->chat())->items())
                            .toJson(QJsonDocument::Compact)
@@ -35,7 +35,7 @@ json roomChatItems(StudioViewModel& vm) {
 
 /// Mensajes de invitados sin respuesta del operador (despues del ultimo mensaje
 /// del operador en esa conversacion: privada con esa persona, o la general).
-json pendingGuestChat(StudioViewModel& vm) {
+json pendingGuestChat(InterfazMcp& vm) {
     const json chat = roomChatItems(vm);
     std::map<std::string, json> convs; // clave: id de la persona (privado) o "all"
     for (const auto& m : chat) {
@@ -72,7 +72,7 @@ void McpService::registerOperatorTools() {
         ba::i18n::traducir("mcp", "Mensajes y preguntas al operador en la barra de abajo de la app (con color según prioridad) y "
         "ayuda con el chat de los invitados: ver mensajes sin responder y sugerir respuestas que el "
         "operador manda con un click."));
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     auto* msgs = static_cast<OperatorMessages*>(vm.messages());
     // Lo que publica una herramienta lleva qué asistente la llamó (la respuesta tardía le vuelve a él).
     msgs->setQuienPide([this]() { return core_.contextoEnCurso().asistente; });

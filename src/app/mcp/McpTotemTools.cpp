@@ -25,7 +25,7 @@
 #include "ui/FrameService.hpp"
 #include "ui/LectorDocumentos.hpp"
 #include "ui/PantallasViewModel.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 #include "ui/TotemsViewModel.hpp"
 #include "ui/CapturaError.hpp"
 
@@ -72,7 +72,7 @@ void McpService::registerTotemTools() {
                       ba::i18n::traducir("mcp", "Páginas de registro para una TV con cámara y micrófono o el celular de quien escanea un QR: "
                       "la persona se registra hablando y el asistente le contesta con voz. Lo que contesta va al "
                       "padrón del evento abierto (`datos`) y queda acreditada."));
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     const auto tv = [&vm]() { return vm.totemsVm(); };
 
     {

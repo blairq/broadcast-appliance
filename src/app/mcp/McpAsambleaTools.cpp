@@ -10,7 +10,7 @@
 
 #include "mcp/McpAsamblea.hpp"
 
-#include "arranque/AppRuntime.hpp"
+#include "arranque/RuntimeMotor.hpp"
 #include "asamblea/ConferenciaDcn.hpp"
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
@@ -23,7 +23,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ptz/ControlCamaras.hpp"
-#include "ui/StudioViewModel.hpp"
+#include "mcp/InterfazMcp.hpp"
 
 #include <QPointer>
 
@@ -75,7 +75,7 @@ std::map<std::string, int> camarasDeBancas(const asamblea::Cuerpo& cuerpo) {
 }
 } // namespace
 
-nlohmann::json revisarAsamblea(StudioViewModel& vm) {
+nlohmann::json revisarAsamblea(InterfazMcp& vm) {
     using json = nlohmann::json;
     json faltas = json::array(), avisos = json::array();
     const auto falta = [&](const std::string& que, const std::string& detalle, const std::string& como) {
@@ -271,7 +271,7 @@ nlohmann::json revisarAsamblea(StudioViewModel& vm) {
 
 void McpService::registerAsambleaTools() {
     AppRuntime& rt = rt_;
-    StudioViewModel& vm = vm_;
+    InterfazMcp& vm = vm_;
     core_.addCategory("asamblea", ba::i18n::traducir("mcp", "Asamblea (preparar la sesión)"),
                       ba::i18n::traducir("mcp", "Revisar lo que hace falta para sesionar (Cuerpo, recinto, cámaras, escenas, central, banca "
                       "virtual) y armar las escenas de una asamblea."));
@@ -354,7 +354,7 @@ void McpService::registerAsambleaTools() {
                                 .data({{"propuesta", plan}, {"general", general}}));
             // Crearlas es del dueño del motor: una orden (sin esperar a la interfaz); el debate
             // se configura cuando vuelve, con la foto ya al día.
-            QPointer<StudioViewModel> vmp(&vm);
+            QPointer<InterfazMcp> vmp(&vm);
             vm.ventanilla().pedir(
                 &vm, "asamblea_escenas_base",
                 [&rt, plan]() {
