@@ -533,3 +533,5 @@ void Descargas::leerHistorial() {
 }
 
 } // namespace ba::app::net
+
+#include "moc_Descargas.cpp"
