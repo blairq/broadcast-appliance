@@ -16,6 +16,8 @@
 #include "mcp/McpFamilia.hpp"
 #include "Piezas.hpp"
 #include <QCoreApplication>
+#include <QTimer>
+#include "diag/Acoples.hpp" // el bloque de BA_DIAG_ACOPLES (diag_acoples): la Mac compila sin él
 #include "fault/FallasProgramadas.hpp"
 #include <algorithm>
 #include <cstdlib>
