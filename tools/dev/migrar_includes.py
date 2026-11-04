@@ -20,6 +20,12 @@ siempre UNA línea. Se miran los usos calificados (`i18n::X`, también `ba::i18n
 archivo con `using namespace ba::i18n` o dentro de `namespace ba::i18n {`, también los sin
 calificar. Los comentarios y los textos entre comillas no cuentan.
 
+runtime: cada `#include "arranque/AppRuntime.hpp"` (el paraguas) pasa a la parte que usa:
+  - RuntimeConfig.hpp  la clase AppRuntime y su configuración (AppSettings);
+  - RuntimeAire.hpp    + el documento de aire, las salidas guardadas, la foto, el latido…;
+  - RuntimeMotor.hpp   + el motor (engine(), motorEntreHilos(), turno(), niveles()).
+    python3 tools/dev/migrar_includes.py runtime --aplicar
+
 json-fwd: en los headers que se nombran, `#include <nlohmann/json.hpp>` pasa a
 `#include "json/JsonFwd.hpp"` (declaraciones; json.hpp cuesta ~1 s de frontend por TU).
 Solo para headers que lo nombran en firmas, referencias o punteros: cada uno tiene que
