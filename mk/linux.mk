@@ -94,10 +94,10 @@ release:
 	@# Los dos, solo si cambió el contenido del bundle (tools/ci/huellas.py).
 	@python3 tools/ci/huellas.py atajo --nombre "release (chequeo + manifest)" \
 	  --clave-en $(BUILD_DIR)/atajos/release.json --memo $(BUILD_DIR)/atajos/huellas.json \
-	  --entrada release --excluir manifest.json --entrada tools/deploy --entrada tools/deps/check-portable.sh \
+	  --entrada release --excluir manifest.json --entrada tools/deploy --entrada tools/deps/check-portable.sh --entrada tools/deps/check-portable.py --entrada tools/ci/tests-con-cache.py \
 	  --entrada tools/deps/linux-baseline.txt \
 	  --salida release/manifest.json -- sh -c '\
-	    if [ "$$(uname -s)" = Linux ]; then tools/deps/check-portable.sh release || exit 1; fi; \
+	    if [ "$$(uname -s)" = Linux ]; then BA_PORTABLE_CACHE=$(BUILD_DIR)/atajos/portable-cache.json tools/deps/check-portable.sh release || exit 1; fi; \
 	    BA_MANIFEST_CACHE=$(BUILD_DIR)/atajos/manifest-cache.txt tools/deploy --solo-manifest release'
 
 # Configurado en Release y compilado: lo que arma el paquete. La receta de Docker
