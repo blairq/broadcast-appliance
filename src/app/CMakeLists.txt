@@ -485,6 +485,22 @@ if(BA_APP_QT_OK)
     ba_biblioteca_completa(ba_app_agente registro)
     list(PREPEND BA_APP_BIBLIOTECAS ba_app_agente)
 
+    # Las pantallas: el catálogo de lo que se puede mostrar, los monitores y ventanas, las
+    # distribuciones, los destinos y los televisores (Chromecast: buscarlos por mDNS y el
+    # canal de cast por TLS). Usa arranque/ArchivoConfigQt, que sigue en ba-app: lo
+    # resuelve quien enlaza (deuda de test_niveles).
+    ba_biblioteca(ba_app_pantallas NIVEL 2
+        DEPENDE ba_app_base ba_app_comun ba_core mbedtls mbedx509 mbedcrypto nlohmann_json::nlohmann_json
+                Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml
+        FUENTES pantallas/BuscadorCatalogo.cpp pantallas/Buscar.cpp pantallas/Cast.cpp pantallas/Catalogo.cpp
+                pantallas/Destinos.cpp pantallas/Distribuciones.cpp pantallas/Monitores.cpp pantallas/Tarjetas.hpp
+                pantallas/Ventanas.cpp)
+    if(BA_MDNS_OK)
+        target_link_libraries(ba_app_pantallas PRIVATE ba_mdns) # pantallas/Buscar.cpp
+    endif()
+    ba_biblioteca_completa(ba_app_pantallas pantallas)
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_pantallas)
+
     ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
 endif()
 
@@ -779,28 +795,24 @@ endif()
     add_test(NAME test_drivers COMMAND test_drivers)
     # El catálogo de cosas que se pueden mostrar y los monitores (Salidas → Pantallas):
     # orden físico, ids estables, asignación, persistencia y espera, sin monitores reales.
-    add_executable(test_pantallas_catalogo tests/test_pantallas_catalogo.cpp pantallas/Catalogo.cpp
-                   pantallas/Monitores.cpp pantallas/Ventanas.cpp
-                   pantallas/BuscadorCatalogo.cpp)
+    add_executable(test_pantallas_catalogo tests/test_pantallas_catalogo.cpp)
     target_include_directories(test_pantallas_catalogo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pantallas_catalogo PRIVATE ba_app_base ba_core Qt6::Core Qt6::Gui Qt6::Qml)
+    target_link_libraries(test_pantallas_catalogo PRIVATE ba_app_pantallas ba_app_base ba_core Qt6::Core Qt6::Gui Qt6::Qml)
     set_target_properties(test_pantallas_catalogo PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pantallas_catalogo COMMAND test_pantallas_catalogo)
     # Las distribuciones de pantallas (Pantallas locales → Distribuciones): relativas ↔
     # absolutas, monitor faltante, una ventana madre por monitor, aplicar idempotente,
     # capturar → aplicar igual, persistencia; con monitores de prueba.
-    add_executable(test_pantallas_distribuciones tests/test_pantallas_distribuciones.cpp pantallas/Catalogo.cpp
-                   pantallas/Monitores.cpp pantallas/Ventanas.cpp pantallas/Distribuciones.cpp
-                   pantallas/BuscadorCatalogo.cpp)
+    add_executable(test_pantallas_distribuciones tests/test_pantallas_distribuciones.cpp)
     target_include_directories(test_pantallas_distribuciones PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pantallas_distribuciones PRIVATE ba_app_base ba_core Qt6::Core Qt6::Gui Qt6::Qml)
+    target_link_libraries(test_pantallas_distribuciones PRIVATE ba_app_pantallas ba_app_base ba_core Qt6::Core Qt6::Gui Qt6::Qml)
     set_target_properties(test_pantallas_distribuciones PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pantallas_distribuciones COMMAND test_pantallas_distribuciones)
     # Las pantallas de la red (Chromecast) y lo que muestran: lo guardado, la búsqueda, el
     # restaurado de lo fijado, los carruseles, las URLs y los canales de escena, sin red.
-    add_executable(test_pantallas_destinos tests/test_pantallas_destinos.cpp pantallas/Destinos.cpp)
+    add_executable(test_pantallas_destinos tests/test_pantallas_destinos.cpp)
     target_include_directories(test_pantallas_destinos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pantallas_destinos PRIVATE nlohmann_json::nlohmann_json ba_core)
+    target_link_libraries(test_pantallas_destinos PRIVATE ba_app_pantallas nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_pantallas_destinos COMMAND test_pantallas_destinos)
     # Los instrumentos de video (forma de onda, vectorscopio, legalidad), sin GPU.
     add_executable(test_scopes tests/test_scopes.cpp video/Scopes.cpp)
@@ -1877,9 +1889,9 @@ endif()
     set_target_properties(test_discursos PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_discursos COMMAND test_discursos)
     # El protocolo Cast: protobuf a mano y el troceo de mensajes.
-    add_executable(test_cast tests/test_cast.cpp pantallas/Cast.cpp)
+    add_executable(test_cast tests/test_cast.cpp)
     target_include_directories(test_cast PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_cast PRIVATE ba_core Qt6::Core mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_cast PRIVATE ba_app_pantallas ba_core Qt6::Core mbedtls mbedx509 mbedcrypto)
     set_target_properties(test_cast PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_cast COMMAND test_cast)
 
@@ -1898,10 +1910,10 @@ endif()
     # La interfaz COMPILA: cada .qml con el motor de QML (agarra lo que qmllint no:
     # propiedades asignadas dos veces, tipos o ids que no existen).
     add_executable(test_qml_carga tests/test_qml_carga.cpp ui/Vumetro.cpp
-                   pantallas/BuscadorCatalogo.cpp ui/FilaViva.cpp ui/FilaViva.hpp
+ ui/FilaViva.cpp ui/FilaViva.hpp
                    ui/Reloj.cpp ui/Reloj.hpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp ui/ChatHilo.cpp ui/ChatHilo.hpp)
     target_include_directories(test_qml_carga PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_qml_carga PRIVATE ba_app_base Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
+    target_link_libraries(test_qml_carga PRIVATE ba_app_pantallas ba_app_base Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick)
     target_compile_definitions(test_qml_carga PRIVATE BA_QML_DIR="${CMAKE_CURRENT_SOURCE_DIR}/qml")
     set_target_properties(test_qml_carga PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_qml_carga COMMAND test_qml_carga)
