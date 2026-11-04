@@ -490,7 +490,7 @@ if(BA_APP_QT_OK)
                 Qt6::Core Qt6::Gui Qt6::Network Qt6::Multimedia
         FUENTES agent/Actualizacion.cpp agent/AgentViewModel.cpp agent/AlarmaSonora.cpp agent/AlertEngine.cpp
                 agent/ArgumentosLocales.cpp agent/ChatEnVivo.cpp agent/ChatEnVivoFuentes.cpp agent/ControlSistema.cpp
-                agent/Despachador.cpp agent/EntradasAlarmas.cpp agent/EnvioOpencode.cpp agent/EstadoIA.cpp
+                agent/Despachador.cpp agent/DiscoAgentes.cpp agent/EntradasAlarmas.cpp agent/EnvioOpencode.cpp agent/EstadoIA.cpp
                 agent/FlujosTexto.cpp agent/HijosDeLaApp.cpp agent/Lanzamiento.hpp agent/Mirada.cpp
                 agent/MiradaCuerpo.cpp agent/ModeloPropio.cpp agent/ModelosLocales.cpp agent/Notificador.cpp
                 agent/Reconocedores.cpp agent/Roles.cpp agent/RotuloTraduccionConfig.cpp
