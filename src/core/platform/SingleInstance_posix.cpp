@@ -2,11 +2,13 @@
 // src/core/platform/SingleInstance_posix.cpp — instancia unica (Linux y macOS)
 //
 // Linux: un socket Unix ligado a un nombre ABSTRACTO
-// ("\0broadcast-appliance-<uid>-<name>.lock"): el kernel no deja que dos
+// ("\0broadcast-appliance-<uid>-<name>[.<clave>].lock"): el kernel no deja que dos
 // procesos liguen el mismo nombre y lo libera solo cuando el proceso muere.
 // No escribe nada en disco (el appliance es portable y no deja rastros en la
 // maquina) ni deja lockfiles huerfanos.
 // macOS (sin espacio abstracto): flock sobre runtimeDir()/<name>.lock.
+// Con Alcance::Datos el nombre lleva la clave de la carpeta de datos (Linux) o el
+// lock va en el runtimeDir() de esa carpeta (macOS): ver platform/Instancia.hpp.
 // ============================================================================
 
 #include "platform/SingleInstance.hpp"
@@ -24,6 +26,7 @@
 #include <cerrno>
 #include <cstring>
 
+#include "platform/Instancia.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::platform {
@@ -41,7 +44,7 @@ SingleInstance& SingleInstance::operator=(SingleInstance&& other) noexcept {
     return *this;
 }
 
-bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::string* err) {
+bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::string* err, Alcance alcance) {
     out.release();
 #if defined(__linux__)
     if (name.empty() || name.size() > 64 || name.find('/') != std::string::npos) {
@@ -49,7 +52,8 @@ bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::
         return false;
     }
     const std::string abs =
-        std::string(1, '\0') + "broadcast-appliance-" + std::to_string(::getuid()) + "-" + name + ".lock";
+        std::string(1, '\0') + "broadcast-appliance-" + std::to_string(::getuid()) + "-" +
+        (alcance == Alcance::Datos ? nombreDeInstancia(name) : name) + ".lock";
     sockaddr_un addr{};
     addr.sun_family = AF_UNIX;
     std::memcpy(addr.sun_path, abs.data(), abs.size());
@@ -71,7 +75,7 @@ bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::
     out.fd_ = sfd;
     return true;
 #else
-    const std::filesystem::path dir = runtimeDir();
+    const std::filesystem::path dir = alcance == Alcance::Datos ? runtimeDir() : runtimeDirComun();
     if (dir.empty() || name.empty() || name.find('/') != std::string::npos) {
         if (err != nullptr) {
             *err = ba::i18n::llenar(ba::i18n::traducir("ipc", "no se pudo resolver el lockfile para '%1'"), {name});

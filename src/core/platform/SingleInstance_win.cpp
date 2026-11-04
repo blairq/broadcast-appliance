@@ -3,6 +3,7 @@
 // ============================================================================
 
 #include "platform/SingleInstance.hpp"
+#include "platform/Instancia.hpp"
 #include "i18n/I18nTexto.hpp"
 
 #define WIN32_LEAN_AND_MEAN
@@ -25,10 +26,11 @@ SingleInstance& SingleInstance::operator=(SingleInstance&& other) noexcept {
     return *this;
 }
 
-bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::string* err) {
+bool SingleInstance::acquire(const std::string& name, SingleInstance& out, std::string* err, Alcance alcance) {
     out.release();
     std::wstring full = L"Local\\BroadcastAppliance.";
-    for (char c : name) {
+    // Con Alcance::Datos, el de esta carpeta de datos (platform/Instancia.hpp).
+    for (char c : alcance == Alcance::Datos ? nombreDeInstancia(name) : name) {
         full.push_back(static_cast<wchar_t>(c));
     }
     HANDLE h = CreateMutexW(nullptr, TRUE, full.c_str());

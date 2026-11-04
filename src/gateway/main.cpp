@@ -428,6 +428,8 @@ int main(int argc, char** argv) {
     cfg.loadFile((ba::platform::configRoot() / "Config" / "gateway.json").string());
     ba::ajustes::cargar(cfg.ajustes); // Configuración → avanzados de la sala
     cfg.parseArgs(argc, argv);
+    // Otra copia del programa con otra carpeta de datos: los puertos de su lugar.
+    cfg.aplicarLugar(ba::platform::lugarInstancia());
     cfg.derivePaths();
     Log log;
     // Log rotativo en <root>/Logs (spec §11.4). Sin esto el gateway solo
@@ -1013,7 +1015,7 @@ int main(int argc, char** argv) {
     // turn:?transport=tcp si es tcp; estado().turnUdp para turn: por UDP).
     // Detenerlo en el cierre ordenado, despues de pinggy (ver abajo). <<<
     bool turnActivo = false;
-    const uint16_t turnPuertoLocal = 3478;
+    const uint16_t turnPuertoLocal = ba::platform::puertoDeInstancia(3478); // el de esta copia
     // El TURN de la caja (src/gateway/turn): solo con pinggy y «TURN por el túnel».
     // Relaya únicamente hacia las IP de esta máquina y el rango de WebRTC.
     ba::gateway::turn::Servidor::Config turnCfg;
@@ -1132,7 +1134,8 @@ int main(int argc, char** argv) {
         pc.haproxy = turnActivo ? "no" : "v1";
         // Nunca por el tunel: la señalizacion comun (confia en 127.0.0.1 como red
         // local), su HTTPS, la API de control, el MCP y las metricas.
-        pc.prohibidos.insert({cfg.port, cfg.httpsPort, cfg.adminPort, cfg.metricsPort});
+        pc.prohibidos.insert({cfg.port, cfg.httpsPort, cfg.adminPort, cfg.metricsPort,
+                              ba::platform::puertoDeInstancia(8790)}); // y el MCP de la app de esta copia
         pc.token = envOrEmpty(kEnvPinggyToken);
         if (pc.token.empty()) {
             std::string t;

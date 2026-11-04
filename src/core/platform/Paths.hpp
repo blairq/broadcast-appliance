@@ -146,8 +146,14 @@ void redirectUserDirs();
 /// `$TMPDIR/broadcast-appliance` (TMPDIR es por usuario en macOS). Si la
 /// variable no esta, `/tmp/broadcast-appliance-<uid>`. Se crea con permisos
 /// 0700 en POSIX: el canal de control no debe ser accesible por otros usuarios.
+/// Con clave de instancia (platform/Instancia.hpp: la carpeta de datos), en POSIX es
+/// `<base>/ba-<clave>`: dos copias con datos distintos no comparten sockets ni locks.
 ///
 /// :returns: el directorio (creado), o vacio si no se pudo crear.
 std::filesystem::path runtimeDir();
+
+/// El de toda la máquina para el usuario (sin clave): lo que se reparte entre las
+/// instancias (los lugares de puertos). En Windows, igual que runtimeDir().
+std::filesystem::path runtimeDirComun();
 
 } // namespace ba::platform
