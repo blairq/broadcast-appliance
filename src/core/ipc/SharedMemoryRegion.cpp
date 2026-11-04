@@ -9,6 +9,7 @@
 // Ninguna de las funciones publicas lanza: los fallos se expresan con Status.
 
 #include "SharedMemoryRegion.hpp"
+#include "platform/Instancia.hpp"
 
 #include <cstring>
 #include <mutex>
@@ -128,7 +129,7 @@ Status SharedMemoryRegion::create(const wchar_t* name, size_t bytes, SharedMemor
 
     // Namespace Local\: evita el privilegio que exige Global\ (spec 4).
     std::wstring full = L"Local\\";
-    full.append(name);
+    full.append(ba::platform::nombreDeInstancia(std::wstring(name))); // de esta carpeta de datos
 
     auto impl = new Impl();
     impl->size = bytes;
@@ -174,7 +175,7 @@ Status SharedMemoryRegion::open(const wchar_t* name, SharedMemoryRegion& out) {
     }
 
     std::wstring full = L"Local\\";
-    full.append(name);
+    full.append(ba::platform::nombreDeInstancia(std::wstring(name))); // de esta carpeta de datos
 
     auto impl = new Impl();
     impl->mapping = OpenFileMappingW(FILE_MAP_ALL_ACCESS, FALSE, full.c_str());
@@ -239,7 +240,11 @@ std::string toShmName(const wchar_t* name) {
     //     objetos ademas se crean 0600).
     //   - La parte legible es solo para diagnostico (ls /dev/shm); la
     //     identidad la da el hash del nombre COMPLETO.
-    std::string full = std::to_string(::getuid()) + ":";
+    //   - Y la clave de la carpeta de datos (platform/Instancia.hpp): dos copias
+    //     del programa con datos distintos no se pisan los anillos (sin clave,
+    //     el nombre queda como antes).
+    const std::string clave = ba::platform::claveInstancia();
+    std::string full = std::to_string(::getuid()) + ":" + (clave.empty() ? std::string() : clave + ":");
     std::string readable;
     for (const wchar_t* p = name; *p != L'\0'; ++p) {
         const wchar_t c = *p;

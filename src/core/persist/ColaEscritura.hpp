@@ -120,6 +120,7 @@ class ColaEscritura {
     std::uint64_t orden_ = 0;
     std::uint64_t version_ = 0;
     bool parar_ = false;
+    int apurando_ = 0; ///< cuántos esperan en vaciar(): la igualación de generaciones, sin demora
     Cuentas cuentas_;
     std::map<std::string, DosGeneraciones> generaciones_; ///< del hilo escritor (secuencia y turno)
     std::thread hilo_;

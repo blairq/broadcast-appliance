@@ -90,12 +90,19 @@ void McpService::registerAssistantTools() {
             const QString motor = QString::fromStdString(a.value("motor", std::string()));
             const auto mb = [](double b) { return std::to_string(static_cast<long long>(b / 1048576.0)) + " MB"; };
             if (accion == "chats" || accion == "versiones") {
-                const QVariantMap r = accion == "chats" ? ag->borrarChats(motor) : ag->borrarVersionesViejas(motor);
-                if (!r.value("ok").toBool()) return done(ToolResult::error(r.value("error").toString().toStdString()));
-                return done(ToolResult::ok(ba::i18n::llenar(
-                    accion == "chats" ? ba::i18n::traducir("mcp", "Chats borrados: se liberaron %1.")
-                                      : ba::i18n::traducir("mcp", "Versiones viejas borradas: se liberaron %1."),
-                    {mb(r.value("bytes").toDouble())})));
+                // Borra en el fondo del asistente; contesta al terminar.
+                const auto listo = [done, accion, mb](const QVariantMap& r) {
+                    if (!r.value("ok").toBool()) return done(ToolResult::error(r.value("error").toString().toStdString()));
+                    done(ToolResult::ok(ba::i18n::llenar(
+                        accion == "chats" ? ba::i18n::traducir("mcp", "Chats borrados: se liberaron %1.")
+                                          : ba::i18n::traducir("mcp", "Versiones viejas borradas: se liberaron %1."),
+                        {mb(r.value("bytes").toDouble())})));
+                };
+                if (accion == "chats")
+                    ag->borrarChats(motor, listo);
+                else
+                    ag->borrarVersionesViejas(motor, listo);
+                return;
             }
             if (accion == "reinstalar" || accion == "de_cero") {
                 if (motor.isEmpty()) return done(ToolResult::error(ba::i18n::traducir("mcp", "Decí qué `motor` reinstalar.")));
@@ -108,8 +115,7 @@ void McpService::registerAssistantTools() {
                         : ba::i18n::traducir("mcp", "Reinstalando %1: el avance, en assistant_status."),
                     {motor.toStdString()})));
             }
-            ag->revisarLimpieza();
-            done(ToolResult().data(json{{"limpieza", qvToJson(ag->limpieza())}}));
+            ag->medirLimpieza([ag, done]() { done(ToolResult().data(json{{"limpieza", qvToJson(ag->limpieza())}})); });
         };
         core_.addTool(std::move(t));
     }

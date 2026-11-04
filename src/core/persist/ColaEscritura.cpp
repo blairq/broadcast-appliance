@@ -141,7 +141,18 @@ Lectura ColaEscritura::leerGeneraciones(const fs::path& archivo) const {
 bool ColaEscritura::vaciar(std::chrono::milliseconds tope) {
     if (esHiloEscritor()) return false;
     std::unique_lock<std::mutex> l(mu_);
-    return listo_.wait_for(l, tope, [this]() { return pendientes_.empty(); });
+    // Quien espera no espera la copia a la otra generación: kIgualar solo junta cambios
+    // seguidos, y el que vacía (el cierre) ya no va a mandar más. Sin esto el cierre de la
+    // app esperaba siempre más de 1 s (el documento de aire se escribe al cerrar) y el
+    // vigía de la interfaz lo daba por trabado (volcados «traba» del 2026-11-03 al salir).
+    ++apurando_;
+    const auto ahora = Reloj::now();
+    for (auto& [k, e] : pendientes_)
+        if (e.igualar && !e.enCurso && e.reintento > ahora) e.reintento = ahora;
+    hay_.notify_all();
+    const bool ok = listo_.wait_for(l, tope, [this]() { return pendientes_.empty(); });
+    --apurando_;
+    return ok;
 }
 
 ColaEscritura::Cuentas ColaEscritura::cuentas() const {
@@ -228,7 +239,7 @@ void ColaEscritura::correr() {
                     c.enCurso = false;
                     c.version = ++version_;
                     c.pedido = Pedido{e.pedido.durabilidad, e.pedido.prioridad, e.pedido.permisos, {}};
-                    c.reintento = Reloj::now() + kIgualar;
+                    c.reintento = apurando_ > 0 ? Reloj::now() : Reloj::now() + kIgualar; // ver vaciar
                 } else {
                     pendientes_.erase(it);
                 }

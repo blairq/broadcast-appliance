@@ -39,4 +39,6 @@ std::filesystem::path runtimeDir() {
     return stateDir();
 }
 
+std::filesystem::path runtimeDirComun() { return runtimeDir(); }
+
 } // namespace ba::platform

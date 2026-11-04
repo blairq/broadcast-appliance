@@ -10,6 +10,7 @@
 
 #include "platform/LocalSocket.hpp"
 #include "i18n/I18nTexto.hpp"
+#include "platform/Instancia.hpp"
 
 #define WIN32_LEAN_AND_MEAN
 #include <windows.h>
@@ -49,12 +50,13 @@ bool validName(const std::string& name) {
 
 /// `\\.\pipe\BroadcastAppliance.<sesion>.<nombre>`. Los pipes son globales a
 /// la maquina: la sesion separa usuarios logueados a la vez (y la DACL impide
-/// el acceso cruzado de todos modos).
+/// el acceso cruzado de todos modos). Con la clave de la carpeta de datos al final
+/// (platform/Instancia.hpp): dos copias con datos distintos no se cruzan.
 std::wstring pipePath(const std::string& name) {
     DWORD session = 0;
     ProcessIdToSessionId(GetCurrentProcessId(), &session);
     std::wstring p = L"\\\\.\\pipe\\BroadcastAppliance." + std::to_wstring(session) + L".";
-    for (char c : name) {
+    for (char c : nombreDeInstancia(name)) {
         p.push_back(static_cast<wchar_t>(c));
     }
     return p;
