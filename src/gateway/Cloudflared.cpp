@@ -33,7 +33,7 @@
 #include <fstream>
 
 #include "Log.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "platform/Hilo.hpp"
 
 #ifdef _WIN32

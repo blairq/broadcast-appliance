@@ -12,7 +12,7 @@
 #include "evento/EventoStore.hpp"
 #include "evento/FotosConfig.hpp"
 #include "evento/Historico.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::app {

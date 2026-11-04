@@ -23,7 +23,7 @@
 // original; solo se copian bin/ y data/ (kArboles).
 
 #include "ShadowCopy.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "Log.hpp"
 

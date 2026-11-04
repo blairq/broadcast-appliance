@@ -17,7 +17,7 @@
 #include "emision/EmisionSalidas.hpp"
 #include "emision/EscenasYFuentes.hpp"
 #include "emision/SalidaMotor.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 namespace ba::app {
 

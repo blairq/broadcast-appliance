@@ -18,7 +18,7 @@
 // ============================================================================
 #pragma once
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 
 #include <nlohmann/json.hpp>
 

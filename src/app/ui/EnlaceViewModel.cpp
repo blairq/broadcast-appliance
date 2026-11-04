@@ -9,7 +9,7 @@
 
 #include <algorithm>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/GuionViewModel.hpp"

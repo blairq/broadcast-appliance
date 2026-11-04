@@ -2,7 +2,7 @@
 // src/app/graficos/GraficoSource.cpp — ver GraficoSource.hpp
 // ============================================================================
 #include "graficos/GraficoSource.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "emision/FuentesApp.hpp"
 #include "platform/Hilo.hpp"

@@ -8,7 +8,7 @@
 #include <QLocale>
 
 #include "diag/Registro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::app {

@@ -26,7 +26,7 @@
 #include <cstdint>
 #include <string>
 
-#include <nlohmann/json.hpp>
+#include "json/JsonFwd.hpp"
 
 namespace ba::diag {
 

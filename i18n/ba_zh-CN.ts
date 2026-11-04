@@ -49669,7 +49669,7 @@ Datos (de %2): %3</source>
 <context>
     <name>config</name>
     <message>
-        <location filename="../src/core/persist/Esquema.cpp" line="+24"/>
+        <location filename="../src/core/persist/Esquema.cpp" line="+26"/>
         <source>%1: lo escribió una versión más nueva (esquema %2; esta lee hasta el %3): se lee como está</source>
         <translation>%1：由更新的版本写入（结构版本 %2；本版本最多读取到 %3）：按原样读取</translation>
     </message>
@@ -49679,7 +49679,7 @@ Datos (de %2): %3</source>
         <translation>%1：结构版本 %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+209"/>
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+211"/>
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1：由更新的版本写入（本版本写入结构版本 %2）：不覆盖，更改未保存</translation>
     </message>
@@ -50633,7 +50633,7 @@ Datos (de %2): %3</source>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+172"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+174"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>界面循环延迟了 %1 毫秒（正在运行：%2）</translation>
     </message>
@@ -50679,7 +50679,7 @@ Datos (de %2): %3</source>
         <translation>--detectar-acoples：此程序不包含检测器</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+160"/>
+        <location filename="../src/core/diag/Acoples.cpp" line="+162"/>
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>耦合检测器已开启：界面中每条绕过模型的路径都会额外等待 %1 毫秒并被记录（仅限测试）</translation>
     </message>
@@ -56892,7 +56892,7 @@ Datos (de %2): %3</source>
         <translation>Broadcast Appliance：在本服务器上安装或更新链路测量回声端（以 root 粘贴；可重复执行）。</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/Nucleos.cpp" line="+390"/>
+        <location filename="../src/core/platform/Nucleos.cpp" line="+392"/>
         <source>macOS no deja elegir núcleos</source>
         <translation>macOS 不允许选择核心</translation>
     </message>
@@ -91123,7 +91123,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
 <context>
     <name>perfil</name>
     <message>
-        <location filename="../src/core/diag/Perfil.cpp" line="+471"/>
+        <location filename="../src/core/diag/Perfil.cpp" line="+473"/>
         <source>perfil %1: %2 núcleos, %3 MB</source>
         <translation>配置 %1：%2 个核心，%3 MB</translation>
     </message>

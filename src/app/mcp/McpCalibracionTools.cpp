@@ -8,7 +8,7 @@
 // cada punto de escucha, mirar el análisis y la propuesta, aplicar, verificar.
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/StudioViewModel.hpp"

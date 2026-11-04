@@ -2,7 +2,7 @@
 // src/app/audio/Escucha.cpp — ver Escucha.hpp
 // ============================================================================
 #include "audio/Escucha.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "agent/Vocabulario.hpp"
 
 #include <algorithm>

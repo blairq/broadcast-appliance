@@ -1,7 +1,7 @@
 // src/app/red/Plan.cpp — ver Plan.hpp
 
 #include "red/Plan.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <cmath>
 #include <string>

@@ -11,7 +11,7 @@
 // ============================================================================
 
 #include "diag/Metricas.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "SignalingServer.hpp"
 #include "RetornoCompartido.hpp"
 #include "Canal.hpp"

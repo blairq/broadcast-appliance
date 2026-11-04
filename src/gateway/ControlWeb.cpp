@@ -18,7 +18,7 @@
 #include "Log.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "security/SecretsStore.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 // Lo que se le manda a la página del control (error, motivo) no se traduce acá:
 // se marca para el catálogo de la web y la página lo traduce (el valor que viaja

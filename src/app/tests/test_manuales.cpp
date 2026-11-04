@@ -6,7 +6,7 @@
 #include <cstdio>
 #include <cstdlib>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "ui/ManualesViewModel.hpp"
 #include "ui/CapturaError.hpp"
 

@@ -32,7 +32,7 @@
 
 #include "platform/Termica.hpp"
 
-#include <nlohmann/json.hpp>
+#include "json/JsonFwd.hpp"
 
 #include <cstdint>
 #include <functional>

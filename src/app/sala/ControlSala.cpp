@@ -1,7 +1,7 @@
 // src/app/sala/ControlSala.cpp — la sala en sí (ver el .hpp)
 
 #include "sala/ControlSala.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "arranque/AppRuntime.hpp"
 #include "emision/InputSpecs.hpp"

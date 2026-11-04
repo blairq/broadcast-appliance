@@ -20,7 +20,7 @@
 #include "emision/EscenasYFuentes.hpp"
 #include "emision/MezclaApp.hpp"
 #include "emision/VigiaDisco.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 namespace ba::app {
 

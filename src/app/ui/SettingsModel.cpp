@@ -24,7 +24,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "platform/IdiomaSistema.hpp"
 #include "ajustes/Registro.hpp"
 #include "sala/ConfigSala.hpp"

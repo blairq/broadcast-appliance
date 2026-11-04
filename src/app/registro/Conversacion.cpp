@@ -17,7 +17,7 @@
 
 #include "diag/Registro.hpp"
 #include "documentos/Documento.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 
 namespace ba::registro {
 namespace {
@@ -228,7 +228,7 @@ Lengua cargarLengua(const std::string& codigo) {
 }
 
 /// "" = el idioma del operador.
-std::string codigoDe(const std::string& idioma) { return idioma.empty() ? ba::i18n::actual().codigo : idioma; }
+std::string codigoDe(const std::string& idioma) { return idioma.empty() ? ba::i18n::idiomaDelOperador() : idioma; }
 
 /// Los datos de ese idioma (o de su respaldo), leídos una vez.
 const Lengua& lengua(const std::string& idioma) {

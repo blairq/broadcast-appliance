@@ -22,7 +22,7 @@
 
 #include "ajustes/Ajustes.hpp"
 #include "diag/Frontera.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "net/WgCrypto.hpp" // randomBytes
 #include "rtc/Conmutador.hpp"
 #include "turn/BuclePoll.hpp"

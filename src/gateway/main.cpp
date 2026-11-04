@@ -43,7 +43,7 @@
 
 #include "diag/Frontera.hpp"
 #include "persist/Escritor.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include <algorithm>
 #include "ajustes/Ajustes.hpp"
 #include <atomic>

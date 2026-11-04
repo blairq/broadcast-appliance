@@ -30,7 +30,7 @@
 #include "emision/SalidasConfig.hpp"
 #include "emision/VigiaDisco.hpp"
 #include "emision/VistasYMedicion.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <cmath>

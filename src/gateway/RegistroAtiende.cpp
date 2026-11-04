@@ -25,7 +25,7 @@
 #include "Canal.hpp"
 #include "Sesion.hpp" // servir, origenValido: las mismas defensas
 #include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 // Lo que se le manda a la página de atención (error, motivo, aviso) no se traduce
 // acá: se marca para el catálogo de la web y la página lo traduce (el valor que

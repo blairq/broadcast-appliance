@@ -8,7 +8,7 @@
 // docs/planes/PLAN-DOCUMENTOS-EVENTO.md.
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "platform/Paths.hpp"

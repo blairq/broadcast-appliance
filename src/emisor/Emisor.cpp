@@ -5,7 +5,7 @@
 #include "Piezas.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "diag/Utf8.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ipc/CanalesSalida.hpp"
 
 #include <algorithm>

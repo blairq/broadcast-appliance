@@ -10,7 +10,7 @@
 #include <cstdlib>
 #include <sstream>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 // Las tablas se marcan para lupdate y se traducen al mostrarlas. Sin Qt (los tests de
 // audio enlazan este archivo sin Qt), la marca es el texto tal cual.

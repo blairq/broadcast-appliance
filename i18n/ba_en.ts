@@ -49843,7 +49843,7 @@ Data (from %2): %3</translation>
 <context>
     <name>config</name>
     <message>
-        <location filename="../src/core/persist/Esquema.cpp" line="+24"/>
+        <location filename="../src/core/persist/Esquema.cpp" line="+26"/>
         <source>%1: lo escribió una versión más nueva (esquema %2; esta lee hasta el %3): se lee como está</source>
         <translation>%1: written by a newer version (schema %2; this one reads up to %3): read as is</translation>
     </message>
@@ -49853,7 +49853,7 @@ Data (from %2): %3</translation>
         <translation>%1: schema %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+209"/>
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+211"/>
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1: written by a newer version (this one writes schema %2): it isn&apos;t overwritten, the change stays unsaved</translation>
     </message>
@@ -50807,7 +50807,7 @@ Data (from %2): %3</translation>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+172"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+174"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>the UI loop was delayed %1 ms (running: %2)</translation>
     </message>
@@ -50853,7 +50853,7 @@ Data (from %2): %3</translation>
         <translation>--detectar-acoples: this program does not include the detector</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+160"/>
+        <location filename="../src/core/diag/Acoples.cpp" line="+162"/>
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>coupling detector ON: every UI path that bypasses the model waits %1 ms extra and is logged (testing only)</translation>
     </message>
@@ -57067,7 +57067,7 @@ Data (from %2): %3</translation>
         <translation>Broadcast Appliance: installs or updates the link meter echo on this server (paste as root; safe to repeat).</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/Nucleos.cpp" line="+390"/>
+        <location filename="../src/core/platform/Nucleos.cpp" line="+392"/>
         <source>macOS no deja elegir núcleos</source>
         <translation>macOS does not allow choosing cores</translation>
     </message>
@@ -91317,7 +91317,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
 <context>
     <name>perfil</name>
     <message>
-        <location filename="../src/core/diag/Perfil.cpp" line="+471"/>
+        <location filename="../src/core/diag/Perfil.cpp" line="+473"/>
         <source>perfil %1: %2 núcleos, %3 MB</source>
         <translation>profile %1: %2 cores, %3 MB</translation>
     </message>

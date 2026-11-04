@@ -11,7 +11,7 @@
 #include "Motor.hpp"
 #include "emision/EscenasYFuentes.hpp"
 #include "emision/InputSpecs.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 namespace ba::app {
 

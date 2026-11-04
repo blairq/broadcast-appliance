@@ -38,7 +38,7 @@
 
 #ifdef BA_DIAG_ACOPLES
 
-#include <nlohmann/json.hpp>
+#include "json/JsonFwd.hpp"
 
 #include <atomic>
 #include <chrono>

@@ -4,7 +4,7 @@
 #include "Prioridad.hpp"
 
 #include "Reloj.hpp" // registrar
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "platform/Energia.hpp"
 #include "platform/Hilo.hpp"

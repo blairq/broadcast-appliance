@@ -13,7 +13,7 @@
 #include "Reloj.hpp" // registrar
 #include "diag/Acoples.hpp"
 #include "diag/Metricas.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 // Marca para lupdate un texto que se traduce después (sin Qt en el motor).
 #ifndef QT_TRANSLATE_NOOP

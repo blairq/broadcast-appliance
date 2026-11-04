@@ -5,7 +5,7 @@
 
 #include "ajustes/Ajustes.hpp"
 #include "diag/Registro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 namespace ba::app {
 

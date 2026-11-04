@@ -13,7 +13,7 @@
 #include "diag/ChequeosEquipo.hpp"
 #include "diag/Registro.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "platform/GstEntorno.hpp"
 #include "platform/Paths.hpp"

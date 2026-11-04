@@ -339,6 +339,8 @@ const Perfil& actual() {
     return e.actual;
 }
 
+std::string idiomaDelOperador() { return actual().codigo; }
+
 std::string traducir(const char* contexto, const char* texto, const char* desambiguacion, int n) {
     std::vector<std::shared_ptr<const Catalogo>> cadena;
     {

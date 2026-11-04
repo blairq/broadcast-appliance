@@ -26,7 +26,7 @@
 // ============================================================================
 #pragma once
 
-#include <nlohmann/json.hpp>
+#include "json/JsonFwd.hpp"
 
 #include <atomic>
 #include <cstdint>

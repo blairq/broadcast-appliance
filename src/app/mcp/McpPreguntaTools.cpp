@@ -19,7 +19,7 @@
 #include "sala/EnlacesSala.hpp"
 #include "sala/PaginaPublico.hpp"
 #include "mcp/McpPreguntaTools.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <QJsonArray>
 #include <map>

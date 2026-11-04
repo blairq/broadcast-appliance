@@ -2,7 +2,7 @@
 
 #include "ui/ManualesViewModel.hpp"
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "net/CapturaWeb.hpp"
 #include "platform/Paths.hpp"
 
@@ -27,7 +27,7 @@ ManualesViewModel::ManualesViewModel(Partes partes, QObject* parent) : QObject(p
     refrescar();
 }
 
-QString ManualesViewModel::idioma() const { return QString::fromStdString(ba::i18n::actual().codigo); }
+QString ManualesViewModel::idioma() const { return QString::fromStdString(ba::i18n::idiomaDelOperador()); }
 QString ManualesViewModel::nombreIdioma() const { return QString::fromStdString(ba::i18n::actual().nombre); }
 
 QString ManualesViewModel::carpeta() const {

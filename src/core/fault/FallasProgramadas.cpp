@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "fault/FallasProgramadas.hpp"
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <chrono>

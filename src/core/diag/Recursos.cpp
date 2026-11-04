@@ -5,6 +5,8 @@
 #include "platform/Hilo.hpp"
 #include "platform/Termica.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <array>
 #include <cctype>

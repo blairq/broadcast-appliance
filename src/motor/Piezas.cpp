@@ -5,7 +5,7 @@
 #include "ModosVideo.hpp"
 #include "Capturas.hpp" // indiceCamaraMac
 #include "diag/Utf8.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "platform/IdiomaSistema.hpp"
 
 #include <set>

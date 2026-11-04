@@ -12,7 +12,7 @@
 //   probar     audio_generator (señal de prueba), audio_editor (interfaz LSP)
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "audio/PluginTerminos.hpp"
 #include <set>
 

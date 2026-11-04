@@ -7,7 +7,7 @@
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/AjustesEscenas.hpp"
 #include "escenas/Conmutador.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ui/ListaObjetos.hpp"
 #include "ui/ListModels.hpp"
 #include "ui/SalidasViewModel.hpp"

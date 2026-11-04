@@ -10,7 +10,7 @@
 #include <QUrlQuery>
 
 #include "facebook/FacebookClient.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "twitch/TwitchClient.hpp"
 #include "youtube/YouTubeClient.hpp"
 

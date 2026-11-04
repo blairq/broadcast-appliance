@@ -17,7 +17,7 @@
 #include "agent/Roles.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ui/StudioViewModel.hpp"
 
 namespace ba::app::mcp {

@@ -9,7 +9,7 @@
 #include "audio/Mezclador.hpp"
 #include "audio/RackManager.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ui/ListModels.hpp" // MixerModel
 
 #include <QAbstractItemModel>

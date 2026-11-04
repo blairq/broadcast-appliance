@@ -2,7 +2,7 @@
 // src/motor/Mapa.cpp — ver Mapa.hpp
 // ============================================================================
 #include "Mapa.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <gst/base/gstbasetransform.h>
 

@@ -11,7 +11,7 @@
 #include "Pedido.hpp"
 #include "Salidas.hpp"
 #include "Vistas.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "persist/Escritor.hpp"

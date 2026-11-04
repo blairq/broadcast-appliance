@@ -49843,7 +49843,7 @@ Données (de %2)&#xa0;: %3</translation>
 <context>
     <name>config</name>
     <message>
-        <location filename="../src/core/persist/Esquema.cpp" line="+24"/>
+        <location filename="../src/core/persist/Esquema.cpp" line="+26"/>
         <source>%1: lo escribió una versión más nueva (esquema %2; esta lee hasta el %3): se lee como está</source>
         <translation>%1&#xa0;: écrit par une version plus récente (schéma %2&#xa0;; celle-ci lit jusqu&apos;au %3)&#xa0;: lu tel quel</translation>
     </message>
@@ -49853,7 +49853,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>%1&#xa0;: schéma %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+209"/>
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+211"/>
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1&#xa0;: écrit par une version plus récente (celle-ci écrit le schéma %2)&#xa0;: non écrasé, la modification n&apos;est pas enregistrée</translation>
     </message>
@@ -50807,7 +50807,7 @@ Données (de %2)&#xa0;: %3</translation>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+172"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+174"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>la boucle de l&apos;interface a pris %1 ms (en cours&#xa0;: %2)</translation>
     </message>
@@ -50853,7 +50853,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>--detectar-acoples : ce programme n&apos;inclut pas le détecteur</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+160"/>
+        <location filename="../src/core/diag/Acoples.cpp" line="+162"/>
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>détecteur de couplages ACTIVÉ : chaque chemin de l’interface qui ne passe pas par le modèle attend %1 ms de plus et est noté (tests uniquement)</translation>
     </message>
@@ -57067,7 +57067,7 @@ Données (de %2)&#xa0;: %3</translation>
         <translation>Broadcast Appliance : installe ou met à jour l&apos;écho de mesure de la liaison sur ce serveur (à coller en root ; peut être relancé).</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/Nucleos.cpp" line="+390"/>
+        <location filename="../src/core/platform/Nucleos.cpp" line="+392"/>
         <source>macOS no deja elegir núcleos</source>
         <translation>macOS ne permet pas de choisir les cœurs</translation>
     </message>
@@ -91317,7 +91317,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
 <context>
     <name>perfil</name>
     <message>
-        <location filename="../src/core/diag/Perfil.cpp" line="+471"/>
+        <location filename="../src/core/diag/Perfil.cpp" line="+473"/>
         <source>perfil %1: %2 núcleos, %3 MB</source>
         <translation>profil %1&#xa0;: %2 cœurs, %3 Mo</translation>
     </message>

@@ -4,7 +4,7 @@
 #include "persist/ArchivoConfig.hpp"
 #include "evento/TemaEvento.hpp"
 
-#include "i18n/I18n.hpp" // QT_TRANSLATE_NOOP: los errores se traducen al mostrarlos
+#include "i18n/I18nTexto.hpp" // QT_TRANSLATE_NOOP: los errores se traducen al mostrarlos
 #include "tema/TemaWeb.hpp"
 
 #include <algorithm>

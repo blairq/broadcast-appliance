@@ -19,7 +19,7 @@
 #include "asamblea/SesionRemota.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ptz/ControlCamaras.hpp"

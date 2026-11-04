@@ -4,6 +4,8 @@
 
 #include "arranque/ArchivoConfig.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 
 namespace ba::app::agent {

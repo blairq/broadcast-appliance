@@ -8,7 +8,7 @@
 #include "diag/Metricas.hpp"
 #include "diag/Registro.hpp"
 #include "diag/VigiaBucle.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #if defined(_WIN32)
 #ifndef NOMINMAX
@@ -20,6 +20,8 @@
 #include <dlfcn.h>
 #include <execinfo.h>
 #endif
+
+#include <nlohmann/json.hpp>
 
 #include <algorithm>
 #include <cstdio>

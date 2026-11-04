@@ -2,7 +2,7 @@
 // src/core/rostros/Personas.cpp — ver Personas.hpp
 // ============================================================================
 #include "rostros/Personas.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "persist/ArchivoConfig.hpp"
 
 #include <algorithm>

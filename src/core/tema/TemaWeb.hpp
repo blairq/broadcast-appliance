@@ -29,7 +29,7 @@
 #include <optional>
 #include <string>
 
-#include <nlohmann/json.hpp>
+#include "json/JsonFwd.hpp"
 
 namespace ba::tema {
 

@@ -5,7 +5,7 @@
 #include "PerroGuardian.hpp"
 
 #include "Log.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #if !defined(_WIN32)
 #include <fcntl.h>

@@ -10,7 +10,7 @@
 #include <QDir>
 #include <QString>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 
 namespace ba::app::agent {
 namespace {

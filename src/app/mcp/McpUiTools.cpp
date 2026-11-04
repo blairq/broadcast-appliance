@@ -21,7 +21,7 @@
 #include "mcp/McpService.hpp"
 #include "ui/VideoViewModel.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "pantallas/Catalogo.hpp"
 #include "pantallas/Monitores.hpp"
 #include "pantallas/Ventanas.hpp"

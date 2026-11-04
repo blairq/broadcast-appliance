@@ -18,7 +18,7 @@
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 // Lo que se le manda a la página del integrante (error, motivo) no se traduce
 // acá: se marca para el catálogo de la web y la página lo traduce en el idioma

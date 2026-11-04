@@ -20,7 +20,7 @@
 #include "asamblea/Cuerpo.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
 #include "asamblea/SesionRemota.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "persist/Escritor.hpp"
 #include "platform/Paths.hpp"

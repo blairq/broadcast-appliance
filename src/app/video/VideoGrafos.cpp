@@ -14,7 +14,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "diag/Registro.hpp"
 #include "fault/ModoSeguro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/FotoMotor.hpp"
 #include "emision/TurnoMotor.hpp"

@@ -4,7 +4,7 @@
 #include "Capturas.hpp"
 
 #include "Piezas.hpp" // hayFabrica
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <cctype>

@@ -19,7 +19,7 @@
 #include "emision/EmisionSalidas.hpp"
 #include "emision/MezclaApp.hpp"
 #include "emision/SalidaMotor.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "platform/Paths.hpp"
 
 #include <filesystem>

@@ -11,6 +11,8 @@
 #include "diag/PoliticaTermica.hpp"
 #include "platform/Termica.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <cstdio>
 #include <ctime>
 #include <filesystem>

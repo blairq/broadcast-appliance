@@ -14,7 +14,7 @@
 
 #include <cstdlib>
 #include "diag/Registro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #if BA_APP_HAVE_GUI
 #include <QLoggingCategory>

@@ -28,7 +28,7 @@
 // llama en el hilo de control / en el arranque, nunca en la callback de audio.
 
 #include "Restore.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <cctype>

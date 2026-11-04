@@ -4,7 +4,7 @@
 #include "audio/Matriz.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "diag/Registro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include <QCoreApplication>
 #include "audio/RingEstereo.hpp"
 #include "audio/EquipoAudio.hpp"

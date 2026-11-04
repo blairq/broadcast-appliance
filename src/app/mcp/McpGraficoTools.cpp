@@ -26,7 +26,7 @@
 #include "escenas/Conmutador.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "ui/StudioViewModel.hpp"
 

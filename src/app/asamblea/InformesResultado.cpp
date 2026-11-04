@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "asamblea/InformesResultado.hpp"
 #include "arranque/ArchivoConfig.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 
 #include <QCoreApplication>
 #include <QDateTime>

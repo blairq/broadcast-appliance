@@ -10,7 +10,7 @@
 
 #include "agent/VozIdioma.hpp"
 #include "fault/ModoSeguro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 
 // Sin Qt (test_reconocedores): la marca para lupdate, que deja el texto como está.
 #ifndef QT_TRANSLATE_NOOP
@@ -81,7 +81,7 @@ std::string Reconocedores::consumidorDeClave(const std::string& clave) {
 }
 
 std::string Reconocedores::idiomaDe(const std::string& consumidor) {
-    return consumidor == "dictado" ? ba::i18n::actual().codigo : ba::i18n::idiomaDelEvento();
+    return consumidor == "dictado" ? ba::i18n::idiomaDelOperador() : ba::i18n::idiomaDelEvento();
 }
 
 bool Reconocedores::reconoce(MotorOido m, const std::string& idioma) {

@@ -7,7 +7,7 @@
 // editan igual con sus ajustes tal cual (PropertiesModel).
 // ============================================================================
 #include "emision/BroadcastEngine.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
 

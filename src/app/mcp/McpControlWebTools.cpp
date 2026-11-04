@@ -21,7 +21,7 @@
 #include "control/TemasWeb.hpp"
 #include "control/ControlWebGateway.hpp"
 #include "mcp/McpCore.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "ui/ControlViewModel.hpp"
 #include "ui/StudioViewModel.hpp"

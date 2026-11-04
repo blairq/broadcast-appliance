@@ -6,6 +6,8 @@
 
 #include "diag/Frontera.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <chrono>
 #include <cstdio>
 #include <string>

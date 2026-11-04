@@ -13,7 +13,7 @@
 #include "HttpIo.hpp"
 #include "Log.hpp"
 #include "diag/Frontera.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "ipc/SpoutTransport.hpp"
 #include "platform/Hilo.hpp"

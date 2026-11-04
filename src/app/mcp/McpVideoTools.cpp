@@ -12,7 +12,7 @@
 // así que agregarlas no le cambia el prompt.
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/EsperarEntrada.hpp"
 #include "Mapa.hpp"
 #include "mcp/McpService.hpp"

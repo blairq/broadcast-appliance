@@ -4,7 +4,7 @@
 #include "evento/LineaIntercambio.hpp"
 
 #include "evento/LineaProductor.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <cctype>

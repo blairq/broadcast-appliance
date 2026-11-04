@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstring>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN

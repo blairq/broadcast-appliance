@@ -4,7 +4,7 @@
 #include "evento/LineaProductor.hpp"
 
 #include "evento/LeerJson.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include "evento/LineaPlantillas.hpp"

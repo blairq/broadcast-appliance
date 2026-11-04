@@ -52,7 +52,7 @@ using socket_t = SOCKET;
 using socket_t = int;
 #endif
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
 #include "platform/Hilo.hpp"

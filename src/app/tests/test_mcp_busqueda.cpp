@@ -26,7 +26,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "mcp/McpEtiquetas.hpp"
 #include "mcp/McpIndice.hpp"
 

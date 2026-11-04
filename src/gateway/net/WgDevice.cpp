@@ -4,7 +4,7 @@
 
 #include "net/WgDevice.hpp"
 #include "security/Comparar.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/Nucleos.hpp"
 

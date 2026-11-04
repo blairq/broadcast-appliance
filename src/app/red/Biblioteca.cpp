@@ -1,7 +1,7 @@
 // src/app/red/Biblioteca.cpp — ver Biblioteca.hpp
 
 #include "red/Biblioteca.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <cctype>

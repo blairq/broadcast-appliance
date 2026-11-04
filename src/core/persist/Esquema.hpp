@@ -15,7 +15,7 @@
 // ============================================================================
 #pragma once
 
-#include <nlohmann/json.hpp>
+#include "json/JsonFwd.hpp"
 
 #include <functional>
 #include <string>

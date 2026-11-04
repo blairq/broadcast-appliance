@@ -49843,7 +49843,7 @@ Dados (de %2): %3</translation>
 <context>
     <name>config</name>
     <message>
-        <location filename="../src/core/persist/Esquema.cpp" line="+24"/>
+        <location filename="../src/core/persist/Esquema.cpp" line="+26"/>
         <source>%1: lo escribió una versión más nueva (esquema %2; esta lee hasta el %3): se lee como está</source>
         <translation>%1: foi escrito por uma versão mais nova (esquema %2; esta lê até o %3): é lido como está</translation>
     </message>
@@ -49853,7 +49853,7 @@ Dados (de %2): %3</translation>
         <translation>%1: esquema %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+209"/>
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+211"/>
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1: foi escrito por uma versão mais nova (esta escreve o esquema %2): não é sobrescrito, a mudança fica sem salvar</translation>
     </message>
@@ -50807,7 +50807,7 @@ Dados (de %2): %3</translation>
 <context>
     <name>diag</name>
     <message>
-        <location filename="../src/core/diag/VigiaBucle.cpp" line="+172"/>
+        <location filename="../src/core/diag/VigiaBucle.cpp" line="+174"/>
         <source>el bucle de la interfaz se demoró %1 ms (corría: %2)</source>
         <translation>o loop da interface demorou %1 ms (rodava: %2)</translation>
     </message>
@@ -50853,7 +50853,7 @@ Dados (de %2): %3</translation>
         <translation>--detectar-acoples: este programa não traz o detector</translation>
     </message>
     <message>
-        <location filename="../src/core/diag/Acoples.cpp" line="+160"/>
+        <location filename="../src/core/diag/Acoples.cpp" line="+162"/>
         <source>detector de acoples ENCENDIDO: cada camino de la interfaz que no pasa por el modelo espera %1 ms de más y queda anotado (solo pruebas)</source>
         <translation>detector de acoplamentos LIGADO: cada caminho da interface que não passa pelo modelo espera %1 ms a mais e fica registrado (só testes)</translation>
     </message>
@@ -57067,7 +57067,7 @@ Dados (de %2): %3</translation>
         <translation>Broadcast Appliance: instala ou atualiza o eco do medidor do link neste servidor (colar como root; pode repetir).</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/Nucleos.cpp" line="+390"/>
+        <location filename="../src/core/platform/Nucleos.cpp" line="+392"/>
         <source>macOS no deja elegir núcleos</source>
         <translation>o macOS não permite escolher núcleos</translation>
     </message>
@@ -91351,7 +91351,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
 <context>
     <name>perfil</name>
     <message>
-        <location filename="../src/core/diag/Perfil.cpp" line="+471"/>
+        <location filename="../src/core/diag/Perfil.cpp" line="+473"/>
         <source>perfil %1: %2 núcleos, %3 MB</source>
         <translation>perfil %1: %2 núcleos, %3 MB</translation>
     </message>

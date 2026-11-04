@@ -3,6 +3,8 @@
 // ============================================================================
 #include "platform/Volumen.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <map>
 #include <system_error>

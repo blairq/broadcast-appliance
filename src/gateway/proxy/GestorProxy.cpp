@@ -7,7 +7,7 @@
 #include "proxy/Acme.hpp"
 #include "proxy/Certificados.hpp"
 #include "proxy/ProxyNombres.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "security/CredentialStore.hpp"
 #include "platform/Hilo.hpp"
 

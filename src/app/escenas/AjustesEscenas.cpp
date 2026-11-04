@@ -4,6 +4,8 @@
 
 #include "arranque/ArchivoConfig.hpp"
 
+#include <nlohmann/json.hpp>
+
 namespace ba::app::escenas {
 
 AjustesEscenas::AjustesEscenas(std::filesystem::path dataRoot)

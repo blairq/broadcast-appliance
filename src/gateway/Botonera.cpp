@@ -20,7 +20,7 @@
 #include "Log.hpp"
 #include "security/SecretsStore.hpp"
 #include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 // Lo que se le manda a la página de la botonera (el error del emparejamiento y
 // de la conexión) no se traduce acá: se marca para el catálogo de la web y la

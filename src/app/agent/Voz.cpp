@@ -27,7 +27,7 @@
 #include "agent/ArgumentosLocales.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "agent/VozIdioma.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "arranque/AppSettings.hpp"
 #include "emision/VentanillaMotor.hpp"
@@ -1353,7 +1353,7 @@ void Voz::revisarVoz() {
     // auriculares), y si no hay, la primera bajada. No se guarda: sigue al idioma.
     if (!vozAMano_ || modelos_.carpetaInstalada(vozElegida_).empty()) {
         vozAMano_ = false; // la elegida se borró: vuelve a la de fábrica
-        const QString deFabrica = modelos_.vozPara(ba::i18n::actual().codigo);
+        const QString deFabrica = modelos_.vozPara(ba::i18n::idiomaDelOperador());
         if (deFabrica != vozElegida_) {
             vozElegida_ = deFabrica;
             hablante_ = 0;

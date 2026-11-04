@@ -3,7 +3,7 @@
 // ============================================================================
 #include "Reloj.hpp"
 #include "diag/Utf8.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "Mapa.hpp"
 #include "Piezas.hpp"
 #include "Prioridad.hpp"

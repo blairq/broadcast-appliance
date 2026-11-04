@@ -4,7 +4,7 @@
 
 #include "evento/EventoStore.hpp"
 #include "evento/FotosConfig.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "persist/ArchivoConfig.hpp"
 #include "platform/Paths.hpp"
 

@@ -6,7 +6,7 @@
 // (login por codigo), el estado y la lista de VODs: la fábrica (McpPlataformas).
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpPlataformas.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"

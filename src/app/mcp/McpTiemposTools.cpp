@@ -4,7 +4,7 @@
 // Lo mismo que muestra la página «Latencias del pipeline» (TiemposModel): de cada entrada a cada
 // salida, nodo por nodo, cuánto agrega cada uno y cuánto lleva desde la captura.
 // ============================================================================
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 
 #include <QDateTime>

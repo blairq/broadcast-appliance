@@ -4,7 +4,7 @@
 
 #include "arranque/InicioConElSistema.hpp"
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "persist/Escritor.hpp"
 #include "platform/Energia.hpp"
 #include "platform/Paths.hpp"

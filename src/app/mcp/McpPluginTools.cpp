@@ -9,7 +9,7 @@
 // Ayuda: `help {"topic": "plugins"}`. Ver docs/funciones/PLUGINS.md.
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "plugins/Plugins.hpp"

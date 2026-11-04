@@ -7,7 +7,7 @@
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "agent/VozIdioma.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "platform/Paths.hpp"
 #include "plugins/Hijo.hpp"
 
@@ -104,7 +104,7 @@ json Traductor::destinos(const std::string& de) const {
 
 QVariantMap Traductor::idiomasDelEvento(const QString& idiomaEvento) const {
     // "" = el del operador (como ba::i18n::idiomaDelEvento).
-    const std::string ev = idiomaEvento.isEmpty() ? ba::i18n::actual().codigo : idiomaEvento.toStdString();
+    const std::string ev = idiomaEvento.isEmpty() ? ba::i18n::idiomaDelOperador() : idiomaEvento.toStdString();
     const std::string de = codigoDe(ev);
     const ba::i18n::Perfil p = ba::i18n::perfil(ev);
     const QString nombreEv = QString::fromStdString(p.nombre.empty() ? ev : p.nombre);
