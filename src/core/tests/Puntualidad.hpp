@@ -20,6 +20,7 @@
 #include <chrono>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -173,6 +174,23 @@ inline bool bajoWine() {
 #endif
 }
 
+/// Corre en un x86_64 emulado (el Linux de Docker en una Mac ARM: Rosetta, que se presenta como
+/// «VirtualApple» en /proc/cpuinfo). Ahí el tiempo real no se puede medir: todo pasa por el
+/// traductor.
+inline bool bajoRosetta() {
+#if defined(__linux__)
+    std::FILE* f = std::fopen("/proc/cpuinfo", "r");
+    if (f == nullptr) return false;
+    char linea[256];
+    bool si = false;
+    while (!si && std::fgets(linea, sizeof linea, f) != nullptr) si = std::strstr(linea, "VirtualApple") != nullptr;
+    std::fclose(f);
+    return si;
+#else
+    return false;
+#endif
+}
+
 inline bool tiempoRealEstricto() {
     const char* e = std::getenv("BA_TEST_TIEMPO_REAL_ESTRICTO");
     return e != nullptr && *e != '\0' && *e != '0';
@@ -191,6 +209,13 @@ inline int resultadoTiempoReal(const char* test, int fallos, SondaPuntualidad* s
     const Puntualidad ahora = medirPuntualidad();
     std::printf("%s: %d fallo(s). Puntualidad de la máquina: durante el test %s; ahora %s\n", test, fallos,
                 sonda != nullptr ? durante.texto().c_str() : "(sin sonda)", ahora.texto().c_str());
+    if ((bajoRosetta() || bajoWine()) && !tiempoRealEstricto()) {
+        std::printf("SKIP (máquina cargada): %s mide tiempo real y corre bajo un emulador (%s): ahí no se puede "
+                    "medir. En una máquina de verdad se exige.\n",
+                    test, bajoWine() ? "Wine" : "Rosetta: el Linux x86_64 de Docker en una Mac ARM");
+        std::fflush(stdout);
+        return 77;
+    }
     if ((durante.impuntual() || ahora.impuntual()) && !tiempoRealEstricto()) {
         // «SKIP (máquina cargada)»: tools/ci/tests-con-cache.py no lo anota como pasado (la
         // próxima vez corre de nuevo).
