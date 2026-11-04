@@ -14,6 +14,7 @@
 #include "platform/Paths.hpp"
 
 #include <QCoreApplication>
+#include <QFileInfo>
 #include <QProcess>
 #include <QTemporaryDir>
 
@@ -73,6 +74,13 @@ int main(int argc, char** argv) {
     namespace hijos = ba::app::agent::hijos;
     const fs::path anotado = fs::path(datos.path().toStdString()) / "Runtime" / "hijos" / "prueba.json";
     const QString yo = QCoreApplication::applicationFilePath();
+    // Bajo un emulador (el Linux x86_64 de Docker en una Mac ARM: Rosetta o qemu por binfmt), el
+    // ejecutable de un proceso según el sistema (/proc/<pid>/exe) es el EMULADOR, no el programa:
+    // el barrido —que solo mata a un pid si sigue siendo el programa anotado, para no matar a
+    // otro que reusó el número— no lo reconoce y, bien hecho, no lo toca. Eso no se puede probar
+    // ahí: se avisa y el test termina en SKIP (lo demás se prueba igual).
+    const std::string propio = ba::platform::huerfanos::ejecutableDe(::getpid()).string();
+    const bool emulado = propio != QFileInfo(yo).canonicalFilePath().toStdString();
     // Como si quien lo anotó hubiera muerto: el dueño, un pid que ya no vive.
     const auto sinDueno = [&anotado]() {
         QProcess t;
@@ -128,8 +136,14 @@ int main(int argc, char** argv) {
         CHECK(p.state() == QProcess::Running && fs::exists(anotado), "barrer: con el dueño vivo, no se toca");
         sinDueno();
         hijos::barrerHuerfanos();
-        CHECK(p.waitForFinished(3000), "barrer: el huérfano se fue");
-        CHECK(seFue(nieto), "barrer: y su desprendido también");
+        if (emulado) {
+            p.kill();
+            p.waitForFinished(3000);
+            ::kill(nieto, SIGKILL);
+        } else {
+            CHECK(p.waitForFinished(3000), "barrer: el huérfano se fue");
+            CHECK(seFue(nieto), "barrer: y su desprendido también");
+        }
         CHECK(!fs::exists(anotado), "barrer: borra la anotación");
     }
     // Un pid anotado que ahora es otro programa (este test): no se toca.
@@ -141,6 +155,13 @@ int main(int argc, char** argv) {
         CHECK(!fs::exists(anotado), "barrer: la anotación vieja igual se borra");
     }
     std::printf("== test_hijos_app: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
+    if (fallos == 0 && emulado) {
+        std::printf("SKIP: corre bajo un emulador (el sistema dice que este proceso es «%s», no «%s»: Rosetta/qemu "
+                    "por binfmt, el Linux x86_64 de Docker en una Mac ARM). El barrido de huérfanos reconoce a un "
+                    "proceso por su ejecutable y eso ahí no se puede probar; lo demás pasó.\n",
+                    propio.c_str(), QFileInfo(yo).canonicalFilePath().toUtf8().constData());
+        return 77;
+    }
     return fallos == 0 ? 0 : 1;
 #endif
 }
