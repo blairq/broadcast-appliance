@@ -38,6 +38,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "platform/Instancia.hpp"
 #include "platform/Paths.hpp"
 
 #ifdef _WIN32
@@ -334,6 +335,23 @@ struct Config {
         if (rtcPortMax - rtcPortMin >= kTopeRangoRtc)
             rtcPortMax = static_cast<uint16_t>(std::min(65535, rtcPortMin + kTopeRangoRtc - 1));
         if (!modoPrueba) turnPrueba = false; // el TURN sin pinggy, solo en modo prueba
+    }
+
+    /// Los puertos de ESTA copia del programa (platform/Instancia.hpp): en el lugar N,
+    /// cada puerto propio + N×100 y el rango UDP de WebRTC + N×1600; en el 0, tal cual.
+    /// Solo los que se abren en esta máquina (no los del VPS ni los públicos de pinggy).
+    /// Se aplica después de leer el archivo y la línea de comandos; el archivo no se toca.
+    void aplicarLugar(int lugar) {
+        using ba::platform::puertoDeInstancia;
+        for (uint16_t* p : {&port, &metricsPort, &adminPort, &httpsPort, &controlLanPort, &puertaHttpPort,
+                            &pinggyPuertoTunel, &webPuerto})
+            *p = puertoDeInstancia(*p, lugar);
+        const uint16_t min = ba::platform::puertoRtcDeInstancia(rtcPortMin, lugar);
+        const uint16_t max = ba::platform::puertoRtcDeInstancia(rtcPortMax, lugar);
+        if (min != rtcPortMin && max != rtcPortMax) { // el rango entero o nada
+            rtcPortMin = min;
+            rtcPortMax = max;
+        }
     }
 
     /// Deriva las rutas del layout a partir de la ubicacion del ejecutable

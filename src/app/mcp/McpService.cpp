@@ -50,6 +50,7 @@
 #include "mcp/McpHttp.hpp"
 #include "mcp/McpPreguntaTools.hpp"
 #include "mcp/McpToolsCommon.hpp"
+#include "platform/Instancia.hpp"
 #include "platform/Paths.hpp"
 #include "agent/Notificador.hpp"
 #include "ui/AtencionViewModel.hpp"
@@ -884,6 +885,8 @@ void McpService::setPlano(PlanoControl& plano) {
 }
 
 bool McpService::start(quint16 port) {
+    // El de esta copia: con otra abierta con otra carpeta de datos, corrido (platform/Instancia.hpp).
+    port = ba::platform::puertoDeInstancia(port);
     // La traza completa arranca con el servidor: lo que pase antes no existe
     // todavia para nadie de afuera.
     Traza::la().abrir(ba::platform::dataRoot() / "Logs");

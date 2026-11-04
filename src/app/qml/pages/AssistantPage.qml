@@ -394,6 +394,13 @@ Rectangle {
                         if (r.ok === false) ApplicationWindow.window.toast(r.error, "error")
                         else ApplicationWindow.window.toast(qsTr("%1: se liberaron %2").arg(hecho).arg(Theme.tamano(r.bytes || 0)), "ok")
                     }
+                    // Borrar es del fondo: el resultado llega acá.
+                    Connections {
+                        target: ag
+                        function onLimpiezaHecha(r, que) {
+                            limpiezaPanel.aviso(r, que === "chats" ? qsTr("Chats borrados") : qsTr("Versiones viejas borradas"))
+                        }
+                    }
                     Component.onCompleted: ag.revisarLimpieza()
                     onVisibleChanged: if (visible) ag.revisarLimpieza()
                     ColumnLayout {
@@ -440,14 +447,14 @@ Rectangle {
                                             title: qsTr("¿Borrar los chats de %1?").arg(modelData.runtime),
                                             text: qsTr("%1 de conversaciones guardadas. El login y los ajustes quedan.").arg(Theme.tamano(modelData.bytesChats)),
                                             accept: qsTr("Borrar"), reject: qsTr("Cancelar"),
-                                            action: function() { limpiezaPanel.aviso(ag.borrarChats(modelData.runtime), qsTr("Chats borrados")) }
+                                            action: function() { ag.borrarChatsUi(modelData.runtime) }
                                         })
                                     }
                                     GlassButton {
                                         compact: true; text: qsTr("Versiones viejas")
                                         visible: modelData.versiones.filter(v => !v.enUso).length > 0
                                         enabled: !ag.running
-                                        onClicked: limpiezaPanel.aviso(ag.borrarVersionesViejas(modelData.runtime), qsTr("Versiones viejas borradas"))
+                                        onClicked: ag.borrarVersionesViejasUi(modelData.runtime)
                                     }
                                     GlassButton {
                                         compact: true; text: qsTr("Reinstalar")

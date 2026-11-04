@@ -14,6 +14,7 @@
 #include "emision/SalidasConfig.hpp"
 #include "emision/TurnoMotor.hpp"
 #include "i18n/I18nTexto.hpp"
+#include "platform/Instancia.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -342,7 +343,8 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
         FotoMotor::SalaYEvento& s = f.sala;
         const GatewaySettings& g = rt_.gateway_;
         s.sala = g.room;
-        s.puerto = g.port;
+        // Los de esta copia (otra abierta con otra carpeta de datos: corridos; platform/Instancia.hpp).
+        s.puerto = ba::platform::puertoDeInstancia(g.port);
         s.atencionAutomatica = g.autoIntake;
         s.proxy = g.proxy;
         s.tunel = g.tunnel;
@@ -355,7 +357,7 @@ void PublicadorFoto::armarFoto(FotoMotor& f, unsigned p) {
         s.pinggyHost = g.pinggyHost;
         s.pinggyCnameDestino = g.pinggyCnameDestino;
         s.pinggyListaBlanca = g.pinggyListaBlanca;
-        s.pinggyPuertoTunel = g.pinggyPuertoTunel;
+        s.pinggyPuertoTunel = ba::platform::puertoDeInstancia(g.pinggyPuertoTunel);
         s.operadorVideo = cfg.operatorVideo;
         s.operadorAudio = cfg.operatorAudio;
         s.carpetaGrabacion = rt_.carpetaGrabacion();

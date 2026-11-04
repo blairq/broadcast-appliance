@@ -1,9 +1,12 @@
 // ============================================================================
-// src/core/platform/SingleInstance.hpp — Instancia unica por usuario
+// src/core/platform/SingleInstance.hpp — Instancia unica por carpeta de datos
 //
 // Proposito:
-//   El launcher no debe correr dos veces para el mismo usuario (spec §3.1.1):
-//   dos supervisores lanzarian dos A y dos B peleando por los mismos canales.
+//   El launcher no debe correr dos veces sobre la misma carpeta de datos (spec
+//   §3.1.1): dos supervisores lanzarian dos A y dos B peleando por los mismos
+//   archivos y canales. Con carpetas distintas si pueden convivir: el nombre
+//   lleva la clave de la carpeta (platform/Instancia.hpp). `Alcance::Maquina`
+//   es para lo que se reparte entre todas (los lugares de puertos).
 //
 // Implementaciones:
 //   - Windows: mutex con nombre en el namespace `Local\` (por sesion). Si el
@@ -33,11 +36,16 @@ class SingleInstance {
     SingleInstance(const SingleInstance&) = delete;
     SingleInstance& operator=(const SingleInstance&) = delete;
 
+    /// De quien es el nombre: de esta carpeta de datos (lo normal) o de toda la
+    /// maquina (para el usuario actual).
+    enum class Alcance { Datos, Maquina };
+
     /// Intenta tomar el lock `name` ([A-Za-z0-9._-]).
     ///
     /// :returns: true si esta instancia es la unica; false si otra ya lo tiene
     ///           (o por error, con `err`).
-    static bool acquire(const std::string& name, SingleInstance& out, std::string* err = nullptr);
+    static bool acquire(const std::string& name, SingleInstance& out, std::string* err = nullptr,
+                        Alcance alcance = Alcance::Datos);
 
     /// true si este objeto tiene el lock.
     bool held() const;

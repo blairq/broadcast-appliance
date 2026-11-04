@@ -4,6 +4,7 @@
 #include "ipc/Timbre.hpp"
 
 #include "ipc/AtomicRef.hpp"
+#include "platform/Instancia.hpp"
 #include "platform/Ritmo.hpp"
 
 #include <algorithm>
@@ -76,7 +77,8 @@ void Timbre::enganchar(TimbreCompartido* t, const std::wstring& canal, bool escr
     if (t == nullptr) return;
 #if defined(_WIN32)
     // El mismo nombre para los dos lados: lo crea el primero que llega.
-    const std::wstring nombre = L"Local\\" + canal + L".Timbre";
+    // De esta carpeta de datos (platform/Instancia.hpp), como el anillo.
+    const std::wstring nombre = L"Local\\" + ba::platform::nombreDeInstancia(canal + L".Timbre");
     sem_ = CreateSemaphoreW(nullptr, 0, LONG_MAX, nombre.c_str());
     if (sem_ == nullptr) return; // sin semáforo, sin timbre: el lector sigue con Mirada
 #else

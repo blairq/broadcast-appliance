@@ -19,6 +19,7 @@
 #include <cstring>
 #include <thread>
 
+#include "platform/Instancia.hpp"
 #include "platform/Paths.hpp"
 
 namespace ba::platform {
@@ -55,9 +56,11 @@ bool validName(const std::string& name) {
 /// huerfanos) y el UID en el nombre separa a los usuarios; el control de
 /// acceso real es SO_PEERCRED (peerIsSameUser). macOS no tiene espacio
 /// abstracto: archivo en runtimeDir() ($TMPDIR, por usuario, temporal).
+/// Los dos, de esta carpeta de datos (platform/Instancia.hpp): en Linux el nombre
+/// lleva su clave; en macOS, runtimeDir() es el de esa carpeta.
 std::string socketPath(const std::string& name) {
 #if defined(__linux__)
-    return std::string(1, '\0') + "broadcast-appliance-" + std::to_string(::getuid()) + "-" + name;
+    return std::string(1, '\0') + "broadcast-appliance-" + std::to_string(::getuid()) + "-" + nombreDeInstancia(name);
 #else
     const std::filesystem::path dir = runtimeDir();
     if (dir.empty()) {

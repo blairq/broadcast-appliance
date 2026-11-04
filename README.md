@@ -168,10 +168,18 @@ Windows, macOS and Linux.
 ```bash
 git clone https://github.com/blairq/broadcast-appliance.git
 cd broadcast-appliance
-make deps      # pinned third-party dependencies for this machine (fetched, nothing system-wide)
-make compilar  # build
-make probar    # the test suite
+make deps           # pinned third-party dependencies for this machine (fetched, nothing system-wide)
+make compilar       # build (configures CMake only when needed, uses every core and ccache)
+make test           # rebuilds what changed and runs only the tests whose inputs changed
+make app            # the app ready to use on this machine (macOS: a few seconds when nothing changed)
 ```
+
+`make` alone lists the everyday commands; `make pasos` lists the rest. Before a release,
+`make test-completo` runs the whole suite without the test cache, and `make paquete-windows` /
+`make paquete-linux` build those packages (in Docker when run on a Mac).
+
+The code is split into per-area libraries, so touching one file recompiles only what depends on
+it, and `make test-explicar` says why each test would run.
 
 Platform builds, the portable bundle and the details are in
 [Building, testing and packaging](docs/en/building.md).
@@ -188,7 +196,7 @@ libsamplerate MIT, Argon2 CC0/Apache-2.0, CLAP MIT, LSP LGPL, among others; see
 
 ## Contributing
 
-Before sending changes: `make build` must compile without errors, `make test`
+Before sending changes: `make compilar` must compile without errors, `make test`
 must pass, and the repository checks must pass (`pytest -q` with
 `requirements-dev.txt`). Details in
 [Building, testing and packaging](docs/en/building.md).

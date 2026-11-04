@@ -231,25 +231,12 @@ const Provider* findProvider(const QString& id) {
     return nullptr;
 }
 
-QString sha256File(const QString& path) {
-    QFile f(path);
-    if (!f.open(QIODevice::ReadOnly)) return {};
-    QCryptographicHash h(QCryptographicHash::Sha256);
-    h.addData(&f);
-    return QString::fromLatin1(h.result().toHex());
-}
-
 bool writeText(const QString& path, const QByteArray& data) {
     QDir().mkpath(QFileInfo(path).absolutePath());
     QFile f(path);
     if (!f.open(QIODevice::WriteOnly | QIODevice::Truncate)) return false;
     f.write(data);
     return true;
-}
-
-QString findFile(const QString& root, const QString& name) {
-    QDirIterator it(root, {name}, QDir::Files | QDir::Executable, QDirIterator::Subdirectories);
-    return it.hasNext() ? it.next() : QString();
 }
 
 } // namespace
@@ -259,7 +246,12 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Aler
     : QObject(parent), rt_(rt), ventanilla_(ventanilla), alerts_(alerts), session_(std::make_unique<term::TerminalSession>()),
       instancia_(instancia) {
     g_raiz = rt.dataRoot(); // ver g_raiz: `modelosDe` es estatica
+    // El disco de los agentes (qué hay instalado, las conversaciones, la limpieza), en un
+    // hilo propio y de a una cosa: la interfaz lee lo último que se leyó.
+    fondo_.setMaxThreadCount(1);
+    fondo_.setObjectName("asistente-disco");
     loadConfig();
+    refrescarDisco();
     // Lo automático a la conversación del evento (OpenCode, por la API del servidor).
     envio_ = std::make_unique<EnvioOpencode>();
     envio_->setEsperaMs(ba::ajustes::entero("asistente.esperaSesionLibreMs", 2000));
@@ -297,7 +289,26 @@ AgentViewModel::AgentViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, Aler
     });
     // Arranque automatico cuando todo este listo (GuiMode conecta el MCP despues).
     QTimer::singleShot(ba::ajustes::entero("asistente.demoraArranqueMs", 2500), this, [this]() {
-        if (autoStart_ && reanudar_.isEmpty() && installed() && mcpReady() && !running()) start(); // (retomar: reanudarAlArrancar)
+        const auto arrancar = [this]() {
+            if (autoStart_ && reanudar_.isEmpty() && installed() && mcpReady() && !running()) start(); // (retomar: reanudarAlArrancar)
+        };
+        // Sin la primera lectura del disco todavía (un disco lento): al tenerla.
+        if (discoLeido_)
+            arrancar();
+        else
+            refrescarDisco(arrancar);
+    });
+    // Lo que guardó la conversación que corre (para retomarla al relanzar o reiniciar la app):
+    // mirado en el fondo cada tanto, mientras corre.
+    vigiaConversacion_ = new QTimer(this);
+    vigiaConversacion_->setInterval(ba::ajustes::entero("asistente.vigiaConversacionMs", 5000));
+    connect(vigiaConversacion_, &QTimer::timeout, this, [this]() { mirarConversacion(); });
+    connect(session_.get(), &term::TerminalSession::runningChanged, this, [this]() {
+        if (running()) {
+            vigiaConversacion_->start();
+        } else {
+            vigiaConversacion_->stop();
+        }
     });
 }
 
@@ -583,27 +594,54 @@ void AgentViewModel::setError(const QString& e) {
 // --- Instalacion ---------------------------------------------------------------------
 
 json AgentViewModel::pinnedPins() const {
-    QFile f(":/agent/agentes.json");
-    if (!f.open(QIODevice::ReadOnly)) return json::object();
-    return json::parse(f.readAll().toStdString(), nullptr, false);
+    // Compiladas en el programa (no cambian mientras corre): se leen una vez.
+    static const json fijadas = disco::recursoJson(":/agent/agentes.json");
+    return fijadas;
 }
 
 QString AgentViewModel::chosenFile() const {
-    return QString::fromStdWString((ba::platform::dataRoot() / "Agentes" / "versiones.json").wstring());
+    return QString::fromStdWString(disco::archivoElegidas(ba::platform::dataRoot()).wstring());
 }
 
 json AgentViewModel::pins() const {
     json out = pinnedPins();
     // Las elegidas desde la pestaña (checkUpdate + installLatest) pisan a la
-    // fijada, agente por agente. Viven en el bundle, no en el sistema.
-    QFile f(chosenFile());
-    if (out.is_object() && f.open(QIODevice::ReadOnly)) {
-        const json elegidas = json::parse(f.readAll().toStdString(), nullptr, false);
-        if (elegidas.is_object())
-            for (const auto& [k, v] : elegidas.items())
-                if (v.is_object() && v.contains("version") && v.contains("plataformas")) out[k] = v;
-    }
+    // fijada, agente por agente. Viven en el bundle, no en el sistema; las lee el
+    // fondo (refrescarDisco) y las cambia esta clase (guardarElegidas).
+    if (out.is_object() && elegidas_.is_object())
+        for (const auto& [k, v] : elegidas_.items())
+            if (v.is_object() && v.contains("version") && v.contains("plataformas")) out[k] = v;
     return out;
+}
+
+void AgentViewModel::guardarElegidas(const json& elegidas) {
+    elegidas_ = elegidas.is_object() ? elegidas : json::object();
+    // Por la cola de escritura (entero o nada, en su hilo): la interfaz no espera al disco.
+    ba::persist::cola().escribir(disco::archivoElegidas(ba::platform::dataRoot()),
+                                 elegidas_.dump(2, ' ', false, nlohmann::json::error_handler_t::replace));
+}
+
+void AgentViewModel::refrescarDisco(std::function<void()> despues) {
+    const std::filesystem::path raiz = ba::platform::dataRoot(); // de la máquina
+    const json fijadas = pinnedPins();
+    const QString delEvento = QString::fromStdString(sesiones().de(instancia_.toStdString(), "claude"));
+    QPointer<AgentViewModel> yo(this);
+    fondo_.start([yo, raiz, fijadas, delEvento, despues = std::move(despues)]() {
+        disco::Estado e = disco::leer(raiz, fijadas);
+        const bool guardada = disco::claudeGuardada(raiz, delEvento);
+        QMetaObject::invokeMethod(qApp, [yo, e = std::move(e), delEvento, guardada, despues]() {
+            if (!yo) return;
+            yo->elegidas_ = e.elegidas;
+            yo->usables_ = e.usables;
+            yo->delEventoClaude_ = delEvento;
+            yo->delEventoGuardada_ = guardada;
+            yo->discoLeido_ = true;
+            emit yo->configChanged();
+            emit yo->installChanged();
+            emit yo->latestChanged();
+            if (despues) despues();
+        });
+    });
 }
 
 // --- Actualizar desde la fuente oficial ---------------------------------------------------
@@ -684,19 +722,9 @@ void AgentViewModel::installLatest() {
     const auto it = latest_.find(runtime);
     if (it == latest_.end()) return;
     // Queda elegida en el bundle y desde ahi la toman install() y usableDir().
-    QFile f(chosenFile());
-    json elegidas = json::object();
-    if (f.open(QIODevice::ReadOnly)) {
-        elegidas = json::parse(f.readAll().toStdString(), nullptr, false);
-        f.close();
-        if (!elegidas.is_object()) elegidas = json::object();
-    }
+    json elegidas = elegidas_;
     elegidas[runtime.toStdString()] = it->second;
-    QDir().mkpath(QFileInfo(chosenFile()).absolutePath());
-    if (!writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)))) {
-        setError(tr("No se pudo guardar %1").arg(chosenFile()));
-        return;
-    }
+    guardarElegidas(elegidas);
     emit configChanged();
     emit latestChanged();
     install();
@@ -747,13 +775,10 @@ void AgentViewModel::installNewest() {
 void AgentViewModel::revertToPinned() {
     if (installing_) return;
     const QString runtime = runtimeOf(provider_);
-    QFile f(chosenFile());
-    if (!f.open(QIODevice::ReadOnly)) return;
-    json elegidas = json::parse(f.readAll().toStdString(), nullptr, false);
-    f.close();
+    json elegidas = elegidas_;
     if (!elegidas.is_object() || !elegidas.contains(runtime.toStdString())) return;
     elegidas.erase(runtime.toStdString());
-    writeText(chosenFile(), QByteArray::fromStdString(elegidas.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
+    guardarElegidas(elegidas);
     emit configChanged();
     emit latestChanged();
     install(); // la fijada: se baja y, cuando esta, reemplaza a la elegida
@@ -790,58 +815,23 @@ QString AgentViewModel::installDir(const QString& runtime) const {
 }
 
 QString AgentViewModel::usableDir(const QString& runtime, QString* exeOut) const {
-    if (runtime.isEmpty()) return {};
-    const json pin = pins().value(runtime.toStdString(), json::object());
-    const QString base = QString::fromStdWString((ba::platform::dataRoot() / "Agentes").wstring()) + "/" + runtime;
-    const QString fijada = QString::fromStdString(pin.value("version", std::string()));
-
-    // El `.ok` guarda {version, exe} desde esta version; los viejos tenian solo
-    // una fecha y para esos se cae al `exe` del pin, que es lo que habia.
-    const auto leerOk = [&](const QString& dir, QString* exe) {
-        QFile f(dir + "/.ok");
-        if (!f.open(QIODevice::ReadOnly)) return false;
-        const json j = json::parse(f.readAll().toStdString(), nullptr, false);
-        if (exe != nullptr && j.is_object()) *exe = QString::fromStdString(j.value("exe", std::string()));
-        return true;
-    };
-
-    QString exe;
-    if (!fijada.isEmpty() && leerOk(base + "/" + fijada, &exe)) {
-        if (exeOut != nullptr)
-            *exeOut = exe.isEmpty() ? QString::fromStdString(platformPin(pin).value("exe", "")) : exe;
-        return base + "/" + fijada;
+    // Lo leyó el fondo (refrescarDisco): la fijada si está, si no la más nueva de su versión mayor.
+    const auto it = usables_.find(runtime);
+    if (runtime.isEmpty() || it == usables_.end() || it->second.dir.isEmpty()) return {};
+    if (exeOut != nullptr) {
+        const json pin = pins().value(runtime.toStdString(), json::object());
+        *exeOut = it->second.exe.isEmpty() ? QString::fromStdString(platformPin(pin).value("exe", "")) : it->second.exe;
     }
-    // Quedo una instalacion de otra version (p. ej. se actualizo el sistema):
-    // sirve igual, la mas nueva por orden de version, PERO SOLO DE LA MISMA VERSION
-    // MAYOR que la fijada. Con otra mayor la forma de lanzarlo puede no servir (pasó:
-    // opencode 1.x no entiende el --standalone de la 2 y se caía una y otra vez):
-    // entonces no hay instalación usable y se pide instalar la fijada.
-    const int mayorFijada = QVersionNumber::fromString(fijada).majorVersion();
-    QStringList versiones = QDir(base).entryList(QDir::Dirs | QDir::NoDotAndDotDot);
-    std::sort(versiones.begin(), versiones.end(), [](const QString& a, const QString& b) {
-        return QVersionNumber::fromString(a) < QVersionNumber::fromString(b);
-    });
-    for (auto it = versiones.crbegin(); it != versiones.crend(); ++it) {
-        if (!fijada.isEmpty() && QVersionNumber::fromString(*it).majorVersion() != mayorFijada) continue;
-        QString e;
-        if (leerOk(base + "/" + *it, &e)) {
-            if (exeOut != nullptr)
-                *exeOut = e.isEmpty() ? QString::fromStdString(platformPin(pin).value("exe", "")) : e;
-            return base + "/" + *it;
-        }
-    }
-    return {};
+    return it->second.dir;
 }
 
 bool AgentViewModel::installed() const {
     // El modelo local: lo que se instala acá es su chat (pi); el modelo se baja en
     // Configuración → Modelos locales.
-    const QString dir = usableDir(runtimeOf(provider_));
-    if (dir.isEmpty()) return false;
+    const auto it = usables_.find(runtimeOf(provider_));
+    if (it == usables_.end() || it->second.dir.isEmpty()) return false;
     // pi sin jiti (instalado antes de la guarda) no carga extensiones: a reinstalar.
-    if (runtimeOf(provider_) == "pi" && !QFileInfo::exists(dir + "/pi/package/node_modules/jiti/package.json"))
-        return false;
-    return true;
+    return !it->second.piSinJiti;
 }
 
 QString AgentViewModel::installedVersion() const {
@@ -856,46 +846,6 @@ bool AgentViewModel::updateAvailable() const {
     return v != QString::fromStdString(pin.value("version", std::string()));
 }
 
-namespace {
-/// El Python que trae el programa (como los plugins): ahí están zipfile y tarfile.
-std::filesystem::path pythonDelPrograma() {
-#if defined(_WIN32)
-    return ba::platform::bundleRoot() / "python" / "python.exe";
-#else
-    return ba::platform::bundleRoot() / "python" / "bin" / "python3";
-#endif
-}
-
-/// Descomprime .zip, .tgz/.tar.gz y .tar.xz en la carpeta pedida (sin dejar que un
-/// nombre del archivo se escape de ella). Los ejecutables quedan ejecutables.
-const char* kDescomprimir = R"PY(import os, sys, stat, tarfile, zipfile
-src, dst = sys.argv[1], os.path.realpath(sys.argv[2])
-def adentro(p):
-    r = os.path.realpath(os.path.join(dst, p))
-    if r != dst and not r.startswith(dst + os.sep):
-        raise SystemExit("un archivo se sale de la carpeta: " + p)
-    return r
-if zipfile.is_zipfile(src):
-    with zipfile.ZipFile(src) as z:
-        for i in z.infolist():
-            adentro(i.filename)
-            z.extract(i, dst)
-            modo = i.external_attr >> 16
-            if modo & 0o111:
-                p = os.path.join(dst, i.filename)
-                os.chmod(p, os.stat(p).st_mode | stat.S_IXUSR | stat.S_IXGRP | stat.S_IXOTH)
-else:
-    with tarfile.open(src) as t:
-        for m in t.getmembers():
-            adentro(m.name)
-            if m.islnk() or m.issym():
-                adentro(os.path.join(os.path.dirname(m.name), m.linkname))
-        try:
-            t.extractall(dst, filter="tar")
-        except TypeError:
-            t.extractall(dst)
-)PY";
-} // namespace
 
 void AgentViewModel::install() {
     const QString runtime = runtimeOf(provider_);
@@ -905,11 +855,7 @@ void AgentViewModel::install() {
         setError(tr("No hay una version de %1 para esta plataforma (%2).").arg(runtime, platformKey()));
         return;
     }
-    struct Item {
-        std::string url, sha, kind, dest;
-        std::string sha512 = {}; ///< base64, como lo publica npm (si no hay sha256)
-    };
-    std::vector<Item> items;
+    std::vector<disco::Item> items;
     const QString dir = installDir(runtime);
     // Los que son un paquete de npm (Gemini, pi): el Node fijado de la plataforma
     // más el paquete, en <dir>/node y <dir>/<motor>.
@@ -956,11 +902,11 @@ void AgentViewModel::install() {
     p.version = version;
     p.yaEsta = [dir]() { return QFileInfo::exists(dir + "/.ok"); };
     QPointer<AgentViewModel> yo(this);
-    p.trabajo = [yo, items, dir, staging, bajado, runtime, exeName, geminiScript, version = QString::fromStdString(version)](
-                    net::Descargas::Contexto& ctx) -> std::string {
-        QString err;
-        QDir(staging).removeRecursively(); // restos de un intento anterior
-        QDir().mkpath(staging);
+    // El trabajo corre en el hilo de la cola de descargas (DiscoAgentes: bajar,
+    // verificar, descomprimir y dejarlo en su lugar), nunca en la interfaz.
+    const disco::Instalacion in{std::move(items), dir, staging, bajado, runtime, exeName, geminiScript,
+                                QString::fromStdString(version)};
+    p.trabajo = [yo, in](net::Descargas::Contexto& ctx) -> std::string {
         const auto aviso = [&ctx, yo](const QString& t) {
             ctx.avance(0.97, t.toStdString());
             if (yo)
@@ -970,106 +916,7 @@ void AgentViewModel::install() {
                     emit yo->installChanged();
                 });
         };
-        const int n = static_cast<int>(items.size());
-        for (int i = 0; i < n && err.isEmpty(); ++i) {
-            const Item& it = items[static_cast<std::size_t>(i)];
-            const QString tmp = bajado + QString("/descarga-%1").arg(i);
-            // Los destinos se armaron sobre `dir`: van a la carpeta de staging.
-            const auto enStaging = [&dir, &staging](const std::string& p) {
-                QString d = QString::fromStdString(p);
-                if (d.startsWith(dir)) d.replace(0, dir.size(), staging);
-                return d;
-            };
-            // Ya bajado y verificado en un intento anterior: no se rebaja.
-            if (!QFileInfo::exists(tmp)) {
-                const std::string e = ctx.bajar(it.url, tmp.toStdString(), 0, 0,
-                                                QString("%1 %2 (%3/%4)").arg(runtime, version).arg(i + 1).arg(n).toStdString());
-                if (!e.empty()) {
-                    err = ctx.cancelado() ? tr("Instalacion cancelada.") : tr("No se pudo descargar: %1").arg(QString::fromStdString(e));
-                    break;
-                }
-            }
-            aviso(tr("Verificando…"));
-            // SHA-256 (agentes.json, GitHub, Claude) o SHA-512 (npm). Sin
-            // ninguno no se instala: nunca un archivo sin verificar.
-            bool coincide = false;
-            if (!it.sha.empty()) {
-                coincide = sha256File(tmp) == QString::fromStdString(it.sha);
-            } else if (!it.sha512.empty()) {
-                QFile bajado(tmp);
-                QCryptographicHash h(QCryptographicHash::Sha512);
-                if (bajado.open(QIODevice::ReadOnly)) h.addData(&bajado);
-                coincide = h.result().toBase64() == QByteArray::fromStdString(it.sha512);
-            }
-            if (!coincide) {
-                err = tr("La descarga no coincide con el hash publicado. No se instalo nada.");
-                QFile::remove(tmp);
-                break;
-            }
-            if (it.kind == "binario") {
-                const QString dest = enStaging(it.dest);
-                QFile::remove(dest);
-                if (!QFile::rename(tmp, dest)) err = tr("No se pudo guardar %1").arg(dest);
-                QFile(dest).setPermissions(QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner |
-                                           QFile::ReadGroup | QFile::ExeGroup);
-            } else {
-                aviso(tr("Descomprimiendo…"));
-                const bool npm = it.kind == "npm";
-                const QString dest = npm ? enStaging(it.dest) + ".tmp" : enStaging(it.dest);
-                QDir().mkpath(dest);
-                // Con el Python DEL PROGRAMA (zipfile/tarfile): nada de afuera de la
-                // carpeta del sistema (antes, el tar.exe de Windows o el tar del PATH).
-                QProcess py;
-                py.start(QString::fromStdString(pythonDelPrograma().string()),
-                         {"-I", "-B", "-c", kDescomprimir, QDir::toNativeSeparators(tmp), QDir::toNativeSeparators(dest)});
-                if (!py.waitForFinished(ba::ajustes::entero("asistente.descomprimirMin", 10) * 60000) || py.exitStatus() != QProcess::NormalExit || py.exitCode() != 0)
-                    err = (py.error() == QProcess::FailedToStart
-                               ? tr("No se pudo descomprimir: %1 (no arrancó el Python del programa)")
-                               : tr("No se pudo descomprimir: %1"))
-                              .arg(QString::fromUtf8(py.readAllStandardError()).trimmed().right(400));
-                QFile::remove(tmp);
-                if (npm && err.isEmpty()) { // <dest>.tmp/package → <dest>
-                    const QString final = enStaging(it.dest);
-                    QDir(final).removeRecursively();
-                    if (!QDir().rename(dest + "/package", final)) err = tr("No se pudo dejar %1").arg(final);
-                    QDir(dest).removeRecursively();
-                }
-            }
-        }
-        if (err.isEmpty() && !geminiScript.isEmpty() &&
-            !QFileInfo::exists(staging + "/" + runtime + "/" + geminiScript))
-            err = tr("El paquete de %1 no trae %2: no se instalo (queda la version anterior).").arg(runtime, geminiScript);
-        if (err.isEmpty()) {
-            // Ejecutable en su lugar (algunos archivos lo traen en una subcarpeta).
-            if (geminiScript.isEmpty() && !QFileInfo::exists(staging + "/" + exeName)) {
-                const QString found = findFile(staging, exeName);
-                if (!found.isEmpty()) QFile::rename(found, staging + "/" + exeName);
-            }
-            // El `.ok` registra que version quedo y con que ejecutable, para
-            // poder seguir usandola si una version nueva del sistema fija otra.
-            const json ok{{"version", QFileInfo(dir).fileName().toStdString()},
-                          {"exe", exeName.toStdString()},
-                          {"fecha", QDateTime::currentDateTimeUtc().toString(Qt::ISODate).toStdString()}};
-            writeText(staging + "/.ok", QByteArray::fromStdString(ok.dump(2, ' ', false, nlohmann::json::error_handler_t::replace)));
-            // Recien ahora se reemplaza lo que hubiera: hasta aca la instalacion
-            // anterior siguio entera.
-            QDir(dir).removeRecursively();
-            if (!QDir().rename(staging, dir)) {
-                QDir(staging).removeRecursively();
-                err = tr("No se pudo dejar la instalacion en su lugar (%1).").arg(dir);
-            }
-        }
-        if (!err.isEmpty()) {
-            QDir(staging).removeRecursively(); // nunca se toca `dir`
-        } else {
-            QDir(bajado).removeRecursively();
-            // Versiones viejas del mismo agente: afuera (liberan cientos de MB).
-            QDir parent(QFileInfo(dir).absolutePath());
-            for (const QString& v : parent.entryList(QDir::Dirs | QDir::NoDotAndDotDot))
-                if (parent.absoluteFilePath(v) != QFileInfo(dir).absoluteFilePath())
-                    QDir(parent.absoluteFilePath(v)).removeRecursively();
-        }
-        return err.toStdString();
+        return disco::instalar(ctx, in, aviso);
     };
     const std::string id = p.id;
     p.alTerminar = [yo, id](bool ok, const std::string& error) {
@@ -1080,12 +927,12 @@ void AgentViewModel::install() {
         yo->installProgress_ = ok ? 1.0 : 0.0;
         yo->installText_ = ok ? tr("Instalado.") : e;
         emit yo->installChanged();
-        emit yo->latestChanged(); // newerAvailable mira la version instalada
-        emit yo->configChanged();
         if (!ok)
             yo->setError(e);
         else
             emit yo->notify(tr("Agente instalado en la carpeta portable."), "ok");
+        // Lo que quedó instalado, leído en el fondo; avisa (installed, la versión) al tenerlo.
+        yo->refrescarDisco();
     };
     const auto r = net::Descargas::la().pedir(std::move(p));
     if (r == net::Descargas::Resultado::Encolada) {
@@ -1238,18 +1085,15 @@ QStringList AgentViewModel::modelosDe(const QString& proveedor) {
             return ModelosLocales::instaladoEn(ba::platform::dataRoot() / "Modelos", repo);
         };
         QStringList out;
-        QFile f(":/agent/modelos-catalogo.json");
-        if (f.open(QIODevice::ReadOnly)) {
-            const json c = json::parse(f.readAll().toStdString(), nullptr, false);
-            if (c.is_object())
-                for (const json& m : c.value("modelos", json::array())) {
-                    const std::string tipo = m.value("tipo", std::string("reactivo"));
-                    const std::string repo = m.value("repo", std::string());
-                    if (m.value("formato", std::string()) == "gguf" && (tipo == "reactivo" || tipo == "chat") &&
-                        instalado(repo))
-                        out << QString::fromStdString(repo);
-                }
-        }
+        static const json c = disco::recursoJson(":/agent/modelos-catalogo.json"); // compilado: una vez
+        if (c.is_object())
+            for (const json& m : c.value("modelos", json::array())) {
+                const std::string tipo = m.value("tipo", std::string("reactivo"));
+                const std::string repo = m.value("repo", std::string());
+                if (m.value("formato", std::string()) == "gguf" && (tipo == "reactivo" || tipo == "chat") &&
+                    instalado(repo))
+                    out << QString::fromStdString(repo);
+            }
         return out;
     }
     const Provider* p = findProvider(proveedor);
@@ -1626,10 +1470,7 @@ term::Pty::Options AgentViewModel::baseLaunch(const QString& proveedor, const QS
         // La guarda (agent/pi-guarda.mjs): confirma cada cambio en la terminal, corta
         // las llamadas repetidas y los bucles. Se deja en el perfil en cada arranque.
         const QString guarda = profile + "/guarda.mjs";
-        {
-            QFile f(":/agent/pi-guarda.mjs");
-            if (f.open(QIODevice::ReadOnly)) writeText(guarda, f.readAll());
-        }
+        if (const QByteArray g = disco::recurso(":/agent/pi-guarda.mjs"); !g.isEmpty()) writeText(guarda, g);
         o.args = {dir + "/pi/" + QString::fromStdString(pin.value("paquete", json::object()).value("script", "")),
                   "--provider", "modelo-local", "--model", "local", "--offline", "--approve",
                   "--no-extensions", "-e", "builtin:mcp", "-e", guarda, "--no-context-files", "--no-skills",
@@ -1770,7 +1611,10 @@ term::Pty::Options AgentViewModel::launchOptions(QString* error) {
         // trabajó en este evento, si Claude tiene algo de ella; si no, una nueva que queda
         // guardada para la próxima.
         const QString delEvento = QString::fromStdString(sesiones().de(instancia_.toStdString(), "claude"));
-        if (reanudar_.isEmpty() && !delEvento.isEmpty() && conversacionClaudeGuardada(delEvento)) reanudar_ = delEvento;
+        // Lo miró el fondo: refrescarDisco (la del evento al abrirlo) o mirarConversacion (la
+        // que corrió en esta sesión de la app).
+        const bool guardada = (delEvento == delEventoClaude_ && delEventoGuardada_) || delEvento == conversacionGuardada_;
+        if (reanudar_.isEmpty() && !delEvento.isEmpty() && guardada) reanudar_ = delEvento;
         if (!reanudar_.isEmpty()) {
             sesion_ = reanudar_;
             o.args << "--resume" << sesion_;
@@ -2047,45 +1891,51 @@ void AgentViewModel::stop() {
 }
 
 void AgentViewModel::restart() {
-    // Relanzar (el aire prende o apaga la consola) sigue la misma conversación.
-    const QString seguir = sesionParaReanudar();
-    stop();
-    reanudar_ = seguir;
-    QTimer::singleShot(300, this, &AgentViewModel::start);
+    // Relanzar (el aire prende o apaga la consola) sigue la misma conversación: primero se
+    // mira (en el fondo) qué guardó, y con eso se relanza.
+    QPointer<AgentViewModel> yo(this);
+    mirarConversacion([yo]() {
+        if (!yo) return;
+        const QString seguir = yo->sesionParaReanudar();
+        yo->stop();
+        yo->reanudar_ = seguir;
+        QTimer::singleShot(300, yo.data(), &AgentViewModel::start);
+    });
+}
+
+void AgentViewModel::mirarConversacion(std::function<void()> despues) {
+    const std::filesystem::path raiz = ba::platform::dataRoot(); // de la máquina
+    const QString motor = runtimeOf(provider_);
+    const QString id = sesion_;
+    const QString ws = QDir::cleanPath(carpetaDeTrabajo());
+    const qint64 desde = inicioMs_;
+    QPointer<AgentViewModel> yo(this);
+    fondo_.start([yo, raiz, motor, id, ws, desde, despues = std::move(despues)]() {
+        QString guardada;
+        // Claude: solo si ya guardó algo (<perfil>/projects/<carpeta>/<id>.jsonl): `--resume`
+        // de una conversación sin mensajes no la encuentra y el asistente no arrancaría.
+        if (motor == "claude") guardada = disco::claudeGuardada(raiz, id) ? id : QString();
+        // Antigravity: la última escrita desde esta carpeta de trabajo desde que arrancó.
+        if (motor == "antigravity") guardada = disco::ultimaAntigravity(raiz, ws, desde);
+        QMetaObject::invokeMethod(qApp, [yo, guardada, despues]() {
+            if (!yo) return;
+            yo->conversacionGuardada_ = guardada;
+            if (despues) despues();
+        });
+    });
 }
 
 QString AgentViewModel::sesionParaReanudar() const {
     if (!session_->running()) return {};
-    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring());
+    // Lo que miró el fondo (mirarConversacion: cada tanto mientras corre, y antes de relanzar).
     if (runtimeOf(provider_) == "antigravity") {
-        // La última conversación escrita desde esta carpeta de trabajo (cada asistente tiene
-        // la suya) desde que arrancó: cada pedido queda en su historial con workspace y
-        // conversationId. Si todavía no escribió nada, la que se retomó al arrancar.
-        const QString ws = QDir::cleanPath(root + (instancia_ == "automatizacion" ? "/Runtime/agente-automatizacion"
-                                                                                   : "/Runtime/agente"));
-        QFile f(root + "/Credenciales/agentes/antigravity/.gemini/antigravity-cli/history.jsonl");
-        if (f.open(QIODevice::ReadOnly)) {
-            f.seek(std::max<qint64>(0, f.size() - 256 * 1024));
-            const QList<QByteArray> lineas = f.readAll().split('\n');
-            for (auto it = lineas.crbegin(); it != lineas.crend(); ++it) {
-                const json j = json::parse(it->toStdString(), nullptr, false);
-                if (!j.is_object() || j.value("timestamp", qint64{0}) < inicioMs_) continue;
-                const QString id = QString::fromStdString(j.value("conversationId", ""));
-                if (!id.isEmpty() && !QUuid::fromString(id).isNull() &&
-                    QDir::cleanPath(QString::fromStdString(j.value("workspace", ""))) == ws)
-                    return id;
-            }
-        }
-        return sesion_;
+        // Cada asistente tiene su carpeta de trabajo; si todavía no escribió nada, la que se
+        // retomó al arrancar.
+        return conversacionGuardada_.isEmpty() ? sesion_ : conversacionGuardada_;
     }
     if (sesion_.isEmpty() || runtimeOf(provider_) != "claude") return {};
-    // Solo si ya guardó algo (<perfil>/projects/<carpeta>/<id>.jsonl): `--resume` de una
-    // conversación sin mensajes no la encuentra y el asistente no arrancaría.
-    QDirIterator it(root + "/Credenciales/agentes/claude/projects", {sesion_ + ".jsonl"}, QDir::Files,
-                    QDirIterator::Subdirectories);
-    return it.hasNext() ? sesion_ : QString();
+    return conversacionGuardada_ == sesion_ ? sesion_ : QString();
 }
-
 void AgentViewModel::reanudarAlArrancar(const QString& id, const QString& proveedor, const QString& modelo,
                                         const QString& seguir) {
     if (id.isEmpty() || QUuid::fromString(id).isNull()) return;
@@ -2364,13 +2214,6 @@ QString AgentViewModel::tituloSesion() const {
     return (instancia_ == "automatizacion" ? tr("%1 · Automatización") : tr("%1 · Evento")).arg(evento);
 }
 
-bool AgentViewModel::conversacionClaudeGuardada(const QString& id) {
-    if (id.isEmpty()) return false;
-    const QString root = QString::fromStdWString(ba::platform::dataRoot().wstring());
-    QDirIterator it(root + "/Credenciales/agentes/claude/projects", {id + ".jsonl"}, QDir::Files,
-                    QDirIterator::Subdirectories);
-    return it.hasNext();
-}
 
 void AgentViewModel::conSesionDelEvento(const QString& ws, std::function<void()> seguir) {
     envio_->conectar(urlOpencode_, claveOpencode_);
@@ -2422,42 +2265,15 @@ void AgentViewModel::openAgentsFolder() const {
 }
 
 // --- Limpieza ----------------------------------------------------------------------
+//
+// Medir (recorrer cientos de MB) y borrar es del fondo (DiscoAgentes, fondo_): la interfaz
+// pide y recibe el resultado (limpieza_ con limpiezaChanged; limpiezaHecha al borrar).
 
-namespace {
-
-namespace fs = std::filesystem;
-
-std::uintmax_t bytesDe(const fs::path& p) {
-    std::error_code ec;
-    if (fs::is_regular_file(p, ec)) return fs::file_size(p, ec);
-    std::uintmax_t total = 0;
-    for (fs::recursive_directory_iterator it(p, fs::directory_options::skip_permission_denied, ec), fin;
-         !ec && it != fin; it.increment(ec)) {
-        std::error_code e2;
-        if (it->is_regular_file(e2)) total += it->file_size(e2);
-    }
-    return total;
+std::map<QString, QString> AgentViewModel::enUsoPorMotor() const {
+    std::map<QString, QString> out;
+    for (const auto& [rt, u] : usables_) out[rt] = u.dir;
+    return out;
 }
-
-/// Lo que cada motor guarda como conversaciones dentro de su perfil (relativo a
-/// Credenciales/agentes/<motor>). NO está: el login (.claude.json,
-/// .credentials.json, oauth_creds.json, auth.json), los ajustes, plugins y skills.
-std::vector<std::string> chatsDe(const std::string& runtime) {
-    if (runtime == "claude")
-        return {"projects", "sessions", "session-env", "shell-snapshots", "todos", "file-history", "paste-cache",
-                "debug", "backups", "history.jsonl", "statsig", "telemetry", "cache", "Library/Caches"};
-    if (runtime == "antigravity")
-        return {".gemini/antigravity-cli/cache", ".gemini/antigravity-cli/crashes", ".gemini/antigravity-cli/implicit",
-                ".gemini/antigravity-cli/conversation_summaries.db", ".gemini/antigravity", "Library/Caches"};
-    if (runtime == "pi") return {"sessions", "mcp.log", "mcp.log.1"};
-    if (runtime == "opencode")
-        return {"data/opencode/storage", "data/opencode/log", "data/opencode/snapshot", "state"};
-    return {};
-}
-
-const char* const kMotores[] = {"claude", "antigravity", "opencode", "pi"};
-
-} // namespace
 
 QString AgentViewModel::ocupadoParaLimpiar() const {
     if (running()) return tr("Primero pará el asistente (la consola está corriendo).");
@@ -2466,111 +2282,95 @@ QString AgentViewModel::ocupadoParaLimpiar() const {
     return {};
 }
 
-void AgentViewModel::revisarLimpieza() {
-    QVariantList out;
-    const fs::path root = ba::platform::dataRoot(); // de la máquina
-    for (const char* rt : kMotores) {
-        const fs::path prog = root / "Agentes" / rt;
-        const fs::path perfil = root / "Credenciales" / "agentes" / rt;
-        std::error_code ec;
-        if (!fs::exists(prog, ec) && !fs::exists(perfil, ec)) continue;
-        const QString enUsoDir = usableDir(rt);
-        QVariantList versiones;
-        double bytesPrograma = 0;
-        for (const fs::directory_entry& d : fs::directory_iterator(prog, ec)) {
-            if (!d.is_directory(ec)) continue;
-            const double b = static_cast<double>(bytesDe(d.path()));
-            bytesPrograma += b;
-            const QString dir = QString::fromStdWString(d.path().wstring());
-            versiones.push_back(QVariantMap{{"version", QString::fromStdString(d.path().filename().string())},
-                                            {"bytes", b},
-                                            {"enUso", QDir::cleanPath(dir) == QDir::cleanPath(enUsoDir)}});
-        }
-        double bytesChats = 0;
-        for (const std::string& c : chatsDe(rt)) bytesChats += static_cast<double>(bytesDe(perfil / c));
-        out.push_back(QVariantMap{{"runtime", QString(rt)},
-                                  {"versiones", versiones},
-                                  {"bytesPrograma", bytesPrograma},
-                                  {"bytesChats", bytesChats},
-                                  {"bytesPerfil", static_cast<double>(bytesDe(perfil))},
-                                  {"enUso", runtimeOf(provider_) == rt}});
-    }
-    // Los espacios de trabajo (Runtime/agente, Runtime/agentes/<rol>): se rehacen al lanzar.
-    double bytesTrabajo = static_cast<double>(bytesDe(root / "Runtime" / "agente")) +
-                          static_cast<double>(bytesDe(root / "Runtime" / "agentes"));
-    out.push_back(QVariantMap{{"runtime", QString("espacios")}, {"bytesChats", bytesTrabajo}});
-    limpieza_ = out;
-    emit limpiezaChanged();
+void AgentViewModel::medirLimpieza(std::function<void()> listo) {
+    const std::filesystem::path raiz = ba::platform::dataRoot(); // de la máquina
+    const auto enUso = enUsoPorMotor();
+    const QString motor = runtimeOf(provider_);
+    QPointer<AgentViewModel> yo(this);
+    fondo_.start([yo, raiz, enUso, motor, listo = std::move(listo)]() {
+        QVariantList out = disco::revisarLimpieza(raiz, enUso, motor);
+        QMetaObject::invokeMethod(qApp, [yo, out = std::move(out), listo]() {
+            if (!yo) return;
+            yo->limpieza_ = out;
+            emit yo->limpiezaChanged();
+            if (listo) listo();
+        });
+    });
 }
 
-QVariantMap AgentViewModel::borrarChats(const QString& runtime) {
+void AgentViewModel::borrarChats(const QString& runtime, std::function<void(QVariantMap)> listo) {
     const QString ocupado = ocupadoParaLimpiar();
-    if (!ocupado.isEmpty()) return {{"ok", false}, {"error", ocupado}};
-    const fs::path root = ba::platform::dataRoot(); // de la máquina
-    double bytes = 0;
-    const auto borrar = [&](const fs::path& p) {
-        std::error_code ec;
-        if (!fs::exists(p, ec)) return;
-        bytes += static_cast<double>(bytesDe(p));
-        fs::remove_all(p, ec);
-    };
-    for (const char* rt : kMotores) {
-        if (!runtime.isEmpty() && runtime != rt) continue;
-        for (const std::string& c : chatsDe(rt)) borrar(root / "Credenciales" / "agentes" / rt / c);
+    if (!ocupado.isEmpty()) {
+        if (listo) listo({{"ok", false}, {"error", ocupado}});
+        return;
     }
-    if (runtime.isEmpty()) {
-        borrar(root / "Runtime" / "agente");
-        borrar(root / "Runtime" / "agentes");
-    }
-    revisarLimpieza();
-    return {{"ok", true}, {"bytes", bytes}};
+    const std::filesystem::path raiz = ba::platform::dataRoot(); // de la máquina
+    QPointer<AgentViewModel> yo(this);
+    fondo_.start([yo, raiz, runtime, listo = std::move(listo)]() {
+        const double bytes = disco::borrarChats(raiz, runtime);
+        QMetaObject::invokeMethod(qApp, [yo, bytes, listo]() {
+            if (!yo) return;
+            yo->revisarLimpieza();
+            if (listo) listo({{"ok", true}, {"bytes", bytes}});
+        });
+    });
 }
 
-QVariantMap AgentViewModel::borrarVersionesViejas(const QString& runtime) {
+void AgentViewModel::borrarVersionesViejas(const QString& runtime, std::function<void(QVariantMap)> listo) {
     const QString ocupado = ocupadoParaLimpiar();
-    if (!ocupado.isEmpty()) return {{"ok", false}, {"error", ocupado}};
-    double bytes = 0;
-    QStringList borradas;
-    for (const char* rt : kMotores) {
-        if (!runtime.isEmpty() && runtime != rt) continue;
-        const QString enUso = QDir::cleanPath(usableDir(rt));
-        if (enUso.isEmpty()) continue; // sin una que ande no se borra nada: podría ser la única
-        std::error_code ec;
-        for (const fs::directory_entry& d : fs::directory_iterator(ba::platform::dataRoot() / "Agentes" / rt, ec)) {
-            if (!d.is_directory(ec) || QDir::cleanPath(QString::fromStdWString(d.path().wstring())) == enUso) continue;
-            bytes += static_cast<double>(bytesDe(d.path()));
-            std::error_code e2;
-            fs::remove_all(d.path(), e2);
-            if (!e2) borradas << QString(rt) + " " + QString::fromStdString(d.path().filename().string());
-        }
+    if (!ocupado.isEmpty()) {
+        if (listo) listo({{"ok", false}, {"error", ocupado}});
+        return;
     }
-    revisarLimpieza();
-    return {{"ok", true}, {"bytes", bytes}, {"borradas", borradas}};
+    const std::filesystem::path raiz = ba::platform::dataRoot(); // de la máquina
+    const auto enUso = enUsoPorMotor();
+    QPointer<AgentViewModel> yo(this);
+    fondo_.start([yo, raiz, runtime, enUso, listo = std::move(listo)]() {
+        QStringList borradas;
+        const double bytes = disco::borrarVersionesViejas(raiz, runtime, enUso, borradas);
+        QMetaObject::invokeMethod(qApp, [yo, bytes, borradas, listo]() {
+            if (!yo) return;
+            yo->revisarLimpieza();
+            if (listo) listo({{"ok", true}, {"bytes", bytes}, {"borradas", borradas}});
+        });
+    });
+}
+
+void AgentViewModel::borrarChatsUi(const QString& runtime) {
+    QPointer<AgentViewModel> yo(this);
+    borrarChats(runtime, [yo](const QVariantMap& r) {
+        if (yo) emit yo->limpiezaHecha(r, "chats");
+    });
+}
+
+void AgentViewModel::borrarVersionesViejasUi(const QString& runtime) {
+    QPointer<AgentViewModel> yo(this);
+    borrarVersionesViejas(runtime, [yo](const QVariantMap& r) {
+        if (yo) emit yo->limpiezaHecha(r, "versiones");
+    });
 }
 
 void AgentViewModel::reinstalar(const QString& runtime, bool deCero) {
     const QString ocupado = ocupadoParaLimpiar();
     if (!ocupado.isEmpty()) return avisarError(ocupado);
     bool conocido = false;
-    for (const char* rt : kMotores) conocido = conocido || runtime == rt;
+    for (const char* rt : disco::kMotores) conocido = conocido || runtime == rt;
     if (!conocido) return avisarError(tr("Motor desconocido: %1").arg(runtime));
-    const fs::path root = ba::platform::dataRoot(); // de la máquina
-    std::error_code ec;
-    fs::remove_all(root / "Agentes" / runtime.toStdString(), ec);
-    if (deCero) {
-        fs::remove_all(root / "Credenciales" / "agentes" / runtime.toStdString(), ec);
-        fs::remove_all(root / "Runtime" / "agente", ec);
-        fs::remove_all(root / "Runtime" / "agentes", ec);
-    }
-    emit installChanged();
-    revisarLimpieza();
-    // Se vuelve a bajar el que usa el asistente; otro motor se baja cuando se lo elija.
-    if (runtimeOf(provider_) == runtime) {
-        install();
-        return;
-    }
+    const std::filesystem::path raiz = ba::platform::dataRoot(); // de la máquina
+    QPointer<AgentViewModel> yo(this);
+    fondo_.start([yo, raiz, runtime, deCero]() {
+        disco::borrarMotor(raiz, runtime, deCero);
+        QMetaObject::invokeMethod(qApp, [yo, runtime]() {
+            if (!yo) return;
+            yo->revisarLimpieza();
+            // Lo instalado, releído; después se vuelve a bajar el que usa el asistente (otro
+            // motor se baja cuando se lo elija).
+            yo->refrescarDisco([yo, runtime]() {
+                if (yo && yo->runtimeOf(yo->provider_) == runtime) yo->install();
+            });
+        });
+    });
 }
-
 } // namespace ba::app::agent
 
 #include "moc_AgentViewModel.cpp"

@@ -38,11 +38,11 @@ DEUDA_QML: dict[str, int] = {}
 # SOLO PUEDE BAJAR. Muchos `join`/`wait` son de destructores o de hilos propios: igual se
 # cuentan (un destructor que espera un hilo traba la interfaz al cerrar una página).
 DEUDA_CPP = {
-    "agent/AgentViewModel.cpp|bloqueante": 6,
-    # +2 (2026-11-03): buscar si Claude ya guardó la conversación del evento (QDirIterator en
-    # Credenciales/agentes/claude/projects) al arrancar el asistente; pendiente pasarlo al
-    # fondo junto con el resto del disco del asistente (current/installed/hasKey).
-    "agent/AgentViewModel.cpp|disco": 56,
+    "agent/AgentViewModel.cpp|bloqueante": 5,
+    # 56 → 12 (2026-11-04): lo instalado, las versiones elegidas, las conversaciones guardadas
+    # y la limpieza van al fondo (agent/DiscoAgentes, fondo_); la instalación, en el hilo de
+    # descargas. Quedan los 12 de armar la carpeta de trabajo al lanzar el agente.
+    "agent/AgentViewModel.cpp|disco": 12,
     "agent/AlarmaSonora.cpp|disco": 2,
     "agent/Despachador.cpp|bloqueante": 1,
     "agent/FlujosTexto.cpp|disco": 2,

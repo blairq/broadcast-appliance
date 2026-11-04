@@ -139,7 +139,12 @@ std::string validarLocal(const std::string& local) {
     if (p < 1 || p > 65535) return "puerto fuera de rango";
     // La API de control y el MCP no salen NUNCA a internet, sea cual sea el host
     // con que se los nombre (127.0.0.1, localhost, ::1, 0.0.0.0, la IP de la LAN...).
-    if (p == 8788 || p == 8790) return "el puerto " + puerto + " (API de control / MCP) no se publica nunca";
+    // Con otra copia del programa abierta, esta usa los de su lugar (BA_LUGAR, ver
+    // platform/Instancia.hpp: + lugar×100); se cierran los dos juegos.
+    const char* l = std::getenv("BA_LUGAR");
+    const int corrido = (l != nullptr && *l >= '1' && *l <= '7' && l[1] == '\0') ? (*l - '0') * 100 : 0;
+    if (p == 8788 || p == 8790 || p == 8788 + corrido || p == 8790 + corrido)
+        return "el puerto " + puerto + " (API de control / MCP) no se publica nunca";
     return {};
 }
 

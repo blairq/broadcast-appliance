@@ -39,6 +39,7 @@
 
 #include <QObject>
 #include <QStringList>
+#include <QThreadPool>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -54,6 +55,7 @@
 #include <set>
 #include <thread>
 
+#include "agent/DiscoAgentes.hpp"
 #include "agent/Lanzamiento.hpp"
 #include "agent/SesionesEvento.hpp"
 #include "term/TerminalSession.hpp"
@@ -318,13 +320,19 @@ class AgentViewModel : public QObject {
 
     // --- Limpieza -----------------------------------------------------------------
     QVariantList limpieza() const { return limpieza_; }
-    Q_INVOKABLE void revisarLimpieza();
+    /// Mide lo que ocupa cada motor (en el fondo): llega en `limpieza`.
+    Q_INVOKABLE void revisarLimpieza() { medirLimpieza({}); }
+    /// Lo mismo, y `listo` en la interfaz cuando `limpieza` ya tiene lo medido.
+    void medirLimpieza(std::function<void()> listo);
     /// Borra los chats guardados de un motor ("" = de todos, y los espacios de
-    /// trabajo de Runtime/agente*). El login y los ajustes quedan.
-    /// {ok, bytes, error}. No con un agente corriendo.
-    Q_INVOKABLE QVariantMap borrarChats(const QString& runtime);
+    /// trabajo de Runtime/agente*). El login y los ajustes quedan. En el fondo:
+    /// `listo` recibe {ok, bytes, error} en el hilo de la interfaz. No con un agente corriendo.
+    void borrarChats(const QString& runtime, std::function<void(QVariantMap)> listo);
     /// Borra las versiones del programa que no se usan (quedan de actualizaciones).
-    Q_INVOKABLE QVariantMap borrarVersionesViejas(const QString& runtime);
+    void borrarVersionesViejas(const QString& runtime, std::function<void(QVariantMap)> listo);
+    /// Lo mismo desde la vista: el resultado llega en limpiezaHecha.
+    Q_INVOKABLE void borrarChatsUi(const QString& runtime);
+    Q_INVOKABLE void borrarVersionesViejasUi(const QString& runtime);
     /// Si algo falla: borra el programa del motor y lo vuelve a bajar. Con
     /// `deCero`, además el perfil entero (chats, ajustes y el LOGIN: hay que volver
     /// a entrar; las claves de API pegadas quedan). "" si arrancó, o el motivo.
@@ -382,6 +390,8 @@ class AgentViewModel : public QObject {
     void errorChanged();
     void alertsChanged();
     void limpiezaChanged();
+    /// Terminó un borrado pedido desde la vista: {ok, bytes, error}; `que`: chats | versiones.
+    void limpiezaHecha(const QVariantMap& resultado, const QString& que);
     void sesionEventoChanged();
     void notify(const QString& message, const QString& level);
 
@@ -409,8 +419,24 @@ class AgentViewModel : public QObject {
     QString tituloSesion() const;
     /// La carpeta de trabajo de este asistente (Runtime/agente o Runtime/agente-automatizacion).
     QString carpetaDeTrabajo() const;
-    /// Claude guardó algo de esa conversación (si no, `--resume` no la encuentra).
-    static bool conversacionClaudeGuardada(const QString& id);
+    // --- El disco, en el fondo (DiscoAgentes): la interfaz lee lo último leído ---------
+    QThreadPool fondo_; ///< un hilo, de a una cosa (lecturas, mediciones, borrados)
+    /// Relee lo instalado, las versiones elegidas y si la conversación del evento está
+    /// guardada; al tenerlo avisa (configChanged, installChanged) y sigue con `despues`.
+    void refrescarDisco(std::function<void()> despues = {});
+    /// Las versiones elegidas desde la pestaña: en memoria ya y al disco por la cola.
+    void guardarElegidas(const nlohmann::json& elegidas);
+    /// Mira (en el fondo) qué guardó la conversación que corre y sigue con `despues`.
+    void mirarConversacion(std::function<void()> despues = {});
+    /// Motor → la carpeta de la instalación en uso (para la limpieza).
+    std::map<QString, QString> enUsoPorMotor() const;
+    nlohmann::json elegidas_ = nlohmann::json::object();
+    std::map<QString, disco::Usable> usables_;
+    bool discoLeido_ = false;
+    QString delEventoClaude_;         ///< la conversación del evento que se miró al leer el disco
+    bool delEventoGuardada_ = false;  ///< …y si Claude guardó algo de ella
+    QString conversacionGuardada_;    ///< la que corre, si ya guardó algo (mirarConversacion)
+    QTimer* vigiaConversacion_ = nullptr;
     /// OpenCode: busca (o crea) la sesión del evento en el servidor compartido y sigue.
     void conSesionDelEvento(const QString& ws, std::function<void()> seguir);
     QString runtimeOf(const QString& provider) const;
