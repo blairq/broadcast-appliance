@@ -75,9 +75,15 @@ deps-mlx-swift-lm:
 # _enlaces primero: en un worktree, extern/ y build/modelo-mac son los del principal.
 modelo-mac: _enlaces deps-mlx-swift-lm
 	@xcrun metal --version >/dev/null 2>&1 || { echo "ERROR: falta el compilador de Metal: xcodebuild -downloadComponent MetalToolchain" >&2; exit 1; }
-	cd src/modelo-mac && xcodebuild -scheme ba-modelo -destination 'platform=macOS,arch=arm64' \
-		-configuration Release -derivedDataPath $(CURDIR)/build/modelo-mac \
-		-skipPackagePluginValidation -skipMacroValidation -quiet build
+	@# xcodebuild tarda ~4 s aunque no haya nada que hacer (arma el plan de Swift Package y
+	@# consulta los destinos): solo si cambió el código del modelo, sus parches o mlx-swift-lm.
+	@python3 tools/ci/huellas.py atajo --nombre "ba-modelo (xcodebuild)" \
+	  --clave-en build/atajos/modelo-mac.json --memo build/atajos/huellas.json \
+	  --entrada src/modelo-mac --entrada mk/mac.mk --texto "$$(ls -d extern/mlx-swift-lm/.parches-* 2>/dev/null)" \
+	  --salida build/modelo-mac/Build/Products/Release/ba-modelo -- sh -c '\
+	    cd src/modelo-mac && xcodebuild -scheme ba-modelo -destination "platform=macOS,arch=arm64" \
+	      -configuration Release -derivedDataPath $(CURDIR)/build/modelo-mac \
+	      -skipPackagePluginValidation -skipMacroValidation -quiet build'
 
 release-macos:
 	@# Compila primero: sin esto se empaquetaba el ultimo build que hubiera en
