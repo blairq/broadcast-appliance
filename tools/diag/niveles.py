@@ -32,6 +32,7 @@ partir otros tests por área: `Mapa.leer()`, `mapa.componente_de(ruta)`, `Grafo(
 from __future__ import annotations
 
 import fnmatch
+import hashlib
 import json
 import pathlib
 import re
@@ -293,6 +294,23 @@ def componentes_headers_solos(mapa: Mapa) -> list[Componente]:
     return [c for c in mapa.componentes if all(r.startswith(PREFIJOS_HEADERS_SOLOS) for r in c.rutas)]
 
 
+# Los headers de un componente se revisan en PARTES de unos pocos (un test de ctest cada una):
+# en frío se reparten entre los núcleos (app/ui entera eran 67 s en un solo test) y la caché de
+# tests vuelve a correr solo las partes cuyos headers (o lo que incluyen) cambiaron. La parte de
+# un header sale de su ruta (no de su lugar en la lista): un header nuevo no mueve a los demás.
+HEADERS_POR_PARTE = 8
+
+
+def partes_headers_solos(headers: list[str]) -> int:
+    """En cuántas partes se revisan los headers de un componente."""
+    return max(1, -(-len(headers) // HEADERS_POR_PARTE))
+
+
+def parte_del_header(header: str, partes: int) -> int:
+    """La parte (0..partes-1) de un header (ruta relativa a src/), estable."""
+    return int(hashlib.sha1(header.encode("utf-8")).hexdigest(), 16) % max(1, partes)
+
+
 def sin_componente(mapa: Mapa, todos: list[str]) -> list[str]:
     return [a for a in todos if mapa.componente_de(a) is None]
 
@@ -476,7 +494,8 @@ def escribir_cmake(salida: pathlib.Path, mapa: Mapa) -> None:
     código), _HEADERS (sus headers) y _CIERRE (los headers del proyecto que alcanzan sus
     headers, sin ellos). Y BA_NIVELES_COMPONENTES (los id), BA_NIVELES_SIN_COMPONENTE (los
     archivos que el mapa no cubre: test_niveles_mapa falla) y BA_NIVELES_CMAKE (los CMake que
-    lee test_niveles_enlaces). Rutas absolutas. Solo reescribe si cambió."""
+    lee test_niveles_enlaces). Y por componente de los headers solos: _PARTES y, por parte k,
+    _P<k>_HEADERS y _P<k>_CIERRE. Rutas absolutas. Solo reescribe si cambió."""
     todos = archivos_de_codigo()
     grafo = Grafo(mapa)
     partes = ["# Generado por tools/diag/niveles.py --cmake (no editar)."]
@@ -491,9 +510,19 @@ def escribir_cmake(salida: pathlib.Path, mapa: Mapa) -> None:
         for var, lista in (("ARCHIVOS", archivos), ("HEADERS", headers), ("CIERRE", cierre)):
             partes.append(f"set(BA_NIVELES_{c.id}_{var}\n{_cmake_lista([str(SRC / a) for a in lista])})")
     partes.append(f"set(BA_NIVELES_COMPONENTES {' '.join(ids)})")
-    solos = [c.id for c in componentes_headers_solos(mapa)
+    solos = [c for c in componentes_headers_solos(mapa)
              if any(a.endswith(EXT_HEADER) for a in archivos_del_componente(mapa, c, todos))]
-    partes.append(f"set(BA_NIVELES_HEADERS_SOLOS {' '.join(solos)})")
+    partes.append(f"set(BA_NIVELES_HEADERS_SOLOS {' '.join(c.id for c in solos)})")
+    # Por parte de los headers solos: sus headers y lo que estos alcanzan (sin ellos).
+    for c in solos:
+        hs = [a for a in archivos_del_componente(mapa, c, todos) if a.endswith(EXT_HEADER)]
+        n = partes_headers_solos(hs)
+        partes.append(f'set(BA_NIVELES_{c.id}_PARTES "{n}")')
+        for k in range(n):
+            mios = [h for h in hs if parte_del_header(h, n) == k]
+            cierre = [a for a in grafo.cierre(mios) if a not in set(mios)]
+            for var, lista in (("HEADERS", mios), ("CIERRE", cierre)):
+                partes.append(f"set(BA_NIVELES_{c.id}_P{k}_{var}\n{_cmake_lista([str(SRC / a) for a in lista])})")
     partes.append(f"set(BA_NIVELES_SIN_COMPONENTE\n{_cmake_lista([str(SRC / a) for a in sin_componente(mapa, todos)])})")
     partes.append(f"set(BA_NIVELES_CMAKE\n{_cmake_lista([str(p) for p in archivos_cmake()])})")
     texto = "\n".join(partes) + "\n"

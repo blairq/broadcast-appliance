@@ -6,13 +6,15 @@ componente o del mismo target) y `-fsyntax-only`. Lo que hoy no compila solo es 
 (DEUDA_HEADERS) y SOLO PUEDE BAJAR: un header nuevo que no compila solo falla; uno de la deuda
 que ya compila, también (sacalo de la lista).
 
-Se corre por partes, un test de ctest por componente de tools/diag/niveles.txt
-(cmake/BaNiveles.cmake), con sus headers y los headers del proyecto que estos alcanzan como
-entradas: tocar un header de un área corre solo los tests de las áreas que lo ven. Y adentro de
-cada corrida hay una caché propia (<build>/headers-solos/): un header se vuelve a compilar solo
-si cambió él, algo de lo que incluye (la lista de -MD) o sus flags.
+Se corre por partes: un test de ctest por PARTE (unos 8 headers) de cada componente de
+tools/diag/niveles.txt (cmake/BaNiveles.cmake; la parte de un header sale de su ruta:
+niveles.parte_del_header), con sus headers y los headers del proyecto que estos alcanzan como
+entradas: tocar un header corre solo las partes que lo ven. Y adentro de cada corrida hay una
+caché propia (<build>/headers-solos/): un header se vuelve a compilar solo si cambió él, algo de
+lo que incluye (la lista de -MD) o sus flags. «Cambió» es el contenido: con el mismo tamaño y
+otra fecha (un checkout, un touch) se compara su huella.
 
-  tests/test_headers_solos.py --build build --componente app/ui [--jobs N]
+  tests/test_headers_solos.py --build build --componente app/ui [--parte K --partes N] [--jobs N]
   tests/test_headers_solos.py --build build                todos los de core y app
   tests/test_headers_solos.py --build build --listar-fallas los que hoy no compilan solos, con el error
 
@@ -126,15 +128,46 @@ def _clave(args: list[str], lenguaje: str) -> str:
     return hashlib.sha256(json.dumps([VERSION_CACHE, args, lenguaje]).encode()).hexdigest()
 
 
-def _estado(p: str) -> list[int] | None:
+_HUELLAS: dict[str, str | None] = {}
+
+
+def _huella(p: str) -> str | None:
+    """El sha1 del contenido (una vez por corrida y por archivo)."""
+    if p not in _HUELLAS:
+        try:
+            _HUELLAS[p] = hashlib.sha1(pathlib.Path(p).read_bytes()).hexdigest()
+        except OSError:
+            _HUELLAS[p] = None
+    return _HUELLAS[p]
+
+
+def _estado(p: str) -> list | None:
+    """[tamaño, fecha, huella del contenido]."""
     try:
         s = os.stat(p)
-        return [s.st_size, s.st_mtime_ns]
     except OSError:
         return None
+    return [s.st_size, s.st_mtime_ns, _huella(p)]
 
 
-def _deps(archivo_d: pathlib.Path, tu: pathlib.Path) -> dict[str, list[int] | None]:
+def _sigue_igual(p: str, previo: list | None) -> bool:
+    """Si `p` sigue como se anotó: misma fecha y tamaño (rápido) o, con otra fecha (un
+    checkout, un touch), el mismo contenido. Al dar igual por contenido, anota la fecha nueva."""
+    try:
+        s = os.stat(p)
+    except OSError:
+        return previo is None
+    if previo is None:
+        return False
+    if [s.st_size, s.st_mtime_ns] == previo[:2]:
+        return True
+    if len(previo) < 3 or s.st_size != previo[0] or _huella(p) != previo[2]:
+        return False
+    previo[1] = s.st_mtime_ns
+    return True
+
+
+def _deps(archivo_d: pathlib.Path, tu: pathlib.Path) -> dict[str, list | None]:
     txt = archivo_d.read_text(encoding="utf-8", errors="replace").replace("\\\n", " ")
     rutas = txt.split(":", 1)[1].split() if ":" in txt else []
     return {r: _estado(r) for r in rutas if pathlib.Path(r) != tu}
@@ -148,10 +181,13 @@ class Revisor:
         self.dir = build / "headers-solos"
         self.dir.mkdir(parents=True, exist_ok=True)
 
-    def plan(self, comp: niveles.Componente) -> tuple[list[tuple[str, dict, str]], dict[str, str]]:
-        """([(header, entrada de compile_commands, lenguaje)], {header: por qué no se compila})."""
+    def plan(self, comp: niveles.Componente, parte: int = 0, partes: int = 1
+             ) -> tuple[list[tuple[str, dict, str]], dict[str, str]]:
+        """([(header, entrada de compile_commands, lenguaje)], {header: por qué no se compila}),
+        de los headers de la parte `parte` de `partes` (con 1, todos)."""
         archivos = niveles.archivos_del_componente(self.mapa, comp)
-        headers = [a for a in archivos if a.endswith(niveles.EXT_HEADER)]
+        headers = [a for a in archivos if a.endswith(niveles.EXT_HEADER)
+                   and (partes <= 1 or niveles.parte_del_header(a, partes) == parte)]
         fuentes = [niveles.SRC / a for a in archivos if not a.endswith(niveles.EXT_HEADER)]
         targets = targets_de(comp)
         # El comando de respaldo: un TU del componente en su target; si no hay, uno del target.
@@ -189,7 +225,7 @@ class Revisor:
         args = argumentos(e)
         clave = _clave(args, leng)
         previo = cache.get(h)
-        if previo and previo["clave"] == clave and all(_estado(r) == est for r, est in previo["deps"].items()):
+        if previo and previo["clave"] == clave and all(_sigue_igual(r, est) for r, est in previo["deps"].items()):
             return previo["ok"], previo["error"]
         nombre = hashlib.sha1(h.encode()).hexdigest()[:16]
         tu = self.dir / f"{nombre}.cpp"
@@ -208,11 +244,12 @@ class Revisor:
             cache.pop(h, None)
         return ok, error
 
-    def revisar(self, comp: niveles.Componente, jobs: int) -> tuple[dict[str, str], dict[str, str], int]:
+    def revisar(self, comp: niveles.Componente, jobs: int, parte: int = 0, partes: int = 1
+                ) -> tuple[dict[str, str], dict[str, str], int]:
         """({header: error} de los que no compilan solos, {header: por qué no se compiló},
-        cuántos se revisaron)."""
-        hacer, fuera = self.plan(comp)
-        archivo_cache = self.dir / f"{comp.id}.json"
+        cuántos se revisaron). Una caché por parte: las partes corren a la vez."""
+        hacer, fuera = self.plan(comp, parte, partes)
+        archivo_cache = self.dir / (f"{comp.id}.json" if partes <= 1 else f"{comp.id}-{parte}de{partes}.json")
         try:
             cache = json.loads(archivo_cache.read_text(encoding="utf-8"))
         except (OSError, ValueError):
@@ -232,9 +269,10 @@ class Revisor:
         return dict(sorted(fallas.items())), fuera, len(hacer)
 
 
-def chequear(revisor: Revisor, comp: niveles.Componente, jobs: int) -> list[str]:
-    fallas, fuera, _ = revisor.revisar(comp, jobs)
-    mios = {h for h in DEUDA_HEADERS if revisor.mapa.componente_de(h) is comp}
+def chequear(revisor: Revisor, comp: niveles.Componente, jobs: int, parte: int = 0, partes: int = 1) -> list[str]:
+    fallas, fuera, _ = revisor.revisar(comp, jobs, parte, partes)
+    mios = {h for h in DEUDA_HEADERS if revisor.mapa.componente_de(h) is comp
+            and (partes <= 1 or niveles.parte_del_header(h, partes) == parte)}
     errores = []
     nuevos = [h for h in fallas if h not in mios]
     if nuevos:
@@ -300,6 +338,10 @@ def main(argv: list[str]) -> int:
         print(f"salteado: {motivo}")
         return 77  # ctest: SKIP_RETURN_CODE
     jobs = int(valor("--jobs", str(os.cpu_count() or 2)))
+    parte, partes = int(valor("--parte", "0")), int(valor("--partes", "1"))
+    if not 0 <= parte < max(1, partes):
+        print(f"--parte {parte} fuera de 0..{partes - 1}")
+        return 1
     rev = Revisor(build)
     comps = componentes_revisados(rev.mapa)
     if "--componente" in argv:
@@ -311,7 +353,7 @@ def main(argv: list[str]) -> int:
     if "--listar-fallas" in argv:
         total = 0
         for c in comps:
-            fallas, fuera, n = rev.revisar(c, jobs)
+            fallas, fuera, n = rev.revisar(c, jobs, parte, partes)
             total += n
             for h, err in fallas.items():
                 print(f"== src/{h}\n{err}\n")
@@ -321,7 +363,7 @@ def main(argv: list[str]) -> int:
         return 0
     errores = []
     for c in comps:
-        errores += chequear(rev, c, jobs)
+        errores += chequear(rev, c, jobs, parte, partes)
     print("\n".join(errores) if errores else "bien")
     return 1 if errores else 0
 

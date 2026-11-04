@@ -12,7 +12,7 @@
 #                              (tests/test_niveles.py; entradas: sus archivos)
 #   test_niveles_enlaces       target_link_libraries / ba_biblioteca (los CMake)
 #   test_niveles_mapa          el mapa cubre todos los archivos de src/
-#   test_headers_solos_<comp>  cada header de core y de la app compila solo (solo
+#   test_headers_solos_<comp>[_<k>]  cada header de core y de la app compila solo (por partes; solo
 #                              macOS; entradas: sus headers, los que alcanzan y
 #                              compile_commands.json)
 #
@@ -59,17 +59,31 @@ add_test(NAME test_niveles_mapa
 ba_test_entradas(test_niveles_mapa ${_ba_niv_comunes} "${_ba_niv_gen}")
 
 # Los headers solos: con las flags de compile_commands.json de este build y el clang
-# de la Mac (la deuda se midió ahí). Dos compilaciones a la vez por test: ctest ya
+# de la Mac (la deuda se midió ahí). Una compilación a la vez por test: ctest ya
 # corre varios tests juntos (-j del turno).
 if(APPLE AND CMAKE_EXPORT_COMPILE_COMMANDS)
+    # Un test por PARTE de cada componente (unos 8 headers: tools/diag/niveles.py,
+    # partes_headers_solos): en frío se reparten entre los núcleos y la caché de tests vuelve a
+    # correr solo las partes cuyos headers (o lo que incluyen) cambiaron. De a una compilación
+    # por test: el -j de ctest las reparte (antes, de a dos por test sin decírselo a ctest:
+    # dieciséis clang en ocho núcleos). Con una sola parte, el nombre de siempre.
     foreach(_id IN LISTS BA_NIVELES_HEADERS_SOLOS)
-        add_test(NAME test_headers_solos_${_id}
-                 COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_SOURCE_DIR}/tests/test_headers_solos.py"
-                         --build "${CMAKE_BINARY_DIR}" --componente "${BA_NIVELES_${_id}_NOMBRE}" --jobs 2)
-        set_tests_properties(test_headers_solos_${_id} PROPERTIES SKIP_RETURN_CODE 77)
-        ba_test_entradas(test_headers_solos_${_id} ${_ba_niv_comunes}
-                         "${CMAKE_BINARY_DIR}/compile_commands.json"
-                         ${BA_NIVELES_${_id}_HEADERS} ${BA_NIVELES_${_id}_CIERRE})
+        math(EXPR _ultima "${BA_NIVELES_${_id}_PARTES} - 1")
+        foreach(_k RANGE ${_ultima})
+            if(BA_NIVELES_${_id}_PARTES EQUAL 1)
+                set(_t test_headers_solos_${_id})
+            else()
+                set(_t test_headers_solos_${_id}_${_k})
+            endif()
+            add_test(NAME ${_t}
+                     COMMAND "${Python3_EXECUTABLE}" -B "${CMAKE_SOURCE_DIR}/tests/test_headers_solos.py"
+                             --build "${CMAKE_BINARY_DIR}" --componente "${BA_NIVELES_${_id}_NOMBRE}"
+                             --parte ${_k} --partes ${BA_NIVELES_${_id}_PARTES} --jobs 1)
+            set_tests_properties(${_t} PROPERTIES SKIP_RETURN_CODE 77)
+            ba_test_entradas(${_t} ${_ba_niv_comunes}
+                             "${CMAKE_BINARY_DIR}/compile_commands.json"
+                             ${BA_NIVELES_${_id}_P${_k}_HEADERS} ${BA_NIVELES_${_id}_P${_k}_CIERRE})
+        endforeach()
     endforeach()
 elseif(NOT APPLE)
     message(STATUS "test_headers_solos: solo en macOS (la deuda se midió con el clang y las flags de la Mac)")
