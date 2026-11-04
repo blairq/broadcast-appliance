@@ -419,3 +419,5 @@ bool PtzOnvif::apuntar(double u, double v, double ancho, double alto) {
 }
 
 } // namespace ba::app::ptz
+
+#include "moc_PtzOnvif.cpp"

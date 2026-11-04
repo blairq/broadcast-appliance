@@ -351,3 +351,5 @@ QString Acciones::atajoDe(const QString& accion) const {
 }
 
 } // namespace ba::app::control
+
+#include "moc_Acciones.cpp"

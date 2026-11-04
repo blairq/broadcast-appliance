@@ -89,3 +89,5 @@ void PtzDigital::home() {
 }
 
 } // namespace ba::app::ptz
+
+#include "moc_PtzDigital.cpp"

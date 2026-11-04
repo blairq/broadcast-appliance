@@ -560,3 +560,5 @@ void SatelliteServidor::dibujar(Cliente& c, Aparato& a, bool forzar) {
 }
 
 } // namespace ba::app::control
+
+#include "moc_SatelliteServidor.cpp"

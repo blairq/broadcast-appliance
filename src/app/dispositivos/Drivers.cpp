@@ -276,3 +276,5 @@ QVariantMap Drivers::uno(const QString& id) const {
 }
 
 } // namespace ba::app::dispositivos
+
+#include "moc_Drivers.cpp"

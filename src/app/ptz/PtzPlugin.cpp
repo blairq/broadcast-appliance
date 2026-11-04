@@ -55,3 +55,5 @@ void PtzPlugin::guardarPreset(int numero) { pedir("ptz.guardar_preset", {{"numer
 void PtzPlugin::home() { pedir("ptz.home", nlohmann::json::object()); }
 
 } // namespace ba::app::ptz
+
+#include "moc_PtzPlugin.cpp"

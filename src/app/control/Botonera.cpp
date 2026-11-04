@@ -2306,3 +2306,5 @@ void Botonera::herramientasListas() {
 }
 
 } // namespace ba::app::control
+
+#include "moc_Botonera.cpp"

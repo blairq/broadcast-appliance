@@ -827,3 +827,5 @@ void ReplicaPublicador::vaciar() {
 } // namespace ba::app::control
 
 #include "ReplicaPublicador.moc"
+
+#include "moc_ReplicaPublicador.cpp"

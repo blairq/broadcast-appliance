@@ -294,3 +294,5 @@ void BusEventos::publicarSalidas(const json& salidas) {
 }
 
 } // namespace ba::app::control
+
+#include "moc_BusEventos.cpp"

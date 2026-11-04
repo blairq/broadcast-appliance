@@ -633,3 +633,5 @@ void TwitchClient::chatLoop(QString token, QString login) {
 }
 
 } // namespace ba::app
+
+#include "moc_TwitchClient.cpp"

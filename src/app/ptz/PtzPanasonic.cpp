@@ -120,3 +120,5 @@ void PtzPanasonic::borrarPosicion(int n, const QString&) {
 }
 
 } // namespace ba::app::ptz
+
+#include "moc_PtzPanasonic.cpp"

@@ -338,3 +338,5 @@ json CarasBotonera::cara(const std::string& id) const {
 }
 
 } // namespace ba::app::control
+
+#include "moc_CarasBotonera.cpp"

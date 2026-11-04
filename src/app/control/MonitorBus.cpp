@@ -120,3 +120,5 @@ void MonitorBus::actualizar() {
 }
 
 } // namespace ba::app::control
+
+#include "moc_MonitorBus.cpp"

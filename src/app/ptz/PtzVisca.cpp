@@ -225,3 +225,5 @@ void PtzVisca::borrarPosicion(int n, const QString&) {
 }
 
 } // namespace ba::app::ptz
+
+#include "moc_PtzVisca.cpp"

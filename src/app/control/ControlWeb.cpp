@@ -927,3 +927,5 @@ QString ControlWeb::perfilUi(const QString& aparato, const QString& categorias) 
 bool ControlWeb::quitarUi(const QString& aparato) { return quitar(aparato.toStdString()); }
 
 } // namespace ba::app::control
+
+#include "moc_ControlWeb.cpp"

@@ -403,3 +403,5 @@ void MonitoresModel::guardar() const {
 }
 
 } // namespace ba::app
+
+#include "moc_Monitores.cpp"

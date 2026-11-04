@@ -1213,3 +1213,5 @@ void Red::activarPtz(const std::string& ip, const QString& entrada,
 }
 
 } // namespace ba::app::red
+
+#include "moc_Red.cpp"

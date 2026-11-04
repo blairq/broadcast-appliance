@@ -366,3 +366,5 @@ void Dispositivos::accionUi(const QString& id, const QString& accion, const QVar
 }
 
 } // namespace ba::app::dispositivos
+
+#include "moc_Dispositivos.cpp"
