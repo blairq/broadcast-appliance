@@ -66,10 +66,10 @@ componente app/net-base    1.5 app/net/HttpsClient.* app/net/AsyncHttp.hpp app/n
 componente app/agent        2  app/agent/ app/registro/
 componente app/asamblea     2  app/asamblea/
 componente app/audio        2  app/audio/
-componente app/camaras      2  app/camaras/
+# Los equipos (ba_app_equipos): dispositivos, cámaras PTZ, red y sincronía de las cámaras.
+componente app/equipos      2  app/camaras/ app/dispositivos/ app/ptz/ app/red/
 componente app/carrusel     2  app/carrusel/
 componente app/control      2  app/control/
-componente app/dispositivos 2  app/dispositivos/
 componente app/emision      2  app/emision/
 componente app/escenas      2  app/escenas/
 componente app/evento       2  app/evento/
@@ -80,8 +80,6 @@ componente app/medios       2  app/medios/
 componente app/net          2  app/net/
 componente app/pantallas    2  app/pantallas/
 componente app/plugins      2  app/plugins/
-componente app/ptz          2  app/ptz/
-componente app/red          2  app/red/
 componente app/resolucion   2  app/resolucion/
 componente app/rostros      2  app/rostros/
 componente app/sala         2  app/sala/

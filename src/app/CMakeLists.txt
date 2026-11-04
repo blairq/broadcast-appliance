@@ -524,6 +524,37 @@ if(BA_APP_QT_OK)
     ba_biblioteca_completa(ba_app_control control)
     list(PREPEND BA_APP_BIBLIOTECAS ba_app_control)
 
+    # Los equipos: el registro de dispositivos y sus sondas (drivers, ASIO, GStreamer), las
+    # cámaras PTZ (VISCA, ONVIF, Panasonic, digital, por plugin), la red (cámaras IP, RTSP) y
+    # la sincronía de labios de las cámaras. Se usan entre sí (red y dispositivos usan ptz),
+    # por eso van juntos. Usa audio/, video/, plugins/, emision/, arranque/ y ui/: lo
+    # resuelve quien enlaza (deuda de test_niveles).
+    set(_ba_equipos_gst "")
+    if(BA_HAVE_GST)
+        set(_ba_equipos_gst ba::gstreamer)
+    endif()
+    ba_biblioteca(ba_app_equipos NIVEL 2
+        DEPENDE ba_app_net ba_app_base ba_app_comun ba_core ${_ba_equipos_gst} nlohmann_json::nlohmann_json
+                Qt6::Core Qt6::Gui Qt6::Network Qt6::Multimedia Qt6::Qml Qt6::Quick
+        FUENTES camaras/SincroLabios.cpp
+                dispositivos/Conocidos.cpp dispositivos/Dispositivos.cpp dispositivos/Drivers.cpp
+                dispositivos/Onvif.cpp dispositivos/Registro.cpp dispositivos/SondaAsio.cpp
+                dispositivos/SondaDrivers.cpp dispositivos/SondaGst.cpp dispositivos/SondaReal.hpp
+                dispositivos/Sondeo.cpp
+                ptz/ControlCamaras.cpp ptz/ControlCamarasCamara.hpp ptz/ControlCamarasFoto.cpp
+                ptz/ControlCamarasPosiciones.cpp ptz/Interlock.hpp ptz/OnvifBusqueda.cpp ptz/Posiciones.cpp
+                ptz/PtzBackend.cpp ptz/PtzDigital.cpp ptz/PtzOnvif.cpp ptz/PtzPanasonic.cpp ptz/PtzPlugin.cpp
+                ptz/PtzProtocolos.cpp ptz/PtzVisca.cpp
+                red/Biblioteca.cpp red/Plan.cpp red/Red.cpp red/Rtsp.cpp)
+    if(WIN32)
+        target_link_libraries(ba_app_equipos PRIVATE ole32) # los drivers ASIO, por COM (SondaAsio)
+    endif()
+    ba_biblioteca_completa(ba_app_equipos camaras)
+    ba_biblioteca_completa(ba_app_equipos dispositivos)
+    ba_biblioteca_completa(ba_app_equipos ptz)
+    ba_biblioteca_completa(ba_app_equipos red)
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_equipos)
+
     ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
 endif()
 
@@ -803,17 +834,16 @@ endif()
     set_target_properties(test_secciones_config PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_secciones_config COMMAND test_secciones_config)
     # El registro de dispositivos de la máquina: nombres del operador, ausentes, persistencia.
-    add_executable(test_dispositivos tests/test_dispositivos.cpp dispositivos/Dispositivos.cpp dispositivos/Conocidos.cpp ui/Formulario.cpp)
+    add_executable(test_dispositivos tests/test_dispositivos.cpp ui/Formulario.cpp)
     target_include_directories(test_dispositivos PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_dispositivos PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_dispositivos PRIVATE ba_app_equipos ba_core Qt6::Core)
     set_target_properties(test_dispositivos PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_dispositivos COMMAND test_dispositivos)
     # La cuarentena de drivers de punta a punta: la sonda en un proceso hijo (este mismo
     # test con --sonda-drivers) con drivers de mentira que andan, fallan, se cuelgan y se caen.
-    add_executable(test_drivers tests/test_drivers.cpp dispositivos/Drivers.cpp dispositivos/Sondeo.cpp
-                                dispositivos/SondaDrivers.cpp)
+    add_executable(test_drivers tests/test_drivers.cpp)
     target_include_directories(test_drivers PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_drivers PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_drivers PRIVATE ba_app_equipos ba_core Qt6::Core)
     set_target_properties(test_drivers PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_drivers COMMAND test_drivers)
     # El catálogo de cosas que se pueden mostrar y los monitores (Salidas → Pantallas):
@@ -973,10 +1003,9 @@ endif()
 
     # El PTZ: protocolos byte a byte y cada backend contra una camara falsa
     # (VISCA UDP/TCP, Panasonic HTTP, ONVIF HTTP con WS-Security, WS-Discovery).
-    add_executable(test_ptz tests/test_ptz.cpp ptz/PtzProtocolos.cpp ptz/PtzBackend.cpp ptz/PtzVisca.cpp
-                   ptz/PtzPanasonic.cpp ptz/PtzOnvif.cpp ptz/OnvifBusqueda.cpp ptz/Posiciones.cpp)
+    add_executable(test_ptz tests/test_ptz.cpp)
     target_include_directories(test_ptz PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_ptz PRIVATE Qt6::Core Qt6::Network)
+    target_link_libraries(test_ptz PRIVATE ba_app_equipos Qt6::Core Qt6::Network)
     set_target_properties(test_ptz PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_ptz COMMAND test_ptz)
 
@@ -1109,9 +1138,9 @@ endif()
     add_test(NAME test_diagnostico_video COMMAND test_diagnostico_video)
 
     # El escáner de red: la base OUI, la biblioteca de URLs y RTSP (sin red).
-    add_executable(test_red tests/test_red.cpp red/Biblioteca.cpp red/Rtsp.cpp red/Plan.cpp)
+    add_executable(test_red tests/test_red.cpp)
     target_include_directories(test_red PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_red PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_red PRIVATE ba_app_equipos ba_core Qt6::Core)
     target_compile_definitions(test_red PRIVATE BA_TEST_DATOS="${CMAKE_SOURCE_DIR}/datos")
     add_test(NAME test_red COMMAND test_red)
     add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp)
@@ -1243,8 +1272,9 @@ endif()
     # Medir el retardo entre labios y voz con un aplauso. C++ puro: recibe
     # mediciones ya hechas y devuelve el numero, asi se prueba con señales
     # inventadas sin pararse a aplaudir frente a una camara.
-    add_executable(test_sincro_labios tests/test_sincro_labios.cpp camaras/SincroLabios.cpp)
+    add_executable(test_sincro_labios tests/test_sincro_labios.cpp)
     target_include_directories(test_sincro_labios PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_sincro_labios PRIVATE ba_app_equipos)
     add_test(NAME test_sincro_labios COMMAND test_sincro_labios)
 
     # La carpeta del evento: crear, guardar con respaldo, listar.
