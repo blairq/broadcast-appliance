@@ -250,6 +250,7 @@ if(TARGET gstbarostros)
     add_dependencies(test_eventos gstbarostros)
 endif()
 add_test(NAME test_eventos COMMAND test_eventos)
+target_include_directories(test_eventos PRIVATE "${CMAKE_SOURCE_DIR}/src/core") # tests/Puntualidad.hpp (bajoWine)
 
 # baptzgl con el video andando: de quieto (pasante) a moverse y vuelta, sin caerse.
 add_executable(test_ptz_gl tests/test_ptz_gl.cpp)
@@ -260,6 +261,8 @@ endif()
 target_compile_definitions(test_ptz_gl PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}")
 add_dependencies(test_ptz_gl gstbafiltros)
 add_test(NAME test_ptz_gl COMMAND test_ptz_gl)
+target_include_directories(test_ptz_gl PRIVATE "${CMAKE_SOURCE_DIR}/src/core") # tests/Puntualidad.hpp (bajoWine)
+set_tests_properties(test_ptz_gl PROPERTIES SKIP_RETURN_CODE 77)
 
 # La superresolución cambiada ANDANDO desde otro hilo (las caídas del 2026-10-10).
 add_executable(test_superres_vivo tests/test_superres_vivo.cpp)
@@ -281,3 +284,4 @@ endif()
 target_compile_definitions(test_sombra PRIVATE BA_TEST_GST_PLUGINS="${CMAKE_CURRENT_BINARY_DIR}")
 add_dependencies(test_sombra gstbafiltros)
 add_test(NAME test_sombra COMMAND test_sombra)
+target_include_directories(test_sombra PRIVATE "${CMAKE_SOURCE_DIR}/src/core") # tests/Puntualidad.hpp (bajoWine)

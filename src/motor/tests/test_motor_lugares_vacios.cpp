@@ -88,6 +88,36 @@ int hilos() {
 
 constexpr int kLugares = 24;
 constexpr int kLlegan = 8;
+
+/// Espera a que `listo()` se cumpla (mirando cada 100 ms), hasta `topeMs`. Las cuentas del
+/// motor cambian en sus hilos: con la máquina cargada tardan más que con la máquina sola, así
+/// que se espera la condición y no un tiempo fijo.
+template <class F> bool esperarQue(F listo, int topeMs = 20000) {
+    const auto tope = std::chrono::steady_clock::now() + std::chrono::milliseconds(topeMs);
+    while (!listo()) {
+        if (std::chrono::steady_clock::now() >= tope) return false;
+        esperar(100);
+    }
+    return true;
+}
+
+/// Los hilos del proceso ya en calma: los de trabajo que sobraron se fueron (a los ~5 s sin
+/// trabajo: Trabajos.hpp; con la máquina cargada, más) y la cuenta no cambió en el último
+/// medio segundo. Lo que se mide son los hilos que QUEDAN, no la ráfaga de un cambio: antes
+/// era un esperar fijo de 6 s y, con carga, la ráfaga seguía viva y se contaba como de los
+/// lugares (test_motor_lugares_vacios fallaba con otros compilando).
+int hilosEnCalma() {
+    int antes = -1, h = hilos();
+    esperarQue(
+        [&] {
+            esperar(400);
+            antes = h;
+            h = hilos();
+            return h == antes && hilosDeTrabajo().vivos <= 2;
+        },
+        30000);
+    return h;
+}
 } // namespace
 
 int main() {
@@ -115,8 +145,7 @@ int main() {
     cfg.sinkEscucha = "fakesink sync=true"; // nada por los parlantes
     Motor motor(cfg);
     CHECK(motor.iniciar().empty(), "el motor arranca");
-    esperar(1500);
-    const int h0 = hilos();
+    const int h0 = hilosEnCalma();
     const std::int64_t m0 = memoria::privada();
 
     // Los lugares vacíos ANTES de crear sus entradas (la app lo hace así al cambiar el cupo).
@@ -144,13 +173,12 @@ int main() {
                   .empty(),
               "el audio del lugar");
     }
-    esperar(2500);
-    json rec = motor.estado()["recursos"];
+    json rec;
+    esperarQue([&] { rec = motor.estado()["recursos"]; return rec.value("en_reposo", -1) == 2 * kLugares; });
     // Crear 48 entradas de golpe agranda los hilos de trabajo compartidos hasta su tope (16);
     // los que sobran se van a los 5 s sin trabajo (Trabajos.hpp). Lo que se mide es lo que
     // QUEDA: los hilos de los lugares, no la ráfaga del arranque.
-    esperar(6000);
-    const int h1 = hilos();
+    const int h1 = hilosEnCalma();
     std::printf("%d lugares vacíos: hilos %d → %d (%.2f por lugar); %s\n", kLugares, h0, h1,
                 static_cast<double>(h1 - h0) / kLugares, rec.dump().c_str());
     CHECK(rec.value("placas_armadas", -1) == 0, "un lugar vacío que nadie mira no arma su placa");
@@ -162,8 +190,7 @@ int main() {
     // Uno que se muestra: con su placa (y sin gente sigue armado para verse).
     motor.definirEscena({{"nombre", "Lugar 1"}, {"capas", {{{"entrada", "Invitado 1"}}}}});
     CHECK(motor.alAire("Lugar 1").empty(), "al aire el lugar 1");
-    esperar(1500);
-    rec = motor.estado()["recursos"];
+    esperarQue([&] { rec = motor.estado()["recursos"]; return rec.value("placas_armadas", -1) == 1; });
     CHECK(rec.value("placas_armadas", -1) == 1, "el lugar vacío que se muestra, con su placa");
     CHECK(motor.estado()["entradas"]["Invitado 1"].value("placa_armada", false), "es la suya");
     motor.definirEscena({{"nombre", "Vacía"}, {"capas", json::array()}});
@@ -171,10 +198,8 @@ int main() {
 
     // Llega gente a 8 lugares: pocos hilos por invitado (el lector común es uno para todos).
     motor.ponerLugares(lugares(kLlegan));
-    esperar(1500);
-    rec = motor.estado()["recursos"];
-    esperar(6000); // la ráfaga de los hilos de trabajo se va (ver arriba): lo que queda
-    const int h2 = hilos();
+    esperarQue([&] { rec = motor.estado()["recursos"]; return rec.value("en_reposo", -1) == 2 * (kLugares - kLlegan); });
+    const int h2 = hilosEnCalma(); // la ráfaga de los hilos de trabajo se va (ver arriba): lo que queda
     std::printf("llegan %d: hilos %d → %d (%.2f por invitado); %s\n", kLlegan, h1, h2, static_cast<double>(h2 - h1) / kLlegan,
                 rec.dump().c_str());
     CHECK(rec.value("en_reposo", -1) == 2 * (kLugares - kLlegan), "los que llegaron, andando; los demás en reposo");
@@ -182,8 +207,8 @@ int main() {
 
     // Se van y vuelven tres veces: ni hilos ni memoria colgados.
     motor.ponerLugares(lugares(0));
-    esperar(1500);
-    const int h3 = hilos();
+    esperarQue([&] { return motor.estado()["recursos"].value("en_reposo", -1) == 2 * kLugares; });
+    const int h3 = hilosEnCalma();
     const std::int64_t m3 = memoria::privada();
     for (int vuelta = 0; vuelta < 3; ++vuelta) {
         motor.ponerLugares(lugares(kLlegan));
@@ -191,9 +216,11 @@ int main() {
         motor.ponerLugares(lugares(0));
         esperar(800);
     }
-    esperar(6000); // los hilos de trabajo que sobran se van a los ~5 s
-    rec = motor.estado()["recursos"];
-    const int h4 = hilos();
+    esperarQue([&] {
+        rec = motor.estado()["recursos"];
+        return rec.value("en_reposo", -1) == 2 * kLugares && rec.value("placas_armadas", -1) == 0;
+    });
+    const int h4 = hilosEnCalma(); // los hilos de trabajo que sobran se van a los ~5 s
     const std::int64_t m4 = memoria::privada();
     std::printf("tres idas y vueltas: hilos %d → %d, privada %lld → %lld MB; %s\n", h3, h4, static_cast<long long>(m3 / 1048576),
                 static_cast<long long>(m4 / 1048576), rec.dump().c_str());
@@ -206,9 +233,9 @@ int main() {
         motor.quitarEntrada("Invitado " + std::to_string(i));
         motor.quitarEntrada("Invitado " + std::to_string(i) + " (audio)");
     }
-    esperar(7000);
+    esperarQue([&] { return motor.estado()["recursos"].value("entradas", -1) == 0; });
+    const int h5 = hilosEnCalma();
     rec = motor.estado()["recursos"];
-    const int h5 = hilos();
     const memoria::Compactada c = memoria::compactar();
     std::printf("sin lugares: hilos %d (al principio %d); privada %lld → %lld MB (compactada en %lld µs); %s\n", h5, h0,
                 static_cast<long long>(m0 / 1048576), static_cast<long long>(c.despues / 1048576), static_cast<long long>(c.us),

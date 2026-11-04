@@ -1,8 +1,11 @@
 #include "asamblea/RecintoModel.hpp"
 
+#include "i18n/OrdenNatural.hpp"
+
 #include <QCollator>
 
 #include <algorithm>
+#include <string_view>
 
 namespace ba::app::asamblea {
 
@@ -119,10 +122,14 @@ void RecintoModel::recalcular() {
         porLugar.insert(QString::number(l.value("fila").toInt()) + "," + QString::number(l.value("columna").toInt()), l);
     }
     // Por número de banca (la lista; en la grilla y el hemiciclo cada una va a su lugar).
-    QCollator nat;
-    nat.setNumericMode(true);
-    std::stable_sort(filas.begin(), filas.end(), [&nat](const QVariant& a, const QVariant& b) {
-        return nat.compare(a.toMap().value("banca").toString(), b.toMap().value("banca").toString()) < 0;
+    // (Natural también en Linux: ahí QCollator no tiene modo numérico; core/i18n/OrdenNatural.hpp.)
+    const QCollator col;
+    const auto vista = [](std::u16string_view v) { return QStringView(v.data(), static_cast<qsizetype>(v.size())); };
+    std::stable_sort(filas.begin(), filas.end(), [&](const QVariant& a, const QVariant& b) {
+        const QString x = a.toMap().value("banca").toString(), y = b.toMap().value("banca").toString();
+        return ba::i18n::compararNatural(std::u16string_view(reinterpret_cast<const char16_t*>(x.utf16()), static_cast<std::size_t>(x.size())),
+                                         std::u16string_view(reinterpret_cast<const char16_t*>(y.utf16()), static_cast<std::size_t>(y.size())),
+                                         [&](std::u16string_view t, std::u16string_view u) { return col.compare(vista(t), vista(u)); }) < 0;
     });
     bancas_.poner(filas);
     const QVariant pres = r.value("presidencia");

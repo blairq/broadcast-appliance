@@ -53,6 +53,9 @@ fi
 [ "$SOLO_WINE" = 1 ] && exit 0
 
 export WINEPREFIX="$B/wineprefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtml=" DISPLAY=
+# Como ctest (cmake/BaTestsCache.cmake): los tests esperan los textos en el original, no en
+# el idioma de la máquina (sin esto, test_mcp leía «isn't open» en vez de «no esta abierto»).
+export BA_IDIOMA=es
 export WINEPATH="$ROOT/extern/qt6/6.6.3/msvc2019_64/bin;$ROOT/extern/gstreamer-win/bin;$ROOT/extern/onnxruntime-win/lib;$ROOT/extern/python-win;$ROOT/extern/msvc/redist"
 # Los tests de audio cargan el LSP de Windows (tools/deps/lsp-win.sh) por ruta Windows.
 if [ -f "$ROOT/extern/lsp/windows-x86_64/lsp-plugins.clap" ]; then
@@ -68,6 +71,9 @@ rm -f "$RES" && : >"$RES"
 find "$B/src" "$B/win-mt/src" -name 'test_*.exe' 2>/dev/null | sort |
     python3 "$ROOT/tools/ci/tests-con-cache.py" wine-preparar --build "$B" --herramienta "$WINE_NAME" \
         --objdump "$TC/llvm/bin/llvm-objdump" --ruta "$WINEPATH" --pendientes "$PEND" || exit 1
+
+# ¿El test dijo «<test>: OK» al terminar? (ver el reintento de abajo)
+dijo_ok() { tail -n 3 "$2" 2>/dev/null | grep -q "^$1: OK"; }
 
 if [ -s "$PEND" ]; then
 timeout 300 "$W" wineboot -u >/dev/null 2>&1
@@ -90,6 +96,22 @@ uno() {
 export -f uno
 export B W RES
 xargs -P "$JOBS" -I{} bash -c 'uno "$1"' _ {} <"$PEND"
+# rc=133 (128+5): el proceso wine murió por SIGTRAP: lo mató el emulador (Wine sobre
+# Rosetta, con la máquina llena de tests a la vez), no el test (un test que se cae bajo Wine
+# sale con el código de la excepción de Windows, no con una señal). Se reintentan de a uno.
+# Igual los que dijeron «<test>: OK» y aun así salieron con otro código: el programa
+# terminó bien y algo se rompió al cerrarse el proceso bajo Wine.
+: >"$B/wine-logs/.reintentar"
+: >"$RES.tmp"
+while read -r rc seg n log t; do
+    if [ "$rc" = 133 ] || { [ "$rc" != 0 ] && [ "$rc" != 77 ] && dijo_ok "$n" "$log"; }; then
+        echo "$t" >>"$B/wine-logs/.reintentar"
+    else
+        echo "$rc $seg $n $log $t" >>"$RES.tmp"
+    fi
+done <"$RES"
+mv "$RES.tmp" "$RES"
+while read -r t; do uno "$t"; done <"$B/wine-logs/.reintentar"
 "$TC/wine/bin/wineserver" -k 2>/dev/null
 # Los que pasaron (o se saltearon), a la caché.
 python3 "$ROOT/tools/ci/tests-con-cache.py" wine-guardar --build "$B" --resultados "$RES"
@@ -98,11 +120,17 @@ fi
 pass=0
 skip=0
 failed=()
+entorno=()
 while read -r rc seg n log _; do
     case $rc in
         0) pass=$((pass + 1)) ;;
         77) skip=$((skip + 1)) ;;
-        *) failed+=("$n($rc)"); echo "---- $n (rc=$rc, ${seg} s)"; grep -E "FALLO|FAIL" "$log" | head -5 ;;
+        133) entorno+=("$n"); echo "---- $n: rc=133 dos veces (SIGTRAP del emulador: Wine sobre Rosetta; del entorno, no del test)" ;;
+        *) if dijo_ok "$n" "$log"; then
+               entorno+=("$n"); echo "---- $n: dijo OK y Wine devolvió rc=$rc dos veces (al cerrarse el proceso; confirmar en Windows)"
+               continue
+           fi
+           failed+=("$n($rc)"); echo "---- $n (rc=$rc, ${seg} s)"; grep -E "FALLO|FAIL" "$log" | head -5 ;;
     esac
 done < <(sort -k3 "$RES")
 if [ -s "$RES" ]; then
@@ -110,5 +138,5 @@ if [ -s "$RES" ]; then
     sort -k2 -rn "$RES" | head -8 | awk '{printf "  %4d s  %s\n", $2, $3}'
 fi
 sin_correr=$(( $(wc -l <"$B/wine-logs/.claves") - $(wc -l <"$PEND") ))
-echo "Windows (Wine): ${pass} ok, ${skip} saltados, ${#failed[@]} fallidos ${failed[*]:-} (${sin_correr} sin correr: caché o lentos afuera)"
+echo "Windows (Wine): ${pass} ok, ${skip} saltados, ${#failed[@]} fallidos ${failed[*]:-}, ${#entorno[@]} del entorno (Wine) ${entorno[*]:-} (${sin_correr} sin correr: caché o lentos afuera)"
 [ "${#failed[@]}" -eq 0 ]

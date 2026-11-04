@@ -134,7 +134,16 @@ int main(int argc, char** argv) {
         const std::size_t c = t.find("== cayo ");
         const std::size_t l = c == std::string::npos ? c : t.find('\n', c);
         const std::string primero = l == std::string::npos ? std::string() : t.substr(l + 1, t.find('\n', l + 1) - l - 1);
-        CHECK(primero.rfind("#00 ", 0) == 0 && primero.find(" main+") != std::string::npos, "#00 es donde se cayó");
+        // La dirección de #00 es la «pc» de la señal (donde se cayó). El nombre (main) lo da el
+        // sistema solo si el ejecutable exporta sus símbolos: en Linux no (sin -rdynamic; el
+        // nombre lo pone después tools/caidas/analizar.py con la imagen, el desplazamiento y su
+        // build-id), así que ahí alcanza con la dirección.
+        const std::size_t p = t.find("\npc ");
+        const std::string pc = p == std::string::npos ? std::string("?") : t.substr(p + 4, t.find('\n', p + 1) - p - 4);
+        CHECK(primero.rfind("#00 " + pc + " ", 0) == 0, "#00 es donde se cayó (su dirección es la pc de la señal)");
+#if !defined(__linux__)
+        CHECK(primero.find(" main+") != std::string::npos, "#00 es donde se cayó: main");
+#endif
     }
     if (g_fallos > 0) std::printf("%s\n", t.c_str());
 

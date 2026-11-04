@@ -95,7 +95,7 @@ bool esperar(const std::function<bool()>& f, int ms) {
     return f();
 }
 
-void resumirSinHilos() {
+[[maybe_unused]] void resumirSinHilos() {
     using ba::diag::resumirPila;
     // El hilo de la interfaz esperando al de render (lo de arriba del bucle de eventos).
     const std::string render = "BA-PILAS 1\n"
@@ -183,7 +183,14 @@ void culpableSinPisar() {
 
 int main() {
     ba::platform::nombrarHilo("interfaz");
+#if !defined(_WIN32)
     resumirSinHilos();
+#else
+    // resumirPila lee el .pila de macOS y Linux (pilas con nombres Itanium, «_ZN…», que se
+    // desarman con cxxabi); en Windows la traba se captura como minivolcado (.dmp) y no se
+    // resume (VigiaTraba.cpp), y clang-cl no tiene con qué desarmar esos nombres.
+    std::printf("   resumirPila: solo con el .pila de macOS y Linux (en Windows, .dmp)\n");
+#endif
     culpableSinPisar();
 
     const fs::path dir = fs::temp_directory_path() / ("ba-test-vigia-traba-" + std::to_string(ahoraMs()));

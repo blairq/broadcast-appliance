@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <cmath>
 #include <deque>
+#include <string_view>
 #include <utility>
 #include <vector>
 
@@ -24,6 +25,7 @@
 #include <QSGImageNode>
 
 #include "Declarativo.hpp"
+#include "i18n/OrdenNatural.hpp"
 
 namespace ba::grafico {
 
@@ -145,9 +147,16 @@ class Secuencia : public FuenteDeCuadros {
         }
         // Ordenados como los ordena una persona: «cuadro2» antes que «cuadro10».
         QStringList archivos = QDir(dir).entryList({"*.png", "*.PNG", "*.webp", "*.jpg", "*.jpeg"}, QDir::Files);
-        QCollator orden;
-        orden.setNumericMode(true);
-        std::sort(archivos.begin(), archivos.end(), [&](const QString& a, const QString& b) { return orden.compare(a, b) < 0; });
+        // (Natural también en Linux, donde QCollator no tiene modo numérico: core/i18n/OrdenNatural.hpp.)
+        const QCollator orden;
+        const auto u16 = [](const QString& x) {
+            return std::u16string_view(reinterpret_cast<const char16_t*>(x.utf16()), static_cast<std::size_t>(x.size()));
+        };
+        const auto texto = [&](std::u16string_view x, std::u16string_view y) {
+            return orden.compare(QStringView(x.data(), static_cast<qsizetype>(x.size())), QStringView(y.data(), static_cast<qsizetype>(y.size())));
+        };
+        std::sort(archivos.begin(), archivos.end(),
+                  [&](const QString& a, const QString& b) { return ba::i18n::compararNatural(u16(a), u16(b), texto) < 0; });
         for (const QString& a : archivos) s->archivos_ << QDir(dir).filePath(a);
         s->n_ = static_cast<int>(s->archivos_.size());
         if (s->n_ == 0) {

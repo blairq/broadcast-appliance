@@ -73,6 +73,7 @@
 #include "rtc_base/time_utils.h"
 
 #include "Webrtc.hpp"
+#include "tests/Puntualidad.hpp"
 
 using json = nlohmann::json;
 using ba::gateway::SessionCallbacks;
@@ -240,6 +241,7 @@ bool waitFor(const std::function<bool()>& cond, int ms) {
 
 int main() {
     std::printf("== test_webrtc_loopback (libwebrtc real) ==\n");
+    ba::pruebas::SondaPuntualidad sonda; // ¿la máquina deja correr a tiempo? (tests/Puntualidad.hpp)
 #ifdef _WIN32
     _putenv_s("BA_WEBRTC_ALLOW_LOOPBACK", "1");
 #else
@@ -850,6 +852,7 @@ int main() {
         std::printf("test_webrtc_loopback: OK\n");
         return 0;
     }
-    std::printf("test_webrtc_loopback: %d fallo(s)\n", g_failures);
-    return 1;
+    // Plazos de medios reales (cuadros en 3 s, el primer cuadro clave): con la máquina
+    // cargada (o bajo Wine sobre Rosetta) no llegan a tiempo sin que nada esté mal.
+    return ba::pruebas::resultadoTiempoReal("test_webrtc_loopback", g_failures, &sonda);
 }

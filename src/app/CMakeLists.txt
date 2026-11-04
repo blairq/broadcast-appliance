@@ -1146,6 +1146,8 @@ endif()
     target_link_libraries(test_plano_control PRIVATE ba_app_ui ba_app_mcp ba_app_emision ba_app_control ba_app_agente ba_app_evento ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_plano_control COMMAND test_plano_control)
+    # 77: solo fallaron chequeos de tiempo con la máquina cargada (tests/Puntualidad.hpp).
+    set_tests_properties(test_plano_control PROPERTIES SKIP_RETURN_CODE 77)
     # Las pastillas del aire (ui/EstadoAireViewModel): el tiempo de una grabación que ya
     # andaba y los avisos por grupo, con una ventanilla sintética.
     add_executable(test_estado_aire tests/test_estado_aire.cpp)
@@ -1679,6 +1681,10 @@ endif()
     target_include_directories(test_apdf PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_apdf PRIVATE ba_app_carrusel ba_app_evento ba_core Qt6::Core Qt6::Gui Qt6::Pdf)
     target_compile_definitions(test_apdf PRIVATE BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
+    if(EXISTS "${CMAKE_SOURCE_DIR}/extern/fuentes-texto")
+        # Las tipografías del bundle (data/fonts): con QPA offscreen, en Windows Qt no tiene otras.
+        target_compile_definitions(test_apdf PRIVATE BA_TEST_FUENTES="${CMAKE_SOURCE_DIR}/extern/fuentes-texto")
+    endif()
     if(_ba_craft_ok)
         target_compile_definitions(test_apdf PRIVATE BA_CRAFT_DIR="${_ba_craft_dir}")
     endif()

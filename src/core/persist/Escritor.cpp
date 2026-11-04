@@ -4,6 +4,7 @@
 
 #include "diag/Acoples.hpp"
 
+#include <cstdio>
 #include <algorithm>
 #include <cctype>
 #include <cerrno>
@@ -250,7 +251,12 @@ std::string sistemaDeArchivos(const fs::path& ruta) {
         case 0x4D44UL: return "vfat";
         case 0x2011BAB0UL: return "exfat";
         case 0x65735546UL: return "fuseblk"; // ntfs-3g, exfat-fuse…: no se sabe cuál
-        default: return {};
+        case 0x794C7630UL: return "overlay"; // Docker y los contenedores
+        default: { // otro: su número, como platform::sistemaDeArchivos (sabido, aunque sin nombre)
+            char b[24];
+            std::snprintf(b, sizeof b, "0x%lx", static_cast<unsigned long>(s.f_type));
+            return b;
+        }
     }
 #endif
 }

@@ -6,6 +6,7 @@
 // La imagen de prueba: 64 x 48 transparente con un rectángulo rojo opaco en el
 // medio (x 16..48, y 12..36), o toda opaca para el borde difuso.
 // ============================================================================
+#include "tests/Puntualidad.hpp" // bajoWine
 #include <gst/app/gstappsink.h>
 #include <gst/app/gstappsrc.h>
 #include <gst/gst.h>
@@ -176,7 +177,8 @@ int main(int argc, char** argv) {
     check(nada.w == kW && nada.px == prueba(false), "sin sombra ni borde, la imagen pasa tal cual");
 
     // La GPU da lo mismo que la CPU.
-    for (const std::string& props : {sombra, std::string("margen=12 alfa=0.7 difuminado=6 distancia=4 angulo=135 tamano=3 color=0xFF2040FF"),
+    if (ba::pruebas::bajoWine()) std::printf("salteado: basombragl (%s)\n", "bajo Wine GStreamer-GL aborta al crear su ventana (gstglwindow_win32.c: internal_win_id == hWnd; sin placa ni escritorio): no se puede probar ahí");
+    else for (const std::string& props : {sombra, std::string("margen=12 alfa=0.7 difuminado=6 distancia=4 angulo=135 tamano=3 color=0xFF2040FF"),
                                      std::string("borde=6 margen=8 alfa=0.6 difuminado=3 distancia=0"),
                                      std::string("radio=10 margen=8 alfa=0.8 difuminado=4 distancia=3")}) {
         std::string eg;

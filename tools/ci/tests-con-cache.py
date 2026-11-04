@@ -18,7 +18,8 @@
 #     (BA_*, GST_*, QT_*, DYLD_*, LD_*, WINE*, PYTHON*, LANG, LC_*), la versión de
 #     ctest o de Wine, la del sistema y la de este script.
 # Solo se guarda la clave de un test que pasó (0) o se salteó (77); un fallo
-# nunca. De cada uno se guardan también las partes de esa clave (.cache-tests/
+# nunca, ni un salteo porque la máquina estaba cargada («SKIP (máquina
+# cargada)», src/core/tests/Puntualidad.hpp: esa corrida no probó nada). De cada uno se guardan también las partes de esa clave (.cache-tests/
 # ultimas/<test>.json): la próxima vez que corra se dice qué entrada cambió. Los contenidos se leen una vez: después, el memo de tools/ci/huellas.py
 # (tamaño, mtime, ctime e inodo) dice si un archivo cambió sin releerlo.
 #
@@ -652,7 +653,9 @@ def modo_ctest(argv):
                 if st == "run":
                     resultados[tc.get("name")] = (0, float(tc.get("time") or 0))
                 elif st == "notrun" and sk is not None and "SKIP_RETURN_CODE" in (sk.get("message") or ""):
-                    resultados[tc.get("name")] = (77, float(tc.get("time") or 0))
+                    salida = tc.findtext("system-out") or ""
+                    if MARCA_CARGADA not in salida:
+                        resultados[tc.get("name")] = (77, float(tc.get("time") or 0))
             os.unlink(junit)
         except (OSError, ET.ParseError):
             log("ctest no dejó el junit: no se anota nada")
@@ -730,6 +733,19 @@ def modo_wine_preparar(argv):
     return 0
 
 
+# Un test de tiempo real que se salteó porque la máquina estaba cargada lo dice así
+# (src/core/tests/Puntualidad.hpp): no se anota (no probó nada).
+MARCA_CARGADA = "SKIP (máquina cargada)"
+
+
+def saltado_por_carga(log_):
+    try:
+        with open(log_, encoding="utf-8", errors="replace") as f:
+            return MARCA_CARGADA in f.read()
+    except OSError:
+        return False
+
+
 def modo_wine_guardar(argv):
     ap = argparse.ArgumentParser(prog="tests-con-cache.py wine-guardar")
     ap.add_argument("--build", required=True)
@@ -747,6 +763,8 @@ def modo_wine_guardar(argv):
         for linea in f:
             partes = linea.split(None, 4)  # rc segundos nombre log exe
             if len(partes) == 5 and partes[0] in ("0", "77"):
+                if partes[0] == "77" and saltado_por_carga(partes[3]):
+                    continue
                 k = claves.get(os.path.abspath(partes[4].strip()))
                 if k:
                     cache.anotar(k, partes[2], int(partes[0]), float(partes[1]))

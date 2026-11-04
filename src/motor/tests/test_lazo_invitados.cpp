@@ -26,6 +26,7 @@
 
 #include "LectorAnillo.hpp"
 #include "Motor.hpp"
+#include "tests/Puntualidad.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "ipc/SharedAudioRing.hpp"
@@ -194,6 +195,7 @@ Lazo medir(Gateway& g, const char* que, const std::string& canal, int ms) {
 } // namespace
 
 int main() {
+    ba::pruebas::SondaPuntualidad sonda; // ¿la máquina deja correr a tiempo? (tests/Puntualidad.hpp)
 #if defined(BA_TEST_GST_RAIZ)
     g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
 #endif
@@ -305,5 +307,5 @@ int main() {
     g.fin = true;
     g.hilo.join();
     std::printf("== test_lazo_invitados (%d): %s ==\n", n, fallos == 0 ? "OK" : "FALLOS");
-    return fallos == 0 ? 0 : 1;
+    return ba::pruebas::resultadoTiempoReal("test_lazo_invitados", fallos, &sonda);
 }

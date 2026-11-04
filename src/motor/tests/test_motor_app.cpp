@@ -10,6 +10,7 @@
 //   - remux de una grabación MKV a MP4 sin recodificar.
 
 #include "Motor.hpp"
+#include "tests/Puntualidad.hpp"
 #include "Salidas.hpp"
 
 #include <gst/gst.h>
@@ -78,12 +79,20 @@ Px mirarHasta(Motor& m, const std::string& clave, int x, int y, F cumple, int to
     return p;
 }
 
+/// Espera a que `listo()` se cumpla (cada 50 ms) hasta `topeMs`: lo que el motor hace en sus
+/// hilos tarda más con la máquina cargada; se espera a que pase, no un tiempo fijo.
+template <typename F> bool esperarQue(F listo, int topeMs = 6000) {
+    for (int t = 0; t < topeMs && !listo(); t += 50) esperar(50);
+    return listo();
+}
+
 json color(const char* c) {
     return {{"tipo", "color"}, {"color", c}, {"ancho", 320}, {"alto", 180}};
 }
 } // namespace
 
 int main() {
+    ba::pruebas::SondaPuntualidad sonda; // ¿la máquina deja correr a tiempo? (tests/Puntualidad.hpp)
 #if defined(BA_TEST_GST_RAIZ)
     g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
 #endif
@@ -119,8 +128,7 @@ int main() {
     m.definirEscena({{"nombre", "App"}, {"capas", {{{"entrada", "lienzo"}}}}});
     CHECK(m.alAire("Roja").empty(), "al aire la roja");
     CHECK(m.verPedir("programa", 320, 180).empty(), "ver el programa");
-    esperar(1500);
-    CHECK(igual(mirar(m, "programa", 160, 90), 255, 0, 0), "el programa, rojo");
+    CHECK(igual(mirarHasta(m, "programa", 160, 90, [](const Px& p) { return igual(p, 255, 0, 0); }), 255, 0, 0), "el programa, rojo");
 
     // La app empuja un cuadro azul (una sola vez) y la escena App lo muestra.
     {
@@ -133,16 +141,15 @@ int main() {
         CHECK(m.empujarCuadro("lienzo", azul.data(), 160, 90, 160 * 4), "empujar un cuadro");
         CHECK(!m.empujarCuadro("rojo", azul.data(), 160, 90, 160 * 4), "a una entrada que no es app, no");
         CHECK(m.verPedir("escena:App", 320, 180).empty(), "ver una escena que no está al aire (el editor)");
-        esperar(1500);
-        const Px p = mirar(m, "escena:App", 160, 90);
+        const Px p = mirarHasta(m, "escena:App", 160, 90, [](const Px& q) { return igual(q, 0, 0, 255); });
         std::printf("escena App (no al aire): %s\nlienzo: %s\n", txt(p).c_str(), m.estado()["entradas"]["lienzo"].dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
         CHECK(igual(p, 0, 0, 255), "lo que pintó la app se ve");
         esperar(1500);
         CHECK(igual(mirar(m, "escena:App", 160, 90), 0, 0, 255), "y sigue viéndose (sin mandar más cuadros)");
         // Cambiar la escena la actualiza en la vista.
         m.definirEscena({{"nombre", "App"}, {"capas", {{{"entrada", "verde"}}}}});
-        esperar(800);
-        CHECK(igual(mirar(m, "escena:App", 160, 90), 0, 255, 0), "la vista de la escena sigue sus cambios");
+        CHECK(igual(mirarHasta(m, "escena:App", 160, 90, [](const Px& q) { return igual(q, 0, 255, 0); }), 0, 255, 0),
+              "la vista de la escena sigue sus cambios");
         m.verSoltar("escena:App");
         m.esperarCola();
         CHECK(m.estado()["vistas"].count("escena:App") == 0, "soltada");
@@ -159,18 +166,16 @@ int main() {
 
     // T-bar hacia la verde.
     m.tbar("Verde", 0.5, false);
-    esperar(500);
-    const Px mitad = mirar(m, "programa", 160, 90);
+    const auto aMitad = [](const Px& p) { return p.r > 70 && p.r < 190 && p.g > 70 && p.g < 190; };
+    const Px mitad = mirarHasta(m, "programa", 160, 90, aMitad);
     std::printf("T-bar a mitad: %s (hacia %s)\n", txt(mitad).c_str(), m.tbarHacia().c_str());
     CHECK(mitad.r > 70 && mitad.r < 190 && mitad.g > 70 && mitad.g < 190, "a mitad, mezcla");
     CHECK(m.tbarHacia() == "Verde", "va hacia la verde");
     CHECK(!m.tbar("Verde", 0.3, true), "soltada antes de la mitad, vuelve");
-    esperar(500);
-    CHECK(igual(mirar(m, "programa", 160, 90), 255, 0, 0), "vuelve la roja");
+    CHECK(igual(mirarHasta(m, "programa", 160, 90, [](const Px& p) { return igual(p, 255, 0, 0); }), 255, 0, 0), "vuelve la roja");
     m.tbar("Verde", 0.4, false);
     CHECK(m.tbar("Verde", 0.8, true), "pasada la mitad, queda");
-    esperar(500);
-    CHECK(igual(mirar(m, "programa", 160, 90), 0, 255, 0), "queda la verde");
+    CHECK(igual(mirarHasta(m, "programa", 160, 90, [](const Px& p) { return igual(p, 0, 255, 0); }), 0, 255, 0), "queda la verde");
     CHECK(m.estado()["video"].value("al_aire", "") == "Verde", "al aire la verde");
 
     // La toma del audio del programa y el volumen del máster.
@@ -182,16 +187,16 @@ int main() {
         pico = p;
         cuadros += n;
     });
-    esperar(1500);
+    esperarQue([&] { return cuadros > 48000 && std::fabs(pico - 0.25) < 0.03; });
     std::printf("toma del programa: %zu cuadros, pico %.3f\n", cuadros.load(), pico.load());
     CHECK(cuadros > 48000, "llega el audio del programa (más de 1 s)");
     CHECK(std::fabs(pico - 0.25) < 0.03, "con su nivel (seno de 0,25)");
     m.masterVolumen(0.0, 300);
-    esperar(900);
+    esperarQue([&] { return pico < 0.01; });
     std::printf("con el máster a 0: pico %.4f\n", pico.load());
     CHECK(pico < 0.01, "el máster baja todo (FTB)");
     m.masterVolumen(1.0, 0);
-    esperar(600);
+    esperarQue([&] { return pico > 0.2; });
     CHECK(pico > 0.2, "y vuelve");
     m.dejarDeEscuchar(oyente);
 
@@ -264,9 +269,10 @@ int main() {
         json v = color("#00FF00");
         v["desfase_video"] = 300;
         CHECK(m.actualizarEntrada("verde", v).empty(), "atrasar el video de la verde");
-        esperar(1500);
+        esperarQue([&] { return m.estado()["entradas"]["verde"].value("desfase_video_ms", 0) == 300; });
         CHECK(m.estado()["entradas"]["verde"].value("desfase_video_ms", 0) == 300, "el desfase de video, en el estado");
-        CHECK(igual(mirar(m, "programa", 160, 90), 0, 255, 0), "con el video atrasado, el programa sigue verde");
+        CHECK(igual(mirarHasta(m, "programa", 160, 90, [](const Px& p) { return igual(p, 0, 255, 0); }), 0, 255, 0),
+              "con el video atrasado, el programa sigue verde");
     }
     // Una fuente de POCOS cuadros (como el canal de un invitado vacío: la placa a 5 cps) con el
     // PTZ digital: el tee de la toma entera trababa la rama principal después del primer cuadro
@@ -276,7 +282,8 @@ int main() {
                          {"normalizar", false},
                          {"filtros", json{{"video", json::array({{{"id", "ptz"}, {"elemento", "baptz"}}})}}}};
         CHECK(m.agregarEntrada("lenta", lenta).empty(), "una entrada de 5 cps con PTZ");
-        esperar(4000);
+        esperar(2000); // trabado pasaba uno por rearme: se mira que sigan pasando
+        esperarQue([&] { return m.estado()["entradas"]["lenta"].value("cuadros", 0) >= 5; }, 10000);
         const json el = m.estado()["entradas"]["lenta"];
         std::printf("5 cps con PTZ: cuadros %d, sin datos %.1f s\n", el.value("cuadros", 0), el.value("sin_datos_s", -1.0));
         CHECK(el.value("cuadros", 0) >= 5, "con el PTZ sigue pasando cuadros (trabado pasaba uno solo)");
@@ -298,8 +305,7 @@ int main() {
         std::printf("pelota con desfase: cuadros %d → %d, sin datos hace %.1f s, edad %s\n", antes, ep.value("cuadros", 0),
                     ep.value("sin_datos_s", -1.0), ep["edad_video"].dump().c_str());
         const int despues = cuadros();
-        esperar(1000);
-        CHECK(cuadros() > despues + 10, "con el desfase sigue dando cuadros");
+        CHECK(esperarQue([&] { return cuadros() > despues + 10; }), "con el desfase sigue dando cuadros");
         CHECK(ep.value("sin_datos_s", 99.0) >= 0 && ep.value("sin_datos_s", 99.0) < 1.0, "y no queda «sin datos»");
         CHECK(ep["edad_video"].is_object(), "y sigue publicando su edad (aunque sea negativa: sale con hora futura)");
         m.quitarEntrada("pelota");
@@ -315,11 +321,12 @@ int main() {
                                     {{"entrada", "Cam-1"}, {"x", 160}, {"y", 0}, {"ancho", 160}, {"alto", 180}, {"orden", 1}}}}});
         CHECK(m.verPedir("escena:Parecidas@prueba", 320, 180).empty(), "ver la escena con «Cam 1» y «Cam-1»");
         CHECK(m.verPedir("entrada:Cam@Sala@prueba", 160, 90).empty(), "ver una entrada con «@» en el nombre");
-        esperar(1500);
-        const Px a = mirar(m, "escena:Parecidas@prueba", 80, 90), b = mirar(m, "escena:Parecidas@prueba", 240, 90);
+        const Px a = mirarHasta(m, "escena:Parecidas@prueba", 80, 90, [](const Px& p) { return p.r > 200 && p.b < 60; });
+        const Px b = mirarHasta(m, "escena:Parecidas@prueba", 240, 90, [](const Px& p) { return p.b > 200 && p.r < 60; });
         std::printf("Cam 1 | Cam-1: %s | %s\n", txt(a).c_str(), txt(b).c_str());
         CHECK(a.r > 200 && a.b < 60 && b.b > 200 && b.r < 60, "las dos se ven, cada una en su lugar");
-        CHECK(igual(mirar(m, "entrada:Cam@Sala@prueba", 80, 45), 0, 255, 0), "la de «@» se ve (y no otra)");
+        CHECK(igual(mirarHasta(m, "entrada:Cam@Sala@prueba", 80, 45, [](const Px& p) { return igual(p, 0, 255, 0); }), 0, 255, 0),
+              "la de «@» se ve (y no otra)");
         m.verSoltar("escena:Parecidas@prueba");
         m.verSoltar("entrada:Cam@Sala@prueba");
         for (const char* e : {"Cam 1", "Cam-1", "Cam@Sala"}) m.quitarEntrada(e);
@@ -335,16 +342,15 @@ int main() {
         m.definirEscena({{"nombre", "Cam"}, {"capas", {{{"entrada", "cam"}}}}});
         CHECK(m.verPedir("escena:Cam", 320, 180).empty(), "ver la escena de la cámara");
         CHECK(m.propiedadEntrada("cam", "ba_f_ptz", "ir", "0.25,0.25,2,0").empty(), "zoom x2 arriba a la izquierda");
-        esperar(1500);
-        const Px der = mirar(m, "escena:Cam", 310, 40);
+        const Px der = mirarHasta(m, "escena:Cam", 310, 40, [](const Px& p) { return p.g > 120 && p.r < 80 && p.b < 80; });
         std::printf("PTZ x2, borde derecho: %s\n", txt(der).c_str());
         CHECK(der.g > 120 && der.r < 80 && der.b < 80, "con el zoom, a la derecha la barra verde");
         m.verSoltar("escena:Cam");
         // La toma ENTERA (antes del recorte: el panel PTZ la muestra para manejar el
         // recorte encima): con el mismo zoom, el borde derecho es la última barra, la azul.
         CHECK(m.verPedir("entrada-entera:cam", 320, 180).empty(), "ver la toma entera");
-        esperar(1500);
-        const Px entera = mirar(m, "entrada-entera:cam", 310, 40);
+        const Px entera =
+            mirarHasta(m, "entrada-entera:cam", 310, 40, [](const Px& p) { return p.b > 120 && p.r < 80 && p.g < 80; });
         std::printf("PTZ x2, toma entera, borde derecho: %s\n", txt(entera).c_str());
         CHECK(entera.b > 120 && entera.r < 80 && entera.g < 80, "la toma entera no tiene el recorte (a la derecha, la azul)");
         m.verSoltar("entrada-entera:cam");
@@ -384,8 +390,10 @@ int main() {
         dos["video"].insert(dos["video"].begin(), {{"id", "color"}, {"elemento", "bacolor"}});
         CHECK(m.actualizarEntrada("cam", json{{"pipeline", "videotestsrc is-live=true pattern=smpte"}, {"filtros", dos}}).empty(),
               "rearmar con otra tarjeta");
-        esperar(1500);
-        p = m.propiedadesEntrada("cam", "ba_f_ptz");
+        esperarQue([&] {
+            p = m.propiedadesEntrada("cam", "ba_f_ptz");
+            return std::fabs(p.value("zoom", 1.0) - 3.0) < 0.01 && std::fabs(p.value("x", 0.5) - 0.3) < 0.01;
+        });
         CHECK(std::fabs(p.value("zoom", 1.0) - 3.0) < 0.01 && std::fabs(p.value("x", 0.5) - 0.3) < 0.01,
               "tras rearmar, el mismo encuadre");
         m.quitarEntrada("cam");
@@ -401,8 +409,8 @@ int main() {
         CHECK(m.agregarEntrada("gris", e).empty(), "una entrada con tarjetas de color y recorte");
         m.definirEscena({{"nombre", "Gris"}, {"capas", {{{"entrada", "gris"}}, {{"entrada", "verde"}}}}});
         CHECK(m.verPedir("escena:Gris", 320, 180).empty(), "ver la escena gris");
-        esperar(2000);
-        const Px der = mirar(m, "escena:Gris", 280, 90), izq = mirar(m, "escena:Gris", 40, 90);
+        const Px der = mirarHasta(m, "escena:Gris", 280, 90, [](const Px& p) { return igual(p, 54, 54, 54, 25); });
+        const Px izq = mirarHasta(m, "escena:Gris", 40, 90, [](const Px& p) { return igual(p, 0, 255, 0); });
         std::printf("tarjetas: derecha %s, izquierda %s\n", txt(der).c_str(), txt(izq).c_str());
         CHECK(igual(der, 54, 54, 54, 25), "el rojo sin saturación, gris");
         CHECK(igual(izq, 0, 255, 0), "lo recortado deja ver la capa de abajo");
@@ -412,5 +420,5 @@ int main() {
     m.verSoltar("programa");
     m.detener();
     std::printf("== test_motor_app: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
-    return fallos == 0 ? 0 : 1;
+    return ba::pruebas::resultadoTiempoReal("test_motor_app", fallos, &sonda);
 }
