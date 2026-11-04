@@ -146,6 +146,15 @@ if(MSVC)
     endif()
 endif()
 
+# Las cabeceras «sombra» del SDK se escriben solo si cambia su contenido: con
+# file(WRITE) cada configuración les cambiaba la fecha y ninja recompilaba 17
+# archivos del gateway y reenlazaba 8 ejecutables (y sus tests volvían a correr).
+function(ba_escribir_si_cambia destino contenido)
+    file(WRITE "${destino}.nuevo" "${contenido}")
+    file(COPY_FILE "${destino}.nuevo" "${destino}" ONLY_IF_DIFFERENT)
+    file(REMOVE "${destino}.nuevo")
+endfunction()
+
 # macOS: el libwebrtc de Shiguredo (macos_arm64) esta compilado contra la
 # libc++ del sistema (std::__1), la misma de Apple clang: se enlaza directo en
 # este build, sin el sub-build de Linux. Lo baja `make deps-webrtc` en macOS.
@@ -161,7 +170,7 @@ if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_
     file(READ "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp/absl/base/attributes.h" _ba_attr)
     string(REPLACE "#define ABSL_ATTRIBUTE_LIFETIME_BOUND [[clang::lifetimebound]]"
            "#define ABSL_ATTRIBUTE_LIFETIME_BOUND" _ba_attr "${_ba_attr}")
-    file(WRITE "${_ba_absl_shadow}/absl/base/attributes.h" "${_ba_attr}")
+    ba_escribir_si_cambia("${_ba_absl_shadow}/absl/base/attributes.h" "${_ba_attr}")
     add_library(ba_webrtc_mac INTERFACE)
     target_include_directories(ba_webrtc_mac SYSTEM BEFORE INTERFACE
         "${_ba_absl_shadow}"
@@ -212,7 +221,7 @@ elseif(BA_GATEWAY_WEBRTC)
     file(READ "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp/absl/base/attributes.h" _ba_attr)
     string(REPLACE "#define ABSL_ATTRIBUTE_LIFETIME_BOUND [[clang::lifetimebound]]"
            "#define ABSL_ATTRIBUTE_LIFETIME_BOUND" _ba_attr "${_ba_attr}")
-    file(WRITE "${_ba_absl_shadow}/absl/base/attributes.h" "${_ba_attr}")
+    ba_escribir_si_cambia("${_ba_absl_shadow}/absl/base/attributes.h" "${_ba_attr}")
     add_library(ba_webrtc_win INTERFACE)
     target_include_directories(ba_webrtc_win SYSTEM BEFORE INTERFACE
         "${_ba_absl_shadow}"
@@ -258,7 +267,7 @@ if(NOT MSVC AND BA_GATEWAY_USE_WEBRTC AND DEFINED BA_WEBRTC_ROOT AND EXISTS "${B
            "#if defined(_MSC_VER)\nRTC_EXPORT_TEMPLATE_TEST(MSVC_HACK, __declspec(dllexport));\n#endif"
            _rtc_export_shaded "${_rtc_export_src}")
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/webrtc-shadow/rtc_base/system")
-    file(WRITE "${CMAKE_BINARY_DIR}/webrtc-shadow/rtc_base/system/rtc_export_template.h"
+    ba_escribir_si_cambia("${CMAKE_BINARY_DIR}/webrtc-shadow/rtc_base/system/rtc_export_template.h"
          "${_rtc_export_shaded}")
     add_library(ba-gateway-webrtc-realcheck OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp")
     target_compile_definitions(ba-gateway-webrtc-realcheck PRIVATE
