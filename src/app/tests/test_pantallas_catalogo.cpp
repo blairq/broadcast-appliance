@@ -20,6 +20,7 @@
 //      por dónde va (monitor o TV), cuenta por grupo, y lo elegido sigue al catálogo.
 
 #include <QCoreApplication>
+#include <QDir>
 #include <QElapsedTimer>
 #include <QQmlPropertyMap>
 #include <QTemporaryDir>
@@ -349,6 +350,9 @@ int main(int argc, char** argv) {
         // Lo que había en ui.json: dos ventanas de video viejas.
         const QString ui = dir.filePath("Config/ui.json");
         {
+            // Config/ la crea el hilo de la cola de escritura al guardar monitores.json: con la
+            // máquina cargada puede no estar todavía.
+            CHECK(QDir().mkpath(dir.filePath("Config")));
             QJsonArray windows;
             windows.append(QJsonObject{{"keys", QJsonArray{"program", "guest:1"}}, {"layout", "pip"}, {"screen", "HDMI-1"},
                                        {"fullscreen", true}, {"x", 3900}, {"y", 10}, {"w", 800}, {"h", 450}});
