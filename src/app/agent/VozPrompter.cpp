@@ -20,7 +20,7 @@
 #include "agent/ModelosLocales.hpp"
 #include "agent/Voz.hpp"
 #include "agent/VozIdioma.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "audio/MonitorVoz.hpp"
 #include "ui/ConferenceClient.hpp"

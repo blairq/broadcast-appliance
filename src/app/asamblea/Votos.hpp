@@ -5,7 +5,7 @@
 // va su etiqueta, en el idioma del evento.
 #pragma once
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <string>
 

@@ -17,7 +17,7 @@
 #include "emision/FuentesApp.hpp"
 #include "emision/InputSpecs.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "video/Camaras.hpp"
 
 #include <nlohmann/json.hpp>

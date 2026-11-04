@@ -25,7 +25,7 @@
 #include <map>
 #include <thread>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "diag/Metricas.hpp"
 #include "diag/VigiaBucle.hpp"
 #include "arranque/AppRuntime.hpp"

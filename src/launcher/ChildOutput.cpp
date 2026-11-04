@@ -4,7 +4,7 @@
 // Solo std (filesystem + fstream): compila igual en Windows, Linux y macOS.
 
 #include "ChildOutput.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <cctype>

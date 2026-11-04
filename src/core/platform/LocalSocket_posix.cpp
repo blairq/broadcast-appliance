@@ -3,7 +3,7 @@
 // ============================================================================
 
 #include "platform/LocalSocket.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <fcntl.h>
 #include <poll.h>

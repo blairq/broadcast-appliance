@@ -2,7 +2,7 @@
 // src/app/audio/Habla.cpp — ver Habla.hpp
 // ============================================================================
 #include "audio/Habla.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <optional>
 #include <utility>

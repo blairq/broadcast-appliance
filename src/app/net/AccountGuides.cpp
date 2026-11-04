@@ -4,7 +4,7 @@
 
 #include "net/AccountGuides.hpp"
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <QCoreApplication>
 #include <QDir>

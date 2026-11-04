@@ -2,7 +2,7 @@
 
 #include "sala/Teleprompter.hpp"
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "ui/Discursos.hpp"
 

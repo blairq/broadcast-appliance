@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/agent/ModelosLocales.cpp — ver ModelosLocales.hpp
 // ============================================================================
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "ajustes/Ajustes.hpp"
 

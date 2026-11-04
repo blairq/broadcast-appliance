@@ -62,7 +62,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "ipc/CanalesRegistro.hpp"
 #include "registro/Totems.hpp"
 #include "ui/LectorDocumentos.hpp"

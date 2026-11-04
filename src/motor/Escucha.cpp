@@ -4,7 +4,7 @@
 #include "Escucha.hpp"
 #include "BuffersAudio.hpp"
 #include "diag/Utf8.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"

@@ -6,7 +6,7 @@
 #include <algorithm>
 #include <map>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 // Sin Qt acá: la marca es para lupdate; se traduce al usarla (ba::i18n::traducir).
 #ifndef QT_TRANSLATE_NOOP

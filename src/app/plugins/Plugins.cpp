@@ -3,7 +3,7 @@
 #include "plugins/Plugins.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "fault/ModoSeguro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ajustes/Ajustes.hpp"
 
 #include "net/Descargas.hpp"

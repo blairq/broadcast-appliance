@@ -23,7 +23,7 @@
 #include "mcp/McpService.hpp"
 #include "medios/Playlist.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "medios/Medios.hpp"
 #include "ui/StudioViewModel.hpp"
 

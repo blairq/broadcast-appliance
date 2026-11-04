@@ -21,7 +21,7 @@
 #include "agent/VocesRack.hpp"
 #include "agent/Voz.hpp"
 #include "agent/VozPrompter.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "net/Descargas.hpp"
 #include "mcp/McpToolsCommon.hpp"

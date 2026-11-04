@@ -24,7 +24,7 @@
 #include "ajustes/Ajustes.hpp"
 #include "Log.hpp"
 #include "platform/Energia.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "platform/Paths.hpp"
 #include "security/CredentialStore.hpp"
 #include "Supervisor.hpp"

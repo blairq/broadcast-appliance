@@ -5,7 +5,7 @@
 #include "GpuPerdida.hpp"
 #include "diag/Recursos.hpp"
 #include "diag/Utf8.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "Fallas.hpp"
 #include "Piezas.hpp"

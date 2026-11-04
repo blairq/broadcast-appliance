@@ -14,7 +14,7 @@
 
 #include "agent/AgentViewModel.hpp"
 #include "agent/ControlSistema.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"

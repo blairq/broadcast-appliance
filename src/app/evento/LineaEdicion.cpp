@@ -6,7 +6,7 @@
 #include "evento/Condicion.hpp"
 #include "evento/LeerJson.hpp"
 #include "escenas/RefEscena.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <map>

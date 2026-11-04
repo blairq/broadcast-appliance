@@ -11,7 +11,7 @@
 #include "evento/Bitacora.hpp"
 #include "evento/CierreEvento.hpp"
 #include "evento/FotosConfig.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpTraza.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/Paths.hpp"

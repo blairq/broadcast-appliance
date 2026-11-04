@@ -10,7 +10,7 @@
 // Guía: docs/bosch/open-interface.md §9.
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "asamblea/ConferenciaDcn.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"

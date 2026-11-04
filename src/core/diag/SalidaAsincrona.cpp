@@ -1,6 +1,6 @@
 // src/core/diag/SalidaAsincrona.cpp — ver SalidaAsincrona.hpp
 #include "diag/SalidaAsincrona.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "platform/Hilo.hpp"
 
 #include <chrono>

@@ -19,7 +19,7 @@
 #include "escenas/Conmutador.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "evento/APdf.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ptz/ControlCamaras.hpp"
 #include "asamblea/RecintoModel.hpp"
 #include "sala/Direcciones.hpp"

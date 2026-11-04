@@ -10,7 +10,7 @@
 #include <thread>
 
 #include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "net/HttpsClient.hpp"
 #include "platform/Hilo.hpp"
 

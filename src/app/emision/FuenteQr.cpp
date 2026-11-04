@@ -1,6 +1,6 @@
 // src/app/emision/FuenteQr.cpp — ver FuenteQr.hpp
 #include "emision/FuenteQr.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "emision/FuentesApp.hpp"
 

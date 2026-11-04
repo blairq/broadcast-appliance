@@ -2,7 +2,7 @@
 #include "medios/Playlist.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "comun/Restante.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "arranque/AppRuntime.hpp"
 #include "emision/InputSpecs.hpp"

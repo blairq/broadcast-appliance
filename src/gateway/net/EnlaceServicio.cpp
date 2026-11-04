@@ -6,7 +6,7 @@
 
 #include <chrono>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "platform/Hilo.hpp"
 
 namespace ba::gateway::net::enlace {

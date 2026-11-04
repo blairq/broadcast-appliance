@@ -2,7 +2,7 @@
 // src/core/platform/Energia_mac.mm — ver Energia.hpp
 // ============================================================================
 #include "platform/Energia.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #import <Foundation/Foundation.h>
 #include <IOKit/ps/IOPSKeys.h>

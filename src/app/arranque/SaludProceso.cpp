@@ -10,7 +10,7 @@
 #include "arranque/AppRuntime.hpp"
 #include "diag/Correlacion.hpp"
 #include "diag/Registro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/LocalSocket.hpp"

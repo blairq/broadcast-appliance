@@ -17,7 +17,7 @@
 
 #include "arranque/AppRuntime.hpp"
 #include "fault/ModoSeguro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ipc/LugaresSala.hpp"
 
 namespace ba::app {

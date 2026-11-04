@@ -2,7 +2,7 @@
 
 #include "asamblea/Votaciones.hpp"
 #include "asamblea/VotacionUnificada.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "asamblea/ConferenciaDcn.hpp"
 #include "asamblea/Quorum.hpp"

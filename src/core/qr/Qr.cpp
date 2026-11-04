@@ -2,7 +2,7 @@
 // src/core/qr/Qr.cpp — ver Qr.hpp
 // ============================================================================
 #include "qr/Qr.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <cctype>

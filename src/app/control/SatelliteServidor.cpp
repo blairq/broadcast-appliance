@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "control/SatelliteServidor.hpp"
 

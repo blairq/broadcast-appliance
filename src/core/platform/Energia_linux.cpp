@@ -8,7 +8,7 @@
 // hacen falta son pocos y estables: el ABI de libdbus no cambia desde 2006).
 // ============================================================================
 #include "platform/Energia.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <dlfcn.h>
 #include <sys/vfs.h>

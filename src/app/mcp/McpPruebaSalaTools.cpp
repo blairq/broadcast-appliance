@@ -7,7 +7,7 @@
 // Ver docs/funciones/PRUEBA-SALA.md.
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ipc/LugaresSala.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"

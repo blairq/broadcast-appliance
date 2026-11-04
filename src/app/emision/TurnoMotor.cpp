@@ -5,7 +5,7 @@
 #include "diag/Acoples.hpp"
 #include "diag/Metricas.hpp"
 #include "diag/Registro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <QtGlobal>
 #if !defined(_WIN32)

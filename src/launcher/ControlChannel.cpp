@@ -3,7 +3,7 @@
 // Implementacion del cliente de control (ver ControlChannel.hpp).
 
 #include "ControlChannel.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "diag/Correlacion.hpp"
 #include "ipc/ControlProtocol.hpp"

@@ -3,7 +3,7 @@
 
 #include "asamblea/Debate.hpp"
 #include "arranque/ArchivoConfig.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "asamblea/Cuerpo.hpp"
 

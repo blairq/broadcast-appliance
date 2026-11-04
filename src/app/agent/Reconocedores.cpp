@@ -10,7 +10,7 @@
 
 #include "agent/VozIdioma.hpp"
 #include "fault/ModoSeguro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 
 // Sin Qt (test_reconocedores): la marca para lupdate, que deja el texto como está.
 #ifndef QT_TRANSLATE_NOOP

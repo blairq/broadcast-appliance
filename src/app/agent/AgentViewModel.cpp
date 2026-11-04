@@ -57,7 +57,7 @@
 #include "arranque/AppSettings.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "carrusel/Conversion.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "net/Credentials.hpp"
 #include "net/Descargas.hpp"
 #include "net/HttpsClient.hpp"

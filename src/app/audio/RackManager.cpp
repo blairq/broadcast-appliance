@@ -11,7 +11,7 @@
 #include "audio/GrabadorWav.hpp"
 #include "audio/GstRack.hpp"
 #include "emision/InputSpecs.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include <QtGlobal>
 
 #include <mutex>

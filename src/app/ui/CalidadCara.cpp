@@ -2,7 +2,7 @@
 // src/app/ui/CalidadCara.cpp — ver CalidadCara.hpp
 // ============================================================================
 #include "ui/CalidadCara.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #if BA_HAVE_ROSTROS
 

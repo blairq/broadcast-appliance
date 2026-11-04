@@ -7,7 +7,7 @@
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
 #include "agent/VozIdioma.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "platform/Paths.hpp"
 #include "plugins/Hijo.hpp"
 

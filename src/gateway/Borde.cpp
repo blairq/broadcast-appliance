@@ -9,7 +9,7 @@
 #include <mbedtls/sha256.h>
 
 #include "HttpIo.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 namespace ba::gateway::borde {
 

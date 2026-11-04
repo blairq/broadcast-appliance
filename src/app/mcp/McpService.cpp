@@ -9,7 +9,7 @@
 #include "McpRenombres.hpp"
 #include "arranque/EnergiaAire.hpp"
 #include "fault/ModoSeguro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "diag/Acoples.hpp"
 #include "diag/Perfil.hpp"
 #include "sala/CupoSala.hpp"

@@ -41,7 +41,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "registro/Totems.hpp"
 
 namespace ba::registro {

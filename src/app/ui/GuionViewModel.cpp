@@ -28,7 +28,7 @@
 #include "evento/TiposDeCue.hpp"
 #include "graficos/Emisor.hpp"
 #include "graficos/GraficoSource.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "ui/CarruselViewModel.hpp"
 #include "ui/ConferenceClient.hpp"

@@ -7,7 +7,7 @@
 // (las del grafo, Hilo::Control), al grafo mismo y con el turno (cada vuelta va a la
 // agenda); en la interfaz (las de la red), a la vista del grafo que trae la foto.
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ui/VideoViewModel.hpp"
 #include "video/Diagnostico.hpp"
 #include "video/VideoGrafos.hpp"

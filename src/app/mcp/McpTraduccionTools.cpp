@@ -7,7 +7,7 @@
 // archivo que dice glosario_ver (Datos/Config/glosario-traduccion.json).
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "agent/Subtitulos.hpp"
 #include "agent/Traductor.hpp"

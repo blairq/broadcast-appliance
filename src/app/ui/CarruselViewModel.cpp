@@ -2,7 +2,7 @@
 // src/app/ui/CarruselViewModel.cpp — ver CarruselViewModel.hpp
 // ============================================================================
 #include "ui/CarruselViewModel.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <QDir>
 

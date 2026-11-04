@@ -7,7 +7,7 @@
 #include <set>
 #include <sstream>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 // Las tablas y los valores se marcan para lupdate y se traducen al mostrarlos.
 #ifndef QT_TRANSLATE_NOOP

@@ -17,7 +17,7 @@
 
 #include "diag/Registro.hpp"
 #include "documentos/Documento.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 
 namespace ba::registro {
 namespace {

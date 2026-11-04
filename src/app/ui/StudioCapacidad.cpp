@@ -15,7 +15,7 @@
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/ControlGrillas.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "net/AccesoRemoto.hpp"
 #include "net/ClienteCapacidad.hpp"
 #include "platform/Paths.hpp"

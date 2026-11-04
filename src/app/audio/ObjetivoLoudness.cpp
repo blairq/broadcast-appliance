@@ -4,7 +4,7 @@
 
 #include "arranque/ArchivoConfig.hpp"
 #include "audio/LoudnessPrograma.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 namespace ba::app::audio {
 

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 // src/app/evento/EventoWeb.cpp — ver EventoWeb.hpp
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "persist/Escritor.hpp"
 #include "evento/EventoWeb.hpp"
 

@@ -21,7 +21,7 @@
 #include "emision/VentanillaMotor.hpp"
 #include "diag/Recursos.hpp"
 #include "escenas/Conmutador.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/RecursosViewModel.hpp"

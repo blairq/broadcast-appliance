@@ -6,7 +6,7 @@
 #include "GpuPerdida.hpp"
 #include "Reloj.hpp"
 #include "fault/FallasProgramadas.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 namespace ba::motor {
 

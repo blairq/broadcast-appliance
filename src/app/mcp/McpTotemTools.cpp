@@ -11,7 +11,7 @@
 // Y la categoría «identidad»: leer un documento de identidad por su código de
 // barras (documento_leer, documento_tipos), con el lector del tótem.
 // ============================================================================
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 

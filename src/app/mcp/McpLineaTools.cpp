@@ -14,7 +14,7 @@
 // linea_insertar, linea_adlib, linea_soltar) se declaran de clase aire (en la llamada
 // a `vivo`): pedidas por algo automático con el aire andando, las confirma una persona.
 // ============================================================================
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpEventoTools.hpp"
 
 #include "evento/LineaEdicion.hpp"

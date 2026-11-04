@@ -4,7 +4,7 @@
 
 #include "agent/FlujosTexto.hpp"
 #include "agent/ModelosLocales.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #if defined(BA_HAVE_CLAP)
 #include "audio/RackManager.hpp"

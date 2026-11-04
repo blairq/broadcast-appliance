@@ -14,7 +14,7 @@
 // Cada herramienta trae en `details` para que sirve y como se usa, porque el
 // asistente las descubre sin nadie que se las explique.
 // ============================================================================
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "mcp/McpEventoTools.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "arranque/Configuraciones.hpp"

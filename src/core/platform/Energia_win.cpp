@@ -2,7 +2,7 @@
 // src/core/platform/Energia_win.cpp — ver Energia.hpp
 // ============================================================================
 #include "platform/Energia.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #ifndef NOMINMAX
 #define NOMINMAX

@@ -9,7 +9,7 @@
 // Lo mismo que el botón «Buscar en la red» de Entradas (red/Red).
 // ============================================================================
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/EsperarEntrada.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"

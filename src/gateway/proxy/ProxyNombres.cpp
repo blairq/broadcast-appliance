@@ -4,7 +4,7 @@
 
 #include "proxy/ProxyNombres.hpp"
 #include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "proxy/Certificados.hpp"
 #include "platform/Hilo.hpp"

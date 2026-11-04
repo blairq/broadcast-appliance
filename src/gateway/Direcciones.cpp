@@ -2,7 +2,7 @@
 // src/gateway/Direcciones.cpp — ver Direcciones.hpp
 // ============================================================================
 #include "Direcciones.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 

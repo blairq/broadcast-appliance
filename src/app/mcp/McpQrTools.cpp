@@ -13,7 +13,7 @@
 
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "qr/Iconos.hpp"
 #include "ui/EnlacesViewModel.hpp"
 #include "ui/EventoViewModel.hpp"

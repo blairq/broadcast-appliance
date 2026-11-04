@@ -20,7 +20,7 @@
 #include "platform/Herramientas.hpp"
 #include "platform/Paths.hpp"
 #include "arranque/Registrar.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "dispositivos/SondaReal.hpp"
 #include "security/CredentialStore.hpp"
 

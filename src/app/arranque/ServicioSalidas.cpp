@@ -10,7 +10,7 @@
 #include "arranque/ServicioEmision.hpp"
 #include "diag/Registro.hpp"
 #include "emision/SalidasConfig.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "persist/ArchivoConfig.hpp"
 #include "security/CredentialStore.hpp"
 

@@ -11,7 +11,7 @@
 #include "emision/SeguridadAire.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/Conmutador.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ui/ConferenceViewModel.hpp" // JsonListModel
 #include "ui/ListModels.hpp"
 #include "ui/EstadoAireViewModel.hpp"

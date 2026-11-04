@@ -10,7 +10,7 @@
 #include "comun/UsoPorVistas.hpp"
 #include "diag/LogRotator.hpp"
 #include "diag/Registro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <QCryptographicHash>
 #include <QDateTime>

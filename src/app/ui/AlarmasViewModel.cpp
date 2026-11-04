@@ -11,7 +11,7 @@
 #include "emision/TurnoMotor.hpp"
 #include "emision/AvisoFueraDeUi.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ui/ChatOverlayRenderer.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/ConferenceViewModel.hpp"

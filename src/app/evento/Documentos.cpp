@@ -4,7 +4,7 @@
 #include "evento/Documentos.hpp"
 #include "persist/ArchivoConfig.hpp"
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <algorithm>
 #include <fstream>

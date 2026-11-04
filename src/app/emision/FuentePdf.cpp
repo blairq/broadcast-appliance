@@ -1,6 +1,6 @@
 // src/app/emision/FuentePdf.cpp — ver FuentePdf.hpp
 #include "emision/FuentePdf.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "emision/FuentesApp.hpp"
 

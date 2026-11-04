@@ -8,7 +8,7 @@
 
 #include <QFileInfo>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "arranque/AppRuntime.hpp"
 #include "emision/ChatOverlaySource.hpp"
 #include "emision/VentanillaMotor.hpp"

@@ -6,7 +6,7 @@
 // llega por PUT /api/v1/config/ajustes) y los tests.
 // ============================================================================
 #include "ajustes/Registro.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 // Los textos van marcados para la traducción (tools/i18n: lupdate encuentra la
 // macro por el nombre); sin Qt, la macro deja el texto tal cual.

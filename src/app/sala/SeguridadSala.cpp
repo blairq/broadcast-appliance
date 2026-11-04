@@ -2,7 +2,7 @@
 
 #include "sala/SeguridadSala.hpp"
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "arranque/ArchivoConfig.hpp"
 #include "sala/Pedido.hpp"

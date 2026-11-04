@@ -1,7 +1,7 @@
 // src/app/asamblea/Presidencia.cpp — la presidencia y la sesión remota frente a la sala (ver el .hpp)
 
 #include "asamblea/Presidencia.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include "asamblea/Bancas.hpp"
 #include "asamblea/ConferenciaDcn.hpp"

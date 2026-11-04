@@ -3,7 +3,7 @@
 // Con carpetas propias (un idioma de mentira, «zz», con respaldo en «en»), así no
 // depende de lo que esté traducido de verdad. Y los perfiles reales: que estén bien
 // armados y que el original sea uno solo.
-#include "i18n/I18n.hpp"
+#include "i18n/I18nPerfiles.hpp"
 #include "platform/Paths.hpp"
 
 #include <cstdio>

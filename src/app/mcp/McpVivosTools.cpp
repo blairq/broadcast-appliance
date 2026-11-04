@@ -20,7 +20,7 @@
 #include <QJsonObject>
 #include <QPointer>
 
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/CuentasViewModel.hpp"

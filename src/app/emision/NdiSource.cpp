@@ -3,7 +3,7 @@
 // ============================================================================
 
 #include "emision/NdiSource.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "platform/Hilo.hpp"
 
 #include <cstdint> // los encabezados de libNoIDea usan uint16_t sin incluirlo

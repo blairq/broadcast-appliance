@@ -16,7 +16,7 @@
 #include <chrono>
 
 #include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "sala/ControlSala.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "sala/EnlacesSala.hpp"

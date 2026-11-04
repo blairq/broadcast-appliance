@@ -7,7 +7,7 @@
 #include "diag/Registro.hpp"
 #include "documentos/Documento.hpp"
 #include "documentos/Mrz.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "registro/Totems.hpp"
 
 namespace ba::registro {

@@ -42,7 +42,7 @@
 #include "Piezas.hpp"
 #include "Reloj.hpp"
 #include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/ControlService.hpp"
 #include "ipc/HealthBlock.hpp"

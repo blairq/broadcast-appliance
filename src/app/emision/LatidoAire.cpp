@@ -3,7 +3,7 @@
 #include "arranque/ArchivoConfig.hpp"
 #include "persist/ColaEscritura.hpp"
 #include "ajustes/Ajustes.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "platform/Paths.hpp"
 
 #include "diag/Registro.hpp"

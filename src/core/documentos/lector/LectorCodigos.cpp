@@ -2,7 +2,7 @@
 // src/core/documentos/lector/LectorCodigos.cpp — ver LectorCodigos.hpp
 // ============================================================================
 #include "documentos/lector/LectorCodigos.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <exception>
 

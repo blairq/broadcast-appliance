@@ -5,7 +5,7 @@
 // las corrientes, los márgenes del VAD y el lote.
 // ============================================================================
 #include "audio/EscuchaStreaming.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "agent/Vocabulario.hpp"
 #include "diag/Registro.hpp"
 

@@ -2,7 +2,7 @@
 // src/app/ui/TotemsViewModel.cpp — ver TotemsViewModel.hpp
 // ============================================================================
 #include "ui/TotemsViewModel.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nIdioma.hpp"
 
 #include <QCoreApplication>
 

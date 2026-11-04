@@ -24,7 +24,7 @@
 #include <QUdpSocket>
 
 #include "arranque/AppRuntime.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "emision/BroadcastEngine.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "escenas/RefEscena.hpp"

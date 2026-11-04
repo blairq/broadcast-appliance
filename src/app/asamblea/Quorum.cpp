@@ -2,7 +2,7 @@
 #include "asamblea/Quorum.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "asamblea/Votos.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 
 #include <QDateTime>
 #include <QJsonDocument>

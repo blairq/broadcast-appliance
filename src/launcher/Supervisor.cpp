@@ -10,7 +10,7 @@
 
 #include "Integrity.hpp"
 #include "Log.hpp"
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "platform/Huerfanos.hpp"
 #include "RecoveryUi.hpp"

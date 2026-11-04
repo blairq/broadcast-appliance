@@ -15,7 +15,7 @@
 // del evento (padron_ver {solos: true}, padron_cambiar {id, dejarPasarSolo}),
 // la misma que usa la interfaz. Dos listas para lo mismo se desincronizan.
 // ============================================================================
-#include "i18n/I18n.hpp"
+#include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "ui/AtencionViewModel.hpp"
