@@ -412,6 +412,52 @@ if(BA_APP_QT_OK)
     ba_biblioteca_completa(ba_app_asamblea asamblea)
     list(PREPEND BA_APP_BIBLIOTECAS ba_app_asamblea)
 
+    # El audio: el rack (CLAP/LSP y GStreamer), la matriz, el mezclador, la calibración, las
+    # mediciones, la voz y la escucha. Usa emision/, arranque/ y ui/ que siguen en ba-app,
+    # agent/Vocabulario y dispositivos/Conocidos: lo resuelve quien enlaza (deuda de
+    # test_niveles). Sin los headers de CLAP no hay audio (como antes en ba-app).
+    if(BA_HAVE_CLAP)
+        set(_ba_audio_gst "")
+        if(BA_HAVE_GST)
+            set(_ba_audio_gst ba::gstreamer)
+        endif()
+        ba_biblioteca(ba_app_audio NIVEL 2
+            DEPENDE ba_app_base ba_app_comun ba_core ba_motor ${_ba_audio_gst} nlohmann_json::nlohmann_json
+                    Qt6::Core Qt6::Gui Qt6::Multimedia
+            FUENTES audio/Analyzer.cpp audio/AudioRack.cpp audio/AudioViewModel.cpp audio/Calibracion.cpp
+                    audio/CalibracionAnalisis.cpp audio/CalibracionCaptura.cpp audio/ClapEditor.cpp
+                    audio/ClapHost.cpp audio/EntradasAudio.cpp audio/EquipoAudio.cpp audio/EscuchaStreaming.cpp
+                    audio/GrabadorWav.cpp audio/GstRack.cpp audio/GstVoz.cpp audio/LazoMedicion.cpp
+                    audio/LoudnessPrograma.cpp audio/LspDsp.cpp audio/Matriz.cpp audio/Mezclador.cpp
+                    audio/Modules.cpp audio/MonitorVoz.cpp audio/ObjetivoLoudness.cpp audio/PluginTerminos.cpp
+                    audio/RackManager.cpp audio/SalaSimulada.cpp)
+        # Lo que ba-app les daba a estas fuentes: los headers de CLAP, dónde están los
+        # plugins LSP y ba-lspdsp en el árbol de desarrollo (RackManager, LspDsp), y lo que
+        # piden para enlazar (CoreAudio en la Mac, X11 y dl en Linux).
+        target_include_directories(ba_app_audio PRIVATE "${BA_CLAP_INC}")
+        target_compile_definitions(ba_app_audio PRIVATE BA_DEV_LSP_CLAP="${BA_LSP_CLAP}" BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
+        target_link_libraries(ba_app_audio PRIVATE ${CMAKE_DL_LIBS})
+        if(APPLE)
+            target_link_libraries(ba_app_audio PRIVATE "-framework CoreAudio" "-framework CoreFoundation")
+        elseif(UNIX)
+            find_package(X11 REQUIRED)
+            target_link_libraries(ba_app_audio PRIVATE X11::X11)
+        endif()
+        # La voz (sherpa-onnx): solo si está; las bibliotecas de sherpa las enlaza quien
+        # usa la voz (ba-app, test_escucha, test_habla, test_nemotron).
+        if(BA_HAVE_VOZ)
+            target_sources(ba_app_audio PRIVATE audio/Escucha.cpp audio/EscuchaNemotron.cpp audio/Habla.cpp)
+            target_include_directories(ba_app_audio PRIVATE "${BA_SHERPA_DIR}/include")
+            set_property(GLOBAL APPEND PROPERTY BA_BIBLIOTECA_ba_app_audio_FUENTES
+                         "${CMAKE_CURRENT_SOURCE_DIR}/audio/Escucha.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/audio/EscuchaNemotron.cpp"
+                         "${CMAKE_CURRENT_SOURCE_DIR}/audio/Habla.cpp")
+            ba_biblioteca_completa(ba_app_audio audio)
+        else()
+            ba_biblioteca_completa(ba_app_audio audio "/(Escucha|EscuchaNemotron|Habla)\\.cpp$")
+        endif()
+        list(PREPEND BA_APP_BIBLIOTECAS ba_app_audio)
+    endif()
+
     ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
 endif()
 
@@ -875,44 +921,46 @@ endif()
 
     # La voz: Escucha con modelos de verdad (si estan; si no, se saltea).
     if(BA_HAVE_VOZ)
-        add_executable(test_escucha tests/test_escucha.cpp audio/Escucha.cpp agent/Vocabulario.cpp)
+        add_executable(test_escucha tests/test_escucha.cpp agent/Vocabulario.cpp)
         target_include_directories(test_escucha PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            target_link_libraries(test_escucha PRIVATE ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
+            target_link_libraries(test_escucha PRIVATE ba_app_audio ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
         else()
-            target_link_libraries(test_escucha PRIVATE ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
+            target_link_libraries(test_escucha PRIVATE ba_app_audio ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
         endif()
         add_test(NAME test_escucha COMMAND test_escucha)
-        add_executable(test_habla tests/test_habla.cpp audio/Habla.cpp)
+        add_executable(test_habla tests/test_habla.cpp)
         target_include_directories(test_habla PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         target_compile_definitions(test_habla PRIVATE BA_TEST_TMP="${CMAKE_CURRENT_BINARY_DIR}")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            target_link_libraries(test_habla PRIVATE -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
+            target_link_libraries(test_habla PRIVATE ba_app_audio -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
         else()
-            target_link_libraries(test_habla PRIVATE ${BA_SHERPA_LIBS} ba_core)
+            target_link_libraries(test_habla PRIVATE ba_app_audio ${BA_SHERPA_LIBS} ba_core)
         endif()
         add_test(NAME test_habla COMMAND test_habla)
         set_tests_properties(test_habla PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
         set_tests_properties(test_escucha PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
         # Nemotron streaming con el modelo de verdad (BA_NEMOTRON_MODELO; si no, se saltea).
-        add_executable(test_nemotron tests/test_nemotron.cpp audio/EscuchaNemotron.cpp audio/EscuchaStreaming.cpp
+        add_executable(test_nemotron tests/test_nemotron.cpp
                        agent/Vocabulario.cpp)
         target_include_directories(test_nemotron PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            target_link_libraries(test_nemotron PRIVATE ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
+            target_link_libraries(test_nemotron PRIVATE ba_app_audio ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
         else()
-            target_link_libraries(test_nemotron PRIVATE ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
+            target_link_libraries(test_nemotron PRIVATE ba_app_audio ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
         endif()
         add_test(NAME test_nemotron COMMAND test_nemotron)
         set_tests_properties(test_nemotron PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
     endif()
     # Los dos reconocedores (agent/Reconocedores) y el motor streaming con un modelo falso:
     # el lote, los márgenes del VAD, la carga por usos y la alerta. Sin sherpa-onnx.
-    add_executable(test_reconocedores tests/test_reconocedores.cpp audio/EscuchaStreaming.cpp agent/Reconocedores.cpp
-                   agent/Vocabulario.cpp)
-    target_include_directories(test_reconocedores PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_reconocedores PRIVATE ba_app_asamblea ba_core)
-    add_test(NAME test_reconocedores COMMAND test_reconocedores)
+    if(TARGET ba_app_audio) # sin los headers de CLAP no hay audio (ba_app_audio)
+        add_executable(test_reconocedores tests/test_reconocedores.cpp agent/Reconocedores.cpp
+                       agent/Vocabulario.cpp)
+        target_include_directories(test_reconocedores PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_reconocedores PRIVATE ba_app_audio ba_app_asamblea ba_core)
+        add_test(NAME test_reconocedores COMMAND test_reconocedores)
+    endif()
 
     # Modelos locales: leer la API de Hugging Face y verificar lo bajado (sin red).
     # Las cuentas de la voz del teleprompter (agent/VozPrompterPlan).
@@ -920,9 +968,12 @@ endif()
     target_include_directories(test_voz_prompter PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     add_test(NAME test_voz_prompter COMMAND test_voz_prompter)
     # Grabar lo que le llega a la tarjeta de salida (.wav, con partes).
-    add_executable(test_grabador_wav tests/test_grabador_wav.cpp audio/GrabadorWav.cpp)
-    target_include_directories(test_grabador_wav PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    add_test(NAME test_grabador_wav COMMAND test_grabador_wav)
+    if(TARGET ba_app_audio) # sin los headers de CLAP no hay audio (ba_app_audio)
+        add_executable(test_grabador_wav tests/test_grabador_wav.cpp)
+        target_include_directories(test_grabador_wav PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_grabador_wav PRIVATE ba_app_audio)
+        add_test(NAME test_grabador_wav COMMAND test_grabador_wav)
+    endif()
     # Validar los argumentos que escribe el modelo local (agent/ArgumentosLocales).
     # El catálogo de módulos de GStreamer (con el GStreamer vendoreado).
     if(BA_HAVE_GST)
@@ -945,13 +996,15 @@ endif()
         add_test(NAME test_placa_que_se_va COMMAND test_placa_que_se_va)
         set_tests_properties(test_placa_que_se_va PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
         # El rack como elemento de GStreamer (barack).
-        add_executable(test_gst_rack tests/test_gst_rack.cpp audio/GstRack.cpp audio/GstVoz.cpp video/CatalogoGst.cpp ${CMAKE_SOURCE_DIR}/src/motor/Sondas.cpp)
-        target_include_directories(test_gst_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
-        target_link_libraries(test_gst_rack PRIVATE ba_core ba::gstreamer)
-        ba_gst_rpath(test_gst_rack "")
-        target_compile_definitions(test_gst_rack PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0" BA_HAVE_GST=1)
-        add_test(NAME test_gst_rack COMMAND test_gst_rack)
-        set_tests_properties(test_gst_rack PROPERTIES SKIP_RETURN_CODE 77)
+        if(TARGET ba_app_audio) # sin los headers de CLAP no hay audio (ba_app_audio)
+            add_executable(test_gst_rack tests/test_gst_rack.cpp video/CatalogoGst.cpp ${CMAKE_SOURCE_DIR}/src/motor/Sondas.cpp)
+            target_include_directories(test_gst_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
+            target_link_libraries(test_gst_rack PRIVATE ba_app_audio ba_core ba::gstreamer)
+            ba_gst_rpath(test_gst_rack "")
+            target_compile_definitions(test_gst_rack PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0" BA_HAVE_GST=1)
+            add_test(NAME test_gst_rack COMMAND test_gst_rack)
+            set_tests_properties(test_gst_rack PROPERTIES SKIP_RETURN_CODE 77)
+        endif()
         # Los medios de los gráficos animados (graficos/Medios): GIF e imágenes a
         # medios/, y videos (con alfa) a cuadros PNG con el GStreamer vendoreado.
         if(BA_APP_QT_OK)
@@ -1358,23 +1411,22 @@ endif()
 
     # Analizador (LUFS, tercios, piso de ruido) y generador de prueba.
     if(BA_HAVE_CLAP)
-        add_executable(test_audio_dsp tests/test_audio_dsp.cpp audio/Analyzer.cpp)
+        add_executable(test_audio_dsp tests/test_audio_dsp.cpp)
         target_include_directories(test_audio_dsp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-        target_link_libraries(test_audio_dsp PRIVATE nlohmann_json::nlohmann_json)
+        target_link_libraries(test_audio_dsp PRIVATE ba_app_audio nlohmann_json::nlohmann_json)
         add_test(NAME test_audio_dsp COMMAND test_audio_dsp)
 
         # ba-lspdsp (el DSP de LSP) contra señales conocidas, cargada como la carga la app.
-        add_executable(test_lspdsp tests/test_lspdsp.cpp audio/LspDsp.cpp)
+        add_executable(test_lspdsp tests/test_lspdsp.cpp)
         target_include_directories(test_lspdsp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/lspdsp")
         target_compile_definitions(test_lspdsp PRIVATE BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
-        target_link_libraries(test_lspdsp PRIVATE ba_core ${CMAKE_DL_LIBS})
+        target_link_libraries(test_lspdsp PRIVATE ba_app_audio ba_core ${CMAKE_DL_LIBS})
         add_test(NAME test_lspdsp COMMAND test_lspdsp)
         set_tests_properties(test_lspdsp PROPERTIES SKIP_RETURN_CODE 77)
-        add_executable(test_calibracion tests/test_calibracion.cpp audio/CalibracionCaptura.cpp
-                                        audio/CalibracionAnalisis.cpp audio/SalaSimulada.cpp audio/LspDsp.cpp)
+        add_executable(test_calibracion tests/test_calibracion.cpp)
         target_include_directories(test_calibracion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/lspdsp")
         target_compile_definitions(test_calibracion PRIVATE BA_DEV_LSPDSP="${BA_LSPDSP_DIR}")
-        target_link_libraries(test_calibracion PRIVATE ba_core Qt6::Core ${CMAKE_DL_LIBS})
+        target_link_libraries(test_calibracion PRIVATE ba_app_audio ba_core Qt6::Core ${CMAKE_DL_LIBS})
         add_test(NAME test_calibracion COMMAND test_calibracion)
         set_tests_properties(test_calibracion PROPERTIES SKIP_RETURN_CODE 77)
     endif()
@@ -1390,11 +1442,11 @@ endif()
         set(_ba_clap_ui_libs X11::X11 ${CMAKE_DL_LIBS})
     endif()
     if(BA_HAVE_CLAP)
-        add_executable(test_clap_host tests/test_clap_host.cpp audio/ClapHost.cpp audio/ClapEditor.cpp)
+        add_executable(test_clap_host tests/test_clap_host.cpp)
         target_include_directories(test_clap_host PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_clap_host PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}" _USE_MATH_DEFINES)
         # ba_core: el modo seguro (fault/ModoSeguro) decide si se carga un CLAP de terceros.
-        target_link_libraries(test_clap_host PRIVATE ba_core ${_ba_clap_ui_libs})
+        target_link_libraries(test_clap_host PRIVATE ba_app_audio ba_core ${_ba_clap_ui_libs})
         if(APPLE)
             set_target_properties(test_clap_host PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         elseif(NOT WIN32)
@@ -1405,18 +1457,17 @@ endif()
         # Herramienta (no test, solo Mac): captura la interfaz de un plugin CLAP
         # (las capturas y los iconos del Matrix Mixer: tools/docs/lsp-matrix-mixer-doc.py).
         if(APPLE)
-            add_executable(capturar_lsp tools/capturar_lsp.cpp tools/capturar_vista_mac.mm audio/ClapHost.cpp
-                audio/ClapEditor.cpp)
+            add_executable(capturar_lsp tools/capturar_lsp.cpp tools/capturar_vista_mac.mm)
             target_include_directories(capturar_lsp PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
             target_compile_definitions(capturar_lsp PRIVATE _USE_MATH_DEFINES)
-            target_link_libraries(capturar_lsp PRIVATE ba_core ${_ba_clap_ui_libs} Qt6::Gui "-framework AppKit")
+            target_link_libraries(capturar_lsp PRIVATE ba_app_audio ba_core ${_ba_clap_ui_libs} Qt6::Gui "-framework AppKit")
             set_target_properties(capturar_lsp PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         endif()
         # El Matrix Mixer (nuestro modulo LSP, third_party/lsp-plugins-matrix-mixer) con audio.
-        add_executable(test_matrix_mixer tests/test_matrix_mixer.cpp audio/ClapHost.cpp audio/ClapEditor.cpp)
+        add_executable(test_matrix_mixer tests/test_matrix_mixer.cpp)
         target_include_directories(test_matrix_mixer PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_matrix_mixer PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}")
-        target_link_libraries(test_matrix_mixer PRIVATE ba_core ${_ba_clap_ui_libs})
+        target_link_libraries(test_matrix_mixer PRIVATE ba_app_audio ba_core ${_ba_clap_ui_libs})
         if(APPLE)
             set_target_properties(test_matrix_mixer PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         elseif(NOT WIN32)
@@ -1428,20 +1479,18 @@ endif()
         add_executable(test_ring_estereo tests/test_ring_estereo.cpp)
         target_include_directories(test_ring_estereo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
         add_test(NAME test_ring_estereo COMMAND test_ring_estereo)
-        add_executable(test_audio_rack tests/test_audio_rack.cpp audio/AudioRack.cpp audio/Analyzer.cpp
-                                       audio/ClapHost.cpp audio/ClapEditor.cpp)
+        add_executable(test_audio_rack tests/test_audio_rack.cpp)
         target_include_directories(test_audio_rack PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_audio_rack PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}" _USE_MATH_DEFINES)
-        target_link_libraries(test_audio_rack PRIVATE ba_core nlohmann_json::nlohmann_json)
+        target_link_libraries(test_audio_rack PRIVATE ba_app_audio ba_core nlohmann_json::nlohmann_json)
         target_link_libraries(test_audio_rack PRIVATE ${_ba_clap_ui_libs})
         if(APPLE)
             set_target_properties(test_audio_rack PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
         endif()
-        add_executable(test_audio_modules tests/test_audio_modules.cpp audio/Modules.cpp audio/AudioRack.cpp
-                                          audio/Analyzer.cpp audio/ClapHost.cpp audio/ClapEditor.cpp)
+        add_executable(test_audio_modules tests/test_audio_modules.cpp)
         target_include_directories(test_audio_modules PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_audio_modules PRIVATE BA_TEST_LSP_CLAP="${BA_LSP_CLAP}")
-        target_link_libraries(test_audio_modules PRIVATE ba_core nlohmann_json::nlohmann_json)
+        target_link_libraries(test_audio_modules PRIVATE ba_app_audio ba_core nlohmann_json::nlohmann_json)
         target_link_libraries(test_audio_modules PRIVATE ${_ba_clap_ui_libs})
         if(APPLE)
             set_target_properties(test_audio_modules PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1454,12 +1503,11 @@ endif()
         add_library(ba_clap_retardo256 MODULE tests/clap_retardo256.cpp)
         target_include_directories(ba_clap_retardo256 PRIVATE "${BA_CLAP_INC}")
         set_target_properties(ba_clap_retardo256 PROPERTIES PREFIX "" SUFFIX ".clap")
-        add_executable(test_rack_latencia tests/test_rack_latencia.cpp audio/AudioRack.cpp audio/Analyzer.cpp
-                                          audio/ClapHost.cpp audio/ClapEditor.cpp)
+        add_executable(test_rack_latencia tests/test_rack_latencia.cpp)
         target_include_directories(test_rack_latencia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_CLAP_INC}")
         target_compile_definitions(test_rack_latencia PRIVATE BA_TEST_CLAP_RETARDO="$<TARGET_FILE:ba_clap_retardo256>"
                                                               _USE_MATH_DEFINES)
-        target_link_libraries(test_rack_latencia PRIVATE ba_core nlohmann_json::nlohmann_json ${_ba_clap_ui_libs})
+        target_link_libraries(test_rack_latencia PRIVATE ba_app_audio ba_core nlohmann_json::nlohmann_json ${_ba_clap_ui_libs})
         add_dependencies(test_rack_latencia ba_clap_retardo256)
         if(APPLE)
             set_target_properties(test_rack_latencia PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1724,10 +1772,12 @@ endif()
     target_include_directories(test_afv PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_afv PRIVATE nlohmann_json::nlohmann_json)
     add_test(NAME test_afv COMMAND test_afv)
-    add_executable(test_loudness tests/test_loudness.cpp audio/LoudnessPrograma.cpp audio/ObjetivoLoudness.cpp)
-    target_include_directories(test_loudness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_loudness PRIVATE ba_core nlohmann_json::nlohmann_json)
-    add_test(NAME test_loudness COMMAND test_loudness)
+    if(TARGET ba_app_audio) # sin los headers de CLAP no hay audio (ba_app_audio)
+        add_executable(test_loudness tests/test_loudness.cpp)
+        target_include_directories(test_loudness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+        target_link_libraries(test_loudness PRIVATE ba_app_audio ba_core nlohmann_json::nlohmann_json)
+        add_test(NAME test_loudness COMMAND test_loudness)
+    endif()
     add_executable(test_alerts tests/test_alerts.cpp agent/AlertEngine.cpp agent/AlertEngine.hpp)
     target_include_directories(test_alerts PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_alerts PRIVATE ba_core Qt6::Core)
@@ -1877,7 +1927,14 @@ endif()
 # Al final: sus raíces de include ya están (ba-app las tiene propias o por ba_motor y
 # ba_emisor_pedido) y el orden de los -I de ba-app no cambia. Las bibliotecas, de la más
 # alta a la más baja (el enlazador de Linux resuelve una .a con las que vienen después).
-target_link_libraries(ba-app PRIVATE ${BA_APP_BIBLIOTECAS} ba_app_comun)
+# Las áreas de nivel 2 todavía se usan entre sí (la deuda de test_niveles: audio usa
+# agent/Vocabulario y agent usa audio/…): en Linux, en un grupo, para que el enlazador
+# vuelva a mirar las anteriores (la Mac y Windows ya lo hacen solos).
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND BA_APP_BIBLIOTECAS)
+    target_link_libraries(ba-app PRIVATE -Wl,--start-group ${BA_APP_BIBLIOTECAS} -Wl,--end-group ba_app_comun)
+else()
+    target_link_libraries(ba-app PRIVATE ${BA_APP_BIBLIOTECAS} ba_app_comun)
+endif()
 
 # --- Instalación ------------------------------------------------------------
 # Proceso A va a bin/64bit/ (spec §5.1).
