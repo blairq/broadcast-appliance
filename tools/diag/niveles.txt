@@ -62,7 +62,8 @@ componente app/base        1.5 app/comun/ app/ui/CapturaError.hpp app/ui/ListaCo
 componente app/net-base    1.5 app/net/HttpsClient.* app/net/AsyncHttp.hpp app/net/Credentials.hpp app/net/AccountGuides.* app/net/CapturaWeb.* app/net/ClienteCapacidad.* app/net/Descargas.* : ba_app_net
 
 # --- nivel 2: los modelos de área de la app ------------------------------------------------
-componente app/agent        2  app/agent/
+# El asistente y el registro con tótems van juntos (ba_app_agente): se usan entre sí.
+componente app/agent        2  app/agent/ app/registro/
 componente app/asamblea     2  app/asamblea/
 componente app/audio        2  app/audio/
 componente app/camaras      2  app/camaras/
@@ -81,7 +82,6 @@ componente app/pantallas    2  app/pantallas/
 componente app/plugins      2  app/plugins/
 componente app/ptz          2  app/ptz/
 componente app/red          2  app/red/
-componente app/registro     2  app/registro/
 componente app/resolucion   2  app/resolucion/
 componente app/rostros      2  app/rostros/
 componente app/sala         2  app/sala/

@@ -458,6 +458,33 @@ if(BA_APP_QT_OK)
         list(PREPEND BA_APP_BIBLIOTECAS ba_app_audio)
     endif()
 
+    # El asistente: los agentes y sus procesos, los modelos locales, la voz, la traducción,
+    # los subtítulos, las alarmas, la mirada y el registro con tótems (registro/: su agente
+    # y el chat en vivo se usan entre sí, por eso van juntos). Usa audio/, term/, emision/,
+    # arranque/, ui/, sala/Teleprompter, asamblea/Cuerpo, carrusel/Conversion y
+    # plugins/Hijo: lo resuelve quien enlaza (deuda de test_niveles).
+    set(_ba_agente_gst "")
+    if(BA_HAVE_GST)
+        set(_ba_agente_gst ba::gstreamer)
+    endif()
+    ba_biblioteca(ba_app_agente NIVEL 2
+        DEPENDE ba_app_net ba_app_base ba_app_comun ba_core ba_motor ${_ba_agente_gst} nlohmann_json::nlohmann_json
+                Qt6::Core Qt6::Gui Qt6::Network Qt6::Multimedia
+        FUENTES agent/Actualizacion.cpp agent/AgentViewModel.cpp agent/AlarmaSonora.cpp agent/AlertEngine.cpp
+                agent/ArgumentosLocales.cpp agent/ChatEnVivo.cpp agent/ChatEnVivoFuentes.cpp agent/ControlSistema.cpp
+                agent/Despachador.cpp agent/EntradasAlarmas.cpp agent/EnvioOpencode.cpp agent/EstadoIA.cpp
+                agent/FlujosTexto.cpp agent/HijosDeLaApp.cpp agent/Lanzamiento.hpp agent/Mirada.cpp
+                agent/MiradaCuerpo.cpp agent/ModeloPropio.cpp agent/ModelosLocales.cpp agent/Notificador.cpp
+                agent/Reconocedores.cpp agent/Roles.cpp agent/RotuloTraduccionConfig.cpp
+                agent/ServidorModeloLocal.cpp agent/ServidorOpencode.cpp agent/SesionesEvento.cpp
+                agent/Subtitulos.cpp agent/SubtitulosCC.cpp agent/Traductor.cpp agent/Vocabulario.cpp
+                agent/VocesRack.cpp agent/Voz.cpp agent/VozIdioma.hpp agent/VozPrompter.cpp agent/VozPrompterPlan.cpp
+                registro/AgenteRegistro.cpp registro/AgenteTotem.cpp registro/ConexionesTotem.cpp
+                registro/Conversacion.cpp registro/RitmoTotem.cpp registro/Totems.cpp)
+    ba_biblioteca_completa(ba_app_agente agent)
+    ba_biblioteca_completa(ba_app_agente registro)
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_agente)
+
     ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
 endif()
 
@@ -832,7 +859,7 @@ endif()
     # El plano de control con la interfaz trabada (F3-03): MCP, alarmas y relojes, sin QML; y
     # las herramientas de la foto (McpFoto) contra un documento de aire de verdad.
     add_executable(test_plano_control tests/test_plano_control.cpp arranque/PlanoControl.cpp arranque/PlanoControl.hpp
-                   agent/AlertEngine.cpp agent/AlertEngine.hpp agent/EntradasAlarmas.cpp mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp
+ mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpHttp.cpp
                    mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp mcp/McpFoto.cpp mcp/McpMando.cpp
                    emision/DocumentoAire.cpp emision/SalidasConfig.cpp emision/TurnoMotor.cpp
                    emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp emision/NivelesMotor.cpp
@@ -840,7 +867,7 @@ endif()
                    arranque/EnergiaAire.cpp arranque/EnergiaAire.hpp)
     # NivelesMotor lee motor/NivelAudio.hpp (sin el motor).
     target_include_directories(test_plano_control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
-    target_link_libraries(test_plano_control PRIVATE ba_app_evento ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_plano_control PRIVATE ba_app_agente ba_app_evento ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_plano_control COMMAND test_plano_control)
     # Las pastillas del aire (ui/EstadoAireViewModel): el tiempo de una grabación que ya
@@ -861,9 +888,9 @@ endif()
     add_test(NAME test_trabajo_por_foto COMMAND test_trabajo_por_foto)
     add_test(NAME test_mcp COMMAND test_mcp)
     # Los servidores que lanza la app (OpenCode, llama-server) mueren con ella.
-    add_executable(test_hijos_app tests/test_hijos_app.cpp agent/HijosDeLaApp.cpp agent/HijosDeLaApp.hpp)
+    add_executable(test_hijos_app tests/test_hijos_app.cpp)
     target_include_directories(test_hijos_app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_hijos_app PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_hijos_app PRIVATE ba_app_agente ba_core Qt6::Core)
     set_target_properties(test_hijos_app PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_hijos_app COMMAND test_hijos_app)
     set_tests_properties(test_hijos_app PROPERTIES SKIP_RETURN_CODE 77)
@@ -921,12 +948,12 @@ endif()
 
     # La voz: Escucha con modelos de verdad (si estan; si no, se saltea).
     if(BA_HAVE_VOZ)
-        add_executable(test_escucha tests/test_escucha.cpp agent/Vocabulario.cpp)
+        add_executable(test_escucha tests/test_escucha.cpp)
         target_include_directories(test_escucha PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            target_link_libraries(test_escucha PRIVATE ba_app_audio ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
+            target_link_libraries(test_escucha PRIVATE ba_app_agente ba_app_audio ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
         else()
-            target_link_libraries(test_escucha PRIVATE ba_app_audio ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
+            target_link_libraries(test_escucha PRIVATE ba_app_agente ba_app_audio ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
         endif()
         add_test(NAME test_escucha COMMAND test_escucha)
         add_executable(test_habla tests/test_habla.cpp)
@@ -941,13 +968,12 @@ endif()
         set_tests_properties(test_habla PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
         set_tests_properties(test_escucha PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 180)
         # Nemotron streaming con el modelo de verdad (BA_NEMOTRON_MODELO; si no, se saltea).
-        add_executable(test_nemotron tests/test_nemotron.cpp
-                       agent/Vocabulario.cpp)
+        add_executable(test_nemotron tests/test_nemotron.cpp)
         target_include_directories(test_nemotron PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_SHERPA_DIR}/include")
         if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
-            target_link_libraries(test_nemotron PRIVATE ba_app_audio ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
+            target_link_libraries(test_nemotron PRIVATE ba_app_agente ba_app_audio ba_app_asamblea -Wl,--start-group ${BA_SHERPA_LIBS} -Wl,--end-group ba_core)
         else()
-            target_link_libraries(test_nemotron PRIVATE ba_app_audio ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
+            target_link_libraries(test_nemotron PRIVATE ba_app_agente ba_app_audio ba_app_asamblea ${BA_SHERPA_LIBS} ba_core)
         endif()
         add_test(NAME test_nemotron COMMAND test_nemotron)
         set_tests_properties(test_nemotron PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)
@@ -955,17 +981,17 @@ endif()
     # Los dos reconocedores (agent/Reconocedores) y el motor streaming con un modelo falso:
     # el lote, los márgenes del VAD, la carga por usos y la alerta. Sin sherpa-onnx.
     if(TARGET ba_app_audio) # sin los headers de CLAP no hay audio (ba_app_audio)
-        add_executable(test_reconocedores tests/test_reconocedores.cpp agent/Reconocedores.cpp
-                       agent/Vocabulario.cpp)
+        add_executable(test_reconocedores tests/test_reconocedores.cpp)
         target_include_directories(test_reconocedores PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-        target_link_libraries(test_reconocedores PRIVATE ba_app_audio ba_app_asamblea ba_core)
+        target_link_libraries(test_reconocedores PRIVATE ba_app_agente ba_app_audio ba_app_asamblea ba_core)
         add_test(NAME test_reconocedores COMMAND test_reconocedores)
     endif()
 
     # Modelos locales: leer la API de Hugging Face y verificar lo bajado (sin red).
     # Las cuentas de la voz del teleprompter (agent/VozPrompterPlan).
-    add_executable(test_voz_prompter tests/test_voz_prompter.cpp agent/VozPrompterPlan.cpp)
+    add_executable(test_voz_prompter tests/test_voz_prompter.cpp)
     target_include_directories(test_voz_prompter PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_voz_prompter PRIVATE ba_app_agente)
     add_test(NAME test_voz_prompter COMMAND test_voz_prompter)
     # Grabar lo que le llega a la tarjeta de salida (.wav, con partes).
     if(TARGET ba_app_audio) # sin los headers de CLAP no hay audio (ba_app_audio)
@@ -987,9 +1013,9 @@ endif()
         set_tests_properties(test_catalogo_gst PROPERTIES SKIP_RETURN_CODE 77)
         # F1-16: la placa de audio que se va y vuelve (entrada, escucha y Matriz), con un
         # proveedor de dispositivos falso: nada abre una placa real ni suena.
-        add_executable(test_placa_que_se_va tests/test_placa_que_se_va.cpp agent/AlertEngine.cpp agent/AlertEngine.hpp)
+        add_executable(test_placa_que_se_va tests/test_placa_que_se_va.cpp)
         target_include_directories(test_placa_que_se_va PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-        target_link_libraries(test_placa_que_se_va PRIVATE ba_motor ba_core Qt6::Core)
+        target_link_libraries(test_placa_que_se_va PRIVATE ba_app_agente ba_motor ba_core Qt6::Core)
         set_target_properties(test_placa_que_se_va PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
         ba_gst_rpath(test_placa_que_se_va "")
         target_compile_definitions(test_placa_que_se_va PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
@@ -1054,14 +1080,14 @@ endif()
     target_link_libraries(test_red PRIVATE ba_core Qt6::Core)
     target_compile_definitions(test_red PRIVATE BA_TEST_DATOS="${CMAKE_SOURCE_DIR}/datos")
     add_test(NAME test_red COMMAND test_red)
-    add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp agent/ArgumentosLocales.cpp)
+    add_executable(test_argumentos_locales tests/test_argumentos_locales.cpp)
     target_include_directories(test_argumentos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_argumentos_locales PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_argumentos_locales PRIVATE ba_app_agente ba_core Qt6::Core)
     set_target_properties(test_argumentos_locales PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_argumentos_locales COMMAND test_argumentos_locales)
-    add_executable(test_modelos_locales tests/test_modelos_locales.cpp agent/ModelosLocales.cpp agent/ArgumentosLocales.cpp)
+    add_executable(test_modelos_locales tests/test_modelos_locales.cpp)
     target_include_directories(test_modelos_locales PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_modelos_locales PRIVATE ba_app_net ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_modelos_locales PRIVATE ba_app_agente ba_app_net ba_core Qt6::Core Qt6::Gui mbedtls mbedx509 mbedcrypto)
     target_compile_definitions(test_modelos_locales PRIVATE BA_TEST_TMP="${CMAKE_CURRENT_BINARY_DIR}"
         BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem")
     set_target_properties(test_modelos_locales PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
@@ -1079,9 +1105,9 @@ endif()
 
     # Buscar la ultima version de los agentes en su fuente oficial (con red;
     # sin red se saltea).
-    add_executable(test_agent_updates tests/test_agent_updates.cpp agent/Actualizacion.cpp)
+    add_executable(test_agent_updates tests/test_agent_updates.cpp)
     target_include_directories(test_agent_updates PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_agent_updates PRIVATE ba_app_net ba_core Qt6::Core mbedtls mbedx509 mbedcrypto)
+    target_link_libraries(test_agent_updates PRIVATE ba_app_agente ba_app_net ba_core Qt6::Core mbedtls mbedx509 mbedcrypto)
     target_compile_definitions(test_agent_updates PRIVATE
         BA_TEST_CACERT="${CMAKE_SOURCE_DIR}/extern/cacert/cacert.pem"
         BA_AGENTES_JSON="${CMAKE_CURRENT_SOURCE_DIR}/agent/agentes.json"
@@ -1293,24 +1319,24 @@ endif()
     add_test(NAME test_capas_remotos COMMAND test_capas_remotos)
 
     # El registro por tótem: la configuración (registro.json) y el guion hablado con sus normalizadores.
-    add_executable(test_registro_totems tests/test_registro_totems.cpp registro/Totems.cpp)
+    add_executable(test_registro_totems tests/test_registro_totems.cpp)
     target_include_directories(test_registro_totems PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_registro_totems PRIVATE nlohmann_json::nlohmann_json)
+    target_link_libraries(test_registro_totems PRIVATE ba_app_agente nlohmann_json::nlohmann_json)
     add_test(NAME test_registro_totems COMMAND test_registro_totems)
-    add_executable(test_registro_conversacion tests/test_registro_conversacion.cpp registro/Conversacion.cpp registro/Totems.cpp)
+    add_executable(test_registro_conversacion tests/test_registro_conversacion.cpp)
     target_include_directories(test_registro_conversacion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     # ba_core: los tipos de documento (documentos/Documento, el DNI) del paso «documento».
-    target_link_libraries(test_registro_conversacion PRIVATE nlohmann_json::nlohmann_json ba_core)
+    target_link_libraries(test_registro_conversacion PRIVATE ba_app_agente nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_registro_conversacion COMMAND test_registro_conversacion)
     # El ritmo de la conversación (fin del turno, esperas, silencio), con la hora a mano.
-    add_executable(test_registro_ritmo tests/test_registro_ritmo.cpp registro/RitmoTotem.cpp)
+    add_executable(test_registro_ritmo tests/test_registro_ritmo.cpp)
     target_include_directories(test_registro_ritmo PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_registro_ritmo PRIVATE ba_app_agente)
     add_test(NAME test_registro_ritmo COMMAND test_registro_ritmo)
     # Las conexiones en vivo (la conversación de cada una, su tic y la atención), con Puertos de mentira.
-    add_executable(test_registro_conexiones tests/test_registro_conexiones.cpp registro/ConexionesTotem.cpp
-                   registro/RitmoTotem.cpp registro/Conversacion.cpp registro/Totems.cpp)
+    add_executable(test_registro_conexiones tests/test_registro_conexiones.cpp)
     target_include_directories(test_registro_conexiones PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_registro_conexiones PRIVATE nlohmann_json::nlohmann_json ba_core)
+    target_link_libraries(test_registro_conexiones PRIVATE ba_app_agente nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_registro_conexiones COMMAND test_registro_conexiones)
     # Quién es cada cara (las reglas de Personas), con una libreta en memoria. La libreta es
     # de ba_core solo con el reconocimiento (BA_HAVE_ROSTROS).
@@ -1322,29 +1348,26 @@ endif()
         add_test(NAME test_rostros_quien_es COMMAND test_rostros_quien_es)
     endif()
     # La conversación atendida por una persona (la atención remota del registro).
-    add_executable(test_registro_atencion tests/test_registro_atencion.cpp registro/Conversacion.cpp registro/Totems.cpp)
+    add_executable(test_registro_atencion tests/test_registro_atencion.cpp)
     target_include_directories(test_registro_atencion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_registro_atencion PRIVATE nlohmann_json::nlohmann_json ba_core) # ba_core: el paso «documento»
+    target_link_libraries(test_registro_atencion PRIVATE ba_app_agente nlohmann_json::nlohmann_json ba_core) # ba_core: el paso «documento»
     add_test(NAME test_registro_atencion COMMAND test_registro_atencion)
     # El modelo que entiende en el tótem (iniciativa mixta): frases, streaming, herramientas y turnos, sin red.
-    add_executable(test_registro_agente tests/test_registro_agente.cpp registro/AgenteRegistro.cpp registro/Conversacion.cpp
-                   registro/Totems.cpp)
+    add_executable(test_registro_agente tests/test_registro_agente.cpp)
     target_include_directories(test_registro_agente PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_registro_agente PRIVATE nlohmann_json::nlohmann_json ba_core)
+    target_link_libraries(test_registro_agente PRIVATE ba_app_agente nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_registro_agente COMMAND test_registro_agente)
     # El ciclo entero contra un servidor de chat-completions falso (streaming, tiempos, la cola).
-    add_executable(test_registro_agente_totem tests/test_registro_agente_totem.cpp registro/AgenteTotem.cpp
-                   registro/AgenteTotem.hpp agent/ChatEnVivo.cpp registro/AgenteRegistro.cpp
-                   registro/Conversacion.cpp registro/Totems.cpp)
+    add_executable(test_registro_agente_totem tests/test_registro_agente_totem.cpp)
     target_include_directories(test_registro_agente_totem PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_registro_agente_totem PRIVATE ba_app_net ba_core Qt6::Core Qt6::Network mbedtls mbedx509 mbedcrypto
+    target_link_libraries(test_registro_agente_totem PRIVATE ba_app_agente ba_app_net ba_core Qt6::Core Qt6::Network mbedtls mbedx509 mbedcrypto
                           nlohmann_json::nlohmann_json)
     set_target_properties(test_registro_agente_totem PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_registro_agente_totem COMMAND test_registro_agente_totem)
     # El dorso del documento leído por el modelo propio: el pedido y la validación de lo que contesta.
-    add_executable(test_documento_dorso tests/test_documento_dorso.cpp agent/MiradaCuerpo.cpp)
+    add_executable(test_documento_dorso tests/test_documento_dorso.cpp)
     target_include_directories(test_documento_dorso PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_documento_dorso PRIVATE nlohmann_json::nlohmann_json ba_core)
+    target_link_libraries(test_documento_dorso PRIVATE ba_app_agente nlohmann_json::nlohmann_json ba_core)
     add_test(NAME test_documento_dorso COMMAND test_documento_dorso)
 
     # Las reglas de la sala sin red: errores de la API, la prueba técnica y el proxy.
@@ -1687,21 +1710,21 @@ endif()
     target_link_libraries(test_quorum PRIVATE ba_app_asamblea ba_core Qt6::Core)
     set_target_properties(test_quorum PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_quorum COMMAND test_quorum)
-    add_executable(test_correccion tests/test_correccion.cpp agent/FlujosTexto.cpp agent/FlujosTexto.hpp emision/FuentesApp.cpp)
+    add_executable(test_correccion tests/test_correccion.cpp emision/FuentesApp.cpp)
     target_include_directories(test_correccion PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_correccion PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_correccion PRIVATE ba_app_agente ba_core Qt6::Core)
     set_target_properties(test_correccion PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_correccion COMMAND test_correccion)
     # F3-03: lo que sale al aire se pinta en su hilo, con la interfaz trabada también.
-    add_executable(test_pintor_aire tests/test_pintor_aire.cpp emision/PintorAire.cpp agent/Subtitulos.cpp
-                   agent/FlujosTexto.cpp agent/FlujosTexto.hpp emision/FuentesApp.cpp)
+    add_executable(test_pintor_aire tests/test_pintor_aire.cpp emision/PintorAire.cpp
+ emision/FuentesApp.cpp)
     target_include_directories(test_pintor_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_pintor_aire PRIVATE ba_core Qt6::Core Qt6::Gui)
+    target_link_libraries(test_pintor_aire PRIVATE ba_app_agente ba_core Qt6::Core Qt6::Gui)
     set_target_properties(test_pintor_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pintor_aire COMMAND test_pintor_aire)
-    add_executable(test_notificador tests/test_notificador.cpp agent/Notificador.cpp agent/Notificador.hpp)
+    add_executable(test_notificador tests/test_notificador.cpp)
     target_include_directories(test_notificador PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_notificador PRIVATE ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_notificador PRIVATE ba_app_agente ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_notificador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_notificador COMMAND test_notificador)
     # Lo que arrastra ConferenceClient: la foto de la sala se resume en su lector (sala/ResumenSala,
@@ -1718,9 +1741,9 @@ endif()
     set_tests_properties(test_resumen_sala PROPERTIES TIMEOUT 60)
     # F1-13: la alarma «interfaz trabada con aire» sale del hilo del latido, sin la interfaz.
     add_executable(test_latido_aire tests/test_latido_aire.cpp emision/LatidoAire.cpp emision/AvisoFueraDeUi.cpp
-                   agent/Notificador.cpp agent/Notificador.hpp ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
+ ui/ConferenceClient.cpp ui/ConferenceClient.hpp)
     target_include_directories(test_latido_aire PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_latido_aire PRIVATE ba_app_sala ba_app_base ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_latido_aire PRIVATE ba_app_agente ba_app_sala ba_app_base ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_latido_aire PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_latido_aire COMMAND test_latido_aire)
     set_tests_properties(test_latido_aire PROPERTIES TIMEOUT 60)
@@ -1739,16 +1762,15 @@ endif()
     set_target_properties(test_pagina_publico PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_pagina_publico COMMAND test_pagina_publico)
     set_tests_properties(test_pagina_publico PROPERTIES TIMEOUT 60)
-    add_executable(test_vocabulario tests/test_vocabulario.cpp agent/Vocabulario.cpp)
+    add_executable(test_vocabulario tests/test_vocabulario.cpp)
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_vocabulario PRIVATE ba_app_asamblea ba_core)
+    target_link_libraries(test_vocabulario PRIVATE ba_app_agente ba_app_asamblea ba_core)
     add_test(NAME test_vocabulario COMMAND test_vocabulario)
     # La configuración chica que se guarda en Config/ (modo en vivo, escenas, rótulo, interfaz).
     add_executable(test_config_persistida tests/test_config_persistida.cpp
-                   arranque/ModoVivoConfig.cpp arranque/InterfazConfig.cpp escenas/AjustesEscenas.cpp
-                   agent/RotuloTraduccionConfig.cpp)
+                   arranque/ModoVivoConfig.cpp arranque/InterfazConfig.cpp escenas/AjustesEscenas.cpp)
     target_include_directories(test_config_persistida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_config_persistida PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_config_persistida PRIVATE ba_app_agente ba_core Qt6::Core)
     set_target_properties(test_config_persistida PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_config_persistida COMMAND test_config_persistida)
     # Las salidas guardadas (PLAN-SALIDAS, etapa 2): salidas.json, destinos con salida y al-aire.json por salida.
@@ -1778,9 +1800,9 @@ endif()
         target_link_libraries(test_loudness PRIVATE ba_app_audio ba_core nlohmann_json::nlohmann_json)
         add_test(NAME test_loudness COMMAND test_loudness)
     endif()
-    add_executable(test_alerts tests/test_alerts.cpp agent/AlertEngine.cpp agent/AlertEngine.hpp)
+    add_executable(test_alerts tests/test_alerts.cpp)
     target_include_directories(test_alerts PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_alerts PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_alerts PRIVATE ba_app_agente ba_core Qt6::Core)
     set_target_properties(test_alerts PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_alerts COMMAND test_alerts)
     # El corte de luz (F1-11): la política con estados de energía falsos.
@@ -1812,18 +1834,16 @@ endif()
     target_link_libraries(test_ref_escena PRIVATE ba_app_evento nlohmann_json::nlohmann_json)
     add_test(NAME test_ref_escena COMMAND test_ref_escena)
     # Roles y despachador de agentes de un tiro, con un motor falso (script).
-    add_executable(test_despachador tests/test_despachador.cpp agent/Despachador.cpp agent/Despachador.hpp
-                   agent/Roles.cpp agent/HijosDeLaApp.cpp)
+    add_executable(test_despachador tests/test_despachador.cpp)
     target_include_directories(test_despachador PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_despachador PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_despachador PRIVATE ba_app_agente ba_core Qt6::Core)
     set_target_properties(test_despachador PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_despachador COMMAND test_despachador)
     # Una conversación del asistente por evento y los avisos automáticos a ella (OpenCode,
     # con un servidor falso): agent/SesionesEvento y agent/EnvioOpencode.
-    add_executable(test_sesion_evento tests/test_sesion_evento.cpp agent/SesionesEvento.cpp agent/EnvioOpencode.cpp
-                   agent/EnvioOpencode.hpp)
+    add_executable(test_sesion_evento tests/test_sesion_evento.cpp)
     target_include_directories(test_sesion_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_sesion_evento PRIVATE ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_sesion_evento PRIVATE ba_app_agente ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_sesion_evento PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_sesion_evento COMMAND test_sesion_evento)
     # Los discursos del teleprompter: carpetas, nombres y que nada salga de la raiz.
@@ -1927,14 +1947,7 @@ endif()
 # Al final: sus raíces de include ya están (ba-app las tiene propias o por ba_motor y
 # ba_emisor_pedido) y el orden de los -I de ba-app no cambia. Las bibliotecas, de la más
 # alta a la más baja (el enlazador de Linux resuelve una .a con las que vienen después).
-# Las áreas de nivel 2 todavía se usan entre sí (la deuda de test_niveles: audio usa
-# agent/Vocabulario y agent usa audio/…): en Linux, en un grupo, para que el enlazador
-# vuelva a mirar las anteriores (la Mac y Windows ya lo hacen solos).
-if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND BA_APP_BIBLIOTECAS)
-    target_link_libraries(ba-app PRIVATE -Wl,--start-group ${BA_APP_BIBLIOTECAS} -Wl,--end-group ba_app_comun)
-else()
-    target_link_libraries(ba-app PRIVATE ${BA_APP_BIBLIOTECAS} ba_app_comun)
-endif()
+target_link_libraries(ba-app PRIVATE ${BA_APP_BIBLIOTECAS} ba_app_comun)
 
 # --- Instalación ------------------------------------------------------------
 # Proceso A va a bin/64bit/ (spec §5.1).
@@ -2040,3 +2053,7 @@ foreach(_t IN LISTS _ba_app_targets)
         endif()
     endif()
 endforeach()
+
+# En Linux, las bibliotecas de la app en un --start-group (en ba-app y en cada test que
+# enlaza dos o más): las áreas de nivel 2 todavía se usan entre sí (cmake/BaBiblioteca.cmake).
+ba_biblioteca_grupos_linux()
