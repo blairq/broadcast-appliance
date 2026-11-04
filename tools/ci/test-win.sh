@@ -90,6 +90,15 @@ uno() {
 export -f uno
 export B W RES
 xargs -P "$JOBS" -I{} bash -c 'uno "$1"' _ {} <"$PEND"
+# rc=133 (128+5): el proceso wine murió por SIGTRAP: lo mató el emulador (Wine sobre
+# Rosetta, con la máquina llena de tests a la vez), no el test (un test que se cae bajo Wine
+# sale con el código de la excepción de Windows, no con una señal). Se reintentan de a uno.
+if grep -q '^133 ' "$RES"; then
+    grep '^133 ' "$RES" | awk '{print $5}' >"$B/wine-logs/.reintentar"
+    grep -v '^133 ' "$RES" >"$RES.tmp"
+    mv "$RES.tmp" "$RES"
+    while read -r t; do uno "$t"; done <"$B/wine-logs/.reintentar"
+fi
 "$TC/wine/bin/wineserver" -k 2>/dev/null
 # Los que pasaron (o se saltearon), a la caché.
 python3 "$ROOT/tools/ci/tests-con-cache.py" wine-guardar --build "$B" --resultados "$RES"
@@ -98,10 +107,12 @@ fi
 pass=0
 skip=0
 failed=()
+entorno=()
 while read -r rc seg n log _; do
     case $rc in
         0) pass=$((pass + 1)) ;;
         77) skip=$((skip + 1)) ;;
+        133) entorno+=("$n"); echo "---- $n: rc=133 dos veces (SIGTRAP del emulador: Wine sobre Rosetta; del entorno, no del test)" ;;
         *) failed+=("$n($rc)"); echo "---- $n (rc=$rc, ${seg} s)"; grep -E "FALLO|FAIL" "$log" | head -5 ;;
     esac
 done < <(sort -k3 "$RES")
@@ -110,5 +121,5 @@ if [ -s "$RES" ]; then
     sort -k2 -rn "$RES" | head -8 | awk '{printf "  %4d s  %s\n", $2, $3}'
 fi
 sin_correr=$(( $(wc -l <"$B/wine-logs/.claves") - $(wc -l <"$PEND") ))
-echo "Windows (Wine): ${pass} ok, ${skip} saltados, ${#failed[@]} fallidos ${failed[*]:-} (${sin_correr} sin correr: caché o lentos afuera)"
+echo "Windows (Wine): ${pass} ok, ${skip} saltados, ${#failed[@]} fallidos ${failed[*]:-}, ${#entorno[@]} caídos por el emulador ${entorno[*]:-} (${sin_correr} sin correr: caché o lentos afuera)"
 [ "${#failed[@]}" -eq 0 ]
