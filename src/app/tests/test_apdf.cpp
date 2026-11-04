@@ -7,6 +7,7 @@
 #include <QDir>
 #include <QEventLoop>
 #include <QFile>
+#include <QFileInfo>
 #include <QGuiApplication>
 #include <QImage>
 #include <QPdfDocument>
@@ -15,6 +16,8 @@
 #include <QTimer>
 
 #include <cstdio>
+
+#include "tests/RutasPrueba.h"
 
 namespace {
 int fallas = 0;
@@ -30,6 +33,13 @@ int paginas(const QString& pdf, QString* texto = nullptr) {
     if (d.load(pdf) != QPdfDocument::Error::None) return 0;
     if (texto != nullptr && d.pageCount() > 0) *texto = d.getAllText(0).text();
     return d.pageCount();
+}
+
+/// La primera de `candidatas` que existe ("" si ninguna).
+QString primera(const QStringList& candidatas) {
+    for (const QString& c : candidatas)
+        if (!c.isEmpty() && QFileInfo::exists(c)) return QDir::cleanPath(c);
+    return {};
 }
 
 /// APdf::archivo, esperando que termine (con tope).
@@ -48,6 +58,23 @@ QString convertir(ba::app::APdf& c, const QString& origen, const QString& destin
 
 int main(int argc, char** argv) {
     qputenv("QT_QPA_PLATFORM", "offscreen");
+    // Lo que el test lee, buscado como en la app y no solo con la ruta del árbol donde se
+    // compiló (en Docker, /trabajo/ba: copiado a bin\64bit de una PC con Windows no existe):
+    // la variable de entorno, al lado del ejecutable (el bundle: <bin>/../../data/fonts) y el
+    // árbol del build.
+    const QString exe = QString::fromLocal8Bit(ba_prueba_carpeta_exe());
+    // Las tipografías del bundle (extern/fuentes-texto → data/fonts). Con la plataforma
+    // offscreen, Qt en Windows lee las fuentes de <qt>/lib/fonts (que Qt ya no trae) y el PDF
+    // del Markdown salía sin texto; la app usa las de la máquina y suma las del bundle.
+    const QString fuentes = primera({qEnvironmentVariable("BA_FUENTES_TEXTO"), exe + "/../../data/fonts",
+#ifdef BA_TEST_FUENTES
+                                     QStringLiteral(BA_TEST_FUENTES),
+#endif
+                                     QString()});
+    if (!fuentes.isEmpty() && qEnvironmentVariableIsEmpty("QT_QPA_FONTDIR")) qputenv("QT_QPA_FONTDIR", fuentes.toLocal8Bit());
+    const QString datosPrueba = primera({qEnvironmentVariable("BA_TEST_DATOS"), exe + "/datos", QStringLiteral(BA_TEST_DATOS)});
+    std::printf("tipografías: %s; datos: %s\n", fuentes.isEmpty() ? "(las de la máquina)" : fuentes.toUtf8().constData(),
+                datosPrueba.isEmpty() ? "(no están: BA_TEST_DATOS=<carpeta con tres-laminas.pptx>)" : datosPrueba.toUtf8().constData());
     QTemporaryDir datos;
     qputenv("BA_DATA_ROOT", datos.path().toUtf8()); // los temporales de APdf, acá
     QGuiApplication app(argc, argv);
@@ -117,7 +144,7 @@ int main(int argc, char** argv) {
     }
     // 7. Una presentación (DeckCraft).
     {
-        const QString e = convertir(c, QString(BA_TEST_DATOS) + "/tres-laminas.pptx", d + "/laminas.pdf");
+        const QString e = convertir(c, datosPrueba + "/tres-laminas.pptx", d + "/laminas.pdf");
         const int n = paginas(d + "/laminas.pdf");
         chequear(e.isEmpty() && n == 3, "presentación .pptx (DeckCraft)", e.isEmpty() ? QString::number(n) + " pág." : e);
     }
