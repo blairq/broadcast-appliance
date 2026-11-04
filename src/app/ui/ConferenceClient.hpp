@@ -169,6 +169,9 @@ class ConferenceClient : public QObject {
 
     /// POST a la API (`path` absoluto, p. ej. "/api/v1/room").
     void post(const QString& path, const QJsonObject& body = {}, Done done = {}, int timeoutMs = 5000);
+    /// POST con el cuerpo ya armado (JSON en texto): lo que se manda mucho y grande (los
+    /// cuadros del tablero web) se arma en otro hilo y acá no se vuelve a leer ni a escribir.
+    void postCrudo(const QString& path, const QByteArray& json, Done done = {}, int timeoutMs = 5000);
     /// PUT (la configuración en caliente: /api/v1/config/<sección>).
     void put(const QString& path, const QJsonObject& body, Done done = {});
     void del(const QString& path, Done done = {});

@@ -417,6 +417,10 @@ void ConferenceClient::post(const QString& path, const QJsonObject& body, Done d
     send("POST", path, QJsonDocument(body).toJson(QJsonDocument::Compact), std::move(done), timeoutMs);
 }
 
+void ConferenceClient::postCrudo(const QString& path, const QByteArray& json, Done done, int timeoutMs) {
+    send("POST", path, json, std::move(done), timeoutMs);
+}
+
 void ConferenceClient::put(const QString& path, const QJsonObject& body, Done done) {
     send("PUT", path, QJsonDocument(body).toJson(QJsonDocument::Compact), std::move(done), 5000);
 }

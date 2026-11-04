@@ -28,6 +28,9 @@
 #include <functional>
 #include <map>
 #include <string>
+#include <vector>
+
+class QByteArray;
 
 namespace ba::app {
 class ConferenceClient;
@@ -52,8 +55,11 @@ class ControlWebGateway : public QObject {
     /// tiene que llegar antes que lo que lo nombra).
     void enviarEnOrden(const std::string& conexion, const json& msg);
     /// Un cuadro de video: APARTE de la cola (no frena a la réplica ni a los estados); como
-    /// mucho kCuadrosEnVuelo sin contestar por conexión; si no, se descarta (la red o el navegador no dan abasto: mejor el próximo que uno viejo).
-    void enviarCuadro(const std::string& conexion, const json& msg);
+    /// mucho kCuadrosEnVuelo sin contestar por conexión; si no, a esa se le descarta (la red o
+    /// el navegador no dan abasto: mejor el próximo que uno viejo). `msg` viene YA en texto
+    /// (CuadrosWeb lo arma en su hilo) y va en un solo pedido para todas las conexiones: acá
+    /// solo se pega, sin leerlo ni volver a escribirlo.
+    void enviarCuadro(const std::vector<std::string>& conexiones, const QByteArray& msg);
     static constexpr int kCuadrosEnVuelo = 2;
     /// Lo que dice el gateway (conexiones vivas, credenciales, túnel), o "apagado" / "sin respuesta".
     void estado(std::function<void(const json&)> listo);

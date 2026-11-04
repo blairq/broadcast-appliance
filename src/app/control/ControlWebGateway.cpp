@@ -116,19 +116,36 @@ void ControlWebGateway::enviarEnOrden(const std::string& cid, const json& msg) {
     encolar("/api/v1/control/enviar", {{"conexiones", json::array({cid})}, {"msg", msg}});
 }
 
-void ControlWebGateway::enviarCuadro(const std::string& cid, const json& msg) {
-    if (!gw_.online()) return;
-    int& n = cuadrosEnVuelo_[cid];
-    if (n >= kCuadrosEnVuelo) return;
-    ++n;
+void ControlWebGateway::enviarCuadro(const std::vector<std::string>& conexiones, const QByteArray& msg) {
+    if (!gw_.online() || msg.isEmpty()) return;
+    // Las que todavía tienen lugar (las demás se lo pierden: les llega el próximo).
+    json ids = json::array();
+    for (const std::string& cid : conexiones) {
+        int& n = cuadrosEnVuelo_[cid];
+        if (n >= kCuadrosEnVuelo) continue;
+        ++n;
+        ids.push_back(cid);
+    }
+    if (ids.empty()) return;
+    // El cuerpo pegado: {"conexiones":[…],"msg":<el cuadro, ya en texto>}. Nada de leer ni
+    // de volver a escribir el JPEG en base64 en este hilo (era lo que más pesaba).
+    const std::string cabeza = R"({"conexiones":)" + ids.dump() + R"(,"msg":)";
+    QByteArray cuerpo;
+    cuerpo.reserve(static_cast<qsizetype>(cabeza.size()) + msg.size() + 1);
+    cuerpo.append(cabeza.data(), static_cast<qsizetype>(cabeza.size()));
+    cuerpo.append(msg);
+    cuerpo.append('}');
+    std::vector<std::string> enVuelo;
+    for (const auto& x : ids) enVuelo.push_back(x.get<std::string>());
     QPointer<ControlWebGateway> yo(this);
-    sala::pedir(gw_, "POST", "/api/v1/control/enviar", {{"conexiones", json::array({cid})}, {"msg", msg}},
-                [yo, cid](const std::string&, const json&) {
-                    if (!yo) return;
-                    auto it = yo->cuadrosEnVuelo_.find(cid);
-                    if (it == yo->cuadrosEnVuelo_.end()) return;
-                    if (--it->second <= 0) yo->cuadrosEnVuelo_.erase(it);
-                });
+    gw_.postCrudo(QStringLiteral("/api/v1/control/enviar"), cuerpo, [yo, enVuelo](bool, const QJsonObject&) {
+        if (!yo) return;
+        for (const std::string& cid : enVuelo) {
+            auto it = yo->cuadrosEnVuelo_.find(cid);
+            if (it == yo->cuadrosEnVuelo_.end()) continue;
+            if (--it->second <= 0) yo->cuadrosEnVuelo_.erase(it);
+        }
+    });
 }
 
 void ControlWebGateway::evento(const json& ev) {

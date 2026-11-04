@@ -827,7 +827,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
                 listo(e.ok ? e.url : std::string(), e.ok ? std::string() : (e.mensaje.empty() ? std::string("sin enlace") : e.mensaje));
             });
         };
-        cuadrosWeb_->enviar = [&cwg](const std::string& cid, const nlohmann::json& m) { cwg.enviarCuadro(cid, m); };
+        cuadrosWeb_->enviar = [&cwg](const std::vector<std::string>& cids, const QByteArray& m) { cwg.enviarCuadro(cids, m); };
         cw.ganchos().replica = [this](const std::string& cid, const std::string& ap, const nlohmann::json& perfil,
                                       const nlohmann::json& msg) { replica_->entrada(cid, ap, perfil, msg); };
         cw.ganchos().cerrada = [this](const std::string& cid) { replica_->cerrada(cid); };
