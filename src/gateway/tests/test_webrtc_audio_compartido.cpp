@@ -25,7 +25,7 @@
 #include "api/audio_codecs/builtin_audio_encoder_factory.h"
 
 #include "AudioCompartido.hpp"
-#include "AudioCompartidoRtc.hpp"
+#include "webrtc/AudioCompartidoRtc.hpp"
 
 using namespace ba::gateway;
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/AudioCompartidoRtc.hpp — el audio de retorno compartido por dentro (libwebrtc)
+// src/gateway/webrtc/AudioCompartidoRtc.hpp — el audio de retorno compartido por dentro (libwebrtc)
 //
 // Lo usa Webrtc.cpp: la fábrica de codificadores de audio de la PeerConnectionFactory y los
 // grupos (AudioCompartido). Ver AudioCompartido.hpp para el porqué.

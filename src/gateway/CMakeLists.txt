@@ -186,19 +186,19 @@ if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_
         "-framework QuartzCore" "-framework CoreServices" "-framework Security"
         "-framework SystemConfiguration")
     # libwebrtc esta compilado sin RTTI.
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/RetornoCompartido.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/CodecsVideo.cpp"
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/webrtc/Webrtc.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/RetornoCompartido.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/CodecsVideo.cpp"
                                 "${CMAKE_CURRENT_SOURCE_DIR}/rtc/ColasCompartidas.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/BucleRtc.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/SocketsEnMemoria.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/HilosLote.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/BucleRtc.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/SocketsEnMemoria.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/HilosLote.cpp"
                                 PROPERTIES COMPILE_OPTIONS "-fno-rtti")
     # H.264 por VideoToolbox (el SDK de Objective-C): ver CodecsMac.mm. Va con el
     # resto del gateway (ba_gateway_obj): lo tienen el gateway y sus pruebas con libwebrtc.
-    target_sources(ba_gateway_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/CodecsMac.mm")
+    target_sources(ba_gateway_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/CodecsMac.mm")
     target_include_directories(ba_webrtc_mac SYSTEM INTERFACE "${BA_WEBRTC_ROOT}/include/sdk/objc"
                                "${BA_WEBRTC_ROOT}/include/sdk/objc/base")
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/CodecsMac.mm" PROPERTIES COMPILE_OPTIONS "-fno-rtti;-fobjc-arc")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/webrtc/CodecsMac.mm" PROPERTIES COMPILE_OPTIONS "-fno-rtti;-fobjc-arc")
     # Las categorías de Objective-C de libwebrtc.a (RTCVideoCodecInfo+Private...) no se
     # enlazan solas: sin esto, «unrecognized selector» al pedir los codecs.
     target_link_options(ba_webrtc_mac INTERFACE "-Wl,-ObjC")
@@ -236,12 +236,12 @@ elseif(BA_GATEWAY_WEBRTC)
         mfplat mfuuid)
     # libwebrtc esta compilado sin RTTI: las clases que heredan de sus
     # interfaces no pueden pedir typeinfo de sus bases.
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/CodecsVideo.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/CodecsWin.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
+    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/webrtc/Webrtc.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/CodecsVideo.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/CodecsWin.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
     set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/rtc/ColasCompartidas.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/BucleRtc.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/SocketsEnMemoria.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/HilosLote.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
+                                "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/BucleRtc.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/SocketsEnMemoria.cpp"
+                                "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/HilosLote.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
     target_link_libraries(ba_gateway_obj PUBLIC ba_webrtc_win)
 else()
     message(STATUS "ba-gateway (GCC): backend NULL para los tests de logica (BA_GATEWAY_HAVE_WEBRTC=0)")
@@ -269,7 +269,7 @@ if(NOT MSVC AND BA_GATEWAY_USE_WEBRTC AND DEFINED BA_WEBRTC_ROOT AND EXISTS "${B
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/webrtc-shadow/rtc_base/system")
     ba_escribir_si_cambia("${CMAKE_BINARY_DIR}/webrtc-shadow/rtc_base/system/rtc_export_template.h"
          "${_rtc_export_shaded}")
-    add_library(ba-gateway-webrtc-realcheck OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp")
+    add_library(ba-gateway-webrtc-realcheck OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/Webrtc.cpp")
     target_compile_definitions(ba-gateway-webrtc-realcheck PRIVATE
         BA_GATEWAY_HAVE_WEBRTC=1 WEBRTC_WIN OS_WIN UNICODE _UNICODE)
     target_include_directories(ba-gateway-webrtc-realcheck BEFORE PRIVATE
@@ -304,6 +304,7 @@ file(GLOB BA_GATEWAY_LIB_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/proxy/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/rtc/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/turn/*.cpp"
+    "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/*.cpp"
 )
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/tests/.*")
 list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")

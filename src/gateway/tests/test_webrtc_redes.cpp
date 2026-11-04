@@ -8,7 +8,7 @@
 //     como un aviso más (el problema);
 //   - después (RedesDeSesion): la primera recibe un solo aviso por más sesiones que
 //     empiecen, y cada sesión nueva recibe el suyo.
-#include "RedesSesionRtc.hpp"
+#include "webrtc/RedesSesionRtc.hpp"
 
 #include "rtc_base/thread.h"
 

@@ -1,7 +1,7 @@
 // ============================================================================
-// src/gateway/AudioCompartidoRtc.cpp — grupos Opus y el codificador de paso (AudioCompartidoRtc.hpp)
+// src/gateway/webrtc/AudioCompartidoRtc.cpp — grupos Opus y el codificador de paso (AudioCompartidoRtc.hpp)
 // ============================================================================
-#include "AudioCompartidoRtc.hpp"
+#include "webrtc/AudioCompartidoRtc.hpp"
 
 #if BA_GATEWAY_HAVE_WEBRTC
 

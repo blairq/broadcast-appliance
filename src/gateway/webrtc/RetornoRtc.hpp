@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/RetornoRtc.hpp — el retorno compartido por dentro (solo con libwebrtc)
+// src/gateway/webrtc/RetornoRtc.hpp — el retorno compartido por dentro (solo con libwebrtc)
 //
 // Lo usan Webrtc.cpp (la fábrica de codificadores, la fuente de cada sesión) y
 // RetornoCompartido.cpp (flujos, capas y el codificador de paso). Ver RetornoCompartido.hpp.

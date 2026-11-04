@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/RedesSesionRtc.hpp — las redes de UNA PeerConnection sobre la lista común
+// src/gateway/webrtc/RedesSesionRtc.hpp — las redes de UNA PeerConnection sobre la lista común
 //
 // El problema (ráfaga por el TURN, 2026-11-02): todas las PeerConnection comparten un
 // rtc::BasicNetworkManager (la lista de interfaces sin las virtuales). Cada sesión que

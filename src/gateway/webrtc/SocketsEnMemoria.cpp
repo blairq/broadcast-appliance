@@ -1,7 +1,7 @@
 // ============================================================================
-// src/gateway/rtc/SocketsEnMemoria.cpp — ver SocketsEnMemoria.hpp
+// src/gateway/webrtc/SocketsEnMemoria.cpp — ver SocketsEnMemoria.hpp
 // ============================================================================
-#include "rtc/SocketsEnMemoria.hpp"
+#include "webrtc/SocketsEnMemoria.hpp"
 
 #if BA_GATEWAY_HAVE_WEBRTC
 

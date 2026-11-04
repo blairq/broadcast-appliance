@@ -37,7 +37,7 @@
 #endif
 
 #include "diag/Frontera.hpp"
-#include "rtc/HilosLote.hpp"
+#include "webrtc/HilosLote.hpp"
 #include "rtc/LoteTrabajo.hpp"
 
 using namespace ba::gateway;

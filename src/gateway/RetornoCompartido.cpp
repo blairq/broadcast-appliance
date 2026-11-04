@@ -38,7 +38,7 @@
 #include <sstream>
 
 #if BA_GATEWAY_HAVE_WEBRTC
-#include "RetornoRtc.hpp"
+#include "webrtc/RetornoRtc.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/Nucleos.hpp"
 

@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/rtc/BucleRtc.cpp — ver BucleRtc.hpp
+// src/gateway/webrtc/BucleRtc.cpp — ver BucleRtc.hpp
 //
 // El PhysicalSocketServer de M123 espera por cada rtc::Dispatcher anotado: en macOS con
 // select() (WaitSelect), en Linux con epoll y en Windows con WSAEventSelect sobre un evento
@@ -7,7 +7,7 @@
 // OnEvent con DE_READ/DE_ACCEPT/DE_CLOSE (hay algo para leer, aceptar o un cierre: el TURN
 // lee y se entera) o DE_WRITE/DE_CONNECT (hay lugar para escribir).
 // ============================================================================
-#include "rtc/BucleRtc.hpp"
+#include "webrtc/BucleRtc.hpp"
 
 #if BA_GATEWAY_HAVE_WEBRTC
 

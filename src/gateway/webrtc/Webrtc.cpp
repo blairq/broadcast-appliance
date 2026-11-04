@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/Webrtc.cpp — Sesiones WebRTC (libwebrtc M123 real + backend NULL)
+// src/gateway/webrtc/Webrtc.cpp — Sesiones WebRTC (libwebrtc M123 real + backend NULL)
 //
 // Backend REAL (BA_GATEWAY_HAVE_WEBRTC=1):
 //   - B es el ANSWERER. SetRemoteDescription(offer) crea los transceivers que
@@ -43,10 +43,10 @@
 
 #include "Webrtc.hpp"
 #include "AudioCompartido.hpp"
-#include "AudioCompartidoRtc.hpp"
+#include "webrtc/AudioCompartidoRtc.hpp"
 #include "CargaVideo.hpp"
 #include "RetornoCompartido.hpp"
-#include "RetornoRtc.hpp"
+#include "webrtc/RetornoRtc.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "diag/Frontera.hpp"
 #include "diag/Registro.hpp"
@@ -74,7 +74,7 @@
 #include <nlohmann/json.hpp>
 
 #if BA_GATEWAY_HAVE_WEBRTC
-#include "RedesSesionRtc.hpp"
+#include "webrtc/RedesSesionRtc.hpp"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
@@ -106,19 +106,19 @@
 #if defined(WEBRTC_WIN)
 #include "rtc_base/win32_socket_init.h"
 #endif
-#include "CodecsVideo.hpp"
+#include "webrtc/CodecsVideo.hpp"
 #include "DestinoCamara.hpp"
 #include "media/base/adapted_video_track_source.h"
 #include "modules/audio_device/include/audio_device.h"
 #include "modules/audio_device/include/audio_device_default.h"
 #include "modules/audio_processing/include/audio_processing.h"
 #include "rtc/ColasCompartidas.hpp"
-#include "rtc/BucleRtc.hpp"
-#include "rtc/HilosLote.hpp"
+#include "webrtc/BucleRtc.hpp"
+#include "webrtc/HilosLote.hpp"
 #include "rtc/LoteTrabajo.hpp"
-#include "rtc/SocketsEnMemoria.hpp"
+#include "webrtc/SocketsEnMemoria.hpp"
 #if BA_HAVE_LWIP
-#include "rtc/TunelEnMemoria.hpp"
+#include "webrtc/TunelEnMemoria.hpp"
 #endif
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_adapter.h"

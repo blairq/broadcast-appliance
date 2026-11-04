@@ -85,7 +85,8 @@ target_link_libraries(ba_core_cr PUBLIC ${BA_C_LIBS} Threads::Threads)
 
 # --- Gateway ------------------------------------------------------------------
 file(GLOB GW_SOURCES CONFIGURE_DEPENDS "${BA_SRC}/src/gateway/*.cpp" "${BA_SRC}/src/gateway/net/*.cpp"
-     "${BA_SRC}/src/gateway/proxy/*.cpp" "${BA_SRC}/src/gateway/turn/*.cpp" "${BA_SRC}/src/gateway/rtc/*.cpp")
+     "${BA_SRC}/src/gateway/proxy/*.cpp" "${BA_SRC}/src/gateway/turn/*.cpp" "${BA_SRC}/src/gateway/rtc/*.cpp"
+     "${BA_SRC}/src/gateway/webrtc/*.cpp")
 list(FILTER GW_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
 # El cliente HTTPS propio de la app (mbedtls, sin Qt): lo usa el cliente ACME
 # del proxy (T61), igual que en src/gateway/CMakeLists.txt.
@@ -128,10 +129,10 @@ else()
 endif()
 # libwebrtc esta compilado sin RTTI: las clases que heredan de sus interfaces
 # (observadores, fuentes, sinks) no pueden pedir typeinfo de sus bases.
-set_source_files_properties("${BA_SRC}/src/gateway/Webrtc.cpp" "${BA_SRC}/src/gateway/RetornoCompartido.cpp"
-                            "${BA_SRC}/src/gateway/CodecsVideo.cpp" "${BA_SRC}/src/gateway/rtc/ColasCompartidas.cpp"
-                            "${BA_SRC}/src/gateway/rtc/BucleRtc.cpp" "${BA_SRC}/src/gateway/rtc/SocketsEnMemoria.cpp"
-                            "${BA_SRC}/src/gateway/rtc/HilosLote.cpp"
+set_source_files_properties("${BA_SRC}/src/gateway/webrtc/Webrtc.cpp" "${BA_SRC}/src/gateway/RetornoCompartido.cpp"
+                            "${BA_SRC}/src/gateway/webrtc/CodecsVideo.cpp" "${BA_SRC}/src/gateway/rtc/ColasCompartidas.cpp"
+                            "${BA_SRC}/src/gateway/webrtc/BucleRtc.cpp" "${BA_SRC}/src/gateway/webrtc/SocketsEnMemoria.cpp"
+                            "${BA_SRC}/src/gateway/webrtc/HilosLote.cpp"
                             PROPERTIES COMPILE_OPTIONS "-fno-rtti")
 # libwebrtc.a al FINAL: aporta la libc++ que usan todos los de arriba.
 target_link_libraries(ba_gateway_rtc PUBLIC ba_core_cr ${BA_LWIP_LIB} "${WRTC}/lib/libwebrtc.a" Threads::Threads ${CMAKE_DL_LIBS})

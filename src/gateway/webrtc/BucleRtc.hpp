@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/rtc/BucleRtc.hpp — un turn::Bucle sobre el hilo de red de libwebrtc
+// src/gateway/webrtc/BucleRtc.hpp — un turn::Bucle sobre el hilo de red de libwebrtc
 //
 // F1 de PLAN-GATEWAY-FRAGMENTOS.md: los sockets del TURN (la escucha TCP, el UDP de pinggy,
 // las conexiones y los relays) en el MISMO PhysicalSocketServer que los de WebRTC, no en un
