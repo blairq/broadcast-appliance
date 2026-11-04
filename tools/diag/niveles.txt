@@ -36,7 +36,7 @@
 # de los dos lados (si va en los dos, con el mismo nivel).
 
 # --- nivel 0 -------------------------------------------------------------------------------
-componente core            0   core/                         : ba_core ba_codigos ba_core_cr
+componente core            0   core/                         : ba_core ba_codigos ba_core_cr ba_ipc_plugin
 componente lspdsp          0   lspdsp/
 componente web             0   web/                          : ba-web
 componente pinggy          0   pinggy/                       : ba-pinggy

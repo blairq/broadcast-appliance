@@ -69,20 +69,24 @@ if(WIN32)
 else()
     set(BA_IPC_RITMO "${CMAKE_SOURCE_DIR}/src/core/platform/Ritmo_posix.cpp")
 endif()
-add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/anillosink.cpp ipc/retornos.cpp ipc/video.cpp
-    ipc/comun.cpp ipc/anillocomun.cpp ipc/videocomun.cpp ipc/entrega.cpp "${CMAKE_SOURCE_DIR}/src/core/platform/Hilo.cpp" "${CMAKE_SOURCE_DIR}/src/core/platform/Ritmo.cpp"
-    "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/LimitadorTP.cpp"
+# Los anillos y el video compartido (core/ipc) y el Ritmo SIN Energia, compilados UNA vez para
+# el plugin y sus tests. No es ba_core: el plugin no puede enlazar el núcleo entero (con sus
+# dependencias: ONNX Runtime, mbedTLS) y el Ritmo de acá no pide Energia (BA_RITMO_SIN_ENERGIA:
+# la pide el proceso que carga el plugin). PIC: va adentro de un MODULE.
+add_library(ba_ipc_plugin STATIC "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
-target_include_directories(gstbaipc PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
-target_compile_definitions(gstbaipc PRIVATE BA_RITMO_SIN_ENERGIA)
+target_include_directories(ba_ipc_plugin PUBLIC "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
+target_compile_definitions(ba_ipc_plugin PUBLIC BA_RITMO_SIN_ENERGIA)
+set_target_properties(ba_ipc_plugin PROPERTIES POSITION_INDEPENDENT_CODE ON)
+add_library(gstbaipc MODULE ipc/plugin.cpp ipc/anillo.cpp ipc/anillosink.cpp ipc/retornos.cpp ipc/video.cpp
+    ipc/comun.cpp ipc/anillocomun.cpp ipc/videocomun.cpp ipc/entrega.cpp "${CMAKE_SOURCE_DIR}/src/core/platform/Hilo.cpp" "${CMAKE_SOURCE_DIR}/src/core/platform/Ritmo.cpp"
+    "${CMAKE_SOURCE_DIR}/src/core/dsp/LimitadorTP.cpp")
+target_link_libraries(gstbaipc PRIVATE ba_ipc_plugin)
 ba_plugin_gst(gstbaipc)
 if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
-    add_executable(test_baanillo tests/test_baanillo.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
-        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
-    target_compile_definitions(test_baanillo PRIVATE BA_RITMO_SIN_ENERGIA)
-    target_include_directories(test_baanillo PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
-    target_link_libraries(test_baanillo PRIVATE ba::gstreamer)
+    add_executable(test_baanillo tests/test_baanillo.cpp)
+    target_link_libraries(test_baanillo PRIVATE ba_ipc_plugin ba::gstreamer)
     if(DEFINED BA_GST_LIBDIR)
         set_target_properties(test_baanillo PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")
     endif()
@@ -91,12 +95,9 @@ if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
     add_test(NAME test_baanillo COMMAND test_baanillo)
     set_tests_properties(test_baanillo PROPERTIES SKIP_RETURN_CODE 77)
     # El lector común de los anillos y baentrega/batoma (sin un hilo por cadena ni por rama).
-    add_executable(test_anillocomun tests/test_anillocomun.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedAudioRing.cpp"
-        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
-    target_compile_definitions(test_anillocomun PRIVATE BA_RITMO_SIN_ENERGIA)
-    target_include_directories(test_anillocomun PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc"
-        "${CMAKE_CURRENT_SOURCE_DIR}/ipc")
-    target_link_libraries(test_anillocomun PRIVATE ba::gstreamer)
+    add_executable(test_anillocomun tests/test_anillocomun.cpp)
+    target_include_directories(test_anillocomun PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/ipc")
+    target_link_libraries(test_anillocomun PRIVATE ba_ipc_plugin ba::gstreamer)
     if(DEFINED BA_GST_LIBDIR)
         set_target_properties(test_anillocomun PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")
     endif()
@@ -106,11 +107,8 @@ if(TRUE) # el test de baanillo (como el gateway: escribe el anillo)
     set_tests_properties(test_anillocomun PROPERTIES SKIP_RETURN_CODE 77)
     # El video del canal (como el gateway: publica BA.Guest.<n>): el tamaño del
     # canal en las caps, también después de que abajo pidan renegociar.
-    add_executable(test_bavideoanillo tests/test_bavideoanillo.cpp "${CMAKE_SOURCE_DIR}/src/core/ipc/SpoutTransport.cpp"
-        "${CMAKE_SOURCE_DIR}/src/core/ipc/SharedMemoryRegion.cpp" "${CMAKE_SOURCE_DIR}/src/core/ipc/Timbre.cpp" "${BA_IPC_RITMO}")
-    target_compile_definitions(test_bavideoanillo PRIVATE BA_RITMO_SIN_ENERGIA)
-    target_include_directories(test_bavideoanillo PRIVATE "${CMAKE_SOURCE_DIR}/src/core" "${CMAKE_SOURCE_DIR}/src/core/ipc")
-    target_link_libraries(test_bavideoanillo PRIVATE ba::gstreamer)
+    add_executable(test_bavideoanillo tests/test_bavideoanillo.cpp)
+    target_link_libraries(test_bavideoanillo PRIVATE ba_ipc_plugin ba::gstreamer)
     if(DEFINED BA_GST_LIBDIR)
         set_target_properties(test_bavideoanillo PROPERTIES BUILD_RPATH "${BA_GST_LIBDIR}")
     endif()
