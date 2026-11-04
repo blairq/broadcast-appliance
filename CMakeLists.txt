@@ -536,17 +536,14 @@ endif()
 # (tools/diag/niveles.txt).
 include(${CMAKE_SOURCE_DIR}/cmake/BaNiveles.cmake)
 
+# Chequeos rápidos del código que no son de C++ (segundos), cada uno con lo que lee: los
+# catálogos de idiomas, un escritor a mano sobre Config/Runtime (F1-01), recorrer .items() de un
+# JSON temporal (UB), el comparador de las corridas nocturnas del banco de caos (F4-03)... Los
+# que recorren src/, de a un área (cmake/BaTestsPy.cmake, tests/areas.py).
+include(${CMAKE_SOURCE_DIR}/cmake/BaTestsPy.cmake)
+
 # Con todos los tests ya declarados: etiquetas y entradas para la caché de tests.
 ba_tests_registrar()
 
 # Al final: si a algo de lo de arriba le faltó una parte, acá frena (cmake/BaRequisitos.cmake).
 ba_revisar_requisitos()
-
-# Chequeos rápidos del código que no son de C++ (segundos): los catálogos de idiomas, un escritor a mano sobre
-# Config/Runtime (F1-01), recorrer .items() de un JSON temporal (UB) y el comparador de las
-# corridas nocturnas del banco de caos (F4-03). Con el pytest del
-# venv de desarrollo (make pytest); sin venv, no se registran.
-if(EXISTS "${CMAKE_SOURCE_DIR}/.venv/bin/python")
-    add_test(NAME test_codigo_py COMMAND "${CMAKE_SOURCE_DIR}/.venv/bin/python" -m pytest -q
-             tests/test_escritor_unico.py tests/test_temporales.py tests/test_i18n.py tests/test_caos_comparar.py tests/test_republicadores.py tests/test_enlace_eco.py tests/test_acoples.py tests/test_replica_permitidas.py tests/test_lotes_formato.py tests/test_json_literales.py WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}")
-endif()
