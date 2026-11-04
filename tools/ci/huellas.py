@@ -67,6 +67,7 @@ class Memo:
         self.cambio = False
         self.candado = threading.Lock()
         self.carpetas = {}  # huella de carpetas, solo en esta corrida
+        self._rutas = {}  # ruta(): lo ya resuelto en esta corrida
         if ruta and os.path.exists(ruta):
             try:
                 with open(ruta) as f:
@@ -159,11 +160,20 @@ class Memo:
                     yield rel, "archivo", self.archivo(p, os.stat(p))
 
     def ruta(self, p, excluir=(), filtro=False):
-        """Huella de lo que haya en p: archivo, carpeta o «falta»."""
+        """Huella de lo que haya en p: archivo, carpeta o «falta». Una vez por corrida: muchos
+        pasos (los 600 tests de tests-con-cache.py) piden las mismas carpetas, y recorrerlas
+        de nuevo era la mitad del tiempo de un `make test` sin cambios."""
+        clave = (p, tuple(excluir), filtro)
+        hecho = self._rutas.get(clave)
+        if hecho is not None:
+            return hecho
         if os.path.isdir(p):
-            return "carpeta:" + self.arbol(p, excluir, filtro)
-        h = self.archivo(p)
-        return ("archivo:" + h) if h else "falta"
+            hecho = "carpeta:" + self.arbol(p, excluir, filtro)
+        else:
+            h = self.archivo(p)
+            hecho = ("archivo:" + h) if h else "falta"
+        self._rutas[clave] = hecho
+        return hecho
 
     def guardar(self):
         if not self.archivo_memo or not self.cambio:

@@ -49,6 +49,7 @@
 # ============================================================================
 import argparse
 import concurrent.futures
+import functools
 import hashlib
 import json
 import os
@@ -105,7 +106,10 @@ def trozos(v):
     return r
 
 
+@functools.lru_cache(maxsize=None)
 def tipo_binario(p):
+    """Mach-O, ELF o PE (los 4 primeros bytes). Una vez por archivo y corrida: los 600 tests
+    preguntan por las mismas bibliotecas."""
     try:
         with open(p, "rb") as f:
             m = f.read(4)
