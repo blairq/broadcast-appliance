@@ -6,8 +6,7 @@
 // McpService.cpp.
 // ============================================================================
 
-#include "i18n/I18nTexto.hpp"
-#include "mcp/McpService.hpp"
+#include "mcp/McpFamilia.hpp"
 #include "asamblea/Debate.hpp"
 #include <QJsonDocument>
 #include <algorithm>
@@ -19,11 +18,9 @@
 #include <memory>
 #include <set>
 #include <fstream>
-#include "arranque/RuntimeMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
-#include "mcp/InterfazMcp.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;

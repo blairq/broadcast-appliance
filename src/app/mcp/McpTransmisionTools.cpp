@@ -6,10 +6,9 @@
 // McpService.cpp.
 // ============================================================================
 
-#include "i18n/I18nTexto.hpp"
+#include "mcp/McpFamilia.hpp"
 #include "sala/SeguridadSala.hpp"
 #include "escenas/RespaldoEntradas.hpp"
-#include "mcp/McpService.hpp"
 #include <algorithm>
 #include <cstdlib>
 #include <chrono>
@@ -29,7 +28,6 @@
 #include "asamblea/SeguirMicrofono.hpp"
 #include "asamblea/OrdenDelDia.hpp"
 #include "asamblea/CuerpoViewModel.hpp"
-#include "mcp/InterfazMcp.hpp"
 #include "ui/AppViewModel.hpp"
 #include "ui/AsambleaViewModel.hpp"
 #include "ui/EstadoAireViewModel.hpp"

@@ -13,8 +13,7 @@
 #include <windows.h> // diag_probar_caida: HeapCreate
 #endif
 #include "fault/ModoSeguro.hpp"
-#include "i18n/I18nTexto.hpp"
-#include "mcp/McpService.hpp"
+#include "mcp/McpFamilia.hpp"
 #include "Piezas.hpp"
 #include <QCoreApplication>
 #include "fault/FallasProgramadas.hpp"
@@ -30,8 +29,6 @@
 #include "arranque/RuntimeMotor.hpp"
 #include "emision/RetornosInvitados.hpp"
 #include "emision/VentanillaMotor.hpp"
-#include "mcp/McpToolsCommon.hpp"
-#include "mcp/InterfazMcp.hpp"
 #include "platform/Hilo.hpp"
 #include "ui/EmisionViewModel.hpp"
 #include "ui/EscenasViewModel.hpp"

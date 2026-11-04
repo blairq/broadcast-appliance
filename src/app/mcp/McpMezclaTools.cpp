@@ -6,8 +6,7 @@
 // McpService.cpp.
 // ============================================================================
 
-#include "i18n/I18nTexto.hpp"
-#include "mcp/McpService.hpp"
+#include "mcp/McpFamilia.hpp"
 #include <algorithm>
 #include <cstdlib>
 #include <chrono>
@@ -20,8 +19,6 @@
 #include "arranque/RuntimeMotor.hpp"
 #include "emision/VentanillaMotor.hpp"
 #include "audio/Matriz.hpp"
-#include "mcp/McpToolsCommon.hpp"
-#include "mcp/InterfazMcp.hpp"
 #include "ui/MezclaViewModel.hpp"
 
 using ::ba::app::errorDe;

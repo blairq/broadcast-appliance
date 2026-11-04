@@ -6,8 +6,7 @@
 // McpService.cpp.
 // ============================================================================
 
-#include "i18n/I18nTexto.hpp"
-#include "mcp/McpService.hpp"
+#include "mcp/McpFamilia.hpp"
 #include "asamblea/Presidencia.hpp"
 #include <algorithm>
 #include <cstdlib>
@@ -18,11 +17,8 @@
 #include <memory>
 #include <set>
 #include <fstream>
-#include "arranque/RuntimeMotor.hpp"
-#include "mcp/McpToolsCommon.hpp"
 #include "asamblea/Bancas.hpp"
 #include "asamblea/InformesResultado.hpp"
-#include "mcp/InterfazMcp.hpp"
 #include "ui/CapturaError.hpp"
 
 using ::ba::app::errorDe;
