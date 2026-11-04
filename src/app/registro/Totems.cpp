@@ -57,7 +57,7 @@ const Tipo kTipos[] = {
 
 /// "" = el idioma del operador.
 ba::i18n::En enIdioma(const std::string& idioma) {
-    return ba::i18n::En(idioma.empty() ? ba::i18n::actual().codigo : idioma);
+    return ba::i18n::En(idioma.empty() ? ba::i18n::idiomaDelOperador() : idioma);
 }
 
 const Tipo& tipo(TipoCampo t) {

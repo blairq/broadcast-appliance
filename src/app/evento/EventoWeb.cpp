@@ -66,7 +66,7 @@ std::string duracionTexto(int seg) {
                    : std::to_string(m) + " min";
 }
 /// El idioma de la página: el del evento; si no tiene, el del programa (como «idioma» en el estado).
-ba::i18n::En idiomaDe(const Evento& e) { return ba::i18n::En(e.idioma.empty() ? ba::i18n::actual().codigo : e.idioma); }
+ba::i18n::En idiomaDe(const Evento& e) { return ba::i18n::En(e.idioma.empty() ? ba::i18n::idiomaDelOperador() : e.idioma); }
 /// El nombre de una sección (lo ve el público: en el idioma del evento).
 std::string nombreDe(const Bloque& b, std::size_t i, const ba::i18n::En& en) {
     return b.nombre.empty() ? ba::i18n::llenar(en.traducir("evento", "Sección %1"), {std::to_string(i + 1)}) : b.nombre;
@@ -394,7 +394,7 @@ json estadoPublico(const Evento& e, const SitioWeb& s, const std::string& estado
             {"inicio", e.inicio},
             {"huso", e.huso},
             // El idioma de la página (el del evento; si no tiene, el del programa).
-            {"idioma", e.idioma.empty() ? ba::i18n::actual().codigo : e.idioma},
+            {"idioma", e.idioma.empty() ? ba::i18n::idiomaDelOperador() : e.idioma},
             {"inicioMs", inicioMs},
             {"arrancoMs", arrancoMs},
             {"ahoraMs", ahoraMs},

@@ -87,7 +87,7 @@ struct ConexionesTotem::Conexion {
 ConexionesTotem::ConexionesTotem(Puertos& p) : p_(p) {}
 ConexionesTotem::~ConexionesTotem() = default;
 
-i18n::En ConexionesTotem::idioma() const { return i18n::En(idioma_.empty() ? i18n::actual().codigo : idioma_); }
+i18n::En ConexionesTotem::idioma() const { return i18n::En(idioma_.empty() ? i18n::idiomaDelOperador() : idioma_); }
 
 ConexionesTotem::Conexion* ConexionesTotem::buscar(const std::string& conn) {
     const auto it = conns_.find(conn);

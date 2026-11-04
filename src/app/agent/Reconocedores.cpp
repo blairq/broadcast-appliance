@@ -81,7 +81,7 @@ std::string Reconocedores::consumidorDeClave(const std::string& clave) {
 }
 
 std::string Reconocedores::idiomaDe(const std::string& consumidor) {
-    return consumidor == "dictado" ? ba::i18n::actual().codigo : ba::i18n::idiomaDelEvento();
+    return consumidor == "dictado" ? ba::i18n::idiomaDelOperador() : ba::i18n::idiomaDelEvento();
 }
 
 bool Reconocedores::reconoce(MotorOido m, const std::string& idioma) {

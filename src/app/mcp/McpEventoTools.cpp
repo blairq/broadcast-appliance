@@ -293,7 +293,7 @@ void registerEventoTools(McpCore& core, EventoViewModel& ev, StudioViewModel& vm
             done(ToolResult().data(json{{"abierto", ev.guionVm().abierto().toStdString()},
                                         {"sinGuardar", ev.guionVm().sucio()},
                                         {"husoDelAparato", GuionViewModel::husoDelAparato().toStdString()},
-                                        {"idiomaDelPrograma", ba::i18n::actual().codigo},
+                                        {"idiomaDelPrograma", ba::i18n::idiomaDelOperador()},
                                         {"guion", guionDe(ev)}}));
         };
         core.addTool(std::move(t));

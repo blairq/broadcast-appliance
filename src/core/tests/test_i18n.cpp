@@ -111,6 +111,7 @@ int main() {
     // --- Traducir ------------------------------------------------------------------
     i18n::usar("en");
     check(i18n::actual().codigo == "en", "usar");
+    check(i18n::idiomaDelOperador() == i18n::actual().codigo, "idiomaDelOperador: el código de actual()");
     check(i18n::traducir("sala", "Conferencia") == "Conference", "traducido");
     check(i18n::traducir("otro", "Conferencia") == "Conferencia", "otro contexto: el original");
     check(i18n::traducir("sala", "Salida", "audio") == "Output", "con desambiguación");

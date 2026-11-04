@@ -52,7 +52,7 @@ void CapturaWeb::capturar(const Pedido& p, Listo listo) {
     const QString perfil = QString::fromStdU16String((ba::platform::dataRoot() / "Cache" / "chrome-headless").u16string());
     QDir().mkpath(perfil);
     const int ancho = std::clamp(p.ancho, 320, 3840), alto = std::clamp(p.alto, 320, 4000);
-    const QString idioma = !p.idioma.isEmpty() ? p.idioma : QString::fromStdString(ba::i18n::actual().codigo);
+    const QString idioma = !p.idioma.isEmpty() ? p.idioma : QString::fromStdString(ba::i18n::idiomaDelOperador());
     QStringList args{"--headless",
                            "--disable-gpu",
                            "--hide-scrollbars",

@@ -67,7 +67,7 @@ std::string texto(const json& j, const char* k) {
 
 /// Lo que lee el modelo va en el idioma del evento (habla con el público). "" = el del operador.
 ba::i18n::En enIdioma(const std::string& idioma) {
-    return ba::i18n::En(idioma.empty() ? ba::i18n::actual().codigo : idioma);
+    return ba::i18n::En(idioma.empty() ? ba::i18n::idiomaDelOperador() : idioma);
 }
 
 } // namespace

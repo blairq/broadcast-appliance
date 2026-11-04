@@ -143,7 +143,7 @@ std::set<std::string> fuentesDe(const json& sceneList, const std::string& escena
 /// El idioma del público del evento (el del guion; si no dice, el del operador).
 ba::i18n::En idiomaDelEvento(const json& g) {
     const std::string c = g.value("idioma", std::string());
-    return ba::i18n::En(c.empty() ? ba::i18n::actual().codigo : c);
+    return ba::i18n::En(c.empty() ? ba::i18n::idiomaDelOperador() : c);
 }
 
 /// «Empezamos a las 19:00» (y el huso si no es el del aparato: hay gente de otros lados).

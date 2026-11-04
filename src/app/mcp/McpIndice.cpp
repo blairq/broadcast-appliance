@@ -202,7 +202,7 @@ std::shared_ptr<const Reglas> reglas() {
     static std::mutex mu;
     static std::string de;
     static std::shared_ptr<const Reglas> hay;
-    const std::string codigo = ba::i18n::actual().codigo;
+    const std::string codigo = ba::i18n::idiomaDelOperador();
     std::lock_guard<std::mutex> l(mu);
     if (hay && de == codigo) return hay;
     const ba::i18n::Perfil p = ba::i18n::perfil(codigo);

@@ -515,7 +515,7 @@ void TotemsViewModel::cerrarMedios(const std::string& conn, Medios& m) {
 // --- La configuración ----------------------------------------------------------------
 
 ba::i18n::En TotemsViewModel::idiomaDelEvento() const {
-    return ba::i18n::En(eventoIdioma_.empty() ? ba::i18n::actual().codigo : eventoIdioma_);
+    return ba::i18n::En(eventoIdioma_.empty() ? ba::i18n::idiomaDelOperador() : eventoIdioma_);
 }
 
 void TotemsViewModel::recargar() {
