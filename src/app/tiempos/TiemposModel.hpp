@@ -10,6 +10,7 @@
 #pragma once
 
 #include "comun/UsoPorVistas.hpp"
+#include "tiempos/FilasTiempo.hpp"
 #include "tiempos/Tiempos.hpp"
 
 #include <QObject>
@@ -35,7 +36,21 @@ class TiemposModel : public QObject {
         if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
     }
     void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
-    Q_PROPERTY(QVariantMap mapa READ mapa NOTIFY cambio)
+    // LO QUE VE LA PÁGINA, separado por ritmo (con 200 invitados son ~800 tarjetas): la
+    // forma del grafo solo cuando cambia, los números por fila y la historia a 1 por segundo.
+    /// La forma: {nodos: [sin los números], tramos: [{desde, hacia, medio}]}. Avisa solo
+    /// cuando aparece, se va o cambia de clase/estado un nodo (el acomodo de la página).
+    Q_PROPERTY(QVariantMap estructura READ estructura NOTIFY estructuraCambio)
+    /// Los nodos, una fila por id (FilasTiempo: clave, dato, historia): cada vuelta avisa
+    /// solo las filas que cambiaron; la historia, una vez por segundo.
+    Q_PROPERTY(QObject* nodos READ nodos CONSTANT)
+    /// Los tramos, una fila por «desde>hacia» (clave, dato).
+    Q_PROPERTY(QObject* tramos READ tramos CONSTANT)
+    /// Lo chico de cada vuelta: {salidas, estudio, programa_ms, recorrido (el detalle de la
+    /// entrada de recorridoDe)}.
+    Q_PROPERTY(QVariantMap resumen READ resumen NOTIFY cambio)
+    /// La entrada cuyo recorrido mira la página (su detalle llega en resumen.recorrido).
+    Q_PROPERTY(QString recorridoDe READ recorridoDe WRITE setRecorridoDe NOTIFY cambio)
     /// Alguna vista lo usa (usar): mide 5 veces por segundo.
     Q_PROPERTY(bool activo READ activo NOTIFY activoCambio)
     /// Los análisis (el último primero): [{id, estado: midiendo|listo|fallo, progreso 0..1,
@@ -49,9 +64,6 @@ class TiemposModel : public QObject {
     /// Los nodos que se ven en la línea de tiempo de la página (en orden: el color sale de
     /// ahí). La eligen el operador (tocando tarjetas) o el asistente (tiempos_linea).
     Q_PROPERTY(QStringList linea READ linea WRITE setLinea NOTIFY lineaCambio)
-    /// La historia de cada nodo, los últimos 60 s: {id: [{t, ms, acumulado}]} (las tarjetas).
-    /// Se rehace con cada vuelta mientras alguien mira.
-    Q_PROPERTY(QVariantMap historias READ historias NOTIFY cambio)
     /// Cuántos segundos muestra la línea de tiempo (la elige el operador: 30 s a 30 min).
     Q_PROPERTY(int ventanaLineaS READ ventanaLineaS WRITE setVentanaLineaS NOTIFY serieCambio)
     /// Los nodos de `linea` con su historia de `ventanaLineaS`: [{id, datos}].
@@ -73,7 +85,17 @@ class TiemposModel : public QObject {
     };
     void setSondas(Sondas s) { sondas_ = std::move(s); }
 
-    QVariantMap mapa() const { return mapaUi_; }
+    QVariantMap estructura() const { return estructuraUi_; }
+    QObject* nodos() const { return nodos_; }
+    QObject* tramos() const { return tramos_; }
+    FilasTiempo* filasNodos() const { return nodos_; }
+    QVariantMap resumen() const { return resumenUi_; }
+    QString recorridoDe() const { return recorridoDe_; }
+    void setRecorridoDe(const QString& e) {
+        if (e == recorridoDe_) return;
+        recorridoDe_ = e;
+        publicar(false);
+    }
     bool activo() const { return timer_.isActive(); }
     /// Una vista (la página) empieza o deja de mirar.
     Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {}) { vistas_.usar(vista, si, que); }
@@ -85,7 +107,6 @@ class TiemposModel : public QObject {
     /// La historia de un nodo de los últimos `segundos`: hasta 60 s, a 5 por segundo (si la
     /// página está abierta); más, a uno por segundo (se junta siempre, hasta 30 min).
     QVariantList historia(const QString& id, int segundos = 60) const;
-    QVariantMap historias() const { return historiasUi_; }
     int ventanaLineaS() const { return ventanaLineaS_; }
     void setVentanaLineaS(int s);
     QVariantList serieLinea() const { return serieUi_; }
@@ -139,6 +160,7 @@ class TiemposModel : public QObject {
     /// Para el operador (ya traducido): los errores de las acciones de la interfaz.
     void notify(const QString& texto, const QString& tipo);
     void cambio();
+    void estructuraCambio();
     void activoCambio();
     void analisisCambio();
     void eventosCambio();
@@ -158,7 +180,18 @@ class TiemposModel : public QObject {
     UsoPorVistas vistas_{this, [this](const QString&) { setActivo(vistas_.alguien()); }};
     void setActivo(bool a);
     nlohmann::json mapa_ = nlohmann::json::object();
-    QVariantMap mapaUi_;
+    /// Lo que ve la página, armado de mapa_ (ver estructura/nodos/tramos/resumen). Con
+    /// `conHistorias`, también la historia de cada tarjeta.
+    void publicar(bool conHistorias);
+    FilasTiempo* nodos_ = new FilasTiempo(this);
+    FilasTiempo* tramos_ = new FilasTiempo(this);
+    QVariantMap estructuraUi_;
+    std::string firmaEstructura_;
+    QVariantMap resumenUi_;
+    QString recorridoDe_;
+    int vueltas_ = 0; ///< cuántas vueltas (la historia va una de cada 5)
+    /// El último dato publicado de cada fila (para no convertir ni avisar lo que no cambió).
+    std::map<std::string, std::pair<nlohmann::json, QVariantMap>> previos_;
     struct Muestra {
         qint64 t = 0;
         double ms = 0, acumulado = 0;
@@ -166,11 +199,9 @@ class TiemposModel : public QObject {
     std::map<std::string, std::deque<Muestra>> historia_;
     QStringList linea_;
     int ventanaLineaS_ = 60;
-    QVariantMap historiasUi_;
     QVariantList serieUi_;
     qint64 finMs_ = 0;
-    /// Rehace lo que ve la página de la historia (tras cada vuelta, o al cambiar la línea).
-    void armarHistorias();
+    /// Rehace la serie de la línea de tiempo (tras cada vuelta, o al cambiar la línea).
     void armarSerie();
     QTimer reloj1s_;
     std::map<std::string, std::deque<Muestra>> larga_;

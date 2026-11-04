@@ -684,7 +684,7 @@ if(BA_APP_QT_OK)
     # Los tiempos del evento, la resolución de las salidas y quién es quién (rostros).
     ba_biblioteca(ba_app_tiempos NIVEL 2
         DEPENDE ba_app_base ba_app_comun ba_core ba_motor ba_emisor_pedido ${_ba_w6_gst} nlohmann_json::nlohmann_json Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Multimedia
-        FUENTES tiempos/Tiempos.cpp tiempos/TiemposModel.cpp)
+        FUENTES tiempos/FilasTiempo.cpp tiempos/Tiempos.cpp tiempos/TiemposModel.cpp)
     ba_biblioteca_completa(ba_app_tiempos tiempos)
     list(PREPEND BA_APP_BIBLIOTECAS ba_app_tiempos)
     ba_biblioteca(ba_app_resolucion NIVEL 2
