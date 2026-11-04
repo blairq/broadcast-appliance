@@ -77,6 +77,20 @@ else()
     message(STATUS "ccache no activo (no encontrado o ya hay un launcher fijado)")
 endif()
 
+# --- macOS: enlaces reproducibles (ZERO_AR_DATE=1) ----------------------------
+# El ld de Apple anota en cada ejecutable la fecha de cada .o (las entradas N_OSO
+# de la información de depuración): volver a enlazar con los MISMOS objetos daba
+# otro binario. Entonces la caché de tests (tools/ci/tests-con-cache.py, por el
+# contenido del ejecutable) volvía a correr todo lo que se reenlazaba aunque nada
+# hubiera cambiado: tocar un .cpp del gateway sin cambiarlo eran 53 tests y 100 s.
+# Con ZERO_AR_DATE=1 (lo mismo que usa Bazel) esas fechas van en cero: el código
+# es el mismo, dsymutil y lldb siguen encontrando los .o (con fecha cero no la comparan).
+if(APPLE AND NOT CMAKE_CXX_LINKER_LAUNCHER AND NOT CMAKE_C_LINKER_LAUNCHER)
+    foreach(_lang C CXX OBJC OBJCXX)
+        set(CMAKE_${_lang}_LINKER_LAUNCHER env ZERO_AR_DATE=1)
+    endforeach()
+endif()
+
 # --- Versiones fijadas ------------------------------------------------------
 # Un único archivo concentra las versiones de librerías de terceros para que
 # el build sea reproducible y auditable (spec §14 "Versiones fijadas").
