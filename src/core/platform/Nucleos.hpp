@@ -29,7 +29,7 @@
 #include <string>
 #include <vector>
 
-#include <nlohmann/json.hpp>
+#include "json/JsonFwd.hpp"
 
 namespace ba::platform::nucleos {
 
