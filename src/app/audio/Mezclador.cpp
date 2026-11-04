@@ -265,3 +265,5 @@ nlohmann::json Mezclador::estado() const {
 }
 
 } // namespace ba::app::audio
+
+#include "moc_Mezclador.cpp"

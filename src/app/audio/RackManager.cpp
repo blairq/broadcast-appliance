@@ -1601,3 +1601,5 @@ std::shared_ptr<anillo::Ring> RackManager::anilloHabla(const std::string& source
 }
 
 } // namespace ba::app::audio
+
+#include "moc_RackManager.cpp"

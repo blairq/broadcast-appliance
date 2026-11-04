@@ -665,3 +665,5 @@ QVariantMap Calibracion::curvas(const QString& parlante) const {
 }
 
 } // namespace ba::app::audio
+
+#include "moc_Calibracion.cpp"
