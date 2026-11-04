@@ -22,6 +22,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <memory>
+#include <mutex>
 #include <shared_mutex>
 
 namespace ba::gateway::memoria {
