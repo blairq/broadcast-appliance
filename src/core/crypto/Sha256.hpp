@@ -2,7 +2,7 @@
 //
 // Proposito:
 //   SHA-256 (FIPS 180-4) para el nucleo ba_core, ahora RESPALDADO POR mbedTLS
-//   (mbedtls_sha256_context). La consumen los modulos de seguridad
+//   (mbedtls_sha256_context, guardado opaco: este header no incluye mbedTLS). La consumen los modulos de seguridad
 //   (HMAC-SHA256, TokenService, spec 8.3) y cualquier componente que necesite
 //   un hash de integridad. No depende de Qt.
 //
@@ -30,8 +30,6 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
-
-#include <mbedtls/sha256.h>
 
 namespace ba::crypto {
 
@@ -69,9 +67,12 @@ class Sha256 {
     std::array<std::uint8_t, kDigestSize> digest() const;
 
    private:
-    /// Contexto de mbedTLS que acumula el estado del hash incremental.
-    /// Detalle de implementacion privada (no forma parte de la API publica).
-    mbedtls_sha256_context ctx_{};
+    /// Lugar para el contexto de mbedTLS (mbedtls_sha256_context) que acumula el estado
+    /// del hash incremental. Opaco: mbedTLS es un detalle de ba_core (la enlaza PRIVATE),
+    /// asi que este header no lo nombra; Sha256.cpp comprueba al compilar que entra. Se
+    /// copia como bytes, igual que el struct de C que guarda.
+    static constexpr std::size_t kTamContexto = 128;
+    alignas(8) unsigned char ctx_[kTamContexto];
 };
 
 /// Hashea `data` de una vez y devuelve el digest de 32 bytes.

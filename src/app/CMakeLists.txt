@@ -378,9 +378,8 @@ if(BA_APP_QT_OK)
 
     # El evento: el guion, la línea de tiempo, la carpeta del evento y lo que se publica de él.
     # APdf.cpp usa carrusel/Conversion (todavía en ba-app): lo resuelve quien enlaza.
-    # mbedcrypto: core/crypto/Sha256.hpp (FotosConfig, CierreEvento) incluye <mbedtls/sha256.h>.
     ba_biblioteca(ba_app_evento NIVEL 2
-        DEPENDE ba_app_base ba_app_comun ba_core mbedcrypto Qt6::Core Qt6::Gui Qt6::Svg
+        DEPENDE ba_app_base ba_app_comun ba_core Qt6::Core Qt6::Gui Qt6::Svg
         FUENTES evento/APdf.cpp evento/Bitacora.cpp evento/CierreEvento.cpp evento/Condicion.cpp evento/Corrida.cpp
                 evento/Documentos.cpp evento/Evento.cpp evento/EventoStore.cpp evento/EventoWeb.cpp
                 evento/FotosConfig.cpp evento/Historico.cpp evento/Linea.cpp evento/LineaEdicion.cpp
@@ -393,10 +392,9 @@ if(BA_APP_QT_OK)
     # La sala remota (lo que se ve y se maneja de los que se conectan por la web). Usa
     # ui/ConferenceClient y lo de emision/ y arranque/ que sigue en ba-app, y evento/Padron:
     # lo resuelve quien enlaza (deuda de test_niveles).
-    # mbedcrypto: core/crypto/Sha256.hpp (ClavesEvento, GuardadoEnEvento) incluye <mbedtls/sha256.h>.
     # ba_motor: LugaresConGente le pasa los lugares al motor (motor::Motor::ponerLugares).
     ba_biblioteca(ba_app_sala NIVEL 2
-        DEPENDE ba_app_base ba_app_comun ba_core ba_motor mbedcrypto Qt6::Core Qt6::Network
+        DEPENDE ba_app_base ba_app_comun ba_core ba_motor Qt6::Core Qt6::Network
         FUENTES sala/ArchivosPrueba.cpp sala/Atencion.cpp sala/CalidadPorCalor.cpp sala/CapacidadReglas.cpp
                 sala/CapasNecesarias.cpp sala/CapasRemotos.cpp sala/ClavesEvento.cpp sala/ConfigSala.cpp
                 sala/ControlSala.cpp sala/CorreccionSala.cpp sala/CupoSala.cpp sala/Direcciones.cpp
@@ -1545,11 +1543,11 @@ endif()
     add_test(NAME test_tiempos COMMAND test_tiempos)
     add_executable(test_fotos_config tests/test_fotos_config.cpp)
     target_include_directories(test_fotos_config PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_fotos_config PRIVATE ba_app_evento ba_core mbedcrypto nlohmann_json::nlohmann_json)
+    target_link_libraries(test_fotos_config PRIVATE ba_app_evento ba_core nlohmann_json::nlohmann_json)
     add_test(NAME test_fotos_config COMMAND test_fotos_config)
     add_executable(test_cierre_evento tests/test_cierre_evento.cpp)
     target_include_directories(test_cierre_evento PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_cierre_evento PRIVATE ba_app_evento ba_core mbedcrypto nlohmann_json::nlohmann_json)
+    target_link_libraries(test_cierre_evento PRIVATE ba_app_evento ba_core nlohmann_json::nlohmann_json)
     add_test(NAME test_cierre_evento COMMAND test_cierre_evento)
     add_executable(test_historico tests/test_historico.cpp)
     target_include_directories(test_historico PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
@@ -1558,7 +1556,7 @@ endif()
     # La API json del histórico (la página y el MCP), con eventos de otra configuración.
     add_executable(test_historico_consulta tests/test_historico_consulta.cpp)
     target_include_directories(test_historico_consulta PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_historico_consulta PRIVATE ba_app_ui ba_app_evento ba_core mbedcrypto Qt6::Core nlohmann_json::nlohmann_json)
+    target_link_libraries(test_historico_consulta PRIVATE ba_app_ui ba_app_evento ba_core Qt6::Core nlohmann_json::nlohmann_json)
     set_target_properties(test_historico_consulta PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_historico_consulta COMMAND test_historico_consulta)
     # La lista de eventos: una caché que avisa (leer no va al disco; lo nuevo aparece solo).
