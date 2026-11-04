@@ -501,6 +501,29 @@ if(BA_APP_QT_OK)
     ba_biblioteca_completa(ba_app_pantallas pantallas)
     list(PREPEND BA_APP_BIBLIOTECAS ba_app_pantallas)
 
+    # El control: las acciones, la botonera (y sus caras), el bus de eventos, el DSK, los
+    # atajos globales, el control web y su réplica, y el servidor de Companion/Satellite. Usa
+    # mcp/, sala/Pedido, escenas/RefEscena, emision/ y ui/ que siguen en ba-app: lo resuelve
+    # quien enlaza (deuda de test_niveles). Las capturas de la botonera (:/botonera) siguen
+    # en ba-app.
+    set(_ba_control_gst "")
+    if(BA_HAVE_GST)
+        set(_ba_control_gst ba::gstreamer)
+    endif()
+    ba_biblioteca(ba_app_control NIVEL 2
+        DEPENDE ba_app_base ba_app_comun ba_core ${_ba_control_gst} nlohmann_json::nlohmann_json
+                Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml
+        FUENTES control/Acciones.cpp control/AtajosGlobales.cpp control/Botonera.cpp control/BotoneraGateway.cpp
+                control/BusEventos.cpp control/CarasBotonera.cpp control/ControlWeb.cpp
+                control/ControlWebGateway.cpp control/CuadrosWeb.cpp control/Dsk.cpp control/MonitorBus.cpp
+                control/ReplicaPermitidas.inc control/ReplicaPublicador.cpp control/SatelliteServidor.cpp
+                control/TemasWeb.hpp)
+    if(APPLE)
+        target_link_libraries(ba_app_control PRIVATE "-framework Carbon") # control/AtajosGlobales
+    endif()
+    ba_biblioteca_completa(ba_app_control control)
+    list(PREPEND BA_APP_BIBLIOTECAS ba_app_control)
+
     ba_biblioteca_fuentes(BA_APP_SOURCES ${BA_APP_BIBLIOTECAS})
 endif()
 
@@ -875,11 +898,10 @@ endif()
                    mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp mcp/McpFoto.cpp mcp/McpMando.cpp
                    emision/DocumentoAire.cpp emision/SalidasConfig.cpp emision/TurnoMotor.cpp
                    emision/VentanillaMotor.cpp emision/VentanillaMotor.hpp emision/NivelesMotor.cpp
-                   control/Dsk.cpp control/Dsk.hpp
                    arranque/EnergiaAire.cpp arranque/EnergiaAire.hpp)
     # NivelesMotor lee motor/NivelAudio.hpp (sin el motor).
     target_include_directories(test_plano_control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
-    target_link_libraries(test_plano_control PRIVATE ba_app_agente ba_app_evento ba_core Qt6::Core Qt6::Network)
+    target_link_libraries(test_plano_control PRIVATE ba_app_control ba_app_agente ba_app_evento ba_core Qt6::Core Qt6::Network)
     set_target_properties(test_plano_control PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_plano_control COMMAND test_plano_control)
     # Las pastillas del aire (ui/EstadoAireViewModel): el tiempo de una grabación que ya
@@ -1574,10 +1596,9 @@ endif()
     target_link_libraries(test_cuerpo PRIVATE ba_app_asamblea ba_core)
     add_test(NAME test_cuerpo COMMAND test_cuerpo)
     # Bus de eventos y botonera (superficie de control) con ganchos falsos.
-    add_executable(test_botonera tests/test_botonera.cpp control/Botonera.cpp control/Botonera.hpp
-                   control/BusEventos.cpp control/BusEventos.hpp control/MonitorBus.cpp control/MonitorBus.hpp)
+    add_executable(test_botonera tests/test_botonera.cpp)
     target_include_directories(test_botonera PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_botonera PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_botonera PRIVATE ba_app_control ba_core Qt6::Core)
     set_target_properties(test_botonera PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_botonera COMMAND test_botonera)
     # El contrato único de suscripción de las vistas (comun/UsoPorVistas): cuenta por vista.
@@ -1665,26 +1686,25 @@ endif()
     add_test(NAME test_captura_error COMMAND test_captura_error)
     # El control web (dashboard /control/): emparejar, perfiles, llamar, confirmar y mirar
     # contra un McpCore de prueba (docs/planes/PLAN-WEB-CONTROL.md §2).
-    add_executable(test_control_web tests/test_control_web.cpp control/ControlWeb.cpp control/ControlWeb.hpp
+    add_executable(test_control_web tests/test_control_web.cpp
                    mcp/McpCore.cpp mcp/McpAire.cpp mcp/McpIndice.cpp mcp/McpEtiquetas.cpp mcp/McpTraza.cpp)
     target_include_directories(test_control_web PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_control_web PRIVATE ba_core Qt6::Core)
+    target_link_libraries(test_control_web PRIVATE ba_app_control ba_core Qt6::Core)
     set_target_properties(test_control_web PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_control_web COMMAND test_control_web)
     # El tablero web (/control/app/): la réplica del modelo, la app y el navegador hablando
     # por JSON sin red (control/ReplicaPublicador + src/tablero-web/ClienteReplica).
-    add_executable(test_replica tests/test_replica.cpp control/ReplicaPublicador.cpp control/ReplicaPublicador.hpp
-                   control/CuadrosWeb.cpp control/CuadrosWeb.hpp ui/ProveedorCuadros.hpp
+    add_executable(test_replica tests/test_replica.cpp
+ ui/ProveedorCuadros.hpp
                    ${CMAKE_SOURCE_DIR}/src/tablero-web/ObjetoReplica.cpp ${CMAKE_SOURCE_DIR}/src/tablero-web/ObjetoReplica.hpp
                    ${CMAKE_SOURCE_DIR}/src/tablero-web/ClienteReplica.cpp ${CMAKE_SOURCE_DIR}/src/tablero-web/ClienteReplica.hpp)
     target_include_directories(test_replica PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/tablero-web")
-    target_link_libraries(test_replica PRIVATE ba_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::QmlPrivate)
+    target_link_libraries(test_replica PRIVATE ba_app_control ba_core Qt6::Core Qt6::Gui Qt6::Qml Qt6::QmlPrivate)
     set_target_properties(test_replica PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_replica COMMAND test_replica)
-    add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp
-                   control/BusEventos.cpp control/BusEventos.hpp)
+    add_executable(test_seguir_microfono tests/test_seguir_microfono.cpp)
     target_include_directories(test_seguir_microfono PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_seguir_microfono PRIVATE ba_app_asamblea ba_app_sala ba_core Qt6::Core)
+    target_link_libraries(test_seguir_microfono PRIVATE ba_app_control ba_app_asamblea ba_app_sala ba_core Qt6::Core)
     set_target_properties(test_seguir_microfono PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_seguir_microfono COMMAND test_seguir_microfono)
     add_executable(test_sesion_remota tests/test_sesion_remota.cpp ui/FotosPersonas.cpp ui/FotosPersonas.hpp
@@ -1706,10 +1726,9 @@ endif()
     target_link_libraries(test_debate PRIVATE ba_app_asamblea ba_core Qt6::Core)
     set_target_properties(test_debate PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_debate COMMAND test_debate)
-    add_executable(test_orden_del_dia tests/test_orden_del_dia.cpp
-                   control/BusEventos.cpp control/BusEventos.hpp)
+    add_executable(test_orden_del_dia tests/test_orden_del_dia.cpp)
     target_include_directories(test_orden_del_dia PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
-    target_link_libraries(test_orden_del_dia PRIVATE ba_app_asamblea ba_core Qt6::Core)
+    target_link_libraries(test_orden_del_dia PRIVATE ba_app_control ba_app_asamblea ba_core Qt6::Core)
     set_target_properties(test_orden_del_dia PROPERTIES AUTOMOC ON BUILD_RPATH "${BA_QT_PREFIX}/lib")
     add_test(NAME test_orden_del_dia COMMAND test_orden_del_dia)
     add_executable(test_informes_resultado tests/test_informes_resultado.cpp)
