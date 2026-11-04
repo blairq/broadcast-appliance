@@ -41,6 +41,7 @@
 #include "ipc/SharedAudioRing.hpp"
 #include "platform/Ritmo.hpp"
 #include "tests/Despertadas.hpp"
+#include "tests/Puntualidad.hpp"
 
 #include <algorithm>
 #include <atomic>
@@ -699,5 +700,7 @@ int main() {
     ducking();
     voces();
     std::printf("== test_retorno_ritmo: %s ==\n", g_fallos == 0 ? "OK" : "FALLOS");
-    return g_fallos == 0 ? 0 : 1;
+    // Sin sonda durante la prueba (cuenta las despertadas del proceso): con fallos, la
+    // puntualidad se mide al final (tests/Puntualidad.hpp).
+    return ba::pruebas::resultadoTiempoReal("test_retorno_ritmo", g_fallos);
 }

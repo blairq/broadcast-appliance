@@ -19,6 +19,7 @@
 
 #include "LectorAnillo.hpp"
 #include "Motor.hpp"
+#include "tests/Puntualidad.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "ipc/CanalesSalida.hpp"
 
@@ -69,6 +70,7 @@ Lazo lazo(const std::string& que, const std::string& canal) {
 } // namespace
 
 int main() {
+    ba::pruebas::SondaPuntualidad sonda; // ¿la máquina deja correr a tiempo? (tests/Puntualidad.hpp)
 #if defined(BA_TEST_GST_RAIZ)
     g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
 #endif
@@ -178,5 +180,5 @@ int main() {
     motor.escuchar("apagado");
     motor.detener();
     std::printf("== test_lazo_latencia: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
-    return fallos == 0 ? 0 : 1;
+    return ba::pruebas::resultadoTiempoReal("test_lazo_latencia", fallos, &sonda);
 }

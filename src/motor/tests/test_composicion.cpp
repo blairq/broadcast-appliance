@@ -21,6 +21,7 @@
 #include "Entrada.hpp"
 #include "Reloj.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "tests/Puntualidad.hpp"
 
 #include <gst/app/gstappsink.h>
 #include <gst/gst.h>
@@ -316,6 +317,7 @@ void probarTakeAtomico(Reloj& reloj, const Lienzo& lz, std::vector<Entrada*>& es
 }
 
 int main() {
+    ba::pruebas::SondaPuntualidad sonda; // ¿la máquina deja correr a tiempo? (tests/Puntualidad.hpp)
     probarCapaEn();
 #if defined(BA_TEST_GST_RAIZ)
     g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
@@ -768,5 +770,5 @@ int main() {
     }
     std::printf("composición: %s\n", prog.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     std::printf("== test_composicion: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
-    return fallos == 0 ? 0 : 1;
+    return ba::pruebas::resultadoTiempoReal("test_composicion", fallos, &sonda);
 }
