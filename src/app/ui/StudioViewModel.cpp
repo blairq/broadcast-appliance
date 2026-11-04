@@ -1217,8 +1217,14 @@ bool StudioViewModel::medirPrograma() {
 }
 
 void StudioViewModel::alSegundo() {
+    // La pastilla «CPU» dice lo de TODA la máquina: lo mismo que miran las alertas y la prueba
+    // de capacidad (el muestreador de recursos, en su hilo, una vez por segundo). Antes era
+    // solo el proceso de la interfaz dividido los núcleos: con la máquina al 90 % decía 7 %,
+    // porque el gateway, el motor y el resto no contaban. Sin muestra todavía, lo del proceso.
+    const double propio = cpuUso_.medir();
+    const double maquina = recursos_->muestreador().ultima().cpu;
     // Redondeado al punto: lo que muestra la pastilla (y no un aviso por cada décima).
-    if (const double cpu = std::round(cpuUso_.medir()); cpu != cpu_) {
+    if (const double cpu = std::round(maquina >= 0 ? maquina : propio); cpu != cpu_) {
         cpu_ = cpu;
         emit cpuChanged();
     }
