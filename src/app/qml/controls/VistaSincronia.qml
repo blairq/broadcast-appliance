@@ -604,7 +604,7 @@ Item {
                             Text { Layout.fillWidth: true; text: filaSinc.name; color: Theme.text; font.pixelSize: 12; elide: Text.ElideRight }
                             Text { text: (filaSinc.ms > 0 ? "+" : "") + filaSinc.ms + " ms"
                                    color: filaSinc.ms !== 0 ? Theme.accent : Theme.textFaint; font.pixelSize: 12 }
-                            GlassButton { compact: true; text: qsTr("Sincronizar…"); onClicked: retardoPop.abrir(filaSinc.name) }
+                            GlassButton { compact: true; text: qsTr("Sincronizar…"); onClicked: retardoPop.abrir(filaSinc.name, filaSinc.ms) }
                         }
                     }
                 }

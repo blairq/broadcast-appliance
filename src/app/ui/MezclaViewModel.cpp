@@ -154,11 +154,6 @@ void MezclaViewModel::aflUi(const QString& fuente) {
     avisarError(matriz_->ponerPfl(pfl() == fuente && pflModo() == "afl" ? QString() : fuente, QStringLiteral("afl"), salida));
 }
 
-int MezclaViewModel::retardoUi(const QString& fuente) const {
-    const FotoMotor::CanalAudio* c = p_.ventanilla.foto().mezcla.canal(fuente.toStdString());
-    return c != nullptr ? c->retardoMs : 0;
-}
-
 bool MezclaViewModel::setRetardoUi(const QString& fuente, int ms) {
     const std::string f = fuente.toStdString();
     if (p_.ventanilla.foto().tipoDe(f).empty()) return sinError(tr("No existe la fuente «%1».").arg(fuente));

@@ -102,7 +102,7 @@ NUNCA = {"Studio.ventanas", "Studio.escritorio", "Studio.copiar", "Studio.catalo
          # las tarjetas son del aparato: Studio.dashboard es suyo, src/tablero-web/main.cpp) o
          # no existe (la página de configuración, el riel, el foco, el diario de extensiones,
          # los avisos en la pantalla de la app).
-         "Studio.dashboard", "Studio.seccionConfig", "Studio.riel", "Studio.focoEnTexto", "Studio.extensiones",
+         "Studio.dashboard", "Studio.seccionConfig", "Studio.riel", "Studio.extensiones",
          "Studio.notify",
          # El dictado al asistente (la barra del asistente): es de la máquina de la app.
          "Studio.voz.alAsistente", "Studio.voz.apretar", "Studio.voz.cancelar", "Studio.voz.confirmar",

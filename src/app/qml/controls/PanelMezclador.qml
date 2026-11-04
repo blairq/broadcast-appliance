@@ -247,7 +247,7 @@ Item {
                 texto: ms !== 0 ? qsTr("SINC %1 ms").arg((ms > 0 ? "+" : "") + ms) : qsTr("SINC")
                 on: ms !== 0; colorOn: Theme.canalSinc
                 ayuda: qsTr("Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)")
-                alTocar: () => retardoPop.abrir(t.nombre)
+                alTocar: () => retardoPop.abrir(t.nombre, t.st.retardoMs || 0)
             }
             // Los analizadores de LSP sobre esta entrada (su interfaz, en una ventana aparte).
             Boton {

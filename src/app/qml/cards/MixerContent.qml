@@ -34,16 +34,16 @@ Item {
         if (n === 0) return
         tarjeta.elegido = tarjeta.elegido < 0 ? 0 : Math.max(0, Math.min(n - 1, tarjeta.elegido + paso))
     }
+    // Cuál es, lo dice su tira (el rol `name`; el elegido se trae a la vista, así existe); cuánto
+    // queda y si se silencia o se abre lo decide el modelo (con los topes del fader).
+    function tiraElegida() { return tarjeta.elegido >= 0 ? canales.itemAtIndex(tarjeta.elegido) : null }
     function ajustar(db) {
-        const c = Studio.mixer.canal(tarjeta.elegido)
-        if (!c || c.nombre === undefined) return
-        // Los mismos topes que el fader: de -60 a +12 dB.
-        Studio.mixer.setVolumeDb(c.nombre, Math.max(-60, Math.min(12, c.volumenDb + db)))
+        const t = tarjeta.tiraElegida()
+        if (t) Studio.mixer.moverVolumenDb(t.name, db)
     }
     function silenciar() {
-        const c = Studio.mixer.canal(tarjeta.elegido)
-        if (!c || c.nombre === undefined) return
-        Studio.mixer.setMuted(c.nombre, !c.mudo)
+        const t = tarjeta.tiraElegida()
+        if (t) Studio.mixer.alternarMuted(t.name)
     }
 
     Keys.onPressed: (e) => {
@@ -371,7 +371,7 @@ Item {
                         Text { anchors.centerIn: parent; text: sincBtn.ms !== 0 ? (sincBtn.ms > 0 ? "+" : "") + sincBtn.ms + " ms" : qsTr("SINC")
                                color: sincBtn.ms !== 0 ? Theme.text : Theme.textFaint; font { pixelSize: 9; weight: Font.Bold } }
                         MouseArea { id: sincMa; anchors.fill: parent; cursorShape: Qt.PointingHandCursor; hoverEnabled: true
-                                    onClicked: retardoPop.abrir(name) }
+                                    onClicked: retardoPop.abrir(name, tira.retardoMs) }
                         ToolTip.visible: sincMa.containsMouse; ToolTip.delay: 500
                         ToolTip.text: qsTr("Sincronizar con el video: atrasar este audio hasta que coincida con los labios (a mano o midiendo con aplausos)")
                     }
@@ -389,7 +389,7 @@ Item {
                            font.bold: tarjeta.activeFocus && index === tarjeta.elegido
                            // Un clic: sincronizarla con su video (como el botón de abajo).
                            MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                       onClicked: retardoPop.abrir(name) } }
+                                       onClicked: retardoPop.abrir(name, tira.retardoMs) } }
                 }
 
                 // El grupo compactado: un botón para silenciarlo entero y una casilla por tira
@@ -431,15 +431,8 @@ Item {
                         MouseArea {
                             id: todosMa
                             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                            // Con alguna sonando, se silencian todas; todas mudas, vuelven todas.
-                            onClicked: {
-                                let alguna = false
-                                for (let k = 0; k < tira.tamGrupo; ++k) {
-                                    const c = Studio.mixer.canal(tira.index + k)
-                                    if (c.nombre !== undefined && !c.mudo) alguna = true
-                                }
-                                Studio.mixer.setMutedGrupo(tira.grupo, alguna)
-                            }
+                            // Con alguna sonando, se silencian todas; todas mudas, vuelven todas (la regla es del modelo).
+                            onClicked: Studio.mixer.alternarMudoGrupo(tira.grupo)
                         }
                         ToolTip.visible: todosMa.containsMouse; ToolTip.delay: 400
                         ToolTip.text: qsTr("Silenciar todo el grupo (si ya están todas mudas, las vuelve a abrir)")
