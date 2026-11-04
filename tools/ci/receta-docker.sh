@@ -51,6 +51,19 @@ guardar_registros() {
     echo "[compilar-en-docker] registros de lo que falló: dist/logs/$CORRIDA/"
 }
 
+# Compilar solo si cambió algo: el árbol del commit (todo el código, los CMakeLists, el
+# Makefile), lo que hay en extern/ y las opciones. Si son los mismos que la última vez que
+# compiló bien, el build es el mismo: ni se le pregunta a make/ninja (bajo Rosetta, el
+# «nada que compilar» de make sobre build/ son ~40 s). Uso: compilar_si_cambio <nombre>
+# <carpeta del build> <argumentos de make...>
+compilar_si_cambio() {
+    local nombre="$1" dir="$2"; shift 2
+    mkdir -p "$dir/atajos"
+    python3 tools/ci/huellas.py atajo --nombre "$nombre" --clave-en "$dir/atajos/compilado.json" \
+        --texto "árbol $(git rev-parse "$SHA^{tree}")" --texto "make $* DIAG_ACOPLES=${DIAG_ACOPLES:-}" --centinelas extern \
+        --salida "$dir/CMakeCache.txt" -- make "$@"
+}
+
 # El venv de las pruebas de Python: pip solo si cambió el lock (o Python). Antes que ctest:
 # los test_py_* (cmake/BaTestsPy.cmake) corren con este pytest.
 [ -x .venv/bin/python ] || python3 -m venv .venv
@@ -63,8 +76,9 @@ if [ "$QUE" != win ]; then
     make deps-linux JOBS=$J
     etapa "deps-linux"
     # Configurado en Release y compilado UNA vez: ctest y dist-linux no lo repiten (-o): cada
-    # «nada que compilar» de make bajo Rosetta son ~40 s.
-    make compilado-release JOBS=$J PERFILAR=$PERFILAR
+    # «nada que compilar» de make bajo Rosetta son ~40 s. Y si el árbol del commit es el
+    # mismo que el de la última compilación que anduvo, ni eso.
+    compilar_si_cambio "compilar (linux)" build compilado-release JOBS=$J PERFILAR=$PERFILAR
     etapa "compilar (linux)"
     touch /tmp/inicio-de-etapa
     make -o _al-dia test || { guardar_registros build/Testing/Temporary; exit 1; }
@@ -87,7 +101,7 @@ fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
     etapa "deps-win"
-    make -o deps-win win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
+    compilar_si_cambio "compilar (win)" build/win -o deps-win win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     etapa "compilar (win)"
     # Los tests de Windows corren bajo Wine. En una Mac, Wine va encima de
     # Rosetta y se cae de vez en cuando (rc 133) en tests que en el runner del
