@@ -11,6 +11,8 @@
 #include "ajustes/Registro.hpp"
 #include "persist/ArchivoConfig.hpp"
 #include "persist/Esquema.hpp"
+#include "persist/ColaEscritura.hpp"
+#include "persist/EsquemasConfig.hpp"
 
 #include <filesystem>
 #include <fstream>

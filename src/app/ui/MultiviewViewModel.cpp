@@ -4,6 +4,7 @@
 
 #include "diag/Acoples.hpp"
 #include "arranque/ArchivoConfigQt.hpp"
+#include "persist/Esquema.hpp"
 
 #include "pantallas/Monitores.hpp"
 #include "pantallas/Ventanas.hpp"

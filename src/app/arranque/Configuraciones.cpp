@@ -6,6 +6,7 @@
 #include "evento/FotosConfig.hpp"
 #include "i18n/I18nPerfiles.hpp"
 #include "persist/ArchivoConfig.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "platform/Paths.hpp"
 
 #include <QCoreApplication>

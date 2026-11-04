@@ -27,19 +27,9 @@
 #include <string>
 #include <string_view>
 
+#include "persist/Durabilidad.hpp"
+
 namespace ba::persist {
-
-/// Cuánto se asegura que lo escrito sobreviva a un corte de luz.
-enum class Durabilidad {
-    Normal,  ///< ajustes: fsync del archivo y de la carpeta
-    Critica, ///< el estado de aire: además vacía la caché del disco (F_FULLFSYNC en macOS)
-};
-
-/// Quién puede leer el archivo.
-enum class Permisos {
-    Comunes,  ///< los de siempre (0644 en POSIX)
-    Privados, ///< solo el dueño (0600 en POSIX; en Windows rige la ACL del perfil)
-};
 
 /// Escribe `bytes` en `ruta` de forma atómica y durable (ver arriba). Crea la carpeta
 /// si falta. Un solo escritor por ruta: el temporal es `<ruta>.tmp`.

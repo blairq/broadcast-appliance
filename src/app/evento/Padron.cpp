@@ -5,6 +5,7 @@
 #include "persist/ArchivoConfig.hpp"
 
 #include "i18n/I18nTexto.hpp"
+#include "persist/ColaEscritura.hpp"
 
 #include <algorithm>
 #include <chrono>

@@ -8,6 +8,7 @@
 #include "agent/ModelosLocales.hpp"
 #include "agent/VozIdioma.hpp"
 #include "i18n/I18nPerfiles.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "platform/Paths.hpp"
 #include "plugins/Hijo.hpp"
 

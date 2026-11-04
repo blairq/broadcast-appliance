@@ -4,6 +4,14 @@
 
 #include "diag/Registro.hpp"
 #include "i18n/I18nTexto.hpp"
+#include "persist/Escritor.hpp"
+#include "persist/Generaciones.hpp"
+
+#include <algorithm>
+#include <condition_variable>
+#include <map>
+#include <mutex>
+#include <thread>
 
 namespace ba::persist {
 
@@ -20,24 +28,58 @@ constexpr auto kReintento = std::chrono::milliseconds(500);
 constexpr auto kIgualar = std::chrono::seconds(1);
 } // namespace
 
-ColaEscritura::ColaEscritura() {
+struct ColaEscritura::Impl {
+    enum class Tipo { Archivo, Generacion, Borrar, Agregar };
+    struct Entrada {
+        Tipo tipo = Tipo::Archivo;
+        fs::path ruta;
+        std::string bytes; ///< Agregar: lo que falta agregar (lo que llega se suma al final)
+        Pedido pedido;
+        std::uint64_t orden = 0;   ///< cuándo se encoló por primera vez (FIFO entre iguales)
+        std::uint64_t version = 0; ///< sube con cada pedido nuevo para la ruta
+        std::uint64_t tomada = 0;  ///< la versión que el hilo está escribiendo
+        bool enCurso = false;      ///< el hilo la está escribiendo
+        bool avisado = false;      ///< su error ya fue al registro
+        bool igualar = false;      ///< la copia a la otra generación (ver kIgualar)
+        Reloj::time_point reintento{};
+    };
+    void encolar(Tipo t, const fs::path& ruta, std::string bytes, Pedido p);
+    void correr();
+    bool hacer(const Entrada& e, std::string& error);
+
+    mutable std::mutex mu_;
+    std::condition_variable hay_;   ///< hay algo para el hilo (o hay que parar)
+    std::condition_variable listo_; ///< el hilo terminó algo (para vaciar)
+    std::map<std::string, Entrada> pendientes_;
+    std::uint64_t orden_ = 0;
+    std::uint64_t version_ = 0;
+    bool parar_ = false;
+    int apurando_ = 0; ///< cuántos esperan en vaciar(): la igualación de generaciones, sin demora
+    Cuentas cuentas_;
+    std::map<std::string, DosGeneraciones> generaciones_; ///< del hilo escritor (secuencia y turno)
+    std::thread hilo_;
+};
+
+ColaEscritura::ColaEscritura() : d_(std::make_unique<Impl>()) {
     // El registro nace antes que la cola: así muere después y el hilo lo puede usar
     // hasta el final (los static locales se destruyen en orden inverso).
     (void)ba::diag::registro();
-    hilo_ = std::thread([this]() { correr(); });
+    d_->hilo_ = std::thread([d = d_.get()]() { d->correr(); });
 }
 
 ColaEscritura::~ColaEscritura() {
     vaciar();
     {
-        std::lock_guard<std::mutex> l(mu_);
-        parar_ = true;
+        std::lock_guard<std::mutex> l(d_->mu_);
+        d_->parar_ = true;
     }
-    hay_.notify_all();
-    if (hilo_.joinable()) hilo_.join();
+    d_->hay_.notify_all();
+    if (d_->hilo_.joinable()) d_->hilo_.join();
 }
 
-void ColaEscritura::encolar(Tipo t, const fs::path& ruta, std::string bytes, Pedido p) {
+bool ColaEscritura::esHiloEscritor() const { return std::this_thread::get_id() == d_->hilo_.get_id(); }
+
+void ColaEscritura::Impl::encolar(Tipo t, const fs::path& ruta, std::string bytes, Pedido p) {
     {
         std::lock_guard<std::mutex> l(mu_);
         ++cuentas_.pedidos;
@@ -61,40 +103,40 @@ void ColaEscritura::encolar(Tipo t, const fs::path& ruta, std::string bytes, Ped
 }
 
 void ColaEscritura::escribir(const fs::path& ruta, std::string bytes, Pedido p) {
-    encolar(Tipo::Archivo, ruta, std::move(bytes), std::move(p));
+    d_->encolar(Impl::Tipo::Archivo, ruta, std::move(bytes), std::move(p));
 }
 
 void ColaEscritura::escribirGeneracion(const fs::path& archivo, std::string cuerpo, Pedido p) {
-    encolar(Tipo::Generacion, archivo, std::move(cuerpo), std::move(p));
+    d_->encolar(Impl::Tipo::Generacion, archivo, std::move(cuerpo), std::move(p));
 }
 
 void ColaEscritura::agregar(const fs::path& ruta, std::string bytes, Pedido p) {
     {
-        std::lock_guard<std::mutex> l(mu_);
-        ++cuentas_.pedidos;
+        std::lock_guard<std::mutex> l(d_->mu_);
+        ++d_->cuentas_.pedidos;
         // Aparte de lo que reemplaza el archivo entero (otra clave): un diario solo se suma.
-        Entrada& e = pendientes_[clave(ruta) + "\n+"];
+        Impl::Entrada& e = d_->pendientes_[clave(ruta) + "\n+"];
         if (e.version == 0) {
-            e.orden = ++orden_;
-            e.tipo = Tipo::Agregar;
+            e.orden = ++d_->orden_;
+            e.tipo = Impl::Tipo::Agregar;
             e.ruta = ruta;
             e.pedido = std::move(p);
         }
         // Al final de lo que falta (aunque el hilo esté agregando lo anterior: al terminar
         // saca solo lo que escribió).
         e.bytes += bytes;
-        e.version = ++version_;
+        e.version = ++d_->version_;
         e.reintento = {};
     }
-    hay_.notify_one();
+    d_->hay_.notify_one();
 }
 
 bool ColaEscritura::existe(const fs::path& ruta) const {
     {
-        std::lock_guard<std::mutex> l(mu_);
-        const auto it = pendientes_.find(clave(ruta));
-        if (it != pendientes_.end()) return it->second.tipo != Tipo::Borrar;
-        if (pendientes_.count(clave(ruta) + "\n+") != 0) return true;
+        std::lock_guard<std::mutex> l(d_->mu_);
+        const auto it = d_->pendientes_.find(clave(ruta));
+        if (it != d_->pendientes_.end()) return it->second.tipo != Impl::Tipo::Borrar;
+        if (d_->pendientes_.count(clave(ruta) + "\n+") != 0) return true;
     }
     std::error_code ec;
     return fs::exists(ruta, ec);
@@ -103,17 +145,17 @@ bool ColaEscritura::existe(const fs::path& ruta) const {
 void ColaEscritura::borrar(const fs::path& ruta, Prioridad prioridad) {
     Pedido p;
     p.prioridad = prioridad;
-    encolar(Tipo::Borrar, ruta, {}, std::move(p));
+    d_->encolar(Impl::Tipo::Borrar, ruta, {}, std::move(p));
 }
 
 bool ColaEscritura::leer(const fs::path& ruta, std::string& out) const {
     std::string falta; // lo encolado para agregar al final (un diario)
     {
-        std::lock_guard<std::mutex> l(mu_);
-        if (const auto a = pendientes_.find(clave(ruta) + "\n+"); a != pendientes_.end()) falta = a->second.bytes;
-        const auto it = pendientes_.find(clave(ruta));
-        if (it != pendientes_.end() && it->second.tipo != Tipo::Generacion) {
-            if (it->second.tipo == Tipo::Borrar) return false;
+        std::lock_guard<std::mutex> l(d_->mu_);
+        if (const auto a = d_->pendientes_.find(clave(ruta) + "\n+"); a != d_->pendientes_.end()) falta = a->second.bytes;
+        const auto it = d_->pendientes_.find(clave(ruta));
+        if (it != d_->pendientes_.end() && it->second.tipo != Impl::Tipo::Generacion) {
+            if (it->second.tipo == Impl::Tipo::Borrar) return false;
             out = it->second.bytes;
             return true;
         }
@@ -125,11 +167,11 @@ bool ColaEscritura::leer(const fs::path& ruta, std::string& out) const {
 
 Lectura ColaEscritura::leerGeneraciones(const fs::path& archivo) const {
     {
-        std::lock_guard<std::mutex> l(mu_);
-        const auto it = pendientes_.find(clave(archivo));
-        if (it != pendientes_.end()) {
+        std::lock_guard<std::mutex> l(d_->mu_);
+        const auto it = d_->pendientes_.find(clave(archivo));
+        if (it != d_->pendientes_.end()) {
             Lectura x;
-            if (it->second.tipo == Tipo::Borrar) return x; // Nada
+            if (it->second.tipo == Impl::Tipo::Borrar) return x; // Nada
             x.estado = Lectura::Estado::Valida;
             x.cuerpo = it->second.bytes;
             return x;
@@ -140,27 +182,27 @@ Lectura ColaEscritura::leerGeneraciones(const fs::path& archivo) const {
 
 bool ColaEscritura::vaciar(std::chrono::milliseconds tope) {
     if (esHiloEscritor()) return false;
-    std::unique_lock<std::mutex> l(mu_);
+    std::unique_lock<std::mutex> l(d_->mu_);
     // Quien espera no espera la copia a la otra generación: kIgualar solo junta cambios
     // seguidos, y el que vacía (el cierre) ya no va a mandar más. Sin esto el cierre de la
     // app esperaba siempre más de 1 s (el documento de aire se escribe al cerrar) y el
     // vigía de la interfaz lo daba por trabado (volcados «traba» del 2026-11-03 al salir).
-    ++apurando_;
+    ++d_->apurando_;
     const auto ahora = Reloj::now();
-    for (auto& [k, e] : pendientes_)
+    for (auto& [k, e] : d_->pendientes_)
         if (e.igualar && !e.enCurso && e.reintento > ahora) e.reintento = ahora;
-    hay_.notify_all();
-    const bool ok = listo_.wait_for(l, tope, [this]() { return pendientes_.empty(); });
-    --apurando_;
+    d_->hay_.notify_all();
+    const bool ok = d_->listo_.wait_for(l, tope, [this]() { return d_->pendientes_.empty(); });
+    --d_->apurando_;
     return ok;
 }
 
 ColaEscritura::Cuentas ColaEscritura::cuentas() const {
-    std::lock_guard<std::mutex> l(mu_);
-    return cuentas_;
+    std::lock_guard<std::mutex> l(d_->mu_);
+    return d_->cuentas_;
 }
 
-bool ColaEscritura::hacer(const Entrada& e, std::string& error) {
+bool ColaEscritura::Impl::hacer(const Entrada& e, std::string& error) {
     if (e.pedido.antes) e.pedido.antes();
     switch (e.tipo) {
         case Tipo::Archivo:
@@ -179,7 +221,7 @@ bool ColaEscritura::hacer(const Entrada& e, std::string& error) {
     return false;
 }
 
-void ColaEscritura::correr() {
+void ColaEscritura::Impl::correr() {
     std::unique_lock<std::mutex> l(mu_);
     for (;;) {
         // El destructor ya esperó lo que pudo (vaciar): lo que quede es de un disco

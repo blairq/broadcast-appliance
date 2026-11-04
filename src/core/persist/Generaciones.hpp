@@ -26,7 +26,8 @@
 #include <string>
 #include <string_view>
 
-#include "persist/Escritor.hpp"
+#include "persist/Durabilidad.hpp"
+#include "persist/Lectura.hpp"
 
 namespace ba::persist {
 
@@ -37,20 +38,6 @@ std::string sha256Hex(std::string_view datos);
 std::string conCabecera(std::uint64_t secuencia, std::string_view cuerpo);
 /// Lo inverso: true si `contenido` tiene cabecera válida y el hash coincide.
 bool sinCabecera(const std::string& contenido, std::uint64_t& secuencia, std::string& cuerpo);
-
-/// Lo que se encontró al leer.
-struct Lectura {
-    enum class Estado {
-        Nada,   ///< no hay ningún archivo (primer arranque)
-        Valida, ///< una generación entera: la más nueva que sirve
-        Vieja,  ///< el archivo de antes de las generaciones (sin verificar: lo valida quien lo usa)
-        Danada, ///< hay generaciones pero ninguna sirve
-    };
-    Estado estado = Estado::Nada;
-    std::string cuerpo;
-    std::uint64_t secuencia = 0;
-    int descartadas = 0; ///< generaciones que estaban y no servían (rotas o truncadas)
-};
 
 class DosGeneraciones {
    public:

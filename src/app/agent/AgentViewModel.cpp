@@ -9,6 +9,7 @@
 #include "agent/ServidorModeloLocal.hpp"
 #include "agent/ServidorOpencode.hpp"
 #include "ajustes/Ajustes.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "platform/Paths.hpp"
 
 #include <algorithm>

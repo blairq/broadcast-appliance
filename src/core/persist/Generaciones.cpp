@@ -2,6 +2,8 @@
 
 #include "persist/Generaciones.hpp"
 
+#include "persist/Escritor.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cstddef>

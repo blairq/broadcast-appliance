@@ -11,6 +11,7 @@
 #include "fault/ModoSeguro.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "diag/Perfil.hpp"
+#include "persist/ColaEscritura.hpp"
 #include "sala/CupoSala.hpp"
 #include "sala/SeguridadSala.hpp"
 #include "escenas/Conmutador.hpp"

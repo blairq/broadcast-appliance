@@ -3,6 +3,11 @@
 // ============================================================================
 #include "persist/ArchivoConfig.hpp"
 
+#include "persist/ColaEscritura.hpp"
+#include "persist/Escritor.hpp"
+#include "persist/Esquema.hpp"
+#include "persist/EsquemasConfig.hpp"
+
 #include "diag/Registro.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "platform/Paths.hpp"

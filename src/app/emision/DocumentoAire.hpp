@@ -39,7 +39,7 @@
 #include <nlohmann/json.hpp>
 
 #include "emision/SalidasConfig.hpp"
-#include "persist/Generaciones.hpp"
+#include "persist/Lectura.hpp"
 
 namespace ba::app::salidas {
 

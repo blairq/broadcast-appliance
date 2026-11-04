@@ -5,6 +5,7 @@
 #include "evento/TemaEvento.hpp"
 
 #include "i18n/I18nTexto.hpp" // QT_TRANSLATE_NOOP: los errores se traducen al mostrarlos
+#include "persist/Escritor.hpp"
 #include "tema/TemaWeb.hpp"
 
 #include <algorithm>

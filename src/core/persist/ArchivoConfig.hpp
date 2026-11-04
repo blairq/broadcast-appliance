@@ -15,34 +15,26 @@
 //     configuración de la nueva).
 //
 // La versión de cada archivo y sus pasos de migración están en UNA tabla
-// (ArchivoConfig.cpp): cambiar el formato de un archivo es subirle el número y
-// agregar el paso ahí. El que no está en la tabla es el esquema 1, sin pasos.
+// (ArchivoConfig.cpp; la declara EsquemasConfig.hpp): cambiar el formato de un archivo
+// es subirle el número y agregar el paso ahí. El que no está en la tabla es el esquema 1,
+// sin pasos.
+//
+// Esta cabecera es la interfaz: la cola, el escritor, las generaciones y la tabla de
+// esquemas son detalle de la persistencia. Quien de verdad los usa (vaciar la cola antes
+// de mover una carpeta, escribir ya un archivo suelto) incluye su cabecera.
 //
 // Sin Qt (ba_core): lo usan la app y el núcleo.
 // ============================================================================
 #pragma once
 
-#include "persist/ColaEscritura.hpp"
-#include "persist/Esquema.hpp"
+#include "persist/Pedido.hpp"
 
 #include <filesystem>
 #include <string>
-#include <vector>
 
 #include "json/JsonFwd.hpp"
 
 namespace ba::persist {
-
-/// La versión de un archivo de Config/ y cómo se llega a ella desde la 1.
-struct EsquemaConfig {
-    EsquemaConfig() = default;
-    EsquemaConfig(std::string n, int a = 1, std::vector<PasoMigracion> p = {})
-        : nombre(std::move(n)), actual(a), pasos(std::move(p)) {}
-
-    std::string nombre;               ///< el nombre del archivo («audio-matriz.json»)
-    int actual = 1;                   ///< el esquema que escribe esta versión
-    std::vector<PasoMigracion> pasos; ///< pasos.size() == actual - 1
-};
 
 /// La carpeta de la configuración activa: UNA raíz para todo el proceso. La pone el arranque
 /// (ponerRaizConfig, con la que eligió); si nadie la puso, platform::configRoot(). Todo
@@ -52,11 +44,6 @@ void ponerRaizConfig(const std::filesystem::path& raiz);
 std::filesystem::path raizConfig();
 /// `<raíz>/Config/<nombre>` (nombre puede tener subcarpetas: «plugin_config/x.json»).
 std::filesystem::path archivoConfig(const std::string& nombre);
-
-/// La tabla: todos los archivos de Config/ que conoce el programa.
-const std::vector<EsquemaConfig>& esquemasConfig();
-/// El de `nombre` (el nombre del archivo, sin carpeta); si no está en la tabla, el 1.
-const EsquemaConfig& esquemaConfig(const std::string& nombre);
 
 /// El objeto del archivo migrado al esquema actual, o {} si no está o no es un objeto.
 /// `habia` (si se pide): si el archivo estaba, aunque esté roto (lo encolado cuenta).

@@ -4,6 +4,7 @@
 
 #include "platform/Paths.hpp"
 #include "persist/ArchivoConfig.hpp"
+#include "persist/Escritor.hpp"
 
 #include <nlohmann/json.hpp>
 

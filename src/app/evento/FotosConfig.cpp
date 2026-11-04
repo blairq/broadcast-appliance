@@ -10,6 +10,8 @@
 #include <cctype>
 
 #include "crypto/Sha256.hpp"
+#include "persist/ColaEscritura.hpp"
+#include "persist/Escritor.hpp"
 
 namespace ba::evento {
 

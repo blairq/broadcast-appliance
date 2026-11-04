@@ -25,34 +25,15 @@
 #pragma once
 
 #include <chrono>
-#include <condition_variable>
 #include <cstdint>
 #include <filesystem>
-#include <functional>
-#include <map>
-#include <mutex>
+#include <memory>
 #include <string>
-#include <thread>
 
-#include "persist/Escritor.hpp"
-#include "persist/Generaciones.hpp"
+#include "persist/Lectura.hpp"
+#include "persist/Pedido.hpp"
 
 namespace ba::persist {
-
-enum class Prioridad {
-    Normal, ///< ajustes
-    Aire,   ///< el estado de aire: primero
-};
-
-/// Cómo se escribe lo encolado.
-struct Pedido {
-    Durabilidad durabilidad = Durabilidad::Normal;
-    Prioridad prioridad = Prioridad::Normal;
-    Permisos permisos = Permisos::Comunes;
-    /// Corre en el hilo escritor justo antes de escribir (p. ej. guardar la versión
-    /// anterior del archivo). Con la fusión, rige el del último pedido.
-    std::function<void()> antes;
-};
 
 class ColaEscritura {
    public:
@@ -92,38 +73,12 @@ class ColaEscritura {
         std::uint64_t errores = 0;    ///< intentos fallidos (se reintentan)
     };
     Cuentas cuentas() const;
-    bool esHiloEscritor() const { return std::this_thread::get_id() == hilo_.get_id(); }
+    bool esHiloEscritor() const;
 
    private:
-    enum class Tipo { Archivo, Generacion, Borrar, Agregar };
-    struct Entrada {
-        Tipo tipo = Tipo::Archivo;
-        std::filesystem::path ruta;
-        std::string bytes; ///< Agregar: lo que falta agregar (lo que llega se suma al final)
-        Pedido pedido;
-        std::uint64_t orden = 0;   ///< cuándo se encoló por primera vez (FIFO entre iguales)
-        std::uint64_t version = 0; ///< sube con cada pedido nuevo para la ruta
-        std::uint64_t tomada = 0;  ///< la versión que el hilo está escribiendo
-        bool enCurso = false;      ///< el hilo la está escribiendo
-        bool avisado = false;      ///< su error ya fue al registro
-        bool igualar = false;      ///< la copia a la otra generación (ver kIgualar)
-        std::chrono::steady_clock::time_point reintento{};
-    };
-    void encolar(Tipo t, const std::filesystem::path& ruta, std::string bytes, Pedido p);
-    void correr();
-    bool hacer(const Entrada& e, std::string& error);
-
-    mutable std::mutex mu_;
-    std::condition_variable hay_;   ///< hay algo para el hilo (o hay que parar)
-    std::condition_variable listo_; ///< el hilo terminó algo (para vaciar)
-    std::map<std::string, Entrada> pendientes_;
-    std::uint64_t orden_ = 0;
-    std::uint64_t version_ = 0;
-    bool parar_ = false;
-    int apurando_ = 0; ///< cuántos esperan en vaciar(): la igualación de generaciones, sin demora
-    Cuentas cuentas_;
-    std::map<std::string, DosGeneraciones> generaciones_; ///< del hilo escritor (secuencia y turno)
-    std::thread hilo_;
+    /// El estado (lo pendiente, el candado, el hilo): detalle de ColaEscritura.cpp.
+    struct Impl;
+    std::unique_ptr<Impl> d_;
 };
 
 /// La cola del proceso.
