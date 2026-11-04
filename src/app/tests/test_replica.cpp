@@ -347,6 +347,32 @@ int main(int argc, char** argv) {
     ObjetoReplica* lista = cli.objeto("Studio.lista");
     CHECK(lista != nullptr && lista->data(lista->index(0), Qt::UserRole + 2).toInt() == 10, "un dato que cambió en una fila");
     CHECK(vista->property("tit").toString() == "título de x (3)", "lo que devuelve una función se vuelve a pedir si cambió el objeto");
+    // Un binding que lleva más de 3 s en pantalla sin reevaluarse (antes quedaba con el valor
+    // viejo: solo se volvía a pedir lo leído hace poco).
+    {
+        QEventLoop espera;
+        QTimer::singleShot(3500, &espera, &QEventLoop::quit);
+        espera.exec();
+        raiz.c += 1;
+        emit raiz.contadorCambio();
+        bombear(pub, cli);
+        {
+            QEventLoop otra;
+            QTimer::singleShot(1100, &otra, &QEventLoop::quit);
+            otra.exec();
+        }
+        bombear(pub, cli);
+        CHECK(vista->property("tit").toString() == "título de x (4)",
+              "y también lo que un binding muestra hace rato (no queda viejo)");
+        raiz.c -= 1;
+        emit raiz.contadorCambio();
+        {
+            QEventLoop otra;
+            QTimer::singleShot(1100, &otra, &QEventLoop::quit);
+            otra.exec();
+        }
+        bombear(pub, cli);
+    }
 
     // --- Desde la web.
     anotado.clear();
