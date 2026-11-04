@@ -490,7 +490,7 @@ if(BA_APP_QT_OK)
                 Qt6::Core Qt6::Gui Qt6::Network Qt6::Multimedia
         FUENTES agent/Actualizacion.cpp agent/AgentViewModel.cpp agent/AlarmaSonora.cpp agent/AlertEngine.cpp
                 agent/ArgumentosLocales.cpp agent/ChatEnVivo.cpp agent/ChatEnVivoFuentes.cpp agent/ControlSistema.cpp
-                agent/Despachador.cpp agent/EntradasAlarmas.cpp agent/EnvioOpencode.cpp agent/EstadoIA.cpp
+                agent/Despachador.cpp agent/DiscoAgentes.cpp agent/EntradasAlarmas.cpp agent/EnvioOpencode.cpp agent/EstadoIA.cpp
                 agent/FlujosTexto.cpp agent/HijosDeLaApp.cpp agent/Lanzamiento.hpp agent/Mirada.cpp
                 agent/MiradaCuerpo.cpp agent/ModeloPropio.cpp agent/ModelosLocales.cpp agent/Notificador.cpp
                 agent/Reconocedores.cpp agent/Roles.cpp agent/RotuloTraduccionConfig.cpp
@@ -684,7 +684,7 @@ if(BA_APP_QT_OK)
     # Los tiempos del evento, la resolución de las salidas y quién es quién (rostros).
     ba_biblioteca(ba_app_tiempos NIVEL 2
         DEPENDE ba_app_base ba_app_comun ba_core ba_motor ba_emisor_pedido ${_ba_w6_gst} nlohmann_json::nlohmann_json Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Multimedia
-        FUENTES tiempos/Tiempos.cpp tiempos/TiemposModel.cpp)
+        FUENTES tiempos/FilasTiempo.cpp tiempos/Tiempos.cpp tiempos/TiemposModel.cpp)
     ba_biblioteca_completa(ba_app_tiempos tiempos)
     list(PREPEND BA_APP_BIBLIOTECAS ba_app_tiempos)
     ba_biblioteca(ba_app_resolucion NIVEL 2

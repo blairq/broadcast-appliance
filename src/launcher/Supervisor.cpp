@@ -111,6 +111,25 @@ int Supervisor::run() {
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(250));
     }
+    // El lugar entre las copias abiertas en la máquina (cada una con su carpeta de
+    // datos): de él salen sus puertos (platform/Instancia.hpp). Lo heredan los hijos.
+    if (!ba::platform::LugarDeInstancia::tomar(cfg_.modoPrueba, lugar_, &err)) {
+        BA_LOG_ERROR("instance", 0, llenar(traducir("instance", "no se inicia: %1"), {err}));
+        return 1;
+    }
+    {
+        const std::string lugar = std::to_string(lugar_.lugar());
+#ifdef _WIN32
+        _putenv_s(ba::platform::kLugarEnv, lugar.c_str());
+#else
+        setenv(ba::platform::kLugarEnv, lugar.c_str(), 1);
+#endif
+    }
+    if (lugar_.lugar() > 0)
+        BA_LOG_WARN("instance", 0,
+                    llenar(traducir("instance", "lugar %1: otra copia del programa (con otra carpeta de datos) puede "
+                                                "estar usando los puertos configurados; esta les suma %2"),
+                           {std::to_string(lugar_.lugar()), std::to_string(lugar_.lugar() * ba::platform::kPasoPuertos)}));
 
     ba::platform::suppressCrashDialogs(); // spec 3.1.4; los hijos lo heredan
 

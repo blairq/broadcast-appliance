@@ -141,10 +141,7 @@ bool TiemposModel::rehacer(bool avisar) {
         Fotos f = fotos_();
         f.pipelines = pipelines_;
         mapa_ = armar(f);
-        if (avisar) {
-            mapaUi_ = aVariant(mapa_).toMap();
-            emit cambio();
-        }
+        if (avisar) publicar(false);
         return true;
     } catch (const std::exception& e) {
         qWarning("[tiempos] %s", ba::i18n::llenar(ba::i18n::traducir("tiempos", "no se pudo armar el grafo: %1"), {e.what()}).c_str());
@@ -172,17 +169,84 @@ void TiemposModel::tic() {
     }
     for (auto it = historia_.begin(); it != historia_.end();)
         it = vivos.count(it->first) ? std::next(it) : historia_.erase(it);
-    mapaUi_ = aVariant(mapa_).toMap();
     finMs_ = t;
-    armarHistorias();
-    emit cambio();
+    // La historia de las tarjetas, una vez por segundo (y en la primera vuelta).
+    publicar(vueltas_++ % (1000 / kPeriodoMs) == 0);
     armarSerie();
 }
 
-void TiemposModel::armarHistorias() {
-    QVariantMap m;
-    for (const auto& [id, h] : historia_) m.insert(QString::fromStdString(id), historia(QString::fromStdString(id), kHistoriaS));
-    historiasUi_ = m;
+void TiemposModel::publicar(bool conHistorias) {
+    using QS = QString;
+    // La forma del grafo: sin los números de cada vuelta. Si no cambió, la página no
+    // rehace el acomodo (ni sus índices, ni nada que dependa de él).
+    json est{{"nodos", json::array()}, {"tramos", json::array()}};
+    std::vector<FilasTiempo::Entrada> filasNodos, filasTramos;
+    std::map<std::string, std::pair<json, QVariantMap>> previos;
+    const auto fila = [&](const std::string& clave, const json& dato) {
+        FilasTiempo::Entrada e{QS::fromStdString(clave), {}, true};
+        const auto p = previos_.find(clave);
+        if (p != previos_.end() && p->second.first == dato) {
+            e.dato = p->second.second; // el mismo: ni se convierte ni se avisa
+            e.cambio = false;
+        } else {
+            e.dato = aVariant(dato).toMap();
+        }
+        previos[clave] = {dato, e.dato};
+        return e;
+    };
+    json programa = nullptr, recorrido = json::object();
+    for (const json& n : mapa_.value("nodos", json::array())) {
+        const std::string id = n.value("id", std::string());
+        json forma = n;
+        for (const char* k : {"ms", "p95_ms", "acumulado_ms"}) forma.erase(k);
+        // Del detalle, solo de qué entrada es (el acomodo agrupa por entrada).
+        json det = json::object();
+        if (n.contains("detalle") && n["detalle"].is_object() && n["detalle"].contains("entrada"))
+            det["entrada"] = n["detalle"]["entrada"];
+        forma["detalle"] = det;
+        est["nodos"].push_back(std::move(forma));
+        filasNodos.push_back(fila("n:" + id, n));
+        filasNodos.back().clave = QS::fromStdString(id);
+        if (id == "escena:programa") programa = n;
+        if (!recorridoDe_.isEmpty() && recorrido.empty() &&
+            (id == "entrada:" + recorridoDe_.toStdString() || id == "entrada:" + recorridoDe_.toStdString() + ":audio"))
+            recorrido = n.value("detalle", json::object());
+    }
+    for (const json& t : mapa_.value("tramos", json::array())) {
+        const std::string clave = t.value("desde", std::string()) + ">" + t.value("hacia", std::string());
+        est["tramos"].push_back({{"desde", t.value("desde", std::string())},
+                                 {"hacia", t.value("hacia", std::string())},
+                                 {"medio", t.value("medio", std::string("video"))}});
+        filasTramos.push_back(fila("t:" + clave, t));
+        filasTramos.back().clave = QS::fromStdString(clave);
+    }
+    // Las salidas, con su camino (lo que resalta la página al elegir una tarjeta).
+    est["salidas"] = json::array();
+    for (const json& s : mapa_.value("salidas", json::array()))
+        est["salidas"].push_back({{"id", s.value("id", std::string())}, {"camino", s.value("camino", json::array())}});
+    previos_ = std::move(previos);
+    const std::string firma = est.dump();
+    if (firma != firmaEstructura_) {
+        firmaEstructura_ = firma;
+        estructuraUi_ = aVariant(est).toMap();
+        emit estructuraCambio();
+    }
+    nodos_->poner(filasNodos);
+    tramos_->poner(filasTramos);
+    if (conHistorias) {
+        QHash<QString, QVariantList> h;
+        for (const auto& [id, muestras] : historia_) h.insert(QS::fromStdString(id), historia(QS::fromStdString(id), kHistoriaS));
+        nodos_->ponerHistorias(h);
+    }
+    // Lo chico de cada vuelta.
+    const bool medido = programa.is_object() && programa.value("fuente", std::string()) == "medido" &&
+                        programa["acumulado_ms"].is_number();
+    resumenUi_ = aVariant(json{{"salidas", mapa_.value("salidas", json::array())},
+                               {"estudio", mapa_.value("estudio", json::object())},
+                               {"programa_ms", medido ? programa["acumulado_ms"] : json(-1)},
+                               {"recorrido", recorrido}})
+                     .toMap();
+    emit cambio();
 }
 
 void TiemposModel::armarSerie() {

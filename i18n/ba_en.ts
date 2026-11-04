@@ -530,7 +530,7 @@
 <context>
     <name>AgentViewModel</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="+447"/>
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="+458"/>
         <source>Falta la dirección del servidor.</source>
         <translation>Missing the server address.</translation>
     </message>
@@ -605,7 +605,7 @@
         <translation>Could not save the key.</translation>
     </message>
     <message>
-        <location line="+113"/>
+        <location line="+140"/>
         <source>No se pudo buscar la actualizacion: %1</source>
         <translation>Could not check for updates: %1</translation>
     </message>
@@ -615,12 +615,12 @@
         <translation>A new version is available: %1.</translation>
     </message>
     <message>
-        <location line="-391"/>
+        <location line="-437"/>
         <source>El agente terminó (código %1).</source>
         <translation>The agent finished (code %1).</translation>
     </message>
     <message>
-        <location line="+384"/>
+        <location line="+430"/>
         <source>La versión nueva no se publicó con hash para esta plataforma (%1): no se ofrece.</source>
         <translation>The new version wasn&apos;t published with a hash for this platform (%1): not offered.</translation>
     </message>
@@ -630,13 +630,12 @@
         <translation>Up to date (the latest published is %1).</translation>
     </message>
     <message>
-        <location line="+21"/>
-        <location line="+315"/>
+        <location filename="../src/app/agent/DiscoAgentes.cpp" line="+349"/>
         <source>No se pudo guardar %1</source>
         <translation>Could not save %1</translation>
     </message>
     <message>
-        <location line="-297"/>
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="+29"/>
         <source>Buscando la última versión de %1…</source>
         <translation>Looking up the latest version of %1…</translation>
     </message>
@@ -651,19 +650,19 @@
         <translation>Couldn&apos;t find the latest version of %1 (%2): installing %3.</translation>
     </message>
     <message>
-        <location line="+173"/>
+        <location line="+95"/>
         <source>No hay una version de %1 para esta plataforma (%2).</source>
         <translation>There&apos;s no version of %1 for this platform (%2).</translation>
     </message>
     <message>
-        <location line="+83"/>
-        <location line="+91"/>
+        <location line="+71"/>
         <location line="+72"/>
+        <location filename="../src/app/agent/DiscoAgentes.cpp" line="-25"/>
         <source>Instalacion cancelada.</source>
         <translation>Installation canceled.</translation>
     </message>
     <message>
-        <location line="-163"/>
+        <location filename="../src/app/agent/DiscoAgentes.cpp" line="+1"/>
         <source>No se pudo descargar: %1</source>
         <translation>Could not download: %1</translation>
     </message>
@@ -683,7 +682,7 @@
         <translation>Unpacking…</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+12"/>
         <source>No se pudo descomprimir: %1 (no arrancó el Python del programa)</source>
         <translation>Could not unpack: %1 (the program&apos;s Python didn&apos;t start)</translation>
     </message>
@@ -698,27 +697,27 @@
         <translation>Could not place %1</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>El paquete de %1 no trae %2: no se instalo (queda la version anterior).</source>
         <translation>The %1 package doesn&apos;t include %2: not installed (the previous version stays).</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <source>No se pudo dejar la instalacion en su lugar (%1).</source>
         <translation>Could not move the installation into place (%1).</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="-70"/>
         <source>Instalado.</source>
         <translation>Installed.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+5"/>
         <source>Agente instalado en la carpeta portable.</source>
         <translation>Agent installed in the portable folder.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+9"/>
         <source>Instalando %1, versión %2…</source>
         <translation>Installing %1, version %2…</translation>
     </message>
@@ -733,7 +732,7 @@
         <translation>A new version of %1 is available</translation>
     </message>
     <message>
-        <location line="+198"/>
+        <location line="+195"/>
         <source>No se pudo escribir %1</source>
         <translation>Could not write %1</translation>
     </message>
@@ -743,8 +742,8 @@
         <translation>Missing the API key (paste it in the panel on the right).</translation>
     </message>
     <message>
-        <location line="+108"/>
-        <location line="+222"/>
+        <location line="+105"/>
+        <location line="+225"/>
         <source>Proveedor desconocido: %1</source>
         <translation>Unknown provider: %1</translation>
     </message>
@@ -800,7 +799,7 @@
         <translation>Could not start the agent: %1</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+95"/>
         <source>Al aire: el asistente se relanzó sin consola (Bash/PowerShell) hasta que termine la emisión.</source>
         <translation>On air: the assistant restarted without a console (Bash/PowerShell) until the broadcast ends.</translation>
     </message>
@@ -855,7 +854,7 @@
         <translation>%1 · Event</translation>
     </message>
     <message>
-        <location line="+99"/>
+        <location line="+65"/>
         <source>Primero pará el asistente (la consola está corriendo).</source>
         <translation>Stop the assistant first (the console is running).</translation>
     </message>
@@ -870,7 +869,7 @@
         <translation>An installation is in progress.</translation>
     </message>
     <message>
-        <location line="+91"/>
+        <location line="+77"/>
         <source>Motor desconocido: %1</source>
         <translation>Unknown engine: %1</translation>
     </message>
@@ -1387,7 +1386,7 @@
 <context>
     <name>AlarmasViewModel</name>
     <message>
-        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+334"/>
+        <location filename="../src/app/ui/AlarmasViewModel.cpp" line="+335"/>
         <source>El aviso por «%1» no salió: %2</source>
         <translation>The alert for “%1” didn&apos;t go out: %2</translation>
     </message>
@@ -1989,7 +1988,7 @@
     </message>
     <message>
         <location line="+1"/>
-        <location line="+249"/>
+        <location line="+256"/>
         <location line="+17"/>
         <location line="+12"/>
         <location line="+24"/>
@@ -1997,7 +1996,7 @@
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="-291"/>
+        <location line="-298"/>
         <source>El servidor MCP está apagado: activalo en Configuración → Asistente (MCP) y reiniciá la app.</source>
         <translation>The MCP server is off: turn it on in Settings → Assistant (MCP) and restart the app.</translation>
     </message>
@@ -2054,13 +2053,13 @@
     </message>
     <message>
         <location line="-64"/>
-        <location line="+162"/>
+        <location line="+169"/>
         <location line="+53"/>
         <source>Borrar</source>
         <translation>Delete</translation>
     </message>
     <message>
-        <location line="-188"/>
+        <location line="-195"/>
         <source>Tu servidor</source>
         <translation>Your server</translation>
     </message>
@@ -2140,7 +2139,7 @@
         <translation>%1: freed %2</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+17"/>
         <source>Cada asistente guarda sus conversaciones en su perfil y se van acumulando. Borrarlas no toca el login ni los ajustes. Si el asistente no arranca o anda raro, «Reinstalar» vuelve a bajar el programa; «Desde cero» borra también el perfil y hay que volver a entrar. Nada de esto se puede con el asistente corriendo.</source>
         <translation>Each assistant keeps its conversations in its profile and they pile up. Deleting them doesn&apos;t touch the login or settings. If the assistant won&apos;t start or acts up, “Reinstall” downloads the program again; “From scratch” also deletes the profile and you have to log in again. None of this can be done while the assistant is running.</translation>
     </message>
@@ -2180,8 +2179,8 @@
         <translation>%1 of saved conversations. Login and settings stay.</translation>
     </message>
     <message>
-        <location line="+2"/>
-        <location line="+53"/>
+        <location line="-47"/>
+        <location line="+102"/>
         <source>Chats borrados</source>
         <translation>Chats deleted</translation>
     </message>
@@ -2191,12 +2190,12 @@
         <translation>Old versions</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-53"/>
         <source>Versiones viejas borradas</source>
         <translation>Old versions deleted</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+59"/>
         <location line="+6"/>
         <source>Reinstalar</source>
         <translation>Reinstall</translation>
@@ -8498,7 +8497,7 @@ Turn it on from the Log.</translation>
 <context>
     <name>EmisionViewModel</name>
     <message>
-        <location filename="../src/app/ui/EmisionViewModel.cpp" line="+168"/>
+        <location filename="../src/app/ui/EmisionViewModel.cpp" line="+169"/>
         <source>Ojo: el disco alcanza para ~%1 h de grabación</source>
         <translation>Heads up: the disk has room for ~%1 h of recording</translation>
     </message>
@@ -35626,7 +35625,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>TiemposModel</name>
     <message>
-        <location filename="../src/app/tiempos/TiemposModel.cpp" line="+425"/>
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="+489"/>
         <source>ya hay un análisis midiendo</source>
         <translation>an analysis is already measuring</translation>
     </message>
@@ -35639,12 +35638,12 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>TiemposPage</name>
     <message>
-        <location filename="../src/app/qml/pages/TiemposPage.qml" line="+78"/>
+        <location filename="../src/app/qml/pages/TiemposPage.qml" line="+83"/>
         <source>%1 (audio)</source>
         <translation>%1 (audio)</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+134"/>
         <source>Latencias y sincronía</source>
         <translation>Latency and sync</translation>
     </message>
@@ -35679,7 +35678,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Everything aligned to the lowest latency: who sets it, which inputs sync with the room, clock and network.</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+40"/>
         <source>Midiendo… %1 %</source>
         <translation>Measuring… %1 %</translation>
     </message>
@@ -35744,7 +35743,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Latency analysis is not available</translation>
     </message>
     <message>
-        <location line="+104"/>
+        <location line="+111"/>
         <source>Tocá una tarjeta para elegirla: después, analizarla por dentro, verla en la gráfica o ver su detalle.</source>
         <translation>Tap a card to select it: then analyze it inside, view it on the chart or see its details.</translation>
     </message>
@@ -35774,7 +35773,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Fit</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+40"/>
         <source>Hasta cada salida</source>
         <translation>To each output</translation>
     </message>
@@ -45103,7 +45102,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+145"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+146"/>
         <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
         <translation>startup: the system audio (Qt Multimedia, on its own thread), %1 ms</translation>
     </message>
@@ -45273,7 +45272,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>the audio of “%1” didn&apos;t come in: %2</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+196"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+258"/>
         <location line="+24"/>
         <source>Contando los plugins de video…</source>
         <translation>Counting video plugins…</translation>
@@ -45431,7 +45430,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>the encoders</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AireDurable.cpp" line="+131"/>
+        <location filename="../src/app/arranque/AireDurable.cpp" line="+132"/>
         <source>al-aire.json: la última generación estaba rota (corte a mitad); se retoma la anterior</source>
         <translation>al-aire.json: the latest generation was broken (cut halfway); the previous one is used</translation>
     </message>
@@ -46790,7 +46789,7 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>asistente</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2421"/>
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="-2223"/>
         <source>Claude — suscripción Pro/Max</source>
         <translation>Claude — Pro/Max subscription</translation>
     </message>
@@ -46860,12 +46859,12 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Your own server. Set its address (baseURL), which model to request and any extra parameters it understands, and paste its key. opencode handles it: this device doesn&apos;t talk to the model, it builds its configuration.</translation>
     </message>
     <message>
-        <location line="+1637"/>
+        <location line="+1481"/>
         <source>Para el rol «%1» (lo atendés vos, en esta conversación del evento). Instrucciones del rol:</source>
         <translation>For the role «%1» (you handle it, in this event conversation). Role instructions:</translation>
     </message>
     <message>
-        <location line="+445"/>
+        <location line="+451"/>
         <source>%1 — Atendelo según lo acordado (si no hay nada acordado, revisá con las herramientas, contame qué pasó y proponé qué hacer).</source>
         <translation>%1 — Handle it as agreed (if nothing was agreed, check with the tools, tell me what happened and propose what to do).</translation>
     </message>
@@ -48816,7 +48815,7 @@ Data (from %2): %3</translation>
         <translation>ended with code %1</translation>
     </message>
     <message>
-        <location filename="../src/launcher/Supervisor.cpp" line="+516"/>
+        <location filename="../src/launcher/Supervisor.cpp" line="+535"/>
         <source>se cayó</source>
         <translation>crashed</translation>
     </message>
@@ -50863,7 +50862,7 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location filename="../src/launcher/main.cpp" line="+68"/>
+        <location filename="../src/launcher/main.cpp" line="+69"/>
         <source>--detectar-acoples: este programa no trae el detector</source>
         <translation>--detectar-acoples: this program does not include the detector</translation>
     </message>
@@ -51990,7 +51989,7 @@ Data (from %2): %3</translation>
         <translation>replay</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+564"/>
+        <location filename="../src/app/arranque/ServicioEmision.cpp" line="+565"/>
         <location filename="../src/app/emision/VigiaDisco.cpp" line="-45"/>
         <source>grabación</source>
         <translation>recording</translation>
@@ -54723,7 +54722,7 @@ Data (from %2): %3</translation>
 <context>
     <name>foto</name>
     <message>
-        <location filename="../src/app/arranque/PublicadorFoto.cpp" line="+91"/>
+        <location filename="../src/app/arranque/PublicadorFoto.cpp" line="+94"/>
         <source>la foto cambió partes sin compararlas (%1) al rearmar %2: falta su fila en FotoMotor::kArrastres</source>
         <translation>the snapshot changed parts without comparing them (%1) when rebuilding %2: its row in FotoMotor::kArrastres is missing</translation>
     </message>
@@ -56352,7 +56351,7 @@ Data (from %2): %3</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/gateway/main.cpp" line="+778"/>
+        <location filename="../src/gateway/main.cpp" line="+780"/>
         <location line="+2"/>
         <source>(ninguna)</source>
         <translation>(none)</translation>
@@ -56505,12 +56504,12 @@ Data (from %2): %3</translation>
         <translation>all</translation>
     </message>
     <message>
-        <location filename="../src/gateway/main.cpp" line="-535"/>
+        <location filename="../src/gateway/main.cpp" line="-537"/>
         <source>%1 (nueva)</source>
         <translation>%1 (new)</translation>
     </message>
     <message>
-        <location line="+197"/>
+        <location line="+199"/>
         <source>arranque: guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5</source>
         <translation>startup: guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5</translation>
     </message>
@@ -56646,7 +56645,7 @@ Data (from %2): %3</translation>
         <translation>turn: TEST MODE (--turn-prueba): TURN starts without pinggy, local network only</translation>
     </message>
     <message>
-        <location line="+270"/>
+        <location line="+271"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>tunnel: --tunnel-token is visible in the process list; prefer %1</translation>
     </message>
@@ -56666,7 +56665,7 @@ Data (from %2): %3</translation>
         <translation>tunnel: disabled in the configuration (local access only)</translation>
     </message>
     <message>
-        <location line="-648"/>
+        <location line="-649"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>network: machine IP %1; in the QR: %2</translation>
     </message>
@@ -56716,7 +56715,7 @@ Data (from %2): %3</translation>
         <translation>https: ba-web isn&apos;t handling it; starting the built-in terminator</translation>
     </message>
     <message>
-        <location line="+218"/>
+        <location line="+219"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>room door: https on %1:%2</translation>
     </message>
@@ -58861,15 +58860,21 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
 <context>
     <name>instance</name>
     <message>
-        <location filename="../src/launcher/Supervisor.cpp" line="-43"/>
+        <location filename="../src/launcher/Supervisor.cpp" line="-62"/>
+        <location line="+8"/>
         <source>no se inicia: %1</source>
         <translation>not starting: %1</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>lugar %1: otra copia del programa (con otra carpeta de datos) puede estar usando los puertos configurados; esta les suma %2</source>
+        <translation>slot %1: another copy of the program (with another data folder) may be using the configured ports; this one adds %2 to them</translation>
     </message>
 </context>
 <context>
     <name>integrity</name>
     <message>
-        <location line="+99"/>
+        <location line="+97"/>
         <source>integridad OK antes de arrancar (%1 archivos, %2 leídos, %3 para leer en el fondo)</source>
         <translation>integrity OK before starting (%1 files, %2 read, %3 to read in the background)</translation>
     </message>
@@ -58892,7 +58897,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
 <context>
     <name>ipc</name>
     <message>
-        <location filename="../src/core/platform/LocalSocket_posix.cpp" line="+159"/>
+        <location filename="../src/core/platform/LocalSocket_posix.cpp" line="+162"/>
         <location line="+138"/>
         <source>nombre de canal inválido: &apos;%1&apos;</source>
         <translation>invalid channel name: &apos;%1&apos;</translation>
@@ -58930,7 +58935,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
         <translation>connection rejected: the client isn&apos;t the same user</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/LocalSocket_win.cpp" line="+166"/>
+        <location filename="../src/core/platform/LocalSocket_win.cpp" line="+168"/>
         <source>no se pudo conectar a &apos;%1&apos;</source>
         <translation>couldn&apos;t connect to &apos;%1&apos;</translation>
     </message>
@@ -58945,14 +58950,14 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
         <translation>couldn&apos;t build the pipe&apos;s security descriptor</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/SingleInstance_posix.cpp" line="+48"/>
+        <location filename="../src/core/platform/SingleInstance_posix.cpp" line="+51"/>
         <source>nombre de lock inválido: &apos;%1&apos;</source>
         <translation>invalid lock name: &apos;%1&apos;</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+19"/>
         <location line="+27"/>
-        <location filename="../src/core/platform/SingleInstance_win.cpp" line="+44"/>
+        <location filename="../src/core/platform/SingleInstance_win.cpp" line="+46"/>
         <source>ya hay otra instancia en ejecucion</source>
         <translation>another instance is already running</translation>
     </message>
@@ -58960,6 +58965,11 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
         <location line="-16"/>
         <source>no se pudo resolver el lockfile para &apos;%1&apos;</source>
         <translation>couldn&apos;t resolve the lockfile for &apos;%1&apos;</translation>
+    </message>
+    <message>
+        <location filename="../src/core/platform/Instancia.cpp" line="+25"/>
+        <source>ya hay %1 copias del programa abiertas en esta máquina (cada una con su carpeta de datos)</source>
+        <translation>there are already %1 copies of the program open on this machine (each with its own data folder)</translation>
     </message>
 </context>
 <context>
@@ -60298,7 +60308,7 @@ Paths with variables (%USERPROFILE%\Desktop on Windows; ~/Desktop or $HOME on ma
         <location filename="../src/app/escritorio/control_linux.cpp" line="+11"/>
         <location line="+12"/>
         <location filename="../src/app/escritorio/control_mac.mm" line="+21"/>
-        <location filename="../src/app/mcp/McpUiTools.cpp" line="+419"/>
+        <location filename="../src/app/mcp/McpUiTools.cpp" line="+420"/>
         <source>Aviso mostrado.</source>
         <translation>Notification shown.</translation>
     </message>
@@ -61374,7 +61384,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>A slate on top of everything going out (&quot;Recess&quot;, &quot;Be right back&quot;, &quot;Minute of silence&quot;…), with `texto`, an optional `imagen` (path) and `ms` of fade (600). It doesn&apos;t depend on the scenes. Turning it on while on air asks for confirmation if something automatic requests it; turning it off doesn&apos;t. It survives an app crash. Each output has its own slate (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1330"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+1272"/>
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>The watchdog relaunches the app if it stops beating. The heartbeat comes from the UI AND from a thread that watches the engine&apos;s frames: if the UI hangs and the engine keeps going, on air is NOT cut. With the UI stuck for more than `espera_ui_s` (10 to 3600, default 60) and `matar_si_ui_trabada_sin_aire` (default true), it relaunches only if there&apos;s no stream or recording. A stuck UI WITH on air is an alarm that goes out without the UI, to web control and to the notifiers in `notificar` (“todos”, default, or a list of ids from notificador_listar; [] = none). With no arguments, it shows it (with the state: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -61384,7 +61394,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>runs the transition manually (T-bar)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+146"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+169"/>
         <source>Con `sigue_video`, la `fuente` sube (a su volumen) cuando entra al aire una escena que la tiene y baja a cero cuando sale, con la duracion de la transicion. Sin `sigue_video`, lista las que lo tienen. Es de cada salida: mueve el fader de la fuente en la mezcla de esa `salida`.</source>
         <translation>With `sigue_video`, the `fuente` comes up (to its volume) when a scene that has it goes on air and drops to zero when it goes off, over the transition&apos;s duration. Without `sigue_video`, it lists the ones that have it. It&apos;s per output: it moves the source&apos;s fader in that `salida`&apos;s mix.</translation>
     </message>
@@ -61394,12 +61404,12 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>Transition between scenes</translation>
     </message>
     <message>
-        <location line="+344"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="+377"/>
         <source>Cambiar una propiedad (o apretar un botón)</source>
         <translation>Change a property (or press a button)</translation>
     </message>
     <message>
-        <location line="+79"/>
+        <location filename="../src/app/mcp/McpMezclaTools.cpp" line="+41"/>
         <source>Foto de los niveles del mezclador, para leer. Fuentes de audio con volumen (dB), silencio, si se esta escuchando por el monitor (`escuchando`, ver audio_escuchar) y nivel pico actual (dBFS), mas el nivel del programa. -100 = silencio; cerca de 0 = saturando. Cada salida tiene su mezcla: con `salida`, la de esa.</source>
         <translation>Snapshot of the mixer levels, read-only. Audio sources with volume (dB), mute, whether it&apos;s being heard on the monitor (`escuchando`, see audio_escuchar) and current peak level (dBFS), plus the program level. -100 = silence; close to 0 = clipping. Each output has its own mix: with `salida`, that one&apos;s.</translation>
     </message>
@@ -61434,7 +61444,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>Takes it OFF air: cuts the stream that&apos;s going out. Stops the live stream. With `destino` (id or &quot;todos&quot;), cuts only that additional destination and the main one keeps going. With `salida`, the main stream of that output (the others keep going).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+227"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+53"/>
         <source>El loudness del PROGRAMA (la mezcla que va a la transmision y la grabacion), EBU R128 / BS.1770-4: `m` momentaneo (400 ms), `s` corto (3 s), `i` integrado desde el reset (arranca solo al transmitir o grabar), `tp` true peak maximo (dBTP), `lra` rango, `gr_db` lo que baja el limitador del master, `objetivo` y `fuera_de_objetivo` (integrado a mas de 2 LU o TP arriba del techo). audio_measure es por fuente; esto es lo que sale. Cada salida tiene el suyo (`salida`).</source>
         <translation>The loudness of the PROGRAM (the mix that goes to the stream and the recording), EBU R128 / BS.1770-4: `m` momentary (400 ms), `s` short-term (3 s), `i` integrated since the reset (starts on its own when streaming or recording), `tp` max true peak (dBTP), `lra` range, `gr_db` how much the master limiter is reducing, `objetivo` and `fuera_de_objetivo` (integrated more than 2 LU off or TP above the ceiling). audio_measure is per source; this is what goes out. Each output has its own (`salida`).</translation>
     </message>
@@ -61489,7 +61499,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>switches configuration (restarts the program: cuts everything going out)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-687"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+3"/>
         <source>cambia la transición</source>
         <translation>changes the transition</translation>
     </message>
@@ -61499,22 +61509,22 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>puts speakers on or off air</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+155"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="-186"/>
         <source>borra una fuente (puede estar al aire)</source>
         <translation>deletes a source (may be on air)</translation>
     </message>
     <message>
-        <location line="-385"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-230"/>
         <source>borra una escena</source>
         <translation>deletes a scene</translation>
     </message>
     <message>
-        <location line="+2516"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="+546"/>
         <source>Graba entradas sueltas (cámaras, invitados) cada una en su propio archivo, además del programa; sin argumentos, dice qué se graba.</source>
         <translation>Records individual inputs (cameras, guests) each to its own file, besides the program; with no arguments, says what is being recorded.</translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location filename="../src/app/mcp/McpConfigTools.cpp" line="+73"/>
         <source>cambia ajustes (los de video reinician el motor y los de gateway la conferencia: cortan)</source>
         <translation>changes settings (video ones restart the engine and gateway ones the conference: they cut)</translation>
     </message>
@@ -61524,7 +61534,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>changes the studio clock (restarts the engine: cuts what goes out)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-1948"/>
+        <location filename="../src/app/mcp/McpMezclaTools.cpp" line="-4"/>
         <source>cambia el audio (mute del máster corta el sonido)</source>
         <translation>changes the audio (muting the master cuts the sound)</translation>
     </message>
@@ -61544,7 +61554,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>sends a camera to a position (if on air, it shows)</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1255"/>
+        <location filename="../src/app/mcp/McpRecintoTools.cpp" line="+111"/>
         <source>lleva una cámara a una banca, persona o posición (si está al aire, se ve)</source>
         <translation>sends a camera to a seat, person or position (if on air, it shows)</translation>
     </message>
@@ -61579,7 +61589,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>sends the output to black</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-682"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+342"/>
         <source>pone a un orador al aire (en directo corta la escena)</source>
         <translation>puts a speaker on air (live, it cuts the scene)</translation>
     </message>
@@ -61609,7 +61619,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>changes how the room&apos;s microphones open</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpYouTubeTools.cpp" line="+365"/>
+        <location filename="../src/app/mcp/McpYouTubeTools.cpp" line="+366"/>
         <source>pone el chat del público en pantalla (en modo flujo, sin elegir)</source>
         <translation>puts the audience chat on screen (in flow mode, without choosing)</translation>
     </message>
@@ -61619,7 +61629,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>puts an audience message on air</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1135"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="-122"/>
         <source>borra un destino (si transmite, lo corta)</source>
         <translation>deletes a destination (if streaming, it stops it)</translation>
     </message>
@@ -61629,7 +61639,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>covers the output with a slate</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="+672"/>
+        <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="+675"/>
         <source>sube o baja una capa (DSK) encima del programa</source>
         <translation>raises or lowers a layer (DSK) over the program</translation>
     </message>
@@ -61732,12 +61742,12 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
     <message>
         <location line="+1"/>
         <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="-485"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="+280"/>
         <location filename="../src/app/mcp/McpFacebookTools.cpp" line="+165"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="+8"/>
         <location filename="../src/app/mcp/McpPantallaTools.cpp" line="+438"/>
         <location filename="../src/app/mcp/McpQrTools.cpp" line="+270"/>
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="+740"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-581"/>
-        <location line="+589"/>
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+161"/>
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="-496"/>
         <source>Borrado.</source>
@@ -61873,7 +61883,9 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <location line="+161"/>
         <location line="+211"/>
         <location line="+36"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="-114"/>
         <location filename="../src/app/mcp/McpDocumentosTools.cpp" line="+184"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-113"/>
         <location filename="../src/app/mcp/McpLaminaTools.cpp" line="+371"/>
         <location filename="../src/app/mcp/McpMatrizTools.cpp" line="+148"/>
         <location line="+87"/>
@@ -61884,10 +61896,8 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+270"/>
         <location filename="../src/app/mcp/McpRoomTools.cpp" line="-771"/>
         <location line="+43"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2515"/>
-        <location line="+1261"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-111"/>
         <location line="+137"/>
-        <location line="+414"/>
         <location filename="../src/app/mcp/McpYouTubeTools.cpp" line="+23"/>
         <source>Listo.</source>
         <translation>Done.</translation>
@@ -62241,7 +62251,7 @@ Nada de eso se puede con el asistente o un encargo de agentes corriendo.</source
 None of this can be done while the assistant or an agent job is running.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>Chats borrados: se liberaron %1.</source>
         <translation>Chats deleted: %1 freed.</translation>
     </message>
@@ -62251,7 +62261,7 @@ None of this can be done while the assistant or an agent job is running.</transl
         <translation>Old versions deleted: %1 freed.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+10"/>
         <source>Decí qué `motor` reinstalar.</source>
         <translation>Say which `motor` to reinstall.</translation>
     </message>
@@ -62266,7 +62276,7 @@ None of this can be done while the assistant or an agent job is running.</transl
         <translation>Reinstalling %1: progress in assistant_status.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+15"/>
         <source>Cuál asistente: el del evento (de fábrica) o el de automatización (las alertas).</source>
         <translation>Which assistant: the event one (default) or the automation one (alerts).</translation>
     </message>
@@ -63510,7 +63520,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <location line="+1"/>
         <location filename="../src/app/mcp/McpControlWebTools.cpp" line="+1"/>
         <location filename="../src/app/mcp/McpMatrizTools.cpp" line="-43"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-528"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-114"/>
         <source>Quitado.</source>
         <translation>Removed.</translation>
     </message>
@@ -64534,7 +64544,7 @@ You&apos;re the `%1` role: this is your WHOLE toolset. What isn&apos;t here you 
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="-2318"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-881"/>
         <source>La herramienta fallo: %1</source>
         <translation>The tool failed: %1</translation>
     </message>
@@ -65403,7 +65413,7 @@ You&apos;re the `%1` role: this is your WHOLE toolset. What isn&apos;t here you 
         <translation>Tests ALL installed drivers again (working ones too; quarantined ones no: those one at a time with driver_probar), in the background and outside the app. Progress in drivers_listar (`revisando`, `resumen`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+65"/>
+        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+66"/>
         <source>El idioma va como texto: un código (es, en, pt-BR).</source>
         <translation>The language goes as text: a code (es, en, pt-BR).</translation>
     </message>
@@ -67100,7 +67110,7 @@ If the event has no date, the invitation goes out without one and a warning is g
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../src/app/mcp/McpPreguntaTools.cpp" line="+547"/>
+        <location filename="../src/app/mcp/McpPreguntaTools.cpp" line="+548"/>
         <source>el enlace por internet en vez del de la red local</source>
         <translation>the internet link instead of the local network one</translation>
     </message>
@@ -67386,7 +67396,7 @@ It does not touch the face registry: the person&apos;s profile stays where it wa
         <translation>Comments are read every ~5 s; if you just selected the live video, call again in a few seconds.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpGraficoTools.cpp" line="+52"/>
+        <location filename="../src/app/mcp/McpGraficoTools.cpp" line="+53"/>
         <location filename="../src/app/mcp/McpHelp.cpp" line="-30"/>
         <source>Gráficos animados</source>
         <translation>Animated graphics</translation>
@@ -68149,7 +68159,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+720"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+722"/>
         <source>Escenas</source>
         <translation>Scenes</translation>
     </message>
@@ -68521,7 +68531,7 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+35"/>
+        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+36"/>
         <source>Traducción en vivo</source>
         <translation>Live translation</translation>
     </message>
@@ -69723,7 +69733,7 @@ The operator&apos;s control card follows the scene: when this scene is on air, i
     </message>
     <message>
         <location line="+17"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1578"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-16"/>
         <source>Agregado.</source>
         <translation>Added.</translation>
     </message>
@@ -72911,14 +72921,14 @@ It doesn&apos;t change anything in the event except adding the missing manual it
         <translation>To write or shorten a speech: prompter_leer, work out how long it takes (140 words per minute), rewrite and save. A blank line separates paragraphs, and the operator&apos;s control can jump from paragraph to paragraph: each one should be a single idea. No markdown or asterisks: this is read aloud and the tablet shows it as is.</translation>
     </message>
     <message>
-        <location line="+22"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1570"/>
+        <location filename="../src/app/mcp/McpConfigTools.cpp" line="+91"/>
+        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+22"/>
         <location filename="../src/app/mcp/McpVideoTools.cpp" line="+1632"/>
         <source>Guardado.</source>
         <translation>Saved.</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location filename="../src/app/mcp/McpPrompterTools.cpp" line="+10"/>
         <source>Ordenar los discursos</source>
         <translation>Organize the speeches</translation>
     </message>
@@ -75508,7 +75518,7 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>Nobody is visible on the waiting cameras.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-4163"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-1017"/>
         <source>ANTES DE PREGUNTARLE NADA, mira `rostro_lobby` y busca su `uid` (%1):
 - Si viene con `nombre`, YA SABES QUIEN ES: saludala por su nombre, confirmale en UNA sola pregunta el cargo que figura en su ficha, y no le vuelvas a preguntar lo que ya esta ahi. Preguntarle el nombre a alguien que el sistema reconoce es hacerle perder el tiempo.
 - Si `parecido` esta cerca del corte (0.40 o mas) pero sin `nombre`, casi seguro ES alguien de la libreta y lo que falta es una cara mejor: deciselo por `chat_send` con las palabras de `sugerencia` (por ejemplo «mira de frente a la camara»), espera unos segundos y volve a mirar `rostro_lobby` ANTES de preguntarle quien es.
@@ -75613,7 +75623,7 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>Reject</translation>
     </message>
     <message>
-        <location line="+283"/>
+        <location line="+285"/>
         <source>Estado</source>
         <translation>Status</translation>
     </message>
@@ -75663,23 +75673,25 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>All the appliance settings (video, encoding, conference, network...).</translation>
     </message>
     <message>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-119"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="-147"/>
         <location filename="../src/app/mcp/McpMando.cpp" line="-42"/>
-        <location filename="../src/app/mcp/McpService.cpp" line="+64"/>
         <source>No existe la escena &apos;%1&apos;. Escenas: %2.</source>
         <translation>The scene &apos;%1&apos; doesn&apos;t exist. Scenes: %2.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+3"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="+3"/>
         <source>Escena (por defecto, la que esta al aire).</source>
         <translation>Scene (by default, the one on air).</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+3"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="+2"/>
         <source>Ubicacion: preset (full, left, right, top, bottom, center, top-left, top-right, bottom-left, bottom-right, pip-tl, pip-tr, pip-bl, pip-br, lower-third, third-1..3, grid-&lt;n&gt;-&lt;i&gt;) u objeto {x,y,w,h} en fracciones del lienzo (0..1).</source>
         <translation>Placement: preset (full, left, right, top, bottom, center, top-left, top-right, bottom-left, bottom-right, pip-tl, pip-tr, pip-bl, pip-br, lower-third, third-1..3, grid-&lt;n&gt;-&lt;i&gt;) or an {x,y,w,h} object in fractions of the canvas (0..1).</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+56"/>
         <source>Dónde se va la CPU y la GPU (build de diagnóstico)</source>
         <translation>Where the CPU and GPU go (diagnostic build)</translation>
     </message>
@@ -75759,7 +75771,7 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>Watchdog policy (frozen interface)</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+14"/>
         <source>Listar escenas</source>
         <translation>List scenes</translation>
     </message>
@@ -75887,7 +75899,7 @@ Loading the scene that&apos;s ALREADY on air makes no sense (the take would cut 
         <translation>Drives the transition to the loaded scene by hand: `t` from 0 to 1 (the lever). With `soltar`, it finishes: past halfway it goes on air, otherwise it goes back. For a control surface fader: {&quot;t&quot;: &quot;{{valor}}&quot;} with the fader from 0 to 1.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+22"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+22"/>
         <source>La transicion con la que ENTRA la `escena` al aire (`tipo`: cut, fade, swipe, slide, fade_to_color; vacio = la global) y su duracion `ms`. Un take con transicion explicita manda sobre esta.</source>
         <translation>The transition the `escena` uses to COME on air (`tipo`: cut, fade, swipe, slide, fade_to_color; empty = the global one) and its duration `ms`. A take with an explicit transition overrides this.</translation>
     </message>
@@ -75931,7 +75943,7 @@ Having the shot that LEAVES the air stay loaded is how any switcher works: after
         <translation>ON AIR: %1. Loaded: %2.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+22"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="+22"/>
         <source>Crear escena vacia</source>
         <translation>Create empty scene</translation>
     </message>
@@ -76133,7 +76145,7 @@ It can still be copied, and its sources edited: what&apos;s protected is it disa
         <translation>Transition: %1</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location filename="../src/app/mcp/McpFuentesTools.cpp" line="+9"/>
         <source>Tipos de fuente disponibles</source>
         <translation>Available source types</translation>
     </message>
@@ -76306,7 +76318,7 @@ It can still be copied, and its sources edited: what&apos;s protected is it disa
         <translation>&apos;%1&apos; in &apos;%2&apos;.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location filename="../src/app/mcp/McpMezclaTools.cpp" line="-39"/>
         <source>Mezclador</source>
         <translation>Mixer</translation>
     </message>
@@ -76532,7 +76544,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Stream stopped.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+11"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-241"/>
         <source>Loudness de lo que sale</source>
         <translation>Output loudness</translation>
     </message>
@@ -76657,13 +76669,13 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Sends a test `texto` through the configured method (608 needs an active stream).</translation>
     </message>
     <message>
-        <location line="+5"/>
         <location filename="../src/app/mcp/McpTotemTools.cpp" line="+146"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+5"/>
         <source>Mandado.</source>
         <translation>Sent.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+8"/>
         <source>Vocabulario de la voz a texto</source>
         <translation>Speech to text vocabulary</translation>
     </message>
@@ -76803,7 +76815,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Item `n` moves to `estado` (en_tratamiento: closes the previous one, puts “Item N: …” in {punto} for lower thirds and marks it for the minutes and chapters), with optional `resultado` (“passed unanimously”). With `siguiente`: true, the next pending item moves to en_tratamiento.</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location filename="../src/app/mcp/McpInformesTools.cpp" line="+35"/>
         <source>Las plantillas del informe del resultado</source>
         <translation>The session results report templates</translation>
     </message>
@@ -76912,7 +76924,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>The chair closed their microphone.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="-127"/>
         <source>El debate en curso</source>
         <translation>The debate in progress</translation>
     </message>
@@ -77109,7 +77121,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Photo loaded.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location filename="../src/app/mcp/McpRecintoTools.cpp" line="-76"/>
         <source>La grilla del recinto</source>
         <translation>The chamber grid</translation>
     </message>
@@ -77124,7 +77136,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Changes the grid: `filas` and `columnas`; `auto: true` arranges all the body&apos;s seats in order (front to back, left to right); `mover: {banca, fila, columna}` just one (fila -1 removes it); `bancas: [{banca, fila, columna}]` replaces the whole list. If something doesn&apos;t fit (off the grid, two in one spot), nothing changes and it says why. `distribucion`: how it is drawn (grilla, hemiciclo —each row an arc around the chair— or lista). `presidencia: banca` puts it at the chair&apos;s table, off the grid (&quot;&quot; removes it). In the hemicycle, `posicion: {banca, x, y}` places it by hand (in seat widths from the center of the chair, y negative upwards; x null sends it back to its arc) and `posiciones_auto: true` sends them all back to their arcs.</translation>
     </message>
     <message>
-        <location line="+160"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="-359"/>
         <source>Disco de la grabación</source>
         <translation>Recording disk</translation>
     </message>
@@ -77214,7 +77226,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Keeps the last `segundos` of the program in memory (5 to 600; 0 turns it off) for replay_guardar. It uses the same encode as the stream. With no arguments it reports. Each output has its own (`salida`; the others&apos; isn&apos;t saved for the next startup).</translation>
     </message>
     <message>
-        <location line="+306"/>
+        <location filename="../src/app/mcp/McpConfigTools.cpp" line="-6"/>
         <source>Guardar configuración</source>
         <translation>Save configuration</translation>
     </message>
@@ -77224,22 +77236,22 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>STOPS recording: closes the file and stops writing to disk. With `salida`, that output&apos;s recording.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="-82"/>
+        <location filename="../src/app/mcp/McpConfigTools.cpp" line="-82"/>
         <source>Cambia uno o varios ajustes por clave y los aplica y guarda. Los de alcance &apos;gateway&apos; reinician la conferencia (los invitados se reconectan solos); los &apos;motor&apos; (el lienzo, la salida, los cuadros por segundo, el formato y el color: video.width, video.height, video.outputWidth, video.outputHeight, video.fps, video.formato, video.color, video.rango) REINICIAN EL MOTOR; los &apos;restart&apos;, al proximo arranque.</source>
         <translation>Changes one or more settings by key, applies and saves them. &apos;gateway&apos; scope ones restart the conference (guests reconnect by themselves); &apos;motor&apos; ones (the canvas, the output, the frame rate, the format and the color: video.width, video.height, video.outputWidth, video.outputHeight, video.fps, video.formato, video.color, video.rango) RESTART THE ENGINE; &apos;restart&apos; ones, on the next launch.</translation>
     </message>
     <message>
-        <location line="-757"/>
+        <location filename="../src/app/mcp/McpRecintoTools.cpp" line="-3"/>
         <source>Armar la grilla del recinto</source>
         <translation>Set up the chamber grid</translation>
     </message>
     <message>
-        <location line="-3337"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="-1187"/>
         <source>OJO: REINICIA EL MOTOR. Por unos segundos se corta TODO lo que sale (el programa, la sala, las pantallas, lo que ven los invitados) y las cámaras se vuelven a abrir. Con una transmisión o una grabación andando no se aplica. No lo uses para arreglar una cámara: decíselo antes al operador y pedile que confirme.</source>
         <translation>WARNING: RESTARTS THE ENGINE. For a few seconds EVERYTHING going out is cut (the program, the room, the screens, what guests see) and the cameras are reopened. With a stream or a recording running it is not applied. Don&apos;t use it to fix a camera: tell the operator first and ask them to confirm.</translation>
     </message>
     <message>
-        <location line="+1329"/>
+        <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-370"/>
         <source>Transición de entrada de una escena</source>
         <translation>Scene entry transition</translation>
     </message>
@@ -77259,7 +77271,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Type (cut, fade, swipe, slide or fade to a color) and duration in ms of the transition when changing scenes.</translation>
     </message>
     <message>
-        <location line="+516"/>
+        <location filename="../src/app/mcp/McpMezclaTools.cpp" line="-156"/>
         <source>pfl (antes del fader, por defecto) o afl (con el fader de `salida`)</source>
         <translation>pfl (pre-fader, default) or afl (with the fader of `salida`)</translation>
     </message>
@@ -77289,7 +77301,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Looks at the output&apos;s program (`salida`).</translation>
     </message>
     <message>
-        <location line="+169"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-420"/>
         <source>Aprobar el cargo que escribió un invitado</source>
         <translation>Approve the title a guest wrote</translation>
     </message>
@@ -77334,7 +77346,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Agenda</translation>
     </message>
     <message>
-        <location line="+397"/>
+        <location filename="../src/app/mcp/McpDebateTools.cpp" line="-82"/>
         <source>La ficha de un integrante del cuerpo, buscado por `clave`: su id, su número de banca o su nombre.</source>
         <translation>The profile of a member of the Body, looked up by `clave`: their id, their seat number or their name.</translation>
     </message>
@@ -77344,7 +77356,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Deletes a member of the Body (`id`, from cuerpo_listar): their name, title and seat are no longer in the Body.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location filename="../src/app/mcp/McpRecintoTools.cpp" line="+41"/>
         <source>Apuntar la cámara a una banca</source>
         <translation>Point the camera at a seat</translation>
     </message>
@@ -77404,7 +77416,7 @@ How to find the number: set a value, watch someone talking with `foto_programa` 
         <translation>Seat %1: %2 (%3).</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location filename="../src/app/mcp/McpGrabacionTools.cpp" line="-392"/>
         <source>Lo que oye cada invitado</source>
         <translation>What each guest hears</translation>
     </message>
@@ -77595,7 +77607,7 @@ Files go to Recordings/entradas/, with the source name in them.</translation>
         <translation>Recording stopped.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+53"/>
+        <location filename="../src/app/mcp/McpConfigTools.cpp" line="-40"/>
         <source>Ajustes</source>
         <translation>Settings</translation>
     </message>
@@ -79745,7 +79757,7 @@ The files: app.log (Process A), gateway.log (Process B), graficos.log, launcher.
         <translation>Quitting the application.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpVentanaTools.cpp" line="+210"/>
+        <location filename="../src/app/mcp/McpVentanaTools.cpp" line="+211"/>
         <source>Este escritorio es Wayland: ubicar las ventanas es del compositor, no del programa. El TAMAÑO se aplica; la POSICION no. No es un error de la app y no se puede forzar desde adentro. Ojo, tampoco alcanza con arrancar sobre XWayland (QT_QPA_PLATFORM=xcb): se probo, y GNOME ignora igual la posicion pedida y coloca las ventanas a su criterio. Con un escritorio que si lo respete (KDE, XFCE, un gestor de mosaico, o X11 a secas) estas herramientas funcionan enteras. Mientras tanto sirven para LEER donde esta todo, para el tamaño, y para pantalla completa en un monitor, que es lo que mas se usa.</source>
         <translation>This desktop is Wayland: placing windows is up to the compositor, not the program. SIZE is applied; POSITION isn&apos;t. It&apos;s not an app bug and it can&apos;t be forced from inside. Note, starting on XWayland (QT_QPA_PLATFORM=xcb) isn&apos;t enough either: it was tested, and GNOME still ignores the requested position and places windows as it sees fit. With a desktop that does respect it (KDE, XFCE, a tiling manager, or plain X11) these tools work fully. Meanwhile they&apos;re useful for READING where everything is, for size, and for full screen on a monitor, which is what&apos;s used most.</translation>
     </message>
@@ -91441,7 +91453,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>something was left unsaved on close (the disk isn&apos;t responding)</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ColaEscritura.cpp" line="+248"/>
+        <location filename="../src/core/persist/ColaEscritura.cpp" line="+259"/>
         <source>no se pudo guardar %1 (se reintenta): %2</source>
         <translation>couldn&apos;t save %1 (retrying): %2</translation>
     </message>
@@ -95685,7 +95697,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>Before compositing, the “no signal” slate chain holds %1: the switch does not pass the frame as soon as it arrives (a fallbackswitch waits for the declared latency + a margin). This is this input&apos;s buffer; compositing already waits on its own for the slowest one.</translation>
     </message>
     <message>
-        <location filename="../src/app/tiempos/TiemposModel.cpp" line="-388"/>
+        <location filename="../src/app/tiempos/TiemposModel.cpp" line="-452"/>
         <source>se cerró la app midiendo</source>
         <translation>the app closed while measuring</translation>
     </message>
@@ -95700,12 +95712,12 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>idle</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+20"/>
         <source>no se pudo armar el grafo: %1</source>
         <translation>could not build the graph: %1</translation>
     </message>
     <message>
-        <location line="+154"/>
+        <location line="+221"/>
         <source>%1: llegan datos</source>
         <translation>%1: data arriving</translation>
     </message>

@@ -191,6 +191,7 @@ int runLauncher(const std::vector<std::string>& args) {
             cfg.recoveryUi = false;
         } else if (a == "--test" || a == "--debug") {
             // Modo prueba: el MCP no pide aprobaciones (ver McpCore::setSinAprobaciones).
+            cfg.modoPrueba = true;
             cfg.appArgs.emplace_back("--test");
             // Y el gateway: sin --test no acepta lo que es solo de prueba (--turn-prueba).
             cfg.gatewayArgs.emplace_back("--test");

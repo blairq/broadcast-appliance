@@ -130,7 +130,7 @@
 <context>
     <name>AssistantPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/AssistantPage.qml" line="+602"/>
+        <location filename="../src/app/qml/pages/AssistantPage.qml" line="+609"/>
         <source>%1 · %n aviso</source>
         <translation>
             <numerusform>%1 · %n aviso</numerusform>
@@ -1657,7 +1657,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="+422"/>
+        <location filename="../src/app/mcp/McpBotoneraTools.cpp" line="+425"/>
         <source>%n cuadro</source>
         <translation>
             <numerusform>%n cuadro</numerusform>
@@ -1665,7 +1665,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+1365"/>
+        <location filename="../src/app/mcp/McpEventoTools.cpp" line="+1366"/>
         <source>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</source>
         <translation>
             <numerusform>La revisión encontró %n problema grave: mirá evento_revisar (o evento_verificar) y corregilo, o repetí con `forzar`: true.</numerusform>
@@ -1777,7 +1777,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+255"/>
+        <location filename="../src/app/mcp/McpTraduccionTools.cpp" line="+256"/>
         <source>Borrado %n cuadro de subtítulos.</source>
         <translation>
             <numerusform>Borrado %n cuadro de subtítulos.</numerusform>

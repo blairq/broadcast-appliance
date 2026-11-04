@@ -48,6 +48,7 @@
 #include "PerroGuardian.hpp"
 #include "Politica.hpp"
 #include "ipc/HealthBlock.hpp"
+#include "platform/Instancia.hpp"
 #include "platform/SingleInstance.hpp"
 #include "RecoveryUi.hpp"
 #include "Volcados.hpp"
@@ -73,6 +74,9 @@ class Supervisor {
         // --shadow (o "shadowCopy": true en Config/launcher.json).
         bool shadowCopy = false;
         bool recoveryUi = true;  // dialogo ante fallos (false = reinicio automatico)
+        /// --test: los puertos nunca del lugar 0 (los de fábrica son de la copia del
+        /// operador; ver platform/Instancia.hpp).
+        bool modoPrueba = false;
         // Lo que se ajusta en Configuración → Sistema y datos (launcher.json); los
         // valores de acá son los de siempre. Rigen al volver a abrir el launcher.
         std::uint64_t cuelgueMs = 5000;          // latido quieto tanto tiempo = colgado (volcado y reinicio)
@@ -186,6 +190,8 @@ class Supervisor {
     ba::ipc::HealthBlock health_;
     ControlChannel control_;
     ba::platform::SingleInstance instance_;
+    /// El lugar de esta copia entre las que corren en la máquina (sus puertos).
+    ba::platform::LugarDeInstancia lugar_;
     bool shuttingDown_ = false;
 
     static std::atomic<bool> stopRequested_;

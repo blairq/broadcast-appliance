@@ -18,7 +18,12 @@ Rectangle {
     color: Theme.bg
     property real leftInset: 92
     readonly property var tm: Studio.tiempos
-    readonly property var mapa: tm ? tm.mapa : ({})
+    // Del modelo, por ritmo: la forma (solo cuando cambia), los números por fila (tm.nodos,
+    // tm.tramos) y lo chico de cada vuelta (resumen). Con 200 invitados la página no se rehace
+    // entera 5 veces por segundo.
+    readonly property var estructura: tm ? tm.estructura : ({})
+    readonly property var resumen: tm ? tm.resumen : ({})
+    Binding { target: page.tm; property: "recorridoDe"; value: page.recorridoDe; when: page.tm !== null && page.tm !== undefined }
 
     // Mide solo mientras se la mira.
     Suscripcion { objetivo: page.tm; activa: page.visible }
@@ -75,8 +80,8 @@ Rectangle {
         page.tm.linea = s
     }
     function tituloDe(id) {
-        for (const n of (page.mapa.nodos || [])) if (n.id === id) return n.medio === "audio" && n.tipo === "entrada" ? qsTr("%1 (audio)").arg(n.titulo) : n.titulo
-        for (const s of (page.mapa.salidas || [])) if (s.id === id) return s.titulo
+        for (const n of (page.estructura.nodos || [])) if (n.id === id) return n.medio === "audio" && n.tipo === "entrada" ? qsTr("%1 (audio)").arg(n.titulo) : n.titulo
+        for (const s of (page.resumen.salidas || [])) if (s.id === id) return s.titulo
         return id
     }
     /// Las series con sus datos (las da el modelo con cada vuelta: serieLinea), salvo en pausa.
@@ -106,7 +111,7 @@ Rectangle {
     /// Las entradas que hay (para los botones de la izquierda), activas primero.
     readonly property var entradas: {
         const vistas = {}, out = []
-        for (const n of (mapa.nodos || []))
+        for (const n of (page.estructura.nodos || []))
             if (n.tipo === "entrada") {
                 const e = entradaDe(n)
                 if (vistas[e]) { vistas[e].activa = vistas[e].activa || n.activo; continue }
@@ -121,10 +126,10 @@ Rectangle {
     readonly property int anchoCol: 250
     readonly property int altoFila: 140
     readonly property var acomodo: {
-        const nodos = (mapa.nodos || []).filter(visibleNodo)
+        const nodos = (page.estructura.nodos || []).filter(visibleNodo)
         const porId = {}
         for (const n of nodos) porId[n.id] = n
-        const tramos = (mapa.tramos || []).filter(t => porId[t.desde] && porId[t.hacia])
+        const tramos = (page.estructura.tramos || []).filter(t => porId[t.desde] && porId[t.hacia])
         const entran = {}
         for (const t of tramos) (entran[t.hacia] = entran[t.hacia] || []).push(t.desde)
         // Profundidad: lo más largo desde una fuente.
@@ -172,14 +177,11 @@ Rectangle {
         }
         return { nodos: nodos, tramos: tramos, pos: pos, ancho: maxX + 280, alto: maxY + 180 }
     }
-    // LAS TARJETAS Y LAS LÍNEAS VIVEN ENTRE VUELTAS. Con el arreglo de `acomodo` como modelo, el
-    // Repeater las destruía y creaba TODAS en cada vuelta del modelo: parpadeaban, perdían el
-    // hover y se volvían a animar. Ahora el modelo es una ListaConClave de claves que solo cambia
-    // cuando aparece o se va una; cada una lee lo suyo de estos mapas.
+    // LAS TARJETAS Y LAS LÍNEAS VIVEN ENTRE VUELTAS: los modelos son las filas del modelo
+    // (tm.nodos, tm.tramos), una por clave; una vuelta avisa solo las filas que cambiaron y
+    // cada tarjeta lee su dato y su historia de su fila. El acomodo (dónde va cada una) sale
+    // de la forma, que cambia solo cuando aparece o se va un nodo.
     readonly property var nodoPorId: { const m = {}; for (const n of page.acomodo.nodos) m[n.id] = n; return m }
-    readonly property var tramoPorId: { const m = {}; for (const t of page.acomodo.tramos) m[t.desde + ">" + t.hacia] = t; return m }
-    ListaConClave { id: modeloNodos; clave: "clave"; lista: page.acomodo.nodos.map(n => ({ clave: n.id })) }
-    ListaConClave { id: modeloTramos; clave: "clave"; lista: page.acomodo.tramos.map(t => ({ clave: t.desde + ">" + t.hacia })) }
     /// La tarjeta dada vuelta (el dorso con el detalle): «Detalle» en la barra de la elegida.
     property string volteada: ""
 
@@ -187,15 +189,12 @@ Rectangle {
     readonly property var camino: {
         if (page.elegido === "") return ({})
         const c = {}
-        for (const s of (mapa.salidas || []))
+        for (const s of (page.estructura.salidas || []))
             if (s.id === page.elegido || (s.camino || []).indexOf(page.elegido) >= 0)
                 for (const id of (s.camino || [])) c[id] = true
         c[page.elegido] = true
         return c
     }
-    // La historia de cada tarjeta (los últimos 60 s), del modelo: se renueva con cada vuelta.
-    readonly property var historias: page.tm ? page.tm.historias : ({})
-
 
     // --- Fondo: la profundidad -----------------------------------------------------------
     Rectangle {
@@ -222,7 +221,7 @@ Rectangle {
                 GlassButton { compact: true; text: qsTr("Sincronía"); icon: "⏱"; active: page.pestana === "sincronia"; onClicked: page.pestana = "sincronia" }
             }
             StatusPill {
-                readonly property var es: page.mapa.estudio || {}
+                readonly property var es: page.resumen.estudio || {}
                 text: qsTr("Estudio %1").arg(Theme.ms(es.latencia_ms)) + (es.tope_ms ? " · " + qsTr("tope %1").arg(Theme.ms(es.tope_ms)) : "")
                 dot: Theme.ok
                 TapHandler { onTapped: page.pestana = "sincronia" }
@@ -247,10 +246,7 @@ Rectangle {
             Layout.fillHeight: true
             sourceComponent: VistaSincronia {
                 vg: Studio.video
-                programaMs: {
-                    const n = (page.mapa.nodos || []).find(x => x.id === "escena:programa")
-                    return n && n.fuente === "medido" && n.acumulado_ms !== null && n.acumulado_ms !== undefined ? n.acumulado_ms : -1
-                }
+                programaMs: page.resumen.programa_ms !== undefined ? page.resumen.programa_ms : -1
                 onVerMapa: page.pestana = "mapa"
             }
         }
@@ -397,10 +393,13 @@ Rectangle {
                             anchors.fill: parent
                             layer.enabled: true
                             Repeater {
-                                model: modeloTramos
+                                model: page.tm ? page.tm.tramos : null
                                 delegate: LineaTiempo {
                                     required property string clave
-                                    readonly property var modelData: page.tramoPorId[clave] || ({ desde: "", hacia: "", medio: "video", ms: null })
+                                    required property var dato
+                                    readonly property var modelData: dato || ({ desde: "", hacia: "", medio: "video", ms: null })
+                                    // Solo los tramos entre dos tarjetas que se ven (el acomodo filtra).
+                                    visible: !!page.acomodo.pos[modelData.desde] && !!page.acomodo.pos[modelData.hacia]
                                     anchors.fill: parent
                                     readonly property point a: page.acomodo.pos[modelData.desde] || Qt.point(0, 0)
                                     readonly property point b: page.acomodo.pos[modelData.hacia] || Qt.point(0, 0)
@@ -427,15 +426,19 @@ Rectangle {
 
                         // Las tarjetas.
                         Repeater {
-                            model: modeloNodos
+                            model: page.tm ? page.tm.nodos : null
                             delegate: TarjetaTiempo {
                                 required property string clave
-                                readonly property var modelData: page.nodoPorId[clave] || ({ id: clave, titulo: "" })
+                                required property var dato
+                                required property var model // la historia (rol aparte, a 1 por segundo)
+                                readonly property var modelData: dato || ({ id: clave, titulo: "" })
                                 nodo: modelData
-                                x: (page.acomodo.pos[modelData.id] || Qt.point(0, 0)).x
-                                y: (page.acomodo.pos[modelData.id] || Qt.point(0, 0)).y
-                                resaltada: !!page.camino[modelData.id]
-                                historia: page.historias[modelData.id] || []
+                                // Solo las que deja ver el filtro (el acomodo, de la forma del grafo).
+                                visible: page.acomodo.pos[clave] !== undefined
+                                x: (page.acomodo.pos[clave] || Qt.point(0, 0)).x
+                                y: (page.acomodo.pos[clave] || Qt.point(0, 0)).y
+                                resaltada: !!page.camino[clave]
+                                historia: model.historia || []
                                 // Un click la elige (o la suelta); lo que se hace con ella, en la barra de arriba.
                                 onElegida: (id) => {
                                     page.elegido = page.elegido === id ? "" : id
@@ -566,25 +569,22 @@ Rectangle {
                         Layout.fillWidth: true
                         tm: page.tm
                         entrada: page.recorridoDe
-                        detalle: {
-                            const ns = page.mapa.nodos || []
-                            const n = ns.find(x => x.id === "entrada:" + page.recorridoDe) || ns.find(x => x.id === "entrada:" + page.recorridoDe + ":audio")
-                            return n ? n.detalle : ({})
-                        }
+                        // El modelo manda el detalle de esa entrada en cada vuelta (recorridoDe).
+                        detalle: page.resumen.recorrido || ({})
                         titulo: page.tituloDe("entrada:" + page.recorridoDe) || page.recorridoDe
                         resaltar: page.recorridoElementos
                         onCerrar: page.recorridoDe = ""
                     }
                     Text { text: qsTr("Hasta cada salida"); color: Theme.textDim; font.pixelSize: 11 }
                     Text {
-                        visible: (page.mapa.salidas || []).length === 0
+                        visible: (page.resumen.salidas || []).length === 0
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                         text: qsTr("Ninguna salida andando: cuando transmitas o grabes, acá aparece cuánto tarda hasta cada una.")
                         color: Theme.textFaint; font.pixelSize: 11
                     }
                     Repeater {
-                        model: page.mapa.salidas || []
+                        model: page.resumen.salidas || []
                         delegate: Rectangle {
                             id: sal
                             required property var modelData
@@ -699,7 +699,7 @@ Rectangle {
                     ventanaMs: page.ventanaS * 1000
                     fin: page.pausada ? page.finPausa : (page.tm ? page.tm.finMs : 0)
                     eventos: page.pausada ? page.eventosPausa : (page.tm ? page.tm.eventos : [])
-                    referencia: (page.mapa.estudio || {}).latencia_ms || 0
+                    referencia: (page.resumen.estudio || {}).latencia_ms || 0
                     onPedirNota: (t) => { nota.t = t; nota.open() }
                 }
             }

@@ -29,7 +29,9 @@
 
 #include "ipc/ControlProtocol.hpp"
 #include "ipc/ControlService.hpp"
+#include "ipc/SharedMemoryRegion.hpp"
 #include "platform/Herramientas.hpp"
+#include "platform/Instancia.hpp"
 #include "platform/LocalSocket.hpp"
 #include "platform/Paths.hpp"
 #include "platform/Process.hpp"
@@ -761,6 +763,174 @@ void testSingleInstance() {
 #endif
 }
 
+// ============================================================================
+// 5) Una instancia por carpeta de datos (platform/Instancia.hpp)
+// ============================================================================
+
+void ponerEnv(const char* k, const std::string& v) {
+#ifdef _WIN32
+    _putenv_s(k, v.c_str());
+#else
+    if (v.empty())
+        ::unsetenv(k);
+    else
+        ::setenv(k, v.c_str(), 1);
+#endif
+}
+
+void testClaveDeDatos() {
+    namespace fs = std::filesystem;
+    const fs::path base = fs::temp_directory_path() / ("ba-clave-" + std::to_string(currentPid()));
+    fs::create_directories(base / "Datos A");
+    fs::create_directories(base / "Datos B");
+    const std::string a = claveDeDatos(base / "Datos A");
+    CHECK(a.size() == 10);
+    CHECK(a == claveDeDatos(base / "Datos A" / ""));                   // la barra final no cambia nada
+    CHECK(a == claveDeDatos(base / "x" / ".." / "Datos A"));           // ni los «..»
+    CHECK(a == claveDeDatos(base / "DATOS A"));                        // ni las mayúsculas
+    CHECK(a != claveDeDatos(base / "Datos B"));
+    CHECK(claveDeDatos({}).empty());
+#ifndef _WIN32
+    // Un enlace a la misma carpeta es la misma carpeta (los worktrees enlazan los datos).
+    std::error_code ec;
+    fs::create_directory_symlink(base / "Datos A", base / "enlace", ec);
+    CHECK(!ec && a == claveDeDatos(base / "enlace"));
+#endif
+    // Sin BA_DATA_ROOT, sin clave: los nombres quedan como antes.
+    const char* antes = std::getenv(kDataRootEnv);
+    const std::string guardada = antes != nullptr ? antes : "";
+    ponerEnv(kDataRootEnv, "");
+    CHECK(claveInstancia().empty());
+    CHECK(nombreDeInstancia(std::string("control.app")) == "control.app");
+    ponerEnv(kDataRootEnv, (base / "Datos A").string());
+    CHECK(claveInstancia() == a);
+    CHECK(nombreDeInstancia(std::string("control.app")) == "control.app." + a);
+    CHECK(nombreDeInstancia(std::wstring(L"BA.Audio")) == L"BA.Audio." + std::wstring(a.begin(), a.end()));
+    ponerEnv(kDataRootEnv, guardada);
+    std::error_code ec2;
+    fs::remove_all(base, ec2);
+}
+
+void testPuertosDeInstancia() {
+    CHECK(puertoDeInstancia(8790, 0) == 8790);
+    CHECK(puertoDeInstancia(8790, 1) == 8890);
+    CHECK(puertoDeInstancia(8787, 3) == 9087);
+    CHECK(puertoDeInstancia(0, 2) == 0);         // 0 = apagado / el del sistema
+    CHECK(puertoDeInstancia(65500, 1) == 65500); // no entra: el configurado
+    CHECK(puertoRtcDeInstancia(40000, 2) == 43200);
+    CHECK(puertoRtcDeInstancia(41599, 1) == 43199);
+    const char* antes = std::getenv(kLugarEnv);
+    const std::string guardado = antes != nullptr ? antes : "";
+    ponerEnv(kLugarEnv, "2");
+    CHECK(lugarInstancia() == 2 && puertoDeInstancia(8788) == 8988);
+    ponerEnv(kLugarEnv, "99"); // fuera de rango: 0
+    CHECK(lugarInstancia() == 0);
+    ponerEnv(kLugarEnv, "x");
+    CHECK(lugarInstancia() == 0);
+    ponerEnv(kLugarEnv, guardado);
+
+    // Los lugares son de la máquina: dos launchers no comparten, y el modo prueba nunca toma el 0.
+    LugarDeInstancia a, b, c;
+    CHECK(LugarDeInstancia::tomar(false, a));
+    CHECK(LugarDeInstancia::tomar(false, b));
+    CHECK(a.lugar() >= 0 && b.lugar() >= 0 && a.lugar() != b.lugar());
+    CHECK(LugarDeInstancia::tomar(true, c));
+    CHECK(c.lugar() >= 1 && c.lugar() != a.lugar() && c.lugar() != b.lugar());
+}
+
+/// Dos carpetas de datos: el lock, el canal local y la memoria compartida de una no
+/// chocan con los de la otra; con la misma carpeta, sí (también entre procesos).
+void testInstanciaPorDatos() {
+    namespace fs = std::filesystem;
+    const fs::path base = fs::temp_directory_path() / ("ba-inst-" + std::to_string(currentPid()));
+    fs::create_directories(base / "A");
+    fs::create_directories(base / "B");
+    const std::string datosA = (base / "A").string();
+    const std::string datosB = (base / "B").string();
+    const char* antes = std::getenv(kDataRootEnv);
+    const std::string guardada = antes != nullptr ? antes : "";
+    const std::string name = uniqueName("inst");
+
+    ponerEnv(kDataRootEnv, datosA);
+    SingleInstance a;
+    CHECK(SingleInstance::acquire(name, a));
+    SingleInstance otraA;
+    CHECK(!SingleInstance::acquire(name, otraA)); // misma carpeta: no
+    ponerEnv(kDataRootEnv, datosB);
+    SingleInstance b;
+    CHECK(SingleInstance::acquire(name, b)); // otra carpeta: sí
+    // Otro proceso: con A, rechazado; con una tercera carpeta, lo toma.
+    {
+        Process hijo;
+        ProcessOptions o = childOpts({"try-lock", name});
+        o.envSet[kDataRootEnv] = datosA;
+        CHECK(Process::spawn(o, hijo));
+        const auto code = hijo.wait(10000);
+        CHECK(code.has_value() && *code == 3);
+    }
+    {
+        fs::create_directories(base / "C");
+        Process hijo;
+        ProcessOptions o = childOpts({"try-lock", name});
+        o.envSet[kDataRootEnv] = (base / "C").string();
+        CHECK(Process::spawn(o, hijo));
+        const auto code = hijo.wait(10000);
+        CHECK(code.has_value() && *code == 0);
+    }
+    // Lo de la máquina (Alcance::Maquina) no lleva clave: choca entre carpetas.
+    SingleInstance m1, m2;
+    CHECK(SingleInstance::acquire(name + ".m", m1, nullptr, SingleInstance::Alcance::Maquina));
+    ponerEnv(kDataRootEnv, datosA);
+    CHECK(!SingleInstance::acquire(name + ".m", m2, nullptr, SingleInstance::Alcance::Maquina));
+    m1.release();
+
+    // El canal local: el mismo nombre en las dos carpetas, cada una con el suyo.
+    const std::string canal = uniqueName("canal");
+    LocalServer srvA;
+    CHECK(LocalServer::listen(canal, srvA));
+    ponerEnv(kDataRootEnv, datosB);
+    LocalStream s;
+    CHECK(!LocalStream::connect(canal, 200, s)); // el de A no se ve desde B
+    LocalServer srvB;
+    CHECK(LocalServer::listen(canal, srvB)); // y B escucha el suyo
+    srvB.close();
+
+    // La memoria compartida (los anillos de audio): la de A no se abre desde B.
+    const std::wstring shm = L"BA.Test.Inst." + std::to_wstring(currentPid());
+    ponerEnv(kDataRootEnv, datosA);
+    ba::ipc::SharedMemoryRegion regA;
+    CHECK(ba::ipc::SharedMemoryRegion::create(shm.c_str(), 4096, regA).ok);
+    {
+        ba::ipc::SharedMemoryRegion r;
+        CHECK(ba::ipc::SharedMemoryRegion::open(shm.c_str(), r).ok); // la misma carpeta, sí
+    }
+    ponerEnv(kDataRootEnv, datosB);
+    {
+        ba::ipc::SharedMemoryRegion r;
+        CHECK(!ba::ipc::SharedMemoryRegion::open(shm.c_str(), r).ok);
+        ba::ipc::SharedMemoryRegion regB; // y crear la de B no le borra la suya a A
+        CHECK(ba::ipc::SharedMemoryRegion::create(shm.c_str(), 4096, regB).ok);
+    }
+    ponerEnv(kDataRootEnv, datosA);
+    {
+        ba::ipc::SharedMemoryRegion r;
+        CHECK(ba::ipc::SharedMemoryRegion::open(shm.c_str(), r).ok);
+    }
+    srvA.close();
+    a.release();
+    b.release();
+    // Los runtimeDir() de cada carpeta (con su clave), que no queden en $TMPDIR.
+    std::error_code ec;
+#ifndef _WIN32
+    for (const fs::path& d : {base / "A", base / "B", base / "C"}) {
+        ponerEnv(kDataRootEnv, d.string());
+        fs::remove_all(runtimeDir(), ec);
+    }
+#endif
+    ponerEnv(kDataRootEnv, guardada);
+    fs::remove_all(base, ec);
+}
+
 } // namespace
 
 // Rutas guardables: relativas a los datos y de vuelta, aunque la carpeta se haya movido.
@@ -813,6 +983,9 @@ int main(int argc, char** argv) {
     testControlEndpointOverSocket();
     testControlClienteQueMandaYSeVa();
     testSingleInstance();
+    testClaveDeDatos();
+    testPuertosDeInstancia();
+    testInstanciaPorDatos();
     testRutasDeDatos();
 
     if (g_failures == 0) {

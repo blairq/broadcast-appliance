@@ -1,4 +1,5 @@
 // src/app/tests/test_tiempos.cpp — el grafo de demoras (tiempos::armar) con fotos de mentira
+#include "tiempos/FilasTiempo.hpp"
 #include "tiempos/Tiempos.hpp"
 
 #include <cmath>
@@ -23,6 +24,48 @@ static const json* nodo(const json& g, const std::string& id) {
     return nullptr;
 }
 static bool cerca(const json& v, double x) { return v.is_number() && std::fabs(v.get<double>() - x) < 0.05; }
+
+// Las filas de la página (FilasTiempo): con 200 invitados (~800 nodos), una vuelta en la que
+// cambia un número avisa ESA fila, no rehace la lista.
+static void probarFilas() {
+    FilasTiempo filas;
+    int cambiadas = 0, entran = 0, salen = 0, resets = 0;
+    QObject::connect(&filas, &QAbstractItemModel::dataChanged, [&](const QModelIndex& a, const QModelIndex& b) {
+        cambiadas += b.row() - a.row() + 1;
+    });
+    QObject::connect(&filas, &QAbstractItemModel::rowsInserted, [&](const QModelIndex&, int a, int b) { entran += b - a + 1; });
+    QObject::connect(&filas, &QAbstractItemModel::rowsRemoved, [&](const QModelIndex&, int a, int b) { salen += b - a + 1; });
+    QObject::connect(&filas, &QAbstractItemModel::modelReset, [&]() { ++resets; });
+    std::vector<FilasTiempo::Entrada> v;
+    for (int i = 0; i < 800; ++i)
+        v.push_back({QString("n%1").arg(i), QVariantMap{{"ms", i}}, true});
+    filas.poner(v);
+    CHECK(filas.rowCount() == 800 && entran == 800, "entran las 800 filas");
+    // La vuelta siguiente: todo igual menos un número.
+    for (auto& e : v) e.cambio = false;
+    v[17].dato = QVariantMap{{"ms", 999}};
+    v[17].cambio = true;
+    entran = 0;
+    filas.poner(v);
+    CHECK(cambiadas == 1 && entran == 0 && salen == 0 && resets == 0, "una vuelta con un cambio avisa una fila");
+    CHECK(filas.data(filas.index(17), FilasTiempo::DatoRol).toMap().value("ms").toInt() == 999, "el dato nuevo");
+    // Un dato marcado como cambiado pero igual: no avisa.
+    cambiadas = 0;
+    v[17].cambio = true;
+    filas.poner(v);
+    CHECK(cambiadas == 0, "igual aunque venga marcado: no avisa");
+    // Se va una y entra otra: una fila sale, una entra; las demás quedan.
+    v.erase(v.begin() + 5);
+    v.push_back({"nueva", QVariantMap{{"ms", 1}}, true});
+    filas.poner(v);
+    CHECK(salen == 1 && entran == 1 && filas.rowCount() == 800 && resets == 0, "sale una, entra otra");
+    // La historia, aparte: avisa su rol en la fila.
+    cambiadas = 0;
+    filas.ponerHistorias({{"n17", QVariantList{1, 2, 3}}});
+    // (n17 quedó en la fila 16: salió n5.)
+    CHECK(cambiadas == 1 && filas.data(filas.index(16), FilasTiempo::HistoriaRol).toList().size() == 3,
+          "la historia avisa su fila");
+}
 
 int main() {
     Fotos f;
@@ -246,6 +289,7 @@ int main() {
         CHECK(!retiene, "el traspaso y el fallbackswitch no salen además como «retiene»");
         CHECK(cerca(d["resumen"]["total_ms"], 103.0), "el total: 4 de captura + 99 del colchón");
     }
+    probarFilas();
     if (g_fallas == 0) std::printf("test_tiempos: OK\n");
     return g_fallas == 0 ? 0 : 1;
 }
