@@ -91,6 +91,10 @@ if(BA_APP_QT_OK AND TARGET nlohmann_json::nlohmann_json)
     ba_pch_hilos(_ba_pch_hilos)
     ba_pch_donante(qt ENLAZA nlohmann_json::nlohmann_json Qt6::Core ${_ba_pch_hilos}
                    CABECERAS ${BA_PCH_STD} ${BA_PCH_JSON} ${BA_PCH_QT})
+    if(BA_PCH_CON_PTHREAD)
+        ba_pch_donante(qt PTHREAD ENLAZA nlohmann_json::nlohmann_json Qt6::Core ${_ba_pch_hilos}
+                       CABECERAS ${BA_PCH_STD} ${BA_PCH_JSON} ${BA_PCH_QT})
+    endif()
 endif()
 # Pseudo-terminal: una implementacion por plataforma.
 if(WIN32)

@@ -42,6 +42,12 @@
 # ============================================================================
 
 option(BA_PCH "Headers precompilados con lo de afuera (std, nlohmann/json, Qt, GStreamer)" ON)
+# Linux: glib le pasa -pthread a lo que enlaza GStreamer; esos usan los donantes «_pthread».
+if(UNIX AND NOT APPLE)
+    set(BA_PCH_CON_PTHREAD ON)
+else()
+    set(BA_PCH_CON_PTHREAD OFF)
+endif()
 
 # --- Las cabeceras de cada sabor ---------------------------------------------------
 # La estándar: lo que incluye más de un tercio de los .cpp de las bibliotecas grandes.
@@ -60,6 +66,9 @@ set(BA_PCH_QT
 set(BA_PCH_GST <gst/gst.h>)
 
 # Opciones que no cambian el PCH (avisos). Lo demás, distinto del donante: sin PCH.
+# -pthread NO es inocua: define _REENTRANT y gcc no usa un PCH armado sin eso («not used
+# because `_REENTRANT' is defined»). En Linux la trae el pkg-config de glib a todo lo que enlaza
+# GStreamer: para eso están los donantes «_pthread» (ba_pch_donante PTHREAD).
 set(_BA_PCH_OPCION_INOCUA "^(SHELL:)?([-/]W|[-/]w|-Wno-|/wd|/we|/wo)")
 # Definiciones que cambian lo que dicen las cabeceras de afuera.
 set(_BA_PCH_DEF_PELIGROSA
@@ -82,16 +91,19 @@ function(ba_pch_hilos variable)
     set(${variable} ${_h} PARENT_SCOPE)
 endfunction()
 
-# ba_pch_donante(<sabor> [PIC] ENLAZA <target>... CABECERAS <h>...): el que arma el PCH
-# de un sabor, en la carpeta actual.
+# ba_pch_donante(<sabor> [PIC] [PTHREAD] ENLAZA <target>... CABECERAS <h>...): el que arma el
+# PCH de un sabor, en la carpeta actual. PTHREAD (Linux): con -pthread, para los que lo traen.
 function(ba_pch_donante sabor)
-    cmake_parse_arguments(PARSE_ARGV 1 _d "PIC" "" "ENLAZA;CABECERAS")
+    cmake_parse_arguments(PARSE_ARGV 1 _d "PIC;PTHREAD" "" "ENLAZA;CABECERAS")
     if(NOT BA_PCH)
         return()
     endif()
     set(_n ba_pch_${sabor})
     if(_d_PIC)
-        set(_n ba_pch_${sabor}_pic)
+        string(APPEND _n _pic)
+    endif()
+    if(_d_PTHREAD)
+        string(APPEND _n _pthread)
     endif()
     if(TARGET ${_n})
         return()
@@ -117,6 +129,9 @@ function(ba_pch_donante sabor)
         # Sin la fecha adentro: el mismo PCH sale igual byte a byte, y ccache (que lo
         # hashea en cada objeto que lo usa) sigue acertando aunque se vuelva a armar.
         target_compile_options(${_n} PRIVATE "SHELL:-Xclang -fno-pch-timestamp")
+    endif()
+    if(_d_PTHREAD)
+        target_compile_options(${_n} PRIVATE -pthread)
     endif()
     set_property(GLOBAL APPEND PROPERTY BA_PCH_DONANTES ${_n})
 endfunction()
@@ -173,6 +188,27 @@ function(_ba_pch_cierre salida)
         endif()
     endwhile()
     set(${salida} "${_nombres}" PARENT_SCOPE)
+endfunction()
+
+# Si a <target> le llega -pthread (en Linux, de glib por GStreamer).
+function(_ba_pch_con_pthread target salida)
+    _ba_pch_cierre(_nombres ${target})
+    set(_si FALSE)
+    foreach(_x IN LISTS _nombres)
+        if(NOT TARGET "${_x}")
+            continue()
+        endif()
+        if(_x STREQUAL target)
+            get_target_property(_o "${_x}" COMPILE_OPTIONS)
+        else()
+            get_target_property(_o "${_x}" INTERFACE_COMPILE_OPTIONS)
+        endif()
+        if("-pthread" IN_LIST _o)
+            set(_si TRUE)
+            break()
+        endif()
+    endforeach()
+    set(${salida} ${_si} PARENT_SCOPE)
 endfunction()
 
 function(_ba_pch_enlaza_qt nombres salida)
@@ -350,6 +386,10 @@ function(ba_pch_aplicar)
                        CABECERAS ${BA_PCH_STD} ${BA_PCH_JSON})
         ba_pch_donante(base PIC ENLAZA nlohmann_json::nlohmann_json ${_hilos}
                        CABECERAS ${BA_PCH_STD} ${BA_PCH_JSON})
+        if(BA_PCH_CON_PTHREAD)
+            ba_pch_donante(base PTHREAD ENLAZA nlohmann_json::nlohmann_json ${_hilos}
+                           CABECERAS ${BA_PCH_STD} ${BA_PCH_JSON})
+        endif()
         if(TARGET ba::gstreamer)
             ba_pch_donante(gst ENLAZA nlohmann_json::nlohmann_json ${_hilos} ba::gstreamer
                            CABECERAS ${BA_PCH_STD} ${BA_PCH_JSON} ${BA_PCH_GST})
@@ -394,7 +434,12 @@ function(ba_pch_aplicar)
         get_target_property(_pic ${_t} POSITION_INDEPENDENT_CODE)
         set(_donante ba_pch_${_sabor})
         if(_pic)
-            set(_donante ba_pch_${_sabor}_pic)
+            string(APPEND _donante _pic)
+        endif()
+        # Con -pthread, el donante «_pthread» si lo hay (el de gst ya lo trae de glib).
+        _ba_pch_con_pthread(${_t} _pthread)
+        if(_pthread AND TARGET ${_donante}_pthread)
+            string(APPEND _donante _pthread)
         endif()
         if(NOT TARGET ${_donante})
             if(BA_PCH_INFORME)
