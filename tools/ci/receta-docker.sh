@@ -110,6 +110,10 @@ if [ "$QUE" != win ]; then
     else
         echo "[símbolos] Linux: no se guardan (SIMBOLOS=1 para guardarlos; make publicar lo pone)"
     fi
+    # Y no se juntan en el volumen: dist/simbolos/linux de adentro crecía con los .debug de
+    # cada build (16 GB el 2026-11-05, con el disco de colima lleno). Los de esta corrida ya
+    # fueron (o no hacían falta); la próxima instalación saca los suyos de nuevo.
+    rm -rf dist/simbolos/linux
 fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
