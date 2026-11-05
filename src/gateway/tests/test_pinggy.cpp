@@ -416,6 +416,21 @@ std::filesystem::path script(const std::filesystem::path& dir, const std::string
     return p;
 }
 
+/// Espera a que `listo()` se cumpla (mirando cada 20 ms). El supervisor vigila con su propio
+/// ritmo (una vuelta cada 500 ms, la espera antes de relanzar) y ba-pinggy es un sh que arranca
+/// y sale: lo que se prueba es QUE pasa, no en cuánto. Antes era un plazo fijo (3 s para el
+/// relanzamiento, 4 s para el error, 4 s para «listo») y con la máquina cargada (la suite en
+/// paralelo, otros compilando) el sh y el hilo del supervisor tardaban más: «una caída común
+/// se relanza» fallaba sin que el supervisor tuviera nada mal. El tope solo corta un test roto.
+template <class F> bool esperarQue(F listo) {
+    const auto tope = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+    while (!listo()) {
+        if (std::chrono::steady_clock::now() >= tope) return false;
+        std::this_thread::sleep_for(std::chrono::milliseconds(20));
+    }
+    return true;
+}
+
 std::string leer(const std::filesystem::path& p) {
     std::ifstream in(p);
     std::stringstream ss;
@@ -454,9 +469,7 @@ void supervisorFalso() {
         }
         PinggySupervisor sup(c, log);
         CHECK(sup.start(), "ba-pinggy falso lanzado");
-        std::string estado;
-        for (int i = 0; i < 40 && (estado = sup.estado().estado) != "listo"; ++i) std::this_thread::sleep_for(100ms);
-        CHECK(estado == "listo", "el supervisor llega a listo leyendo el log");
+        CHECK(esperarQue([&] { return sup.estado().estado == "listo"; }), "el supervisor llega a listo leyendo el log");
         CHECK(sup.urlPublica() == "https://abc.a.free.pinggy.link", "urlPublica del supervisor");
         CHECK(sup.turnPublico() == "abc.a.free.pinggy.link:443", "turnPublico() del supervisor");
         CHECK(sup.estadoJson().at("activo") == true, "estadoJson activo");
@@ -475,7 +488,10 @@ void supervisorFalso() {
         c.logPath = (dir / "fatal.log").string();
         PinggySupervisor sup(c, log);
         sup.start();
-        std::this_thread::sleep_for(4s);
+        CHECK(esperarQue([&] { return sup.estado().fatal; }), "error no recuperable: el supervisor lo lee");
+        // Visto el error, el supervisor deja de vigilar (runLoop: break). Más que una vuelta y la
+        // espera del primer relanzamiento (0,5 + 1 s): no se relanzó.
+        std::this_thread::sleep_for(2s);
         CHECK(sup.restartCount() == 0 && sup.estado().estado == "error" && sup.estado().fatal,
               "error no recuperable: no se relanza");
         sup.stop();
@@ -487,8 +503,7 @@ void supervisorFalso() {
         c.logPath = (dir / "cae.log").string();
         PinggySupervisor sup(c, log);
         sup.start();
-        std::this_thread::sleep_for(3s);
-        CHECK(sup.restartCount() >= 1, "una caída común se relanza");
+        CHECK(esperarQue([&] { return sup.restartCount() >= 1; }), "una caída común se relanza");
         sup.stop();
     }
     {
