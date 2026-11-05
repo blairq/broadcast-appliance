@@ -69,17 +69,28 @@ AlarmaSonora::AlarmaSonora(fs::path datos, QObject* parent) : QObject(parent), d
         volumen_ = std::clamp(j.value("volumen", volumen_), 0.0, 1.0);
         dispositivo_ = QString::fromStdString(j.value("dispositivo", std::string()));
     }
-    aviso_ = std::make_unique<QSoundEffect>();
-    critico_ = std::make_unique<QSoundEffect>();
-    aviso_->setSource(QUrl::fromLocalFile(QString::fromStdWString(a.wstring())));
-    critico_->setSource(QUrl::fromLocalFile(QString::fromStdWString(c.wstring())));
-    critico_->setLoopCount(QSoundEffect::Infinite);
-    aplicar();
+    wavAviso_ = a;
+    wavCritico_ = c;
+    // Los QSoundEffect NO se crean acá: cada uno abre un flujo de audio del sistema (en
+    // Windows, WASAPI: una ida y vuelta al servicio de audio, ~0,2 s) y esto se construye con
+    // el modelo de la app, en el hilo de la interfaz, al arrancar (volcados de la .177,
+    // 2026-11-05). Se arman la primera vez que algo suena.
 }
 
 AlarmaSonora::~AlarmaSonora() = default;
 
+void AlarmaSonora::armar() {
+    if (aviso_) return;
+    aviso_ = std::make_unique<QSoundEffect>();
+    critico_ = std::make_unique<QSoundEffect>();
+    aviso_->setSource(QUrl::fromLocalFile(QString::fromStdWString(wavAviso_.wstring())));
+    critico_->setSource(QUrl::fromLocalFile(QString::fromStdWString(wavCritico_.wstring())));
+    critico_->setLoopCount(QSoundEffect::Infinite);
+    aplicar();
+}
+
 void AlarmaSonora::aplicar() {
+    if (!aviso_) return; // todavía no sonó nada: se aplica al armarlos
     for (QSoundEffect* s : {aviso_.get(), critico_.get()}) {
         s->setVolume(static_cast<float>(volumen_));
         if (!dispositivo_.isEmpty())
@@ -89,6 +100,8 @@ void AlarmaSonora::aplicar() {
 }
 
 void AlarmaSonora::sonar(const QString& nivel) {
+    if (nivel != "critico" && nivel != "aviso") return;
+    armar();
     if (nivel == "critico") {
         if (!critico_->isPlaying()) critico_->play();
     } else if (nivel == "aviso") {
@@ -97,7 +110,7 @@ void AlarmaSonora::sonar(const QString& nivel) {
 }
 
 void AlarmaSonora::criticaActiva(bool hay) {
-    if (!hay && critico_->isPlaying()) critico_->stop();
+    if (!hay && critico_ && critico_->isPlaying()) critico_->stop();
 }
 
 QVariantMap AlarmaSonora::ajustesUi() const { return {{"volumen", volumen_}, {"dispositivo", dispositivo_}}; }

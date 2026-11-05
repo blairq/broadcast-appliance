@@ -199,13 +199,21 @@ Red::Red(const std::filesystem::path& datos, const QString& dirCredenciales, Vid
          ptz::ControlCamaras* camaras, QObject* parent)
     : QObject(parent), video_(video), camaras_(camaras), dirCred_(dirCredenciales) {
     biblioteca_.leer((datos / "camaras-urls.json").string());
-    oui_.leer((datos / "oui.tsv").string());
+    ouiRuta_ = (datos / "oui.tsv").string();
     http_ = new QNetworkAccessManager(this);
     connect(this, &Red::cambio, this, &Red::conectadasCambio);
     if (video_ != nullptr) connect(video_, &VideoViewModel::cambio, this, &Red::conectadasCambio);
 }
 
 Red::~Red() = default;
+
+const Oui& Red::oui() const {
+    if (!ouiLeido_) {
+        ouiLeido_ = true;
+        oui_.leer(ouiRuta_);
+    }
+    return oui_;
+}
 
 QVariantList Red::equiposQml() const { return aVariant(equipos_).toList(); }
 
@@ -389,7 +397,7 @@ void Red::reconocerEquipos(const std::map<std::string, std::string>& arp) {
         e["puertos"] = json(std::vector<int>(pu.begin(), pu.end()));
         if (arp.count(ip)) {
             e["mac"] = arp.at(ip);
-            e["fabricante_mac"] = oui_.fabricante(arp.at(ip));
+            e["fabricante_mac"] = oui().fabricante(arp.at(ip));
         }
         if (onvif.count(ip)) e["onvif"] = onvif[ip];
         e["credenciales_guardadas"] = tieneClave(ip);

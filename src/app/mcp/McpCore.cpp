@@ -1523,7 +1523,7 @@ std::string McpCore::helpOverview() const {
 std::string McpCore::helpTopic(const std::string& id) const {
     const std::lock_guard<std::recursive_mutex> registro(registroMu_);
     for (const HelpTopic& t : topics_) {
-        if (t.id == id) return "# " + t.title + "\n\n" + t.body;
+        if (t.id == id) return "# " + t.title + "\n\n" + t.cuerpo();
     }
     return {};
 }
@@ -1621,7 +1621,7 @@ void McpCore::armarIndice() const {
         d.clase = "tema";
         d.nombre = t.id;
         d.titulo = t.title;
-        d.cuerpo = t.summary + " " + t.body;
+        d.cuerpo = t.summary + " " + t.cuerpo();
         indice_->agregar(std::move(d));
     }
     indice_->armar();

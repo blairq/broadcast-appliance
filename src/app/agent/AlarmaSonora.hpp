@@ -46,7 +46,10 @@ class AlarmaSonora : public QObject {
    private:
     void aplicar();
     void guardar() const;
+    /// Arma los dos sonidos la primera vez que hace falta sonar (ver el constructor).
+    void armar();
     std::filesystem::path datos_;
+    std::filesystem::path wavAviso_, wavCritico_;
     std::unique_ptr<QSoundEffect> aviso_, critico_;
     double volumen_ = 0.8;
     QString dispositivo_;

@@ -50,6 +50,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <system_error>
 
 namespace ba::i18n {
@@ -312,12 +313,55 @@ Perfil perfil(const std::string& codigo) {
     return p != nullptr ? *p : Perfil{};
 }
 
+namespace {
+/// «total» y «traducidos» de un catálogo SIN leerlo entero: son las dos últimas claves
+/// del archivo (tools/i18n los escribe con las claves ordenadas: después de «mensajes»).
+/// Los catálogos pesan 2 a 3 MB cada uno y la lista de idiomas de Configuración pedía la
+/// cobertura de todos al armar el modelo de la app: ~13 MB de JSON leídos en el hilo de
+/// la interfaz al arrancar (volcados de la .177, 2026-11-05). Si la cola no es la
+/// esperada, nullopt (y se lee entero, como antes).
+std::optional<Cobertura> coberturaDeLaCola(const fs::path& archivo) {
+    std::ifstream in(archivo, std::ios::binary | std::ios::ate);
+    if (!in) return std::nullopt;
+    const std::streamoff largo = in.tellg();
+    const std::streamoff desde = std::max<std::streamoff>(0, largo - 512);
+    in.seekg(desde);
+    std::string cola(static_cast<std::size_t>(largo - desde), '\0');
+    if (!in.read(cola.data(), static_cast<std::streamsize>(cola.size()))) return std::nullopt;
+    const auto numero = [&cola](const char* clave) -> std::optional<int> {
+        const std::size_t k = cola.rfind(clave);
+        if (k == std::string::npos) return std::nullopt;
+        std::size_t i = cola.find(':', k + std::char_traits<char>::length(clave));
+        if (i == std::string::npos) return std::nullopt;
+        ++i;
+        while (i < cola.size() && (cola[i] == ' ' || cola[i] == '\t' || cola[i] == '\r' || cola[i] == '\n')) ++i;
+        std::size_t f = i;
+        while (f < cola.size() && cola[f] >= '0' && cola[f] <= '9') ++f;
+        if (f == i || f - i > 9) return std::nullopt;
+        return std::stoi(cola.substr(i, f - i));
+    };
+    const std::size_t kTotal = cola.rfind("\"total\""), kTrad = cola.rfind("\"traducidos\"");
+    const std::size_t kMensajes = cola.rfind("\"mensajes\"");
+    // Las dos, y después de «mensajes» si «mensajes» entra en la cola (si no, ya quedó atrás).
+    if (kTotal == std::string::npos || kTrad == std::string::npos) return std::nullopt;
+    if (kMensajes != std::string::npos && (kMensajes > kTotal || kMensajes > kTrad)) return std::nullopt;
+    // Lo que sigue a la última es el cierre del objeto.
+    const std::size_t cierre = cola.find('}', std::max(kTotal, kTrad));
+    if (cierre == std::string::npos || cola.find_first_not_of(" \t\r\n", cierre + 1) != std::string::npos) return std::nullopt;
+    const auto total = numero("\"total\""), traducidos = numero("\"traducidos\"");
+    if (!total || !traducidos) return std::nullopt;
+    return Cobertura{*total, *traducidos};
+}
+} // namespace
+
 Cobertura cobertura(const std::string& codigo) {
     Estado& e = estado();
     std::lock_guard<std::mutex> l(e.mu);
     const Perfil* p = buscarSinCandado(e, codigo);
     if (p == nullptr) return {};
     if (p->fuente || p->pseudo) return {1, 1};
+    if (const auto c = e.cargados.find(p->codigo); c != e.cargados.end()) return c->second->cobertura;
+    if (const auto c = coberturaDeLaCola(dirCatalogos(e) / (p->codigo + ".json"))) return *c;
     return catalogoSinCandado(e, p->codigo)->cobertura;
 }
 
