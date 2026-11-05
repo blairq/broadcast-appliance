@@ -219,8 +219,9 @@ void AppRuntime::configure(int argc, char** argv) {
 }
 
 int AppRuntime::start() {
-    // El que arranca es el dueño del motor (la interfaz o el bucle de la consola): toma el
-    // turno al usarlo, como el plano de control (F3-03, emision/TurnoMotor.hpp).
+    // El que arranca es el dueño del motor (con interfaz, el hilo del plano de control:
+    // GuiMode; sin ella, el bucle de la consola): toma el turno al usarlo (F3-03,
+    // emision/TurnoMotor.hpp). Nunca el hilo de la interfaz: arrancar son segundos.
     dueno_ = std::this_thread::get_id();
     TurnoMotor::participar("dueño");
     // Lo que dejó la corrida anterior, ANTES de que nada lo pise (--record y --stream
@@ -249,8 +250,8 @@ int AppRuntime::start() {
     // el latido del arranque se cortaba a los 2 minutos y el launcher lo mataba;
     // la lista se guarda al final, así que cada reinicio empezaba de cero y la
     // app no arrancaba nunca (2026-10-14). Mientras GStreamer revisa, este hilo
-    // late y repinta el cartel, sin tope: no puede quedar colgado para siempre,
-    // GStreamer corta a cada plugin a los 60 s.
+    // late y le avisa al cartel cómo va, sin tope: no puede quedar colgado para
+    // siempre, GStreamer corta a cada plugin a los 60 s.
     {
         // Antes de revisar, GStreamer cuenta los plugins: el cartel dice cuántos son,
         // cuál está revisando y cuántos lleva («37 de 312»).
