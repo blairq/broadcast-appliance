@@ -103,7 +103,7 @@ Still to do (see [`docs/historia/PLAN_MULTIPLATAFORMA.md`](../../docs/historia/P
 
 ```
 .
-├── CMakeLists.txt            # root build (C++20, FetchContent, §5.1 layout)
+├── CMakeLists.txt            # root build (C++20, deps prebuilt in extern/, §5.1 layout)
 ├── versions.cmake            # PINNED versions of third-party dependencies
 ├── Makefile, mk/             # wrap CMake (compilar/test/app/paquetes/publicar; the rest by topic in mk/)
 ├── pyproject.toml            # metadata + pytest config (invariants suite)

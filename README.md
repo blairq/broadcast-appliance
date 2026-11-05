@@ -179,7 +179,14 @@ make app            # the app ready to use on this machine (macOS: a few seconds
 `make paquete-linux` build those packages (in Docker when run on a Mac).
 
 The code is split into per-area libraries, so touching one file recompiles only what depends on
-it, and `make test-explicar` says why each test would run.
+it, and `make test-explicar` says why each test would run. Third-party headers (the standard
+library, nlohmann/json, Qt, GStreamer) are precompiled, and the third-party static libraries are
+built once by `make deps`, not on every build.
+
+On a Mac, Linux and Windows are built and tested in Docker. Each branch compiles as a
+copy-on-write layer on top of master's build (`make docker-base` after integrating), so it only
+recompiles what differs; runs take a lock so they never overwrite each other, and validation
+builds skip debug info (symbols are only produced when publishing, `SIMBOLOS=1`).
 
 Platform builds, the portable bundle and the details are in
 [Building, testing and packaging](docs/en/building.md).

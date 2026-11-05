@@ -8,9 +8,9 @@ Para quien desarrolla: lo que hace falta para compilar, cómo levantar el sistem
 
 Todo lo que hay que tener instalado para compilar, probar y linterizar el
 repo. Las **dependencias de código** (mbedTLS, nlohmann, libsamplerate, Argon2,
-CLAP, LSP, GStreamer, Qt, libwebrtc, cloudflared) NO se instalan a mano: el
-build las trae por `FetchContent` (self-contained) en la versión fijada en
-[`versions.cmake`](../../versions.cmake). Lo de esta sección es la **toolchain** del
+CLAP, LSP, GStreamer, Qt, libwebrtc, cloudflared) NO se instalan a mano: `make deps`
+las baja y las compila en `extern/`, con la versión y el SHA-256 fijados en
+[`versions.cmake`](../../versions.cmake) y [`mk/versiones.mk`](../../mk/versiones.mk). Lo de esta sección es la **toolchain** del
 host.
 
 Los **assets de despliegue** de Windows (los del bloque "plataforma-gated" de
@@ -99,12 +99,15 @@ sudo apt install   libgl1-mesa-dev libegl1-mesa-dev libx11-dev libx11-xcb-dev li
 ### Reglas del entorno de desarrollo
 
 - **Sin instalaciones globales**: las deps de Python van en un venv local
-  (`.venv/`); las de C++ las trae `FetchContent` dentro del árbol de build.
-  `clang-format` y `ccache` son las únicas herramientas del sistema que se
-  asumen instaladas por apt.
+  (`.venv/`); las bibliotecas de terceros de C++ (mbedTLS, ZXing, libsamplerate, argon2,
+  libdeflate) las compila una vez `make deps` en `extern/estaticas/<plataforma>-<huella>` y se
+  usan como objetivos IMPORTED (`-DBA_ESTATICAS_DESDE_FUENTE=ON` las compila dentro del build,
+  p. ej. para los sanitizers). `clang-format` y `ccache` son las únicas herramientas del sistema
+  que se asumen instaladas por apt.
 - **C++20** obligatorio; el build falla si el compilador no lo soporta.
-- El build es **self-contained**: no hay `Dockerfile` ni `.devcontainer`;
-  basta el toolchain de la tabla anterior.
+- El build es **self-contained**: basta el toolchain de la tabla anterior. La imagen de Docker de
+  [`tools/ci/compilar.Dockerfile`](../../tools/ci/compilar.Dockerfile) solo se usa para compilar
+  Linux y Windows desde una Mac y en el CI.
 
 ---
 
@@ -175,7 +178,8 @@ Detalles que conviene saber:
 
 ## Compilación
 
-El build es **CMake** (C++20, self-contained vía `FetchContent`); el
+El build es **CMake** (C++20, Qt 6.8 LTS, lo de terceros ya compilado en `extern/` por
+`make deps`); el
 [`Makefile`](../../Makefile) lo envuelve para que el flujo sea simple. `ccache` se
 activa solo si está en el PATH.
 
@@ -216,9 +220,30 @@ mac, windows, tablero-web, modelos, publicar).
   vuelve a correrlo).
 - En un worktree de git, `extern/` y `build/modelo-mac` son enlaces a los del
   árbol principal (los crea el Makefile si faltan).
-- ccache: lo usa el `CMakeLists.txt` si está en el PATH (también en Docker y el CI).
+- ccache: lo usa el `CMakeLists.txt` si está en el PATH (también en Docker y el CI), con la
+  `sloppiness` que el build necesita puesta en el repo, no en la configuración de cada uno.
+- Headers precompilados ([`cmake/BaPch.cmake`](../../cmake/BaPch.cmake)): solo cabeceras de
+  terceros (la estándar, nlohmann/json, QtCore, GStreamer), nunca nuestras, compartidos entre
+  objetivos con las mismas banderas. Apagados con clang-cl. `-DBA_PCH=OFF` los apaga (para ver
+  si a un `.cpp` le falta un include que el PCH le tapaba; las cabeceras las revisa sin PCH
+  `test_headers_solos`).
+- El QML va compilado dentro del binario (`qt_add_qml_module`, solo bytecode): al arrancar no
+  se lee ninguna caché de QML del disco.
 - Linux y Windows desde una Mac: `make paquete-linux` / `paquete-windows`, en
-  Docker ([`tools/ci/compilar-en-docker.sh`](../../tools/ci/compilar-en-docker.sh)).
+  Docker ([`tools/ci/compilar-en-docker.sh`](../../tools/ci/compilar-en-docker.sh)):
+  - De a una corrida por máquina (un candado en `~/.cache/broadcast-appliance/docker.lock`):
+    comparten el volumen `ba-trabajo` y colima. Colima la prende y la apaga la corrida.
+  - Capas: después de integrar a master, `make docker-base` (desde el árbol principal, en
+    master) compila el Linux y el Windows de master como base de solo lectura. Cualquier otra
+    corrida compila en su propia capa copy-on-write encima, así que recompila solo lo que
+    difiere de master; capas de worktrees distintos pueden correr a la vez. `make docker-capas`
+    las lista y `make docker-capas-limpiar DIAS=7` borra las viejas.
+  - Las validaciones van sin información de depuración (`DEPURACION=0`, la mitad del disco).
+    Los símbolos (`.pdb`, `.debug`) se arman y se guardan solo con `SIMBOLOS=1`, que pone
+    `make publicar`, en un almacén único (`dist/simbolos` del árbol principal).
+  - `make validar-arm64` compila y prueba nativo en arm64 (sin Rosetta) para validar; los
+    paquetes siguen saliendo de x86_64. Experimental: su primera compilación entera fue más
+    lenta que la emulada, falta entender por qué.
 
 ### (a) Linux nativo
 

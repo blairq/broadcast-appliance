@@ -8,9 +8,9 @@ For developers: what you need to build, how to bring the system up from source, 
 
 Everything you need installed to build, test and lint the
 repo. The **code dependencies** (mbedTLS, nlohmann, libsamplerate, Argon2,
-CLAP, LSP, GStreamer, Qt, libwebrtc, cloudflared) are NOT installed by hand: the
-build pulls them in via `FetchContent` (self-contained) at the version pinned in
-[`versions.cmake`](../../versions.cmake). What this section covers is the host
+CLAP, LSP, GStreamer, Qt, libwebrtc, cloudflared) are NOT installed by hand: `make deps`
+fetches and builds them into `extern/` at the version and SHA-256 pinned in
+[`versions.cmake`](../../versions.cmake) and [`mk/versiones.mk`](../../mk/versiones.mk). What this section covers is the host
 **toolchain**.
 
 The Windows **deployment assets** (the ones in the "platform-gated" block of
@@ -99,12 +99,15 @@ sudo apt install   libgl1-mesa-dev libegl1-mesa-dev libx11-dev libx11-xcb-dev li
 ### Development environment rules
 
 - **No global installs**: Python deps go in a local venv
-  (`.venv/`); C++ deps are pulled in by `FetchContent` inside the build tree.
-  `clang-format` and `ccache` are the only system tools assumed to be
+  (`.venv/`); the third-party C++ libraries (mbedTLS, ZXing, libsamplerate, argon2,
+  libdeflate) are built once by `make deps` into `extern/estaticas/<platform>-<hash>` and used
+  as imported targets (`-DBA_ESTATICAS_DESDE_FUENTE=ON` builds them inside the build tree,
+  e.g. for sanitizers). `clang-format` and `ccache` are the only system tools assumed to be
   installed via apt.
 - **C++20** is required; the build fails if the compiler does not support it.
-- The build is **self-contained**: there is no `Dockerfile` or `.devcontainer`;
-  the toolchain in the table above is enough.
+- The build is **self-contained**: the toolchain in the table above is enough. The Docker image
+  in [`tools/ci/compilar.Dockerfile`](../../tools/ci/compilar.Dockerfile) is only used to build
+  Linux and Windows from a Mac and in CI.
 
 ---
 
@@ -175,8 +178,8 @@ Details worth knowing:
 
 ## Building
 
-The build is **CMake** (C++20, self-contained via `FetchContent`); the
-[`Makefile`](../../Makefile) wraps it to keep the workflow simple. `ccache` is
+The build is **CMake** (C++20, Qt 6.8 LTS, third-party pieces prebuilt in `extern/` by
+`make deps`); the [`Makefile`](../../Makefile) wraps it to keep the workflow simple. `ccache` is
 enabled automatically if it is on the PATH.
 
 **The commands.** A verb and, when needed, the platform at the end (`mac`,
@@ -216,9 +219,30 @@ windows, tablero-web, models, publishing).
   rerun it).
 - In a git worktree, `extern/` and `build/modelo-mac` are links to the main tree's
   (the Makefile creates them if missing).
-- ccache: `CMakeLists.txt` uses it when it is on the PATH (also in Docker and CI).
+- ccache: `CMakeLists.txt` uses it when it is on the PATH (also in Docker and CI), with the
+  `sloppiness` the build needs set in the repo, not in each user's ccache config.
+- Precompiled headers ([`cmake/BaPch.cmake`](../../cmake/BaPch.cmake)): only third-party
+  headers (the standard library, nlohmann/json, QtCore, GStreamer), never ours, shared between
+  targets whose flags match. Off with clang-cl. `-DBA_PCH=OFF` turns them off (to see whether a
+  `.cpp` relies on an include the PCH provides; headers are checked without it by
+  `test_headers_solos`).
+- The QML is compiled into the binary (`qt_add_qml_module`, bytecode only): nothing is read
+  from a QML cache on disk at startup.
 - Linux and Windows from a Mac: `make paquete-linux` / `paquete-windows`, in
-  Docker ([`tools/ci/compilar-en-docker.sh`](../../tools/ci/compilar-en-docker.sh)).
+  Docker ([`tools/ci/compilar-en-docker.sh`](../../tools/ci/compilar-en-docker.sh)):
+  - One run at a time per machine (a lock in `~/.cache/broadcast-appliance/docker.lock`):
+    they share the `ba-trabajo` volume and colima. Colima is started and stopped by the run.
+  - Layers: after integrating into master, `make docker-base` (from the main tree, on master)
+    builds master's Linux and Windows as a read-only base. Every other run compiles in its own
+    copy-on-write layer on top of it, so it recompiles only what differs from master; layers
+    of different worktrees can run in parallel. `make docker-capas` lists them,
+    `make docker-capas-limpiar DIAS=7` removes the old ones.
+  - Validation builds have no debug info (`DEPURACION=0`, about half the disk). Symbols
+    (`.pdb`, `.debug`) are built and stored only with `SIMBOLOS=1`, which `make publicar` sets,
+    in a single store (`dist/simbolos` of the main tree).
+  - `make validar-arm64` compiles and tests natively on arm64 (no Rosetta) for validation;
+    packages still come from x86_64. Experimental: its first full build was slower than the
+    emulated one, still to be understood.
 
 ### (a) Native Linux
 
