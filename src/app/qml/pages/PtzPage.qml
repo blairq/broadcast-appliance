@@ -332,7 +332,6 @@ Rectangle {
                                 implicitWidth: 170; implicitHeight: 170
                                 flechas: true
                                 entrada: page.sel; velocidad: page.velocidad
-                                onAviso: (e) => page.avisar(e)
                             }
                             ColumnLayout {
                                 spacing: 8

@@ -568,7 +568,7 @@ Item {
             RowLayout {
                 visible: busPop.bus.tipo !== "escucha" && busPop.bus.tipo !== "fisica"
                 TextField { id: nombreBus; Layout.fillWidth: true; placeholderText: qsTr("nombre") }
-                GlassButton { compact: true; text: qsTr("Renombrar"); onClicked: mx.msg = mx.mz.renombrar(busPop.bus.id, nombreBus.text) }
+                GlassButton { compact: true; text: qsTr("Renombrar"); onClicked: { mx.msg = ""; mx.mz.renombrar(busPop.bus.id, nombreBus.text) } }
             }
             ComboBox {
                 id: dispBus

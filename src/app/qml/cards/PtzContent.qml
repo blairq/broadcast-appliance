@@ -153,7 +153,6 @@ Item {
             JoystickPtz {
                 entrada: t.entrada; velocidad: t.velocidad
                 Layout.preferredWidth: 120; Layout.preferredHeight: 120
-                onAviso: (e) => t.avisar(e)
             }
             ColumnLayout {
                 Layout.fillWidth: true
