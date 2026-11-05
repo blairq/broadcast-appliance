@@ -59,7 +59,8 @@ export LDFLAGS="-Wl,-rpath,\$ORIGIN"
 
 # nombre|version|url|sha256
 PKGS=(
-  "nasm|2.16.03|https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.xz|1412a1c760bbd05db026b6c0d1657affd6631cd0a63cddb6f73cc6d4aa616148"
+  # nasm: www.nasm.us dejó de contestar (2026-11-05); el .orig de Debian es el mismo archivo (mismo sha256).
+  "nasm|2.16.03|https://www.nasm.us/pub/nasm/releasebuilds/2.16.03/nasm-2.16.03.tar.xz https://deb.debian.org/debian/pool/main/n/nasm/nasm_2.16.03.orig.tar.xz|1412a1c760bbd05db026b6c0d1657affd6631cd0a63cddb6f73cc6d4aa616148"
   "meson|1.5.2|https://github.com/mesonbuild/meson/releases/download/1.5.2/meson-1.5.2.tar.gz|f955e09ab0d71ef180ae85df65991d58ed8430323de7d77a37e11c9ea630910b"
   "libva|2.22.0|https://github.com/intel/libva/releases/download/2.22.0/libva-2.22.0.tar.bz2|e3da2250654c8d52b3f59f8cb3f3d8e7fb1a2ee64378dbc400fbc5663de7edb8"
   "v4l-utils|1.28.1|https://linuxtv.org/downloads/v4l-utils/v4l-utils-1.28.1.tar.xz|0fa075ce59b6618847af6ea191b6155565ccaa44de0504581ddfed795a328a82"
@@ -94,15 +95,26 @@ fetch() {
   for line in "${PKGS[@]}"; do
     IFS='|' read -r n ver url sha <<<"$line"
     [ "$n" = "$name" ] || continue
-    file="$DL/$(basename "$url")"
+    # `url` puede traer espejos separados por espacios (el mismo archivo: lo dice el sha256):
+    # se prueban en orden. El primero da el nombre del archivo.
+    local urls u
+    read -r -a urls <<<"$url"
+    file="$DL/$(basename "${urls[0]}")"
     if [ ! -f "$file" ] || [ "$(sha256sum "$file" | cut -d' ' -f1)" != "$sha" ]; then
       log "$name $ver: descargando"
       rm -f "$file.part"
-      # linuxtv corta conexiones largas: se reanuda hasta completar.
-      local i
-      for i in $(seq 1 60); do
-        curl -fsSL --http1.1 --retry 3 -C - -o "$file.part" "$url" && break || true
+      local i ok=0
+      for u in "${urls[@]}"; do
+        # linuxtv corta conexiones largas: se reanuda hasta completar. Un sitio que no
+        # contesta (sin nada bajado después de 3 intentos) pasa al espejo siguiente.
+        for i in $(seq 1 60); do
+          if curl -fsSL --http1.1 --connect-timeout 20 --retry 3 -C - -o "$file.part" "$u"; then ok=1; break; fi
+          [ "$i" -ge 3 ] && [ ! -s "$file.part" ] && { log "$name: $u no contesta; pruebo el espejo siguiente"; break; }
+        done
+        [ "$ok" = 1 ] && break
+        rm -f "$file.part"
       done
+      [ "$ok" = 1 ] || { log "ERROR: no se pudo bajar $name ($url)"; exit 1; }
       mv "$file.part" "$file"
     fi
     echo "$sha  $file" | sha256sum -c --quiet - || { log "ERROR: hash de $name no coincide"; exit 1; }
@@ -120,7 +132,8 @@ done_mark() { [ -f "$PREFIX/.done-$1" ]; }
 mark() { touch "$PREFIX/.done-$1"; }
 
 # --- herramientas de build ----------------------------------------------------
-if [ ! -x "$TOOLS/bin/nasm" ]; then
+# nasm ensambla el código x86 de FFmpeg (y de lo que lo use): en arm64 no hace falta.
+if [ "$(uname -m)" = x86_64 ] && [ ! -x "$TOOLS/bin/nasm" ]; then
   d=$(fetch nasm); log "nasm"
   (cd "$d" && ./configure --prefix="$TOOLS" >/dev/null && make -j"$JOBS" >/dev/null && make install >/dev/null)
 fi
