@@ -276,10 +276,14 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y cmake build-essential pkg-config git curl ca-certificates rsync unzip xz-utils file
+      # Las estáticas de terceros (mbedtls…) desde la fuente y adentro del build, con
+      # las banderas del sanitizer (TSan quiere instrumentado también lo de terceros).
+      - name: Fuentes de terceros (make deps-src)
+        run: make deps-src
       - name: Configure (${{ matrix.name }})
         run: |
           cmake -S . -B "build-san-${{ matrix.name }}" \
-            -DCMAKE_BUILD_TYPE=Debug \
+            -DCMAKE_BUILD_TYPE=Debug -DBA_ESTATICAS_DESDE_FUENTE=ON \
             -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" \
             -DCMAKE_C_FLAGS="${{ matrix.flags }}" \
             -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"

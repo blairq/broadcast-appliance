@@ -34,7 +34,7 @@ deps-win:
 	@$(DEPS_ATAJO) --nombre deps-win --clave-en $(EXTERNS_DIR)/.atajos/deps-win.json -- $(MAKE) deps-win-todo
 
 deps-win-todo: deps-win-toolchain deps-qt deps-qt-host deps-ndi-src deps-webrtc-win \
-          deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win deps-lspdsp-win \
+          deps-src deps-estaticas-win deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared deps-pinggy-win deps-clap deps-lsp-win deps-lspdsp-win \
           deps-craft-win deps-fuentes-texto deps-herramientas-win deps-gstreamer-win deps-gstreamer-win-pdb deps-python-win deps-gst-python-win \
           deps-rostros deps-onnxruntime-win deps-sherpa-onnx-win deps-ncnn-win deps-llamacpp-win deps-chrome-headless-win deps-hinchada
 

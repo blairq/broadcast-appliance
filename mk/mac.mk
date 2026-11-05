@@ -27,7 +27,7 @@ check-macos-tools:
 
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con las de terceros (deps-terceros-linux).
-deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-chrome-headless \
+deps-macos: check-macos-tools deps-qt-host deps-src deps-estaticas-mac deps-lwip deps-cacert deps-libvterm deps-fonts deps-chrome-headless \
             deps-cloudflared-host deps-pinggy deps-clap deps-ndi-src deps-craft-mac deps-fuentes-texto deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas deps-hinchada
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:
@@ -72,18 +72,29 @@ deps-mlx-swift-lm:
 	for p in src/modelo-mac/parches/*.patch; do git -C $$d apply "$(CURDIR)/$$p"; echo "[mlx-swift-lm] $$p"; done; \
 	touch "$$sello"
 
+# El xcodebuild de ba-modelo, sin la carpeta de DerivedData (va aparte: cada worktree la
+# nombra por su propia ruta, aunque por el enlace sea la misma).
+MODELO_XCODEBUILD = xcodebuild -scheme ba-modelo -destination "platform=macOS,arch=arm64" \
+  -configuration Release -skipPackagePluginValidation -skipMacroValidation -quiet
+
 # _enlaces primero: en un worktree, extern/ y build/modelo-mac son los del principal.
 modelo-mac: _enlaces deps-mlx-swift-lm
 	@xcrun metal --version >/dev/null 2>&1 || { echo "ERROR: falta el compilador de Metal: xcodebuild -downloadComponent MetalToolchain" >&2; exit 1; }
 	@# xcodebuild tarda ~4 s aunque no haya nada que hacer (arma el plan de Swift Package y
 	@# consulta los destinos): solo si cambió el código del modelo, sus parches o mlx-swift-lm.
+	@# build/modelo-mac (DerivedData) es UNO para todos los worktrees (enlace al del
+	@# principal: si no, cada worktree recompila MLX). Por eso, de a uno (--candado: dos
+	@# xcodebuild sobre la misma DerivedData chocan, «database is locked») y la clave AL LADO
+	@# de la salida: dice de qué entradas salió lo que hay, así un worktree con otro
+	@# src/modelo-mac no toma por bueno el ba-modelo que dejó otro.
+	@# El comando entra en la clave (no mk/mac.mk entero, que cambia por cualquier otra cosa
+	@# y con la clave compartida haría correr xcodebuild de nuevo en cada worktree).
 	@python3 tools/ci/huellas.py atajo --nombre "ba-modelo (xcodebuild)" \
-	  --clave-en build/atajos/modelo-mac.json --memo build/atajos/huellas.json \
-	  --entrada src/modelo-mac --entrada mk/mac.mk --texto "$$(ls -d extern/mlx-swift-lm/.parches-* 2>/dev/null)" \
+	  --candado build/modelo-mac/.candado --clave-en build/modelo-mac/.atajo.json --memo build/atajos/huellas.json \
+	  --entrada src/modelo-mac --texto "$$(ls -d extern/mlx-swift-lm/.parches-* 2>/dev/null)" \
+	  --texto '$(MODELO_XCODEBUILD)' \
 	  --salida build/modelo-mac/Build/Products/Release/ba-modelo -- sh -c '\
-	    cd src/modelo-mac && xcodebuild -scheme ba-modelo -destination "platform=macOS,arch=arm64" \
-	      -configuration Release -derivedDataPath $(CURDIR)/build/modelo-mac \
-	      -skipPackagePluginValidation -skipMacroValidation -quiet build'
+	    cd src/modelo-mac && $(MODELO_XCODEBUILD) -derivedDataPath $(CURDIR)/build/modelo-mac build'
 
 release-macos:
 	@# Compila primero: sin esto se empaquetaba el ultimo build que hubiera en
@@ -104,7 +115,7 @@ release-macos:
 app-macos: release-macos
 	@mkdir -p dist
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app
-	tools/caidas/simbolos-mac.sh release || echo "ATENCION: no se guardaron los .dSYM" >&2
+	tools/caidas/simbolos-mac.sh release "$(BA_SIMBOLOS)/macos" || echo "ATENCION: no se guardaron los .dSYM" >&2
 
 # Para probar mientras se programa: lo mismo que app-macos, pero sin borrar
 # release/ ni la .app. Solo se copia, firma, revisa y hashea lo que cambió
@@ -123,7 +134,7 @@ dmg-macos: release-macos
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.sha256
 	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.commit
-	tools/caidas/simbolos-mac.sh release || echo "ATENCION: no se guardaron los .dSYM" >&2
+	tools/caidas/simbolos-mac.sh release "$(BA_SIMBOLOS)/macos" || echo "ATENCION: no se guardaron los .dSYM" >&2
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg"
 
 dist-macos: release-macos

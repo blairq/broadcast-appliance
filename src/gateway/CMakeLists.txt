@@ -379,6 +379,13 @@ endif()
 if(BA_GATEWAY_REAL_POSIX)
     message(STATUS "ba-gateway: libwebrtc REAL (clang + libc++ de Chromium) en ${BA_GW_RTC_DIR}")
     include(ExternalProject)
+    # Las libs de C: ya hechas (extern/estaticas, IMPORTED) o, desde la fuente, objetivos
+    # de este build (cmake/BaEstaticas.cmake).
+    string(REPLACE ";" "|" _ba_gw_c_inc "${BA_ESTATICAS_INCLUDES}")
+    set(_ba_gw_c_deps "")
+    if(BA_ESTATICAS_DESDE_FUENTE)
+        set(_ba_gw_c_deps DEPENDS mbedtls mbedx509 mbedcrypto everest p256m samplerate argon2)
+    endif()
     ExternalProject_Add(ba_gateway_webrtc
         SOURCE_DIR "${CMAKE_SOURCE_DIR}/cmake/gateway-webrtc"
         BINARY_DIR "${BA_GW_RTC_DIR}"
@@ -390,11 +397,11 @@ if(BA_GATEWAY_REAL_POSIX)
             -DBA_SRC=${CMAKE_SOURCE_DIR}
             -DBA_WEBRTC_ROOT=${BA_WEBRTC_ROOT}
             -DBA_LIBCXX_CFG=${BA_WEBRTC_ROOT}/buildtools-libcxx
-            "-DBA_C_LIBS=$<TARGET_FILE:mbedtls>|$<TARGET_FILE:mbedx509>|$<TARGET_FILE:mbedcrypto>|$<TARGET_FILE:samplerate>|$<TARGET_FILE:argon2>"
-            "-DBA_C_INCLUDES=${mbedtls_SOURCE_DIR}/include|${libsamplerate_SOURCE_DIR}/include|${argon2_SOURCE_DIR}/include|${nlohmann_json_SOURCE_DIR}/include"
+            "-DBA_C_LIBS=$<TARGET_FILE:mbedtls>|$<TARGET_FILE:mbedx509>|$<TARGET_FILE:mbedcrypto>|$<TARGET_FILE:everest>|$<TARGET_FILE:p256m>|$<TARGET_FILE:samplerate>|$<TARGET_FILE:argon2>"
+            "-DBA_C_INCLUDES=${_ba_gw_c_inc}|${nlohmann_json_SOURCE_DIR}/include"
         INSTALL_COMMAND ""
         BUILD_ALWAYS ON
-        DEPENDS mbedtls mbedx509 mbedcrypto samplerate argon2
+        ${_ba_gw_c_deps}
         BUILD_BYPRODUCTS "${BA_GW_RTC_DIR}/ba-gateway" "${BA_GW_RTC_DIR}/test_webrtc_loopback"
                          "${BA_GW_RTC_DIR}/test_webrtc_audio_compartido" "${BA_GW_RTC_DIR}/test_webrtc_redes"
                          "${BA_GW_RTC_DIR}/test_webrtc_capas" "${BA_GW_RTC_DIR}/test_webrtc_lote")

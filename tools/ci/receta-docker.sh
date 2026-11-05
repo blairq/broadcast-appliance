@@ -101,8 +101,19 @@ if [ "$QUE" != win ]; then
     make -o compilado-release dist-linux JOBS=$J PERFILAR=$PERFILAR
     etapa "dist-linux (instalar, strip, manifest, tar)"
     for f in dist/*-$VER-linux-x64$SUF.tar.gz; do llevar "$f"; done
-    mkdir -p /salida/simbolos && cp -rn dist/simbolos/linux /salida/simbolos/ 2>/dev/null || true
     etapa "copia a dist/ (linux)"
+    # Los .debug de este build (los saca del bundle simbolos-linux.sh, en `release`), al
+    # almacén único de la Mac: solo con SIMBOLOS=1 (publicar). Lo que ya está no se copia.
+    if [ "${SIMBOLOS:-0}" = 1 ]; then
+        mkdir -p /simbolos && cp -rn dist/simbolos/linux /simbolos/ 2>/dev/null || true
+        etapa "símbolos (linux)"
+    else
+        echo "[símbolos] Linux: no se guardan (SIMBOLOS=1 para guardarlos; make publicar lo pone)"
+    fi
+    # Y no se juntan en el volumen: dist/simbolos/linux de adentro crecía con los .debug de
+    # cada build (16 GB el 2026-11-05, con el disco de colima lleno). Los de esta corrida ya
+    # fueron (o no hacían falta); la próxima instalación saca los suyos de nuevo.
+    rm -rf dist/simbolos/linux
 fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
@@ -130,14 +141,20 @@ if [ "$QUE" != linux ]; then
     etapa "zip (7z)"
     for f in dist/*-$VER-windows-x64$SUF.zip; do llevar "$f"; done
     etapa "copia a dist/ (win)"
-    # Los binarios y los .pdb de este build, al almacén de dist/simbolos (en la
-    # Mac): para leer después las pilas de sus volcados (tools/caidas/analizar.py).
-    # Si el bundle es el mismo que la última vez, ya están.
-    python3 tools/ci/huellas.py atajo --nombre "símbolos de Windows" --clave-en build/win/atajos/simbolos.json \
-        --memo build/win/atajos/huellas.json --entrada release-win --salida /salida/simbolos/compilaciones.jsonl -- \
-        python3 tools/caidas/simbolos.py guardar --release release-win --buscar build/win extern/gstreamer-win-pdb \
-        --destino /salida/simbolos --commit "$SHA" || echo "ATENCION: no se guardaron los símbolos" >&2
-    etapa "símbolos (win)"
+    # Los binarios y los .pdb de este build, al almacén único de la Mac (BA_SIMBOLOS,
+    # montado en /simbolos): para leer después las pilas de sus volcados
+    # (tools/caidas/analizar.py). Solo con SIMBOLOS=1 (publicar, o un paquete que va a
+    # la PC de pruebas): cada build suma ~250 MB de lo nuestro. Si el bundle es el mismo
+    # que la última vez, ya están.
+    if [ "${SIMBOLOS:-0}" = 1 ]; then
+        python3 tools/ci/huellas.py atajo --nombre "símbolos de Windows" --clave-en build/win/atajos/simbolos.json \
+            --memo build/win/atajos/huellas.json --entrada release-win --salida /simbolos/compilaciones.jsonl -- \
+            python3 tools/caidas/simbolos.py guardar --release release-win --buscar build/win extern/gstreamer-win-pdb \
+            --destino /simbolos --commit "$SHA" || echo "ATENCION: no se guardaron los símbolos" >&2
+        etapa "símbolos (win)"
+    else
+        echo "[símbolos] Windows: no se guardan (SIMBOLOS=1 para guardarlos; make publicar lo pone)"
+    fi
     if [ "$tests_win" != 0 ]; then
         echo "ATENCION: los tests de Windows (bajo Wine) fallaron: ver arriba. El .zip se armo igual." >&2
         exit 3

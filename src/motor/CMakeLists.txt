@@ -24,7 +24,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_motor tests/test_motor.cpp)
     target_link_libraries(test_motor PRIVATE ba_motor)
     ba_gst_rpath(test_motor "")
-    target_compile_definitions(test_motor PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_motor PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor gstbaaudio gstbaipc) # balimitador; baanillosink
     add_test(NAME test_motor COMMAND test_motor)
@@ -34,7 +34,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_fallas tests/test_fallas.cpp)
     target_link_libraries(test_fallas PRIVATE ba_motor)
     ba_gst_rpath(test_fallas "")
-    target_compile_definitions(test_fallas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    target_compile_definitions(test_fallas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}")
     add_test(NAME test_fallas COMMAND test_fallas)
     set_tests_properties(test_fallas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 30)
 
@@ -42,7 +42,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_gpu_perdida tests/test_gpu_perdida.cpp)
     target_link_libraries(test_gpu_perdida PRIVATE ba_motor)
     ba_gst_rpath(test_gpu_perdida "")
-    target_compile_definitions(test_gpu_perdida PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    target_compile_definitions(test_gpu_perdida PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}")
     add_test(NAME test_gpu_perdida COMMAND test_gpu_perdida)
     set_tests_properties(test_gpu_perdida PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 
@@ -50,7 +50,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_motor_arranque tests/test_motor_arranque.cpp)
     target_link_libraries(test_motor_arranque PRIVATE ba_motor)
     ba_gst_rpath(test_motor_arranque "")
-    target_compile_definitions(test_motor_arranque PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    target_compile_definitions(test_motor_arranque PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}")
     add_test(NAME test_motor_arranque COMMAND test_motor_arranque)
     set_tests_properties(test_motor_arranque PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 
@@ -75,21 +75,21 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_modos tests/test_modos.cpp)
     target_link_libraries(test_modos PRIVATE ba_motor)
     ba_gst_rpath(test_modos "")
-    target_compile_definitions(test_modos PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_modos PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_DATOS="${CMAKE_CURRENT_SOURCE_DIR}/tests/datos")
     add_test(NAME test_modos COMMAND test_modos)
     set_tests_properties(test_modos PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
     add_executable(test_sondas tests/test_sondas.cpp)
     target_link_libraries(test_sondas PRIVATE ba_motor)
     ba_gst_rpath(test_sondas "")
-    target_compile_definitions(test_sondas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    target_compile_definitions(test_sondas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}")
     add_test(NAME test_sondas COMMAND test_sondas)
     set_tests_properties(test_sondas PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 
     add_executable(test_motor_retornos tests/test_motor_retornos.cpp)
     target_link_libraries(test_motor_retornos PRIVATE ba_motor)
     ba_gst_rpath(test_motor_retornos "")
-    target_compile_definitions(test_motor_retornos PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_motor_retornos PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_retornos gstbaaudio gstbaipc)
     add_test(NAME test_motor_retornos COMMAND test_motor_retornos)
@@ -99,7 +99,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_motor_reposo tests/test_motor_reposo.cpp)
     target_link_libraries(test_motor_reposo PRIVATE ba_motor)
     ba_gst_rpath(test_motor_reposo "")
-    target_compile_definitions(test_motor_reposo PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_motor_reposo PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_reposo gstbaaudio gstbaipc)
     add_test(NAME test_motor_reposo COMMAND test_motor_reposo)
@@ -116,7 +116,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_motor_lugares_vacios tests/test_motor_lugares_vacios.cpp)
     target_link_libraries(test_motor_lugares_vacios PRIVATE ba_motor)
     ba_gst_rpath(test_motor_lugares_vacios "")
-    target_compile_definitions(test_motor_lugares_vacios PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_motor_lugares_vacios PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_lugares_vacios gstbaaudio gstbaipc)
     add_test(NAME test_motor_lugares_vacios COMMAND test_motor_lugares_vacios)
@@ -126,7 +126,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_motor_mixminus tests/test_motor_mixminus.cpp)
     target_link_libraries(test_motor_mixminus PRIVATE ba_motor)
     ba_gst_rpath(test_motor_mixminus "")
-    target_compile_definitions(test_motor_mixminus PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_motor_mixminus PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_mixminus gstbaaudio gstbaipc)
     add_test(NAME test_motor_mixminus COMMAND test_motor_mixminus)
@@ -136,7 +136,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_motor_sin_esperar tests/test_motor_sin_esperar.cpp)
     target_link_libraries(test_motor_sin_esperar PRIVATE ba_motor)
     ba_gst_rpath(test_motor_sin_esperar "")
-    target_compile_definitions(test_motor_sin_esperar PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_motor_sin_esperar PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_sin_esperar gstbaaudio gstbaipc)
     add_test(NAME test_motor_sin_esperar COMMAND test_motor_sin_esperar)
@@ -146,7 +146,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_lazo_latencia tests/test_lazo_latencia.cpp)
     target_link_libraries(test_lazo_latencia PRIVATE ba_motor)
     ba_gst_rpath(test_lazo_latencia "")
-    target_compile_definitions(test_lazo_latencia PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_lazo_latencia PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_lazo_latencia gstbaaudio gstbaipc)
     add_test(NAME test_lazo_latencia COMMAND test_lazo_latencia)
@@ -156,7 +156,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_lazo_invitados tests/test_lazo_invitados.cpp)
     target_link_libraries(test_lazo_invitados PRIVATE ba_motor)
     ba_gst_rpath(test_lazo_invitados "")
-    target_compile_definitions(test_lazo_invitados PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_lazo_invitados PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_lazo_invitados gstbaaudio gstbaipc)
     add_test(NAME test_lazo_invitados COMMAND test_lazo_invitados)
@@ -165,7 +165,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_composicion tests/test_composicion.cpp)
     target_link_libraries(test_composicion PRIVATE ba_motor)
     ba_gst_rpath(test_composicion "")
-    target_compile_definitions(test_composicion PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_composicion PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_composicion gstbafiltros) # basombra
     add_test(NAME test_composicion COMMAND test_composicion)
@@ -174,7 +174,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_capturas tests/test_capturas.cpp)
     target_link_libraries(test_capturas PRIVATE ba_motor)
     ba_gst_rpath(test_capturas "")
-    target_compile_definitions(test_capturas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_capturas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     if(TARGET gstbacaptura)
         add_dependencies(test_capturas gstbacaptura)
@@ -185,7 +185,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_salidas tests/test_salidas.cpp)
     target_link_libraries(test_salidas PRIVATE ba_motor)
     ba_gst_rpath(test_salidas "")
-    target_compile_definitions(test_salidas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_salidas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_salidas gstbaaudio gstbaipc)
     add_test(NAME test_salidas COMMAND test_salidas)
@@ -196,7 +196,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_salidas_fallas tests/test_salidas_fallas.cpp)
     target_link_libraries(test_salidas_fallas PRIVATE ba_motor)
     ba_gst_rpath(test_salidas_fallas "")
-    target_compile_definitions(test_salidas_fallas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_salidas_fallas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_salidas_fallas gstbaaudio gstbaipc)
     add_test(NAME test_salidas_fallas COMMAND test_salidas_fallas)
@@ -205,14 +205,14 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_retraso_propio tests/test_retraso_propio.cpp)
     target_link_libraries(test_retraso_propio PRIVATE ba_motor)
     ba_gst_rpath(test_retraso_propio "")
-    target_compile_definitions(test_retraso_propio PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    target_compile_definitions(test_retraso_propio PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}")
     add_test(NAME test_retraso_propio COMMAND test_retraso_propio)
     set_tests_properties(test_retraso_propio PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
     add_executable(test_motor_app tests/test_motor_app.cpp)
     target_link_libraries(test_motor_app PRIVATE ba_motor)
     ba_gst_rpath(test_motor_app "")
-    target_compile_definitions(test_motor_app PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_motor_app PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_app gstbaaudio gstbaipc)
     add_test(NAME test_motor_app COMMAND test_motor_app)
@@ -223,7 +223,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_motor_salidas tests/test_motor_salidas.cpp)
     target_link_libraries(test_motor_salidas PRIVATE ba_motor)
     ba_gst_rpath(test_motor_salidas "")
-    target_compile_definitions(test_motor_salidas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_motor_salidas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_salidas gstbaaudio gstbaipc)
     add_test(NAME test_motor_salidas COMMAND test_motor_salidas)
@@ -233,7 +233,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_motor_sin_esperas tests/test_motor_sin_esperas.cpp)
     target_link_libraries(test_motor_sin_esperas PRIVATE ba_motor)
     ba_gst_rpath(test_motor_sin_esperas "")
-    target_compile_definitions(test_motor_sin_esperas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_motor_sin_esperas PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_motor_sin_esperas gstbaaudio gstbaipc)
     add_test(NAME test_motor_sin_esperas COMMAND test_motor_sin_esperas)
@@ -243,7 +243,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_motor_matriz tests/test_motor_matriz.cpp)
     target_link_libraries(test_motor_matriz PRIVATE ba_motor)
     ba_gst_rpath(test_motor_matriz "")
-    target_compile_definitions(test_motor_matriz PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0")
+    target_compile_definitions(test_motor_matriz PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}")
     add_test(NAME test_motor_matriz COMMAND test_motor_matriz)
     set_tests_properties(test_motor_matriz PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
 
@@ -251,7 +251,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_d3d12_de_a_uno tests/test_d3d12_de_a_uno.cpp)
     target_link_libraries(test_d3d12_de_a_uno PRIVATE ba_motor)
     ba_gst_rpath(test_d3d12_de_a_uno "")
-    target_compile_definitions(test_d3d12_de_a_uno PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_d3d12_de_a_uno PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_test(NAME test_d3d12_de_a_uno COMMAND test_d3d12_de_a_uno)
     set_tests_properties(test_d3d12_de_a_uno PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 300)

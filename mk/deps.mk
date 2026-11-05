@@ -5,7 +5,8 @@
         deps-rostros _ba_baja deps-libvterm deps-fonts deps-cacert deps-pinggy deps-hinchada \
         deps-cloudflared-host deps-chrome-headless deps-fuentes-texto deps-clap deps-python \
         deps-herramientas deps-craft deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 \
-        deps-libdeflate deps-zxing deps-status deps-clean
+        deps-libdeflate deps-zxing deps-estaticas deps-estaticas-mac deps-estaticas-linux deps-estaticas-win \
+        deps-status deps-clean
 
 # ============================================================================
 # Dependencias de terceros (extern/) — descarga reproducible e idempotente
@@ -46,6 +47,7 @@ deps:
 # dependencias y sus .version), no se vuelve a verificar nada (eran ~23 s de
 # sha256 de archivos bajados en cada build). SIN_CACHE=1 verifica todo.
 DEPS_ATAJO = python3 tools/ci/huellas.py atajo --entrada Makefile --entrada mk --entrada versions.cmake --entrada tools/deps \
+	--entrada cmake/estaticas --entrada cmake/mbedtls_user_config.h \
 	--entrada cmake/toolchains --centinelas $(EXTERNS_DIR) --texto "BA_ACCEPT_MSVC_LICENSE=$(BA_ACCEPT_MSVC_LICENSE)"
 
 # Recepcion NDI abierta: libNoIDea + libmicrodns por commit fijado.
@@ -318,6 +320,19 @@ deps-craft:
 # CMakeLists raíz consume vía FetchContent. Con `extern/` poblado, el configure
 # es OFFLINE (prefiere la copia vendored); sin él, cae a git.
 deps-src: deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 deps-libdeflate deps-zxing
+
+# mbedtls, libsamplerate, argon2, libdeflate y zxing-cpp compiladas UNA vez (no en cada
+# build ni en cada worktree): extern/estaticas/<plataforma>-<huella> (cmake/estaticas,
+# tools/deps/estaticas.sh). Sin ellas, la configuración de CMake frena. Si ya están (la
+# misma huella), no hace nada: la llaman `make compilar` y `make test` antes de configurar.
+deps-estaticas: deps-estaticas-$(PLATAFORMA)
+deps-estaticas-mac: deps-src
+	@tools/deps/estaticas.sh macos $(JOBS)
+deps-estaticas-linux: deps-src
+	@tools/deps/estaticas.sh linux $(JOBS)
+deps-estaticas-win: deps-src deps-win-toolchain
+	@tools/deps/estaticas.sh win $(JOBS)
+	@tools/deps/estaticas.sh win-mt $(JOBS)
 
 deps-mbedtls:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }

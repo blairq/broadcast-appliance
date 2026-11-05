@@ -143,134 +143,37 @@ endif()
 # el build sea reproducible y auditable (spec §14 "Versiones fijadas").
 include("${CMAKE_CURRENT_SOURCE_DIR}/versions.cmake")
 
-# --- Dependencias de terceros (FetchContent) --------------------------------
-# Se descargan y compilan dentro del árbol de build (self-contained, sin
-# instalación global). mbedtls es una lib de C, por eso el proyecto declara
-# `LANGUAGES C CXX` arriba. Se declaran ANTES de `add_subdirectory(src/core)`
-# para que los targets `mbedcrypto`/`mbedx50`/`mbedtls` y
-# `nlohmann_json::nlohmann_json` ya existan cuando `ba_core` los enlaza.
+# --- Dependencias de terceros -----------------------------------------------
+# mbedtls, libsamplerate, argon2, libdeflate y zxing-cpp: ya compiladas, de
+# extern/estaticas (make deps-estaticas; ver cmake/BaEstaticas.cmake). Antes de
+# `add_subdirectory(src/core)`: ba_core enlaza mbedcrypto/mbedx509/mbedtls, samplerate
+# y argon2.
+# nlohmann/json (solo headers) sigue por FetchContent: no compila nada.
 include(FetchContent)
-# CMake 4 ya no acepta cmake_minimum_required < 3.5, que es lo que declaran
-# libsamplerate 0.2.2 y otras de terceros (lo trae Homebrew en macOS y lo van
-# a traer los runners). Se les permite configurar con la politica de 3.5.
-if(NOT DEFINED CMAKE_POLICY_VERSION_MINIMUM)
-    set(CMAKE_POLICY_VERSION_MINIMUM 3.5)
-endif()
-FetchContent_Declare(mbedtls
-    GIT_REPOSITORY https://github.com/Mbed-TLS/mbedtls.git
-    GIT_TAG ${MBEDTLS_VERSION})
 FetchContent_Declare(nlohmann_json
     GIT_REPOSITORY https://github.com/nlohmann/json.git
     GIT_TAG ${NLOHMANN_JSON_VERSION})
-# libsamplerate (Secret Rabbit Code, MIT): re-muestreo de audio (spec 7.4).
-# Lib de C pura que compila en Linux y Windows. Target resultante: `samplerate`
-# (alias `SampleRate::samplerate`).
-FetchContent_Declare(libsamplerate
-    GIT_REPOSITORY https://github.com/libsndfile/libsamplerate.git
-    GIT_TAG ${LIBSAMPLERATE_VERSION})
-# Argon2 (referencia P-H-C/phc-winner-argon2, CC0/Apache-2.0): KDF Argon2id
-# para el cifrado de `Config/secrets.json` (spec §12, decisión D7). C pura que
-# compila en Linux y Windows, por eso se trae SIN if(WIN32) (como libsamplerate).
-# ⚠️  El repo NO trae CMakeLists (es Makefile): FetchContent_MakeAvailable solo
-# lo POPULA (baja el código a _deps/argon2-src) y NO crea target. Por eso se
-# arma el target `argon2` a mano justo debajo, con la lista de sources del
-# Makefile oficial (argon2.c core.c ref.c thread.c encoding.c blake2/blake2b.c;
-# `ref.c` es la variante no optimizada por SIMD, la que compila en cualquier
-# gcc/MSVC). Verificado que compila y corre en gcc 13 / Linux.
-FetchContent_Declare(argon2
-    GIT_REPOSITORY https://github.com/P-H-C/phc-winner-argon2.git
-    GIT_TAG ${ARGON2_VERSION})
-# libdeflate (MIT): el gzip de ba-web (src/web). Solo la biblioteca estática.
-FetchContent_Declare(libdeflate
-    URL https://codeload.github.com/ebiggers/libdeflate/tar.gz/refs/tags/v${LIBDEFLATE_VERSION}
-    URL_HASH SHA256=${LIBDEFLATE_SHA256})
-set(LIBDEFLATE_BUILD_SHARED_LIB OFF CACHE BOOL "" FORCE)
-set(LIBDEFLATE_BUILD_GZIP OFF CACHE BOOL "" FORCE)
-set(LIBDEFLATE_BUILD_TESTS OFF CACHE BOOL "" FORCE)
-set(LIBDEFLATE_ZLIB_SUPPORT OFF CACHE BOOL "" FORCE)
-# Compilar mbedtls como lib estática, sin sus tests/programs/examples.
-set(ENABLE_TESTING OFF CACHE BOOL "" FORCE)
-set(ENABLE_PROGRAMS OFF CACHE BOOL "" FORCE)
-set(USE_SHARED_MBEDTLS_LIBRARY OFF CACHE BOOL "" FORCE)
-set(DISABLE_PACKAGE_CONFIG_AND_INSTALL ON CACHE BOOL "" FORCE)
-# Sin autotests de mbedTLS (ver el archivo: evita una carrera en ecp.c).
-set(MBEDTLS_USER_CONFIG_FILE "${CMAKE_SOURCE_DIR}/cmake/mbedtls_user_config.h" CACHE FILEPATH "" FORCE)
-# libsamplerate trae sus propios tests (misc_test, simple_test, ...) que su
-# CMakeLists registra con CTest cuando BUILD_TESTING está ON. Lo forzamos OFF
-# para que no ensucien la lista de tests del proyecto: ctest debe seguir
-# mostrando solo los tests de `ba_core`.
+# Que lo de terceros no registre sus tests con CTest: ctest muestra solo los nuestros.
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
-# MinGW (GCC 13+) emite -Wunterminated-string-initialization para los arrays de
-# labels de tamaño fijo de mbedtls (ssl_tls13_keys.h) y, con -Werror, el build
-# de la lib de terceros falla. mbedtls añade -Werror SOLO cuando
-# MBEDTLS_FATAL_WARNINGS está ON, así que lo desactivamos. Guardado con
-# if(WIN32) para NO tocar el build Linux (ya verde, 18/18), donde el gcc nativo
-# no dispara esa advertencia. Apple clang 21 (Xcode 26) la dispara igual.
-if(WIN32 OR APPLE)
-    set(MBEDTLS_FATAL_WARNINGS OFF CACHE BOOL "" FORCE)
-endif()
 
 # --- Offline-first: preferir las fuentes vendored en extern/ -----------------
-# Si `make deps-src` (o `make deps`) ya pobló extern/ con los árboles de
-# código de terceros, se apunta FetchContent a esa copia local vía
-# FETCHCONTENT_SOURCE_DIR_<NOMBRE> (en mayúsculas) y el configure NO toca la
-# red: es el requisito de producto portable/offline. Si extern/ no está
-# poblado (CI, clon fresco sin `make deps`), se deja el FetchContent_Declare
-# (GIT_REPOSITORY) de arriba como FALLBACK online. NO se borran los Declare ni
-# el target `argon2` de más abajo: solo se sobreescribe la source dir cuando el
-# sentinel de extern/ existe. Con la override, `${argon2_SOURCE_DIR}` resuelve
-# a `extern/argon2` y el target a mano sigue compilando los mismos sources.
+# Si `make deps-src` (o `make deps`) ya pobló extern/nlohmann-json, el configure NO
+# toca la red: es el requisito de producto portable/offline. Si no (clon fresco sin
+# `make deps`), queda el FetchContent_Declare (GIT_REPOSITORY) de arriba.
 set(_BA_EXTERN "${CMAKE_CURRENT_SOURCE_DIR}/extern")
-if(EXISTS "${_BA_EXTERN}/mbedtls/CMakeLists.txt")
-    set(FETCHCONTENT_SOURCE_DIR_MBEDTLS "${_BA_EXTERN}/mbedtls")
-    message(STATUS "mbedtls: usando vendored en extern/ (offline)")
-else()
-    message(STATUS "mbedtls: sin extern/mbedtls: usando git")
-endif()
 if(EXISTS "${_BA_EXTERN}/nlohmann-json/CMakeLists.txt")
     set(FETCHCONTENT_SOURCE_DIR_NLOHMANN_JSON "${_BA_EXTERN}/nlohmann-json")
     message(STATUS "nlohmann_json: usando vendored en extern/ (offline)")
 else()
     message(STATUS "nlohmann_json: sin extern/nlohmann-json: usando git")
 endif()
-if(EXISTS "${_BA_EXTERN}/libsamplerate/CMakeLists.txt")
-    set(FETCHCONTENT_SOURCE_DIR_LIBSAMPLERATE "${_BA_EXTERN}/libsamplerate")
-    message(STATUS "libsamplerate: usando vendored en extern/ (offline)")
-else()
-    message(STATUS "libsamplerate: sin extern/libsamplerate: usando git")
-endif()
-if(EXISTS "${_BA_EXTERN}/libdeflate/CMakeLists.txt")
-    set(FETCHCONTENT_SOURCE_DIR_LIBDEFLATE "${_BA_EXTERN}/libdeflate")
-    message(STATUS "libdeflate: usando vendored en extern/ (offline)")
-else()
-    message(STATUS "libdeflate: sin extern/libdeflate: se baja el tarball")
-endif()
-if(EXISTS "${_BA_EXTERN}/argon2/Makefile")
-    set(FETCHCONTENT_SOURCE_DIR_ARGON2 "${_BA_EXTERN}/argon2")
-    message(STATUS "argon2: usando vendored en extern/ (offline)")
-else()
-    message(STATUS "argon2: sin extern/argon2: usando git")
-endif()
-# Las dependencias son ESTATICAS e internas: sus headers/libs no van en el
-# bundle portable. Algunas (mbedtls) instalan include/ y lib/ aunque se les
-# pida que no, asi que sus reglas de install se mandan a un componente propio
-# ("thirdparty") y `make release` instala solo el del producto ("bundle").
+# Las dependencias son internas: sus headers no van en el bundle portable. Sus
+# reglas de install se mandan a un componente propio ("thirdparty") y `make
+# release` instala solo el del producto ("bundle").
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME thirdparty)
-FetchContent_MakeAvailable(mbedtls nlohmann_json libsamplerate argon2 libdeflate)
+FetchContent_MakeAvailable(nlohmann_json)
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/BaEstaticas.cmake")
 set(CMAKE_INSTALL_DEFAULT_COMPONENT_NAME bundle)
-
-# Target `argon2` a mano (el repo no trae CMakeLists): lib estática con los
-# sources del Makefile oficial. `ref.c` = implementación de referencia (sin
-# SIMD), válida en cualquier plataforma. Los headers públicos viven en
-# include/ (argon2.h) y se propagan como PUBLIC para que `ba_core` los vea.
-add_library(argon2 STATIC
-    ${argon2_SOURCE_DIR}/src/argon2.c
-    ${argon2_SOURCE_DIR}/src/core.c
-    ${argon2_SOURCE_DIR}/src/ref.c
-    ${argon2_SOURCE_DIR}/src/thread.c
-    ${argon2_SOURCE_DIR}/src/encoding.c
-    ${argon2_SOURCE_DIR}/src/blake2/blake2b.c)
-target_include_directories(argon2 PUBLIC ${argon2_SOURCE_DIR}/include)
 
 # --- Config por defecto del build -------------------------------------------
 # Si no se pide nada, vamos a Release (el artefacto portable es Release).
