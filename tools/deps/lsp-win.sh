@@ -38,6 +38,7 @@ LSP_VER=1.2.35
 LSP_SHA=2c95ec7bb219d561ea3db36051b6c732133bcd76426fb836b1dd850dc4b5bb6c
 PHP_VER=8.4.23
 PHP_SHA=1aeed5bc7967977ca5b1da7163acd91bf9ba3ac56037045d4e91ee2ff2712bb7
+PHP_SHA_AARCH64=0978d89157292bcc9268a34a73a4d5d2793f8dff1403b5138a94d2af6b7a09b0
 
 # La versión de LSP más la huella de nuestro módulo (si cambia, se recompila).
 SELLO="$LSP_VER+$("$ROOT/tools/deps/lsp-modulo-propio.sh" --huella)"
@@ -59,8 +60,11 @@ fetch() { # url archivo sha
 # --- PHP estatico (herramienta de build de LSP) ---------------------------------
 PHP="$TOOLS/php/php"
 if ! [ -x "$PHP" ]; then
-    f="$DL/php-$PHP_VER-cli-linux-x86_64.tar.gz"
-    fetch "https://dl.static-php.dev/static-php-cli/common/php-$PHP_VER-cli-linux-x86_64.tar.gz" "$f" "$PHP_SHA"
+    php_arq=x86_64; php_sha="$PHP_SHA"
+    # Compilando desde un Linux arm64 (la validación nativa en Docker): el PHP de aarch64.
+    if [ "$(uname -m)" = aarch64 ]; then php_arq=aarch64; php_sha="$PHP_SHA_AARCH64"; fi
+    f="$DL/php-$PHP_VER-cli-linux-$php_arq.tar.gz"
+    fetch "https://dl.static-php.dev/static-php-cli/common/php-$PHP_VER-cli-linux-$php_arq.tar.gz" "$f" "$php_sha"
     mkdir -p "$TOOLS/php" && tar xzf "$f" -C "$TOOLS/php"
 fi
 

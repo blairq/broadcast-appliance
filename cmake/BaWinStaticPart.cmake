@@ -24,6 +24,7 @@ set(_ba_mt_args
     -DBA_WIN_STATIC_PART=ON
     -DBA_PERFILAR=${BA_PERFILAR}
     -DBA_DIAG_ACOPLES=${BA_DIAG_ACOPLES}
+    -DBA_PERMITIR_INCOMPLETO=${BA_PERMITIR_INCOMPLETO}
     -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
     # Las estáticas de terceros en /MT: extern/estaticas/win-mt-<huella> (cmake/BaEstaticas.cmake).
     -DBA_ESTATICAS_DESDE_FUENTE=${BA_ESTATICAS_DESDE_FUENTE}

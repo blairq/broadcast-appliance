@@ -42,7 +42,7 @@ endforeach()
 # Nada del Linux anfitrion (headers de Vulkan, pkg-config...) puede colarse en
 # un binario de Windows.
 set(CMAKE_IGNORE_PREFIX_PATH /usr /usr/local)
-set(CMAKE_IGNORE_PATH /usr/include /usr/local/include /usr/lib /usr/lib/x86_64-linux-gnu /usr/local/lib)
+set(CMAKE_IGNORE_PATH /usr/include /usr/local/include /usr/lib /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /usr/local/lib)
 set(CMAKE_DISABLE_FIND_PACKAGE_PkgConfig ON)
 set(ENV{PKG_CONFIG_LIBDIR} "/nonexistent")
 

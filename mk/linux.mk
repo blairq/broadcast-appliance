@@ -5,8 +5,11 @@
         deps-chrome-headless-linux deps-craft-linux deps-llamacpp-linux deps-gstreamer-linux release \
         dist-linux dist-linux-tar
 
+# x86_64, o aarch64 en un Linux arm64 (la validación nativa en Docker).
+LINUX_ARQ := $(shell uname -m)
+
 deps-lspdsp-linux:
-	tools/deps/lspdsp.sh linux-x86_64 $(JOBS)
+	tools/deps/lspdsp.sh linux-$(LINUX_ARQ) $(JOBS)
 
 # Todo lo que el build completo de Linux necesita (las bibliotecas de terceros
 # y GStreamer desde fuente, Qt del host, libwebrtc de Linux, fuentes
@@ -28,6 +31,13 @@ deps-linux-todo: deps-terceros-linux deps-qt-host deps-src deps-estaticas-linux 
 deps-terceros-linux:
 	tools/deps/terceros-linux.sh $(JOBS)
 
+# LSP publica el CLAP de Linux solo para x86_64. En arm64 no hay de dónde bajarlo (habría
+# que compilarlo desde la fuente, como en la Mac: no está hecho): se dice y se sigue; CMake
+# lo marca como faltante (ba_falta) y un paquete no se arma así.
+ifneq ($(LINUX_ARQ),x86_64)
+deps-lsp:
+	@echo "[deps] LSP: SALTEADO en linux-$(LINUX_ARQ): el CLAP oficial es solo x86_64 (falta compilarlo desde la fuente)"
+else
 deps-lsp:
 	@command -v 7z >/dev/null 2>&1 || { echo "[deps] ERROR: falta 7z (p7zip) para LSP" >&2; exit 1; }
 	@mkdir -p "$(DL_DIR)"
@@ -57,9 +67,14 @@ deps-lsp:
 	@# de extern/obs-deps-linux también queda apuntando a extern/terceros-linux.
 	@if command -v patchelf >/dev/null 2>&1; then \
 	  patchelf --set-rpath '$$ORIGIN:$$ORIGIN/../../terceros-linux/lib' "$(LSP_DEST)/linux-x86_64/lsp-plugins.clap"; fi
+endif
 
 deps-chrome-headless-linux:
-	tools/deps/chrome-headless.sh linux64
+	@# Chrome for Testing no publica chrome-headless-shell para linux-arm64: se dice y se sigue
+	@# (CMake lo marca como faltante; test_captura_web no tiene con qué).
+	@if [ "$(LINUX_ARQ)" != x86_64 ]; then \
+	  echo "[deps] chrome-headless-shell: SALTEADO en linux-$(LINUX_ARQ): Chrome for Testing no lo publica para Linux arm64"; \
+	else tools/deps/chrome-headless.sh linux64; fi
 
 deps-craft-linux:
 	tools/deps/craft.sh linux

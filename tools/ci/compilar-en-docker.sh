@@ -24,6 +24,17 @@
 #
 # Uso: tools/ci/compilar-en-docker.sh [linux|win|todo]     (por defecto: todo)
 #      BA_DOCKER_BASE=1 tools/ci/compilar-en-docker.sh todo   rehace la base (make docker-base)
+#      BA_DOCKER_ARQ=arm64 tools/ci/compilar-en-docker.sh todo  VALIDA nativo en arm64 (make validar-arm64)
+#
+# ARM64 (BA_DOCKER_ARQ=arm64): en una Mac con Apple Silicon, el contenedor arm64 corre NATIVO
+# (sin Rosetta: varias veces más rápido). Es para VALIDAR una rama (compilar + tests), no para
+# publicar: los paquetes siguen saliendo de x86_64. Linux arm64 se compila y se prueba entero;
+# Windows se compila con el cruzado de host arm64 (llvm-mingw y xwin de aarch64, el Qt del
+# host linux_arm64) y sus tests corren bajo Wine en un contenedor x86_64 (Rosetta) sobre la
+# misma capa: Wine es lo único emulado. Lo que no tiene par arm64 (chrome-headless-shell,
+# el CLAP oficial de LSP, hinchada, gst-python de Windows) se saltea diciendo por qué y queda en
+# la lista de faltantes de CMake (INCOMPLETO=1: BA_PERMITIR_INCOMPLETO). Volumen, caché de
+# ccache, imagen y capas propios (ba-trabajo-arm64, ba-ccache-arm64, ba-compilar-arm64).
 #      DOCKER="limactl shell colima sudo docker" ...        si no hay `docker`
 #
 # Si no cambió nada, casi nada se rehace, y cada paso dice qué salteó y por qué
@@ -54,6 +65,12 @@ QUE="${1:-todo}"
 log() { echo "[compilar-en-docker] $*" >&2; }
 morir() { echo "[compilar-en-docker] ERROR: $*" >&2; exit 1; }
 case "$QUE" in linux|win|todo) ;; *) morir "uso: $0 [linux|win|todo]" ;; esac
+ARQ="${BA_DOCKER_ARQ:-amd64}"
+case "$ARQ" in
+    amd64) VOLUMEN=ba-trabajo; CCACHE_VOL=ba-ccache; IMAGEN=ba-compilar; SUF_ARQ=""; VALIDAR=0 ;;
+    arm64) VOLUMEN=ba-trabajo-arm64; CCACHE_VOL=ba-ccache-arm64; IMAGEN=ba-compilar-arm64; SUF_ARQ="-arm64"; VALIDAR=1 ;;
+    *) morir "BA_DOCKER_ARQ: amd64 o arm64 (no «$ARQ»)" ;;
+esac
 
 if [ -z "${DOCKER:-}" ]; then
     if command -v docker >/dev/null 2>&1; then DOCKER=docker
@@ -78,7 +95,7 @@ MODO=capa
 CANDADOS="${BA_DOCKER_CANDADOS:-$HOME/.cache/broadcast-appliance/docker}"
 mkdir -p "$CANDADOS/corridas"
 # El nombre de la capa: el worktree (su carpeta) y la plataforma. BA_DOCKER_CAPA lo fija.
-CAPA="${BA_DOCKER_CAPA:-$(basename "$ROOT")-$QUE}"
+CAPA="${BA_DOCKER_CAPA:-$(basename "$ROOT")-$QUE$SUF_ARQ}"
 CAPA="$(printf '%s' "$CAPA" | tr -c 'A-Za-z0-9._-' '_')"
 
 vivo() { [ -n "$1" ] && kill -0 "$1" 2>/dev/null; }
@@ -130,7 +147,7 @@ al_salir() {
 trap al_salir EXIT
 
 if [ "$MODO" = base ]; then
-    tomar "$CANDADOS/base" "la base"; TOMADOS+=("$CANDADOS/base")
+    tomar "$CANDADOS/base$SUF_ARQ" "la base"; TOMADOS+=("$CANDADOS/base$SUF_ARQ")
     echo $$ >"$CANDADOS/corridas/$$"
     avisado=0
     while [ "$(otras_corridas)" != 0 ]; do
@@ -143,8 +160,8 @@ else
     # a que esta corrida termine (ve su pid en corridas/).
     while true; do
         echo $$ >"$CANDADOS/corridas/$$"
-        otro="$(cat "$CANDADOS/base/pid" 2>/dev/null || true)"
-        if [ -d "$CANDADOS/base" ] && vivo "$otro"; then
+        otro="$(cat "$CANDADOS/base$SUF_ARQ/pid" 2>/dev/null || true)"
+        if [ -d "$CANDADOS/base$SUF_ARQ" ] && vivo "$otro"; then
             rm -f "$CANDADOS/corridas/$$"
             log "se está rehaciendo la base (pid $otro): espero"
             sleep 10
@@ -188,13 +205,18 @@ fi
 # Un registro por corrida en dist/logs/ (ignorado por git): todo lo que sale por la
 # terminal, para ver después qué falló y dónde se fue el tiempo. Los registros de los
 # tests que fallaron quedan al lado, en dist/logs/<corrida>/.
-CORRIDA="$(date +%Y%m%d-%H%M%S)-$QUE-$(git rev-parse --short HEAD)"
+CORRIDA="$(date +%Y%m%d-%H%M%S)-$QUE$SUF_ARQ-$(git rev-parse --short HEAD)"
 mkdir -p "$ROOT/dist/logs"
 exec > >(tee -a "$ROOT/dist/logs/$CORRIDA.log") 2>&1
 log "registro de esta corrida: dist/logs/$CORRIDA.log"
 
-log "imagen ba-compilar (Ubuntu 24.04 x86_64)"
-d build -q --platform linux/amd64 -t ba-compilar -f "$ROOT/tools/ci/compilar.Dockerfile" "$ROOT/tools/ci" >/dev/null
+log "imagen $IMAGEN (Ubuntu 24.04 $ARQ)"
+d build -q --platform "linux/$ARQ" -t "$IMAGEN" -f "$ROOT/tools/ci/compilar.Dockerfile" "$ROOT/tools/ci" >/dev/null
+# Los tests de Windows de la validación arm64 corren bajo Wine (solo x86_64): en la imagen x86_64.
+if [ "$ARQ" = arm64 ] && [ "$QUE" != linux ]; then
+    log "imagen ba-compilar (Ubuntu 24.04 amd64, para Wine)"
+    d build -q --platform linux/amd64 -t ba-compilar -f "$ROOT/tools/ci/compilar.Dockerfile" "$ROOT/tools/ci" >/dev/null
+fi
 
 if [ "$MODO" = base ]; then
     MASTER="$(git rev-parse master 2>/dev/null || true)"
@@ -202,17 +224,36 @@ if [ "$MODO" = base ]; then
         morir "la base es master: este commit ($(git rev-parse --short HEAD)) no es master (FORZAR=1 para otro)"
     [ "$QUE" = todo ] || morir "la base se arma con las dos plataformas (todo)"
 fi
-log "compilando $QUE en el commit $(git rev-parse --short HEAD) ($([ "$MODO" = base ] && echo "la BASE" || echo "capa $CAPA"))"
+log "$([ "$VALIDAR" = 1 ] && echo validando || echo compilando) $QUE ($ARQ) en el commit $(git rev-parse --short HEAD) ($([ "$MODO" = base ] && echo "la BASE" || echo "capa $CAPA"))"
 # --privileged: montar la capa (overlayfs) adentro del contenedor. tools/ci/capa-docker.sh
 # arma /trabajo/ba (la base o la capa), trae el commit y corre tools/ci/receta-docker.sh.
-d run --rm --platform linux/amd64 --privileged \
-    -v ba-trabajo:/trabajo -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" $MONTAR_SIMBOLOS \
+# Un contenedor sobre la capa (o la base): correr <arquitectura> <imagen> <etapa>. La etapa
+# «todo» es la receta entera; «tests-win», solo los tests de Windows bajo Wine (validación arm64).
+correr() {
+    d run --rm --platform "linux/$1" --privileged \
+    -v "$VOLUMEN:/trabajo" -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" $MONTAR_SIMBOLOS \
     -v "$ROOT/tools/ci/capa-docker.sh:/capa-docker.sh:ro" \
-    -v ba-ccache:/ccache -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
-    -e MODO="$MODO" -e CAPA="$CAPA" \
+    -v "$CCACHE_VOL:/ccache" -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
+    -e MODO="$MODO" -e CAPA="$CAPA" -e VALIDAR="$VALIDAR" -e ETAPA="$3" -e INCOMPLETO="$VALIDAR" \
     -e SHA="$SHA" -e QUE="$QUE" -e CORRIDA="$CORRIDA" -e PERFILAR="${PERFILAR:-0}" -e DIAG_ACOPLES="${DIAG_ACOPLES:-1}" \
     -e SIN_CACHE="${SIN_CACHE:-0}" -e SIMBOLOS="${SIMBOLOS:-0}" -e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
     -e TESTS_SIN_LENTOS="${TESTS_SIN_LENTOS:-0}" ${TESTS_WIN_JOBS:+-e TESTS_WIN_JOBS="$TESTS_WIN_JOBS"} ${TESTS_JOBS:+-e TESTS_JOBS="$TESTS_JOBS"} \
     ${PYTEST_ARGS:+-e PYTEST_ARGS="$PYTEST_ARGS"} \
-    ba-compilar bash /capa-docker.sh
-log "listo: $(ls "$ROOT"/dist/*-linux-x64.tar.gz "$ROOT"/dist/*-windows-x64.zip 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
+    "$2" bash /capa-docker.sh
+}
+rc=0
+correr "$ARQ" "$IMAGEN" todo || rc=$?
+# Validación arm64 de Windows: lo compilado (nativo) se prueba bajo Wine en x86_64, en la misma
+# capa. Si no compiló (rc ni 0 ni 3), no hay qué probar.
+if [ "$ARQ" = arm64 ] && [ "$QUE" != linux ] && { [ "$rc" = 0 ] || [ "$rc" = 3 ]; }; then
+    log "tests de Windows bajo Wine (contenedor x86_64, Rosetta) sobre la capa $CAPA"
+    rc_w=0
+    correr amd64 ba-compilar tests-win || rc_w=$?
+    [ "$rc_w" = 0 ] || rc="$rc_w"
+fi
+if [ "$VALIDAR" = 1 ]; then
+    log "validación $ARQ terminada (rc=$rc): compilar + tests, sin paquetes"
+else
+    log "listo: $(ls "$ROOT"/dist/*-linux-x64.tar.gz "$ROOT"/dist/*-windows-x64.zip 2>/dev/null | xargs -n1 basename | tr '\n' ' ')"
+fi
+exit "$rc"

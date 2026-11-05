@@ -160,9 +160,17 @@ deps-gstreamer-win-pdb: deps-gstreamer-win
 
 # Los bindings de Python de GStreamer para el Python 3.12 de Windows (clang-cl, meson bajo Wine).
 .PHONY: deps-gst-python-win
+ifeq ($(shell uname -m),aarch64)
+# Se arman corriendo el Python de Windows bajo Wine, y Wine es solo x86_64: desde un host
+# arm64 (la validación nativa en Docker) no se puede. Se dice y se sigue (CMake lo marca
+# como faltante); el paquete que se publica sale del host x86_64, que sí los arma.
+deps-gst-python-win:
+	@echo "[deps] gst-python (Windows): SALTEADO en un host aarch64: se arma bajo Wine, que es solo x86_64"
+else
 deps-gst-python-win: deps-gstreamer-win deps-python-win deps-win-toolchain
 	bash tools/ci/test-win.sh --solo-wine
 	bash tools/deps/gst-python-win.sh "$(DL_DIR)"
+endif
 
 win: deps-win
 	@$(CONFIGURAR) $(WIN_BUILD_DIR) $(BA_CMAKE_PERFIL) -G Ninja \

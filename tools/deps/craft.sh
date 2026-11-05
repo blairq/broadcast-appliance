@@ -13,7 +13,7 @@
 #   - macOS: el zip «-cli-…-macos-universal» (solo la CLI); se deja solo la parte
 #     de Apple Silicon (lipo -thin arm64): la mitad de tamaño.
 #   - Windows: el portable x64 trae la CLI aparte (<app>-cli.exe).
-#   - Linux: el tarball x86_64 trae bin/<app>-cli.
+#   - Linux: el tarball x86_64 (o aarch64, en un Linux arm64) trae bin/<app>-cli.
 #
 # Uso: tools/deps/craft.sh [mac|win|linux|todo]   -> extern/craft/<plataforma>/
 # ============================================================================
@@ -24,11 +24,11 @@ DL="$ROOT/extern/.downloads/craft"
 OUT="$ROOT/extern/craft"
 QUE="${1:-todo}"
 
-# app versión sha256(mac-cli) sha256(windows-x64-portable) sha256(linux-x86_64)
+# app versión sha256(mac-cli) sha256(windows-x64-portable) sha256(linux-x86_64) sha256(linux-aarch64)
 APPS=(
-  "wordcraft 0.11.0 dc6815a57a06fc5a5e4aa777f074a4d8d8010ec4ff813d00b6e2c13559aa7bcf 761a832f91a4bedcfacc62126ac31f78d5172fa10932b55bb6a587c797e38bea 034c247bf6dab172a2edfb0767de9065125b857826c6915f7ef39b9f43951d5a"
-  "deckcraft 0.11.1 02ef9ea0600499b36036a4a4426f6903e86a24748705c72e8c8ad73da03a1ab6 8123f1eceb048b60f34b8cbe3ee49048c96b713c8354022a98485267a7f9a386 7bf57a10a4fcf7673ecb669b64e0e545475780ef3e4ee6bf603aeb00f544e69c"
-  "gridcraft 0.12.1 23a0b7b4c2bcb92fb9ba2967d0b50608d98f731601ef653ade645d010f1215ea 4e478a735736281704c8362d95964eaaa6071331851d609367d33245531ab7c8 1c1750dd6d26376cf8c8af22b46dc0ed3d8d5cbb115e555f0fc7d0cf7a9aea9a"
+  "wordcraft 0.11.0 dc6815a57a06fc5a5e4aa777f074a4d8d8010ec4ff813d00b6e2c13559aa7bcf 761a832f91a4bedcfacc62126ac31f78d5172fa10932b55bb6a587c797e38bea 034c247bf6dab172a2edfb0767de9065125b857826c6915f7ef39b9f43951d5a a373495928e81be5184a8a94e55db1ed14a3ad1e61b4a13f473d20255f391fc6"
+  "deckcraft 0.11.1 02ef9ea0600499b36036a4a4426f6903e86a24748705c72e8c8ad73da03a1ab6 8123f1eceb048b60f34b8cbe3ee49048c96b713c8354022a98485267a7f9a386 7bf57a10a4fcf7673ecb669b64e0e545475780ef3e4ee6bf603aeb00f544e69c 16c6a05587aca978a9a75569f19ca60ceaf94215fa42219a8d2781e356c8b865"
+  "gridcraft 0.12.1 23a0b7b4c2bcb92fb9ba2967d0b50608d98f731601ef653ade645d010f1215ea 4e478a735736281704c8362d95964eaaa6071331851d609367d33245531ab7c8 1c1750dd6d26376cf8c8af22b46dc0ed3d8d5cbb115e555f0fc7d0cf7a9aea9a 65465f9077fa1490bc6835515ed7dfbc562b5dfe417493c6c1c07838b149ffab"
 )
 
 log() { echo "[craft] $*"; }
@@ -54,7 +54,7 @@ plataforma() {
     trap 'rm -rf "$tmp"' RETURN
     mkdir -p "$destino/licencias"
     for linea in "${APPS[@]}"; do
-        read -r app ver sha_mac sha_win sha_linux <<<"$linea"
+        read -r app ver sha_mac sha_win sha_linux sha_linux_arm <<<"$linea"
         local base="https://github.com/storytold/$app/releases/download/v$ver"
         local marca="$destino/.$app-$ver"
         if [ -f "$marca" ]; then log "$plat: $app $ver ya está"; continue; fi
@@ -81,8 +81,9 @@ plataforma() {
                 cp "$d/$app-cli.exe" "$destino/"
                 ;;
             linux)
-                local z="$app-$ver-linux-x86_64.tar.gz"
-                bajar "$base/$z" "$z" "$sha_linux"
+                local z="$app-$ver-linux-x86_64.tar.gz" s="$sha_linux"
+                if [ "$(uname -m)" = aarch64 ]; then z="$app-$ver-linux-aarch64.tar.gz" s="$sha_linux_arm"; fi
+                bajar "$base/$z" "$z" "$s"
                 tar -xzf "$DL/$z" -C "$tmp/x"
                 local b; b="$(find "$tmp/x" -path "*/bin/$app-cli" -type f | head -1)"
                 [ -n "$b" ] || { echo "ERROR: $z no trae bin/$app-cli" >&2; exit 1; }

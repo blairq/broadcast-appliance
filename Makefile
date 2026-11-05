@@ -45,11 +45,17 @@ PERFILAR ?= 0
 # prendido (desarrollo y pruebas); lo que se publica (paquetes, paquete-*, publicar*)
 # sale sin él. Explícito siempre, como PERFILAR: no se hereda del caché de CMake.
 DIAG_ACOPLES ?= 1
+# INCOMPLETO=1: configurar aunque falte una parte del programa (BA_PERMITIR_INCOMPLETO): solo
+# la validación nativa arm64 en Docker (lo que no tiene par arm64 queda en la lista de
+# faltantes). Explícito siempre: un build no hereda el permiso del caché.
+INCOMPLETO ?= 0
 BA_CMAKE_PERFIL = -DBA_PERFILAR=$(if $(filter 1,$(PERFILAR)),ON,OFF) \
-	-DBA_DIAG_ACOPLES=$(if $(filter 0,$(DIAG_ACOPLES)),OFF,ON)
+	-DBA_DIAG_ACOPLES=$(if $(filter 0,$(DIAG_ACOPLES)),OFF,ON) \
+	-DBA_PERMITIR_INCOMPLETO=$(if $(filter 1,$(INCOMPLETO)),ON,OFF)
 BA_SUFIJO = $(if $(filter 1,$(PERFILAR)),-perfil,)
 export PERFILAR
 export DIAG_ACOPLES
+export INCOMPLETO
 
 # El almacén de símbolos (para leer los volcados: tools/caidas/analizar.py) es UNO por
 # máquina: dist/simbolos del árbol principal, también desde un worktree (cada worktree

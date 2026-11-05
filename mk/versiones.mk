@@ -46,7 +46,14 @@ QT6_SHA      := b619facf32ebdb756915ac7114d658ba3d251d6fb2deb0d1c281932310304e47
 
 # libwebrtc M123 (Shiguredo). El zip/tar trae un top-dir `webrtc/` con
 # include/ + lib/; se extrae sobre extern/ -> extern/webrtc/{include,lib}.
-ifeq ($(BA_WEBRTC_TARGET),linux)
+ifeq ($(BA_WEBRTC_TARGET)-$(shell uname -m),linux-aarch64)
+  # Linux arm64 (la validación nativa en Docker sobre Apple Silicon): el mismo M123, armv8.
+  WEBRTC_URL := https://github.com/shiguredo-webrtc-build/webrtc-build/releases/download/$(WEBRTC_TAG)/webrtc.ubuntu-22.04_armv8.tar.gz
+  WEBRTC_SHA := ab4fc1e6bd3c8698727475e0a6b02f090bdd8b4c0ecc7255b59e580a39afb83a
+  WEBARC     := $(DL_DIR)/webrtc.ubuntu-22.04_armv8.tar.gz
+  WEB_KIND   := tar
+  WEB_LIB    := libwebrtc.a
+else ifeq ($(BA_WEBRTC_TARGET),linux)
   WEBRTC_URL := https://github.com/shiguredo-webrtc-build/webrtc-build/releases/download/$(WEBRTC_TAG)/webrtc.ubuntu-22.04_x86_64.tar.gz
   WEBRTC_SHA := 5858e94f14d11da0612b24bd139664281db8e2278885587ef0d2ca614fb9d693
   WEBARC     := $(DL_DIR)/webrtc.ubuntu-22.04_x86_64.tar.gz
@@ -277,6 +284,7 @@ ORT_VER := 1.20.1
 ORT_LINUX_SHA := 67db4dc1561f1e3fd42e619575c82c601ef89849afc7ea85a003abbac1a1a105
 ORT_WIN_SHA   := 78d447051e48bd2e1e778bba378bec4ece11191c9e538cf7b2c4a4565e8f5581
 ORT_MAC_SHA   := b678fc3c2354c771fea4fba420edeccfba205140088334df801e7fc40e83a57a
+ORT_LINUX_ARM64_SHA := ae4fedbdc8c18d688c01306b4b50c63de3445cdf2dbd720e01a2fa3810b8106a
 ZOO := https://github.com/opencv/opencv_zoo/raw/main/models
 YUNET_URL := $(ZOO)/face_detection_yunet/face_detection_yunet_2023mar.onnx
 YUNET_SHA := 8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4
@@ -296,6 +304,9 @@ ifeq ($(BA_ORT_TARGET),windows)
 else ifeq ($(BA_ORT_TARGET),macos)
   ORT_PKG := onnxruntime-osx-arm64-$(ORT_VER).tgz
   ORT_SHA := $(ORT_MAC_SHA)
+else ifeq ($(shell uname -m),aarch64)
+  ORT_PKG := onnxruntime-linux-aarch64-$(ORT_VER).tgz
+  ORT_SHA := $(ORT_LINUX_ARM64_SHA)
 else
   ORT_PKG := onnxruntime-linux-x64-$(ORT_VER).tgz
   ORT_SHA := $(ORT_LINUX_SHA)
@@ -342,6 +353,8 @@ PY_TGZ_macos-arm64 := cpython-$(PY_VER)+$(PY_REL)-aarch64-apple-darwin-install_o
 PY_SHA_macos-arm64 := 10cab8f6ed6202fdd81637aa6eda4af8d5b7eaa8fc42f9df3c6bea4923de0d93
 PY_TGZ_linux-x64 := cpython-$(PY_VER)+$(PY_REL)-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz
 PY_SHA_linux-x64 := 7bb1659e3235077b7f63d5b6eb6ce653c6fcd6c5041e9d5f73b42ce10421464d
+PY_TGZ_linux-arm64 := cpython-$(PY_VER)+$(PY_REL)-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz
+PY_SHA_linux-arm64 := 0b35f4dc08d58534eb82e024989e2db9873885dccd4f2a316ff55c0cec146123
 PY_TGZ_win-x64 := cpython-$(PY_VER)+$(PY_REL)-x86_64-pc-windows-msvc-install_only_stripped.tar.gz
 PY_SHA_win-x64 := 52124cee54126f3f360eaa378288f6f64c402c983a3c14c95eff67f4af986aaa
 

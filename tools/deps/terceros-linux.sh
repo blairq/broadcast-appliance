@@ -164,10 +164,12 @@ if ! done_mark x264; then
 fi
 if ! done_mark libva; then
   d=$(fetch libva); log "libva (cargador; drivers del sistema)"
-  # Los drivers VA viven en rutas distintas segun la distro: se buscan en todas.
+  # Los drivers VA viven en rutas distintas segun la distro: se buscan en todas. La de
+  # Debian/Ubuntu lleva la arquitectura (x86_64-linux-gnu, aarch64-linux-gnu).
+  multiarch="$(gcc -print-multiarch 2>/dev/null || true)"; multiarch="${multiarch:-x86_64-linux-gnu}"
   meson setup "$d/build" "$d" --prefix="$PREFIX" --libdir=lib --buildtype=release \
     -Dwith_x11=no -Dwith_glx=no -Dwith_wayland=no -Ddisable_drm=false -Denable_docs=false \
-    -Ddriverdir="/usr/lib/x86_64-linux-gnu/dri:/usr/lib64/dri:/usr/lib/dri:/usr/local/lib/dri" \
+    -Ddriverdir="/usr/lib/$multiarch/dri:/usr/lib64/dri:/usr/lib/dri:/usr/local/lib/dri" \
     -Dc_link_args="$LDFLAGS" >/dev/null
   ninja -C "$d/build" >/dev/null && ninja -C "$d/build" install >/dev/null
   mark libva

@@ -27,7 +27,12 @@ PLAT="${1:?uso: llamacpp-lib.sh win|linux|mac}"
 VER="b11255"
 case "$PLAT" in
     win)   ARCH="llama-$VER-bin-win-vulkan-x64.zip"; SHA="3dae91806111ac4a464fb5a6db45188ba870a7e89bfa0a203750115fcef20a31" ;;
-    linux) ARCH="llama-$VER-bin-ubuntu-vulkan-x64.tar.gz"; SHA="751edacb2ec7d2cf4cfe2ecb5e931b71e1b4df6e8a199147fe303f803fa546a5" ;;
+    linux)
+        if [ "$(uname -m)" = aarch64 ]; then  # Linux arm64 (la validación nativa en Docker)
+            ARCH="llama-$VER-bin-ubuntu-vulkan-arm64.tar.gz"; SHA="5eae61373a691e5f2f376d1fdfb9170ad0c9d4d6e4c71ccb070fdef90ade0bf1"
+        else
+            ARCH="llama-$VER-bin-ubuntu-vulkan-x64.tar.gz"; SHA="751edacb2ec7d2cf4cfe2ecb5e931b71e1b4df6e8a199147fe303f803fa546a5"
+        fi ;;
     mac)   ARCH="llama-$VER-bin-macos-arm64.tar.gz"; SHA="108c641ea8a279e046faddc6f38b7b24736f83f70a3e33c71eafc8d7bebeb777" ;;
     *) echo "plataforma: win, linux o mac" >&2; exit 2 ;;
 esac

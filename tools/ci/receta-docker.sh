@@ -13,6 +13,10 @@
 #
 # Variables (las pone compilar-en-docker.sh): SHA QUE CORRIDA PERFILAR SIN_CACHE T0
 # PYTEST_ARGS (argumentos de más para pytest, p. ej. un --deselect para medir).
+# VALIDAR=1 (la validación nativa arm64): compilar y probar, sin paquetes (ni .tar.gz, ni .zip,
+# ni release/), con INCOMPLETO=1 (lo que no tiene par arm64 queda en la lista de faltantes).
+# ETAPA=tests-win: solo los tests de Windows bajo Wine (el contenedor x86_64 de la validación
+# arm64, sobre lo que compiló el arm64); en un host arm64 la receta de Windows no los corre.
 # ============================================================================
 set -euo pipefail
 cd /trabajo/ba
@@ -33,6 +37,9 @@ find build -name core -type f -size +1M -delete 2>/dev/null || true
 etapa "checkout"
 
 J=$(nproc)
+VALIDAR="${VALIDAR:-0}"
+ETAPA="${ETAPA:-todo}"
+[ "$VALIDAR" = 1 ] && echo "[compilar-en-docker] VALIDAR=1 ($(uname -m)): compilar + tests, sin paquetes; INCOMPLETO=${INCOMPLETO:-0}"
 # Solo los paquetes de ESTA versión: el volumen guarda los de versiones viejas y el
 # comodín sin versión los volvía a copiar a dist/.
 VER=$(sed -n "/^project(/,/)/s/.*VERSION \([0-9.]*\).*/\1/p" CMakeLists.txt | head -1)
@@ -78,6 +85,22 @@ python3 tools/ci/huellas.py atajo --nombre "pip install (requirements-dev.lock)"
     .venv/bin/pip install -q -r requirements-dev.lock
 etapa "venv (pip install)"
 
+# Solo los tests de Windows bajo Wine (validación arm64: el contenedor x86_64).
+if [ "$ETAPA" = tests-win ]; then
+    tests_win=0
+    touch /tmp/inicio-de-etapa
+    make -o deps-win -o win test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
+    if [ "$tests_win" != 0 ]; then
+        mkdir -p "/salida/logs/$CORRIDA"
+        awk '$1 != "0" && $1 != "77" { print $4 }' build/win/wine-logs/.resultados 2>/dev/null |
+            while read -r r; do cp "$r" "/salida/logs/$CORRIDA/"; done
+        echo "[compilar-en-docker] registros de lo que falló: dist/logs/$CORRIDA/"
+    fi
+    etapa "tests bajo Wine (x86_64, con caché)"
+    [ "$tests_win" = 0 ] || exit 3
+    exit 0
+fi
+
 if [ "$QUE" != win ]; then
     make deps-linux JOBS=$J
     etapa "deps-linux"
@@ -98,6 +121,8 @@ if [ "$QUE" != win ]; then
         --deselect tests/test_cpp_tests.py::test_cpp_binary_runs_clean ${PYTEST_ARGS:-} \
         || { guardar_registros build/.cache-pytest/registros; exit 1; }
     etapa "pytest (con caché)"
+fi
+if [ "$QUE" != win ] && [ "$VALIDAR" != 1 ]; then
     make -o compilado-release dist-linux JOBS=$J PERFILAR=$PERFILAR
     etapa "dist-linux (instalar, strip, manifest, tar)"
     for f in dist/*-$VER-linux-x64$SUF.tar.gz; do llevar "$f"; done
@@ -120,6 +145,11 @@ if [ "$QUE" != linux ]; then
     etapa "deps-win"
     compilar_si_cambio "compilar (win)" build/win -o deps-win win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
     etapa "compilar (win)"
+    if [ "$VALIDAR" = 1 ]; then
+        # Los tests bajo Wine, en el contenedor x86_64 (compilar-en-docker.sh, ETAPA=tests-win).
+        echo "[compilar-en-docker] Windows compilado en $(uname -m); los tests van bajo Wine en x86_64"
+        exit 0
+    fi
     # Los tests de Windows corren bajo Wine. En una Mac, Wine va encima de
     # Rosetta y se cae de vez en cuando (rc 133) en tests que en el runner del
     # CI pasan: cada corrida, uno distinto. Por eso un fallo aca NO frena el

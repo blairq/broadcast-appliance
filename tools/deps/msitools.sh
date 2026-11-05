@@ -38,6 +38,8 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 DL="$ROOT/extern/.downloads"
 OUT="$ROOT/extern/msitools"
 BASE="http://archive.ubuntu.com/ubuntu/pool"
+# arm64 (la validación nativa en Docker sobre Apple Silicon): los mismos paquetes, de ports.
+BASE_ARM="http://ports.ubuntu.com/ubuntu-ports/pool"
 
 log()  { printf '\033[36m[msitools]\033[0m %s\n' "$*"; }
 morir() { printf '\033[31m[msitools] ERROR:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -49,6 +51,16 @@ PAQUETES=(
   "libgcab-1.0-0_1.6-1build2_amd64.deb|$BASE/universe/g/gcab/libgcab-1.0-0_1.6-1build2_amd64.deb|b2ad7b79882a6c15192b88b039eac9ee29c94cd24197baa1caa8acb1169008fa"
   "libgsf-1-114_1.14.51-2ubuntu0.1_amd64.deb|$BASE/main/libg/libgsf/libgsf-1-114_1.14.51-2ubuntu0.1_amd64.deb|fa61257611e56ecbf75f42de477016fbb3792bfce9c837232254bdb0a2820b26"
 )
+MULTIARCH=x86_64-linux-gnu
+if [ "$(uname -m)" = aarch64 ]; then
+PAQUETES=(
+  "msitools_0.103+repack-1build3_arm64.deb|$BASE_ARM/universe/m/msitools/msitools_0.103%2brepack-1build3_arm64.deb|4638779a9de5daefcc6107914ca8b61b163f5202db2f0834120b03c4bc71d8e6"
+  "libmsi-1.0-0_0.103+repack-1build3_arm64.deb|$BASE_ARM/universe/m/msitools/libmsi-1.0-0_0.103%2brepack-1build3_arm64.deb|97944a7f4e5ed5c50afe86b5dfa6b892ec9fd5a72126ff1205cb89ba2059ecff"
+  "libgcab-1.0-0_1.6-1build2_arm64.deb|$BASE_ARM/universe/g/gcab/libgcab-1.0-0_1.6-1build2_arm64.deb|3f6f3768b63e3635138762ba02fa3d2139226eab22cb1f4256e2d3450b559825"
+  "libgsf-1-114_1.14.51-2ubuntu0.1_arm64.deb|$BASE_ARM/main/libg/libgsf/libgsf-1-114_1.14.51-2ubuntu0.1_arm64.deb|da9e515f1bdbcedba037a5af8e27523af32ec6e2e265337c92f2bd8d51e17883"
+)
+MULTIARCH=aarch64-linux-gnu
+fi
 
 bajar() { # nombre url sha
     local f="$DL/$1"
@@ -99,13 +111,13 @@ cp -a "$tmp/usr" "$OUT/"
 
 # El envoltorio: sin esto el binario busca libmsi en el sistema, que es
 # exactamente lo que estamos evitando.
-cat > "$OUT/msiextract" <<'ENV'
+cat > "$OUT/msiextract" <<ENV
 #!/usr/bin/env bash
 # Envoltorio: apunta el binario a las bibliotecas de extern/, no a las del
 # sistema. Ver tools/deps/msitools.sh.
-aca="$(cd "$(dirname "$0")" && pwd)"
-export LD_LIBRARY_PATH="$aca/usr/lib/x86_64-linux-gnu${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
-exec "$aca/usr/bin/msiextract" "$@"
+aca="\$(cd "\$(dirname "\$0")" && pwd)"
+export LD_LIBRARY_PATH="\$aca/usr/lib/$MULTIARCH\${LD_LIBRARY_PATH:+:\$LD_LIBRARY_PATH}"
+exec "\$aca/usr/bin/msiextract" "\$@"
 ENV
 chmod +x "$OUT/msiextract"
 
