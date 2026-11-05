@@ -2109,6 +2109,12 @@ endif()
     find_package(Threads REQUIRED)
     target_link_libraries(test_buzon_salidas PRIVATE Threads::Threads)
     add_test(NAME test_buzon_salidas COMMAND test_buzon_salidas)
+    # Las altas en el motor (fuentes, micrófonos, invitados, renombrar) responden con el alta
+    # ya en la foto: una vuelta del motor, una sola por lote, nunca desde la interfaz.
+    add_executable(test_altas_en_la_foto tests/test_altas_en_la_foto.cpp)
+    target_include_directories(test_altas_en_la_foto PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_altas_en_la_foto PRIVATE Threads::Threads)
+    add_test(NAME test_altas_en_la_foto COMMAND test_altas_en_la_foto)
     # Qué avisa la foto del motor: lo que se rearma con otra parte se compara con la suya.
     add_executable(test_foto_partes tests/test_foto_partes.cpp)
     target_include_directories(test_foto_partes PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

@@ -146,6 +146,50 @@ int main() {
         CHECK(f && (*f)["entradas"].contains("mic") && (*f)["entradas"]["mic"].value("audio", false),
               "después de esperarCola, la foto ya tiene la entrada nueva con audio");
     }
+    // LAS OTRAS ALTAS, con el mismo contrato (arranque/AltasEnLaFoto en la app):
+    //  - una fuente de escena (no global) con video y audio (RepositorioEscenas::addSource);
+    //  - varias seguidas y UNA sola espera al final (subir el cupo de invitados: su audio y su
+    //    video; copiar una escena con sus fuentes: AltasEnLaFoto::Lote);
+    //  - renombrar, que en el motor es una entrada nueva con el nombre nuevo y sacar la vieja
+    //    (EscenasYFuentes::renameSource).
+    std::thread([&m]() {
+        m.agregarEntrada("camara",
+                         json{{"pipeline", "videotestsrc is-live=true pattern=ball"},
+                              {"pipeline_audio", "audiotestsrc is-live=true wave=silence"}},
+                         {{"global", false}});
+        m.esperarCola();
+    }).join();
+    {
+        const auto f = m.instantanea();
+        CHECK(f && (*f)["entradas"].contains("camara") && (*f)["entradas"]["camara"].value("audio", false),
+              "una fuente de escena: después de esperarCola, la foto ya la tiene, con audio");
+    }
+    std::thread([&m]() {
+        for (int lugar = 1; lugar <= 4; ++lugar)
+            m.agregarEntrada("invitado" + std::to_string(lugar),
+                             json{{"pipeline_audio", "audiotestsrc is-live=true wave=silence"}}, {{"global", true}});
+        m.esperarCola(); // una sola, al final del lote
+    }).join();
+    {
+        const auto f = m.instantanea();
+        int conAudio = 0;
+        for (int lugar = 1; lugar <= 4; ++lugar) {
+            const std::string n = "invitado" + std::to_string(lugar);
+            if (f && (*f)["entradas"].contains(n) && (*f)["entradas"][n].value("audio", false)) ++conAudio;
+        }
+        CHECK(conAudio == 4, "cuatro altas seguidas y una sola espera: la foto ya tiene las cuatro, con audio");
+    }
+    std::thread([&m]() {
+        m.agregarEntrada("micro", json{{"pipeline_audio", "audiotestsrc is-live=true wave=silence"}}, {{"global", true}});
+        m.quitarEntrada("mic");
+        m.esperarCola();
+    }).join();
+    {
+        const auto f = m.instantanea();
+        CHECK(f && (*f)["entradas"].contains("micro") && (*f)["entradas"]["micro"].value("audio", false) &&
+                  !(*f)["entradas"].contains("mic"),
+              "renombrar (entrada nueva y sacar la vieja): la foto ya tiene el nombre nuevo con audio y no el viejo");
+    }
     m.detener(); // apagar sí
     // F3-14: el candado es un mutex común; lo que corre con él tomado (los ...Ya) lo exige.
     CHECK(faltasDelCandado() == 0, "nada de lo que va con el candado corrió sin él");

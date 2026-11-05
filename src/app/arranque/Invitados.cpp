@@ -10,6 +10,7 @@
 #include <vector>
 
 #include "Motor.hpp" // motor: el retorno del invitado sin audio
+#include "arranque/RepositorioEscenas.hpp"
 #include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "i18n/I18nTexto.hpp"
@@ -45,11 +46,16 @@ bool hayVideoDeInvitado(const AppConfig& c, int slot, const std::string& canal) 
 } // namespace
 
 void Invitados::ajustar(int n) {
+    // Los lugares nuevos (su audio, su cámara y su pantalla) llegan con la respuesta ya en la
+    // foto, esperando UNA vuelta del motor para todos (arranque/AltasEnLaFoto).
+    const AltasEnLaFoto& altas = rt_.escenas_->altas();
+    const AltasEnLaFoto::Lote lote(altas);
     AppConfig& cfg = rt_.cfg_;
     const int antes = cfg.guests;
     cfg.guests = n;
     rt_.gateway_.guests = n;
     for (int slot = antes + 1; slot <= n; ++slot) audioDeInvitado(rt_.motorPropio(), cfg.guestAudio, slot);
+    if (n > antes) altas.alta();
     // Y el video de los lugares nuevos (la cámara y la pantalla de cada uno): sin
     // esto, con el cupo en 4 se veían solo 2 invitados en Entradas. Ocultas en la
     // primera escena, como las del arranque: el operador las pone donde quiera.
