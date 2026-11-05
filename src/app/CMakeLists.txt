@@ -943,10 +943,30 @@ endif()
     endif()
     target_include_directories(ba-app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     set_target_properties(ba-app PROPERTIES AUTOMOC ON)
-    # Vista: los .qml viajan como recursos dentro del binario (qrc:/qml/...).
+    # Vista: los .qml viajan como recursos dentro del binario (qrc:/qml/...), YA COMPILADOS
+    # (qmlcachegen: el bytecode de cada uno va en el binario). Antes iban como texto y la
+    # interfaz, al cargar, compilaba los ~190 o leía la caché de disco (Cache/qml/*.qmlc): en
+    # Windows abrir cada .qmlc (Qt los abre para ejecutar) es un escaneo del antivirus, y la
+    # carga del QML tardaba ~3 s con la interfaz esperando al hilo que los cargaba (volcados de
+    # la .177, 2026-11-05: QQmlThread en CreateFileW). Compilados, no se toca el disco.
+    # El módulo es solo el vehículo del bytecode: nadie lo importa (los tipos de C++ siguen en
+    # «BA», registrados a mano en GuiMode) y las rutas quedan iguales (NO_RESOURCE_TARGET_PATH:
+    # qrc:/qml/Main.qml). Solo bytecode: los bindings no pasan a C++ (se comportan igual que
+    # antes y no se compila un C++ enorme en cada cambio de la vista).
     file(GLOB_RECURSE BA_APP_QML RELATIVE "${CMAKE_CURRENT_SOURCE_DIR}" CONFIGURE_DEPENDS
          "${CMAKE_CURRENT_SOURCE_DIR}/qml/*.qml")
-    qt_add_resources(ba-app "ba_qml" PREFIX "/" FILES ${BA_APP_QML})
+    set_source_files_properties(qml/Theme.qml PROPERTIES QT_QML_SINGLETON_TYPE TRUE)
+    set_target_properties(ba-app PROPERTIES QT_QMLCACHEGEN_ARGUMENTS "--only-bytecode")
+    qt_add_qml_module(ba-app
+        URI BroadcastAppliance.Vista
+        VERSION 1.0
+        RESOURCE_PREFIX /
+        NO_RESOURCE_TARGET_PATH
+        NO_GENERATE_QMLTYPES
+        NO_GENERATE_EXTRA_QMLDIRS
+        NO_LINT
+        NO_IMPORT_SCAN
+        QML_FILES ${BA_APP_QML})
     # Versiones fijadas de los agentes de IA (pestaña Asistente). Los prompts no: son archivos
     # de cada idioma (assets/idiomas/<código>/prompts/, ba::i18n::leer).
     qt_add_resources(ba-app "ba_agent" PREFIX "/" FILES agent/agentes.json agent/pi-guarda.mjs)
