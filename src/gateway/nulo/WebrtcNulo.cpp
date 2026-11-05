@@ -233,6 +233,7 @@ uint64_t WebrtcSession::localAudioBlocks() const {
 uint64_t WebrtcSession::localVideoFrames() const {
     return impl_ != nullptr ? impl_->localVideoFrames.load() : 0;
 }
+uint64_t WebrtcSession::retornoCuadros() const { return 0; }
 
 // ============================================================================
 // WebrtcHub

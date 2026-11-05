@@ -347,6 +347,9 @@ bool SignalingServer::start() {
                 }
         }
     });
+    // El tope del retorno, ya en la primera foto de la sala (sin esto, la primera vuelta del
+    // regulador cambiaba la foto un segundo después de arrancar: un «room» de más).
+    ajustarTopeRetorno();
     // F3: quién se decodifica (según lo que se ve) y los cps de la capa baja (según la carga).
     cargaThread_ = std::thread(&SignalingServer::bucleCarga, this);
     log_.info(llenar(traducir("gateway", "señalización: escuchando en %1:%2 (webroot=%3)"),
@@ -3823,6 +3826,7 @@ void SignalingServer::bucleCarga() {
         if (++vuelta >= 4) {
             vuelta = 0;
             ajustarCps(medidor);
+            ajustarTopeRetorno();
         }
     }
 }
@@ -3944,6 +3948,75 @@ void SignalingServer::ajustarCps(cargavideo::Medidor& medidor) {
 json SignalingServer::estadoCargaVideo() const {
     std::lock_guard<std::mutex> l(cpsMu_);
     return estadoCarga_;
+}
+
+void SignalingServer::ajustarTopeRetorno() {
+    const std::int64_t ahora = Grillas::reloj();
+    const CpuMaquina::Lectura cpu = cpuTope_.medir();
+    MedidaRetorno m;
+    m.cpuMaquina = cpu.maquinaPct;
+    m.cpuGateway = cpu.procesoPct;
+
+    // Los cps del retorno: a cada sesión, lo que la fuente le dio (localVideoFrames) y lo que
+    // le salió de verdad (retornoCuadros). Cuentan las que ya recibieron algo antes de esta
+    // vuelta: la que recién entra espera su primer cuadro clave, eso no es «no llega».
+    std::map<int, std::pair<std::uint64_t, std::uint64_t>> contadores;
+    std::uint64_t dados = 0, salidos = 0;
+    int oyentes = 0, estables = 0;
+    for (int idx = 1; idx <= hub_.sessions(); ++idx) {
+        WebrtcSession* s = hub_.session(idx);
+        if (s == nullptr || !s->connected()) continue;
+        const std::uint64_t dado = s->localVideoFrames(), salido = s->retornoCuadros();
+        contadores[idx] = {dado, salido};
+        const auto it = retornoAntes_.find(idx);
+        if (it == retornoAntes_.end() || dado <= it->second.first) continue;
+        ++oyentes;
+        if (it->second.second == 0 || salido < it->second.second) continue;
+        dados += dado - it->second.first;
+        salidos += salido - it->second.second;
+        ++estables;
+    }
+    const double seg = retornoAntesMs_ > 0 ? static_cast<double>(ahora - retornoAntesMs_) / 1000.0 : 0;
+    if (estables > 0 && seg > 0.2) {
+        m.cpsDebido = static_cast<double>(dados) / seg / estables;
+        m.cpsLogrado = static_cast<double>(salidos) / seg / estables;
+    }
+    m.oyentes = oyentes;
+    retornoAntes_ = std::move(contadores);
+    retornoAntesMs_ = ahora;
+
+    // El codificador del retorno: lo que descartó (cola llena, sin respuesta) contra lo que
+    // codificó, sumando todas las calidades de todos los flujos.
+    std::uint64_t codif = 0, desc = 0;
+    for (const json& f : hub_.retornoCompartido())
+        for (const json& c : f.value("capas", json::array())) {
+            codif += c.value("cuadros", std::uint64_t{0});
+            desc += c.value("descartados", std::uint64_t{0});
+        }
+    if (codif >= codifAntes_ && desc >= descAntes_ && (codif - codifAntes_) + (desc - descAntes_) > 0)
+        m.descartesPct = 100.0 * static_cast<double>(desc - descAntes_) /
+                         static_cast<double>((codif - codifAntes_) + (desc - descAntes_));
+    codifAntes_ = codif;
+    descAntes_ = desc;
+
+    AjustesTope a;
+    a.fijo = altoDeAjusteTope(ba::ajustes::texto("retorno.tope", "auto"));
+    const std::vector<CapaRetorno> capas = capasRetorno();
+    a.escalones = escalonesDesde(capas.empty() ? 720 : capas.front().alto);
+    json estado;
+    {
+        std::lock_guard<std::mutex> l(cpsMu_);
+        reguladorTope_.ajustes(a);
+        if (reguladorTope_.medir(m, ahora)) log_.info(reguladorTope_.motivo());
+        ponerTopeSala(reguladorTope_.tope());
+        estado = reguladorTope_.estado(false);
+    }
+    room_.setRetornoTope(estado);
+}
+
+json SignalingServer::estadoTopeRetorno() const {
+    std::lock_guard<std::mutex> l(cpsMu_);
+    return reguladorTope_.estado(true);
 }
 
 void SignalingServer::enviarCalidadGrilla(const std::string& pid, bool forzar) {

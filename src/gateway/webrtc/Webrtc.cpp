@@ -1773,6 +1773,11 @@ uint64_t WebrtcSession::localAudioBlocks() const {
 uint64_t WebrtcSession::localVideoFrames() const {
     return impl_ != nullptr ? impl_->localVideoFrames.load() : 0;
 }
+uint64_t WebrtcSession::retornoCuadros() const {
+    if (impl_ == nullptr) return 0;
+    const retorno::EstadoSesion& r = *impl_->retornoEstado;
+    return r.cuadrosCompartidos.load(std::memory_order_relaxed) + r.cuadrosPropios.load(std::memory_order_relaxed);
+}
 
 // ============================================================================
 // WebrtcHub

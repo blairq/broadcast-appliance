@@ -957,6 +957,8 @@ json Room::snapshotLocked() const {
                 {"chat", chat},
                 {"speakers", speakerCfgJson()},
                 {"uso", usage_},
+                // La resolución máxima del retorno y por qué (TopeRetorno.hpp).
+                {"retornoTope", retornoTope_},
                 {"order", order_},
                 {"serverNowMs", wallNowMs()}};
 }
@@ -984,6 +986,22 @@ void Room::setSinRetorno(std::vector<int> lugares) {
         std::lock_guard<std::mutex> lock(m_);
         if (lugares == sinRetorno_) return;
         sinRetorno_ = std::move(lugares);
+        out.roomChanged = true;
+    }
+    flush(out);
+}
+
+void Room::setRetornoTope(const json& t) {
+    Out out;
+    {
+        std::lock_guard<std::mutex> lock(m_);
+        const auto clave = [](const json& j) {
+            return j.value("modo", std::string()) + "/" + std::to_string(j.value("alto", 0)) + "/" +
+                   j.value("causa", std::string());
+        };
+        const bool cambio = clave(retornoTope_) != clave(t);
+        retornoTope_ = t;
+        if (!cambio) return;
         out.roomChanged = true;
     }
     flush(out);

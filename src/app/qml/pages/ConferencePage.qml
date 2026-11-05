@@ -769,6 +769,30 @@ Rectangle {
                                 font { family: Theme.mono; pixelSize: 11 }
                             }
                         }
+                        // La resolución máxima del retorno (ajuste retorno.tope): fija o la que
+                        // eligió el automático del gateway según la carga, y por qué.
+                        RowLayout {
+                            Layout.fillWidth: true
+                            visible: conf.retornoTopeAlto > 0
+                            Text {
+                                Layout.fillWidth: true
+                                text: qsTr("Video de retorno")
+                                color: Theme.textDim; font.pixelSize: 11
+                            }
+                            Text {
+                                text: conf.retornoTopeAuto ? qsTr("hasta %1p (automático)").arg(conf.retornoTopeAlto)
+                                                           : qsTr("hasta %1p (fijo)").arg(conf.retornoTopeAlto)
+                                color: Theme.text
+                                font { pixelSize: 11; weight: Font.DemiBold }
+                            }
+                        }
+                        Text {
+                            Layout.fillWidth: true
+                            visible: conf.retornoTopeAlto > 0 && conf.retornoTopeMotivo !== ""
+                            text: conf.retornoTopeMotivo
+                            wrapMode: Text.WordWrap
+                            color: Theme.textFaint; font.pixelSize: 11
+                        }
                         // Hilo mas cargado: si uno solo se va a 100 mientras el
                         // total esta bajo, el techo es ese nucleo y no la maquina.
                         RowLayout {

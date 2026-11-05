@@ -129,6 +129,17 @@ of the picture, so a glance at the grid shows which layer every cell is receivin
   lower frame rate for thumbnails when the GPU decoder is saturated.
 - **Staggered entry** (`room.entradaPorSegundo`, 2 per second by default): a burst of
   guests joins in order instead of all at once.
+- **Maximum return resolution** (`retorno.tope`, Configuration → Conference → «Video de
+  retorno: resolución máxima»): a ceiling for the return video of the whole room. *Automatic*
+  (the default) starts at the highest return layer (720p) and the gateway steps it down
+  (480p, 360p) when it cannot keep up — the return reaches the guests at less than 70 % of its
+  frame rate with the machine's CPU at 80 % or more (held for 3 s), or the return encoder drops
+  frames — and back up after 20 s with headroom (CPU at 65 % or less, return at 90 % or more),
+  waiting longer before retrying a step that failed with the same number of guests. *360p,
+  480p, 720p, 1080p* are fixed. Each layer is still encoded once for everyone; within the
+  ceiling each guest gets what their network holds. The current ceiling and the measurement
+  that decided it are on the Conference page («Uso de la conferencia») and in the MCP tools
+  `room_status` and `gateway_estado` (`retornoTope`).
 - **A decoupled UI**: the interface never waits for the engine, the gateway, the disk or the
   network; with 200 guests joining, no page froze for more than 2 s except *Latencies*
   (4–5 s when first shown).

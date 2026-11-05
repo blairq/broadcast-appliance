@@ -102,6 +102,8 @@
 #include "Botonera.hpp"
 #include "CargaVideo.hpp"
 #include "CpsSegunCarga.hpp"
+#include "CpuMaquina.hpp"
+#include "TopeRetorno.hpp"
 #include "Direcciones.hpp"
 #include "Registro.hpp"
 #include "Sesion.hpp"
@@ -771,10 +773,24 @@ class SignalingServer {
     std::map<int, std::pair<WebrtcHub::EntradaCamara, std::int64_t>> entradaAntes_;
     nlohmann::json estadoCarga_ = nlohmann::json::object(); ///< para gateway_estado (con cpsMu_)
 
+    // LA RESOLUCIÓN MÁXIMA DEL RETORNO (TopeRetorno.hpp): cada segundo, en bucleCarga, se mide
+    // (CPU de la máquina y del gateway, cps del retorno logrados contra debidos, descartes del
+    // codificador, oyentes), el regulador decide y el tope rige para toda la sala
+    // (ponerTopeSala). El estado viaja en la sala (`retornoTope`) y en gateway_estado.
+    void ajustarTopeRetorno();
+    ReguladorRetorno reguladorTope_;     ///< (con cpsMu_)
+    CpuMaquina cpuTope_;                  ///< solo bucleCarga
+    /// idx → (empujados, entregados) de la vuelta anterior (solo bucleCarga).
+    std::map<int, std::pair<std::uint64_t, std::uint64_t>> retornoAntes_;
+    std::uint64_t codifAntes_ = 0, descAntes_ = 0; ///< del codificador del retorno (solo bucleCarga)
+    std::int64_t retornoAntesMs_ = 0;
+
    public:
     /// Para gateway_estado (`videoSegunCarga`): {pausados, frenados, cps:{pid: cps},
     /// control: ControlCps::estado(), medidor}.
     nlohmann::json estadoCargaVideo() const;
+    /// Para gateway_estado (`retornoTope`): ReguladorRetorno::estado con el historial.
+    nlohmann::json estadoTopeRetorno() const;
 
    private:
     // T44: las frases que esperan al corrector (las manda la app) y desde cuándo.

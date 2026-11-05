@@ -107,6 +107,13 @@ class ConferenceViewModel : public QObject {
     /// Uso de la sala: cuanta gente hay, cuantos mandan video y cuanto le
     /// cuesta al gateway (cpuPct, memMb, nucleos). Para ver si nos pasamos.
     Q_PROPERTY(QVariantMap usage READ usage NOTIFY usoChanged)
+    /// La resolución máxima del video de retorno de la sala (ajuste retorno.tope; el regulador
+    /// del gateway, src/gateway/TopeRetorno.hpp): el alto vigente (0 = la sala no dijo nada),
+    /// si lo decide el automático y por qué (en el idioma de la interfaz, con la medida que lo
+    /// decidió).
+    Q_PROPERTY(int retornoTopeAlto READ retornoTopeAlto NOTIFY usoChanged)
+    Q_PROPERTY(bool retornoTopeAuto READ retornoTopeAuto NOTIFY usoChanged)
+    Q_PROPERTY(QString retornoTopeMotivo READ retornoTopeMotivo NOTIFY usoChanged)
     Q_PROPERTY(QObject* waiting READ waiting CONSTANT)
     Q_PROPERTY(QObject* inside READ inside CONSTANT)
     Q_PROPERTY(QObject* shares READ shares CONSTANT)
@@ -160,6 +167,9 @@ class ConferenceViewModel : public QObject {
     QStringList audioSourceNames() const;
     QVariantMap network() const { return network_; }
     QVariantMap usage() const;
+    int retornoTopeAlto() const;
+    bool retornoTopeAuto() const;
+    QString retornoTopeMotivo() const;
     QObject* waiting() const;
     QObject* inside() const;
     QObject* shares() const;

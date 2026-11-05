@@ -5332,12 +5332,12 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1044"/>
+        <location line="+1068"/>
         <source>Tiempo</source>
         <translation>Время</translation>
     </message>
     <message>
-        <location line="-1038"/>
+        <location line="-1062"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>Общее время для каждого выступающего (м:сс или минуты)</translation>
     </message>
@@ -5603,18 +5603,18 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+516"/>
+        <location line="+540"/>
         <source>Reiniciar</source>
         <translation>Перезапустить</translation>
     </message>
     <message>
-        <location line="-516"/>
-        <location line="+516"/>
+        <location line="-540"/>
+        <location line="+540"/>
         <source>Cancelar</source>
         <translation>Отмена</translation>
     </message>
     <message>
-        <location line="-513"/>
+        <location line="-537"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>Конференция перезапускается.</translation>
     </message>
@@ -5682,12 +5682,12 @@ Compartí el enlace y el PIN (panel Acceso).</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+191"/>
+        <location line="+215"/>
         <source>Invitar con QR</source>
         <translation>Пригласить по QR</translation>
     </message>
     <message>
-        <location line="-186"/>
+        <location line="-210"/>
         <source>PIN copiado: %1</source>
         <translation>PIN скопирован: %1</translation>
     </message>
@@ -5761,6 +5761,21 @@ Compartí el enlace y el PIN (panel Acceso).</source>
     </message>
     <message>
         <location line="+17"/>
+        <source>Video de retorno</source>
+        <translation>Видео возврата</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>hasta %1p (automático)</source>
+        <translation>до %1p (автоматически)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>hasta %1p (fijo)</source>
+        <translation>до %1p (фиксировано)</translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <source>Hilo más cargado: %1</source>
         <translation>Самый загруженный поток: %1</translation>
     </message>
@@ -6216,7 +6231,32 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>В очереди больше никого</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+18"/>
+        <source>Fijo (Configuración → Conferencia)</source>
+        <translation>Фиксировано (Настройки → Конференция)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automático: arranca en la calidad más alta</source>
+        <translation>Автоматически: начинает с самого высокого качества</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bajó: el retorno salía a %1 de %2 cps con la máquina al %3 % (invitados: %4)</source>
+        <translation>Снижено: возврат шёл с %1 из %2 к/с при загрузке машины %3 % (гостей: %4)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Bajó: el codificador del retorno descartaba el %1 % de los cuadros</source>
+        <translation>Снижено: кодер возврата отбрасывал %1 % кадров</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Subió: sobraba margen (retorno a %1 de %2 cps, máquina al %3 %)</source>
+        <translation>Повышено: был запас (возврат %1 из %2 к/с, машина %3 %)</translation>
+    </message>
+    <message>
+        <location line="+70"/>
         <source>%1 espera en el lobby</source>
         <translation>%1 ждёт в зале ожидания</translation>
     </message>
@@ -30791,7 +30831,7 @@ APRETADO</source>
 <context>
     <name>Red</name>
     <message>
-        <location filename="../src/app/red/Red.cpp" line="+241"/>
+        <location filename="../src/app/red/Red.cpp" line="+249"/>
         <source>Falta el usuario.</source>
         <translation>Не указан пользователь.</translation>
     </message>
@@ -41340,6 +41380,21 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de retorno: resolución máxima</source>
+        <translation>Видео возврата: максимальное разрешение</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Automática (según la carga)</source>
+        <translation>Автоматически (по нагрузке)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo más que recibe cualquier invitado como video de retorno. Automática: arranca en la calidad más alta del retorno (720p) y, si la máquina no da abasto (el retorno sale con menos cuadros de los que debería con el procesador cargado, o el codificador descarta cuadros), baja de a un escalón (480p, 360p); cuando sobra margen un rato, vuelve a subir. Fija: siempre como mucho esa (1080p solo si el programa es de 1080). Cada calidad se codifica una sola vez para todos; dentro del tope, cada invitado recibe la que aguanta su red.</source>
+        <translation>Максимум, который получает любой гость как видео возврата. Автоматически: начинает с самого высокого качества возврата (720p) и, если машина не справляется (возврат идёт с меньшим числом кадров, чем должен, при загруженном процессоре, или кодер отбрасывает кадры), понижает на одну ступень (480p, 360p); когда какое-то время есть запас, снова повышает. Фиксировано: всегда не выше выбранного (1080p только если программа в 1080). Каждое качество кодируется один раз для всех; в пределах потолка каждый гость получает то, что выдерживает его сеть.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de retorno: cuadros completos cada al menos</source>
         <translation>Обратное видео: полные кадры не реже чем раз в</translation>
     </message>
@@ -41864,7 +41919,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>не является одним из вариантов</translation>
     </message>
     <message>
-        <location line="-243"/>
+        <location line="-244"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Хранимых сообщений чата</translation>
     </message>
@@ -41994,7 +42049,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Консоль оператора, табло выступающих и телефоны: каждый — одно подключение.</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+15"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation>Windows: H.264, который отправляют гости, декодируется на видеокарте. Если выключено (или нет видеокарты), гости отправляют и получают VP8 программно.</translation>
     </message>
@@ -45273,9 +45328,14 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+169"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+171"/>
         <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
         <translation>запуск: системный звук (Qt Multimedia, в своём потоке), %1 мс</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>arranque: las cámaras del sistema (Qt Multimedia, en su hilo), %1 ms</source>
+        <translation>запуск: системные камеры (Qt Multimedia, в своём потоке), %1 мс</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -45323,7 +45383,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>запуск: конфигурация, %1 мс</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+77"/>
         <source>el motor no pudo arrancar: %1</source>
         <translation>движок не смог запуститься: %1</translation>
     </message>
@@ -48195,7 +48255,7 @@ Datos (de %2): %3</source>
         <translation>физический вход &apos;%1&apos; конфликтует с другим источником; не создаётся</translation>
     </message>
     <message>
-        <location filename="../src/app/audio/RackManager.cpp" line="+519"/>
+        <location filename="../src/app/audio/RackManager.cpp" line="+543"/>
         <source>Otras fuentes</source>
         <translation>Другие источники</translation>
     </message>
@@ -51040,7 +51100,7 @@ Datos (de %2): %3</source>
         <translation>зависание интерфейса длилось около %1 мс (стеки в %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-426"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-429"/>
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples работает только с --test: не включён</translation>
     </message>
@@ -56525,12 +56585,12 @@ Datos (de %2): %3</source>
         <translation>тест зала: завершён (%1); ключ отозван, удалено тестовых участников: %2</translation>
     </message>
     <message>
-        <location line="+227"/>
+        <location line="+228"/>
         <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
         <translation>видео: загрузка видеодвижка %1; к/с нижнего слоя переходят со ступени %2 на %3 (из %4)</translation>
     </message>
     <message>
-        <location line="-3367"/>
+        <location line="-3368"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>адреса: сеть %1, извне %2</translation>
     </message>
@@ -56830,7 +56890,7 @@ Datos (de %2): %3</source>
         <translation>turn: ТЕСТОВЫЙ РЕЖИМ (--turn-prueba): TURN запускается без pinggy, только в локальной сети</translation>
     </message>
     <message>
-        <location line="+271"/>
+        <location line="+273"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>туннель: --tunnel-token виден в списке процессов; лучше использовать %1</translation>
     </message>
@@ -56850,7 +56910,7 @@ Datos (de %2): %3</source>
         <translation>туннель: отключён в конфигурации (только локальный доступ)</translation>
     </message>
     <message>
-        <location line="-649"/>
+        <location line="-651"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>сеть: IP компьютера %1; в QR: %2</translation>
     </message>
@@ -56900,7 +56960,7 @@ Datos (de %2): %3</source>
         <translation>https: ba-web его не обслуживает; запускается встроенный терминатор</translation>
     </message>
     <message>
-        <location line="+219"/>
+        <location line="+221"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>дверь комнаты: https на %1:%2</translation>
     </message>
@@ -57299,6 +57359,31 @@ Datos (de %2): %3</source>
         <location line="+3"/>
         <source>SetProcessDefaultCpuSets falló (%1)</source>
         <translation>SetProcessDefaultCpuSets не удалось (%1)</translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/TopeRetorno.cpp" line="+194"/>
+        <source>retorno: fijo en %1p (Configuración)</source>
+        <translation>возврат: фиксировано %1p (Настройки)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>retorno: automático, arranca en %1p</source>
+        <translation>возврат: автоматически, начинает с %1p</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>retorno: baja a %1p: salía a %2 de %3 cps con la máquina al %4 % (%5 invitados)</source>
+        <translation>возврат: понижен до %1p: шёл с %2 из %3 к/с при загрузке машины %4 % (гостей: %5)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>retorno: baja a %1p: el codificador descartaba el %2 % de los cuadros</source>
+        <translation>возврат: понижен до %1p: кодер отбрасывал %2 % кадров</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>retorno: sube a %1p: sobra margen (salía a %2 de %3 cps, máquina al %4 %, %5 invitados)</source>
+        <translation>возврат: повышен до %1p: есть запас (шёл с %2 из %3 к/с, машина %4 %, гостей: %5)</translation>
     </message>
 </context>
 <context>
@@ -59879,7 +59964,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+265"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+268"/>
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>ТЕСТОВЫЙ РЕЖИМ (--test): MCP не запрашивает одобрений, даже эфирных</translation>
     </message>
@@ -61900,7 +61985,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>Попросить сервер следить за чем-то (перегрузка, тишина, конец трека, время выступающего, зал ожидания, чат, обрывы, диск, таймеры) и самостоятельно оповещать или действовать. Не нужно проверять время от времени: оповещение приходит в чат ассистента.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+481"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+486"/>
         <source>Notificadores</source>
         <translation>Уведомители</translation>
     </message>
@@ -63253,7 +63338,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>Поверхность управления (планшет по QR, Stream Deck, MIDI через плагин) и шина событий приложения (что в эфире, выходы, уровни, тревоги) для кнопок, плагинов и триггеров.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-172"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-177"/>
         <source>Temas del bus de eventos</source>
         <translation>Темы шины событий</translation>
     </message>
@@ -63757,7 +63842,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>Выполняет `accion` (id из acciones_listar), как если бы нажали его сочетание, но с разрешениями и эфирной защитой того, кто его запрашивает.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+87"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+92"/>
         <source>Modo en vivo</source>
         <translation>Режим прямого эфира</translation>
     </message>
@@ -74243,7 +74328,7 @@ Cada paso pasa por el mismo camino que si lo llamaras vos: se validan los argume
         <translation>Что происходило в трёх процессах: чтение, фильтрация и выбор объёма журналирования.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-262"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-267"/>
         <source>Leer el registro</source>
         <translation>Прочитать журнал</translation>
     </message>
@@ -74298,6 +74383,11 @@ Ojo: lo que está por DEBAJO del nivel al que el proceso está registrando no se
         <location line="+2"/>
         <source>Solo lo de los últimos N minutos.</source>
         <translation>Только за последние N минут.</translation>
+    </message>
+    <message>
+        <location line="+186"/>
+        <source>El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s), el TURN (asignaciones, conexiones, bytes) y `retornoTope` (la resolución máxima del retorno: el tope, por qué, los umbrales y las últimas decisiones). Lo usa tools/carga/medir-sala.py.</source>
+        <translation>Сервер конференции (gateway) изнутри, для измерения нагрузки: `uso` (CPU, потоки, память, кольца, контроль), `fronteras` (каждая передача между потоками: передач/с, пробуждений/с, передач на пробуждение, кБ/с, работа на передачу в мкс, ожидание в очереди в мкс, окнами по 1 с), TURN (выделения, соединения, байты) и `retornoTope` (максимальное разрешение возврата: потолок, почему, пороги и последние решения). Используется в tools/carga/medir-sala.py.</translation>
     </message>
     <message>
         <location filename="../src/app/mcp/McpRegistroTools.cpp" line="+9"/>
@@ -74466,9 +74556,14 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
         <translation>Имя (или уникальное начало имени) или id человека.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+145"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-41"/>
         <source>Estado de la conferencia</source>
         <translation>Состояние конференции</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo). `retornoTope`: la resolución máxima del video de retorno a los invitados (ajuste retorno.tope: auto, 360p, 480p, 720p, 1080p) con `modo` (auto/fijo), `alto`, `causa` (inicio, fijo, cps, codificador, margen), `motivo`, `medida` (CPU de la máquina y del gateway, cps del retorno logrados y debidos, descartes del codificador, oyentes) y `decision` (la medida que decidió el último cambio). El historial de decisiones está en gateway_estado (`retornoTope`).</source>
+        <translation>Всё о конференции: название, PIN, зал ожидания/закрыта, ссылка, каждый участник (состояние, место, микрофон, камера, экран, поднятая рука, соединение, информация и контакт, очередь выступающих), общие файлы, недавний чат, настройки выступающих и поэтапный вход: `entrando` (одобренные, ждущие своей очереди войти, у каждого `entrando`) и `entradaPorSegundo` (скорость, настройка room.entradaPorSegundo). `retornoTope`: максимальное разрешение видео возврата гостям (настройка retorno.tope: auto, 360p, 480p, 720p, 1080p) с `modo` (auto/фиксировано), `alto`, `causa` (inicio, fijo, cps, codificador, margen), `motivo`, `medida` (CPU машины и gateway, к/с возврата достигнутые и ожидаемые, отбросы кодера, слушатели) и `decision` (измерение, решившее последнее изменение). История решений — в gateway_estado (`retornoTope`).</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -75099,7 +75194,7 @@ Si no hay lugar libre en la conferencia (`room_status` -&gt; `slotsFree`) el gat
         <translation>Это адрес локальной сети: для тех, кто снаружи, — room_link {&quot;target&quot;: &quot;remote&quot;}.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+39"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+40"/>
         <source>Red y acceso de invitados</source>
         <translation>Сеть и доступ гостей</translation>
     </message>
@@ -75947,7 +76042,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>Последнее измерение (каждую секунду) приложения и шлюза: общий CPU в ядрах (1,0 = одно ядро целиком), память, самые прожорливые потоки с именами (потоки GStreamer названы по своему элементу: так видно, какая часть видео тратит ресурсы) и, в Windows, GPU процесса по движкам (3D, VideoDecode, VideoEncode, Copy). История — в Logs/perfil-app.jsonl и Logs/perfil-gateway.jsonl; каждые 10 с сводка пишется в журнал (log_leer, компонент perfil).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-423"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-428"/>
         <source>Estado general</source>
         <translation>Общее состояние</translation>
     </message>
@@ -79900,22 +79995,12 @@ Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, launch
         <translation>Последнее значение темы</translation>
     </message>
     <message>
-        <location line="+27"/>
-        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo).</source>
-        <translation>Всё о конференции: название, PIN, зал ожидания/закрыта, ссылка, каждый участник (состояние, место, микрофон, камера, экран, поднятая рука, соединение, информация и контакт, очередь выступающих), общие файлы, недавний чат, настройки выступающих и поэтапный вход: `entrando` (одобренные, ждущие своей очереди войти, у каждого `entrando`) и `entradaPorSegundo` (скорость, настройка room.entradaPorSegundo).</translation>
-    </message>
-    <message>
-        <location line="+30"/>
+        <location line="+61"/>
         <source>El gateway por dentro (para medir)</source>
         <translation>Gateway изнутри (для измерений)</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.</source>
-        <translation>Сервер конференции (gateway) изнутри, для измерения нагрузки: `uso` (CPU, потоки, память, кольца, контроль), `fronteras` (каждая передача между потоками: передач/с, пробуждений/с, передач на пробуждение, кБ/с, работа на передачу в мкс, ожидание в очереди в мкс, окнами по 1 с) и TURN (выделения, соединения, байты). Используется в tools/carga/medir-sala.py.</translation>
-    </message>
-    <message>
-        <location line="+70"/>
+        <location line="+74"/>
         <source>Carpeta del sistema, credenciales y respaldos</source>
         <translation>Системная папка, учётные данные и резервные копии</translation>
     </message>
@@ -82245,7 +82330,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Id выхода (буквы, цифры, - и _).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-429"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-434"/>
         <source>Las salidas del aparato</source>
         <translation>Выходы устройства</translation>
     </message>
@@ -93341,7 +93426,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>нет перевода «%1»</translation>
     </message>
     <message>
-        <location filename="../src/app/audio/ClapHost.cpp" line="+116"/>
+        <location filename="../src/app/audio/ClapHost.cpp" line="+122"/>
         <source>modo seguro: los plugins CLAP de terceros no se cargan</source>
         <translation>безопасный режим: сторонние плагины CLAP не загружаются</translation>
     </message>

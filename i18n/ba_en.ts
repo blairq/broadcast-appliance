@@ -5303,12 +5303,12 @@ Scrolling the strip doesn&apos;t change what&apos;s shown.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1044"/>
+        <location line="+1068"/>
         <source>Tiempo</source>
         <translation>Time</translation>
     </message>
     <message>
-        <location line="-1038"/>
+        <location line="-1062"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>Overall time for each speaker (m:ss or minutes)</translation>
     </message>
@@ -5571,18 +5571,18 @@ Scrolling the strip doesn&apos;t change what&apos;s shown.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+516"/>
+        <location line="+540"/>
         <source>Reiniciar</source>
         <translation>Restart</translation>
     </message>
     <message>
-        <location line="-516"/>
-        <location line="+516"/>
+        <location line="-540"/>
+        <location line="+540"/>
         <source>Cancelar</source>
         <translation>Cancel</translation>
     </message>
     <message>
-        <location line="-513"/>
+        <location line="-537"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>The conference is restarting.</translation>
     </message>
@@ -5650,12 +5650,12 @@ Share the link and the PIN (Access panel).</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+191"/>
+        <location line="+215"/>
         <source>Invitar con QR</source>
         <translation>Invite with QR</translation>
     </message>
     <message>
-        <location line="-186"/>
+        <location line="-210"/>
         <source>PIN copiado: %1</source>
         <translation>PIN copied: %1</translation>
     </message>
@@ -5727,6 +5727,21 @@ Share the link and the PIN (Access panel).</translation>
     </message>
     <message>
         <location line="+17"/>
+        <source>Video de retorno</source>
+        <translation>Return video</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>hasta %1p (automático)</source>
+        <translation>up to %1p (automatic)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>hasta %1p (fijo)</source>
+        <translation>up to %1p (fixed)</translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <source>Hilo más cargado: %1</source>
         <translation>Busiest thread: %1</translation>
     </message>
@@ -6181,7 +6196,32 @@ The previous PIN stops working for joining.</translation>
         <translation>Nobody else in the queue</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+18"/>
+        <source>Fijo (Configuración → Conferencia)</source>
+        <translation>Fixed (Configuration → Conference)</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automático: arranca en la calidad más alta</source>
+        <translation>Automatic: starts at the highest quality</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bajó: el retorno salía a %1 de %2 cps con la máquina al %3 % (invitados: %4)</source>
+        <translation>Lowered: the return was going out at %1 of %2 fps with the machine at %3 % (guests: %4)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Bajó: el codificador del retorno descartaba el %1 % de los cuadros</source>
+        <translation>Lowered: the return encoder was dropping %1 % of the frames</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Subió: sobraba margen (retorno a %1 de %2 cps, máquina al %3 %)</source>
+        <translation>Raised: there was headroom (return at %1 of %2 fps, machine at %3 %)</translation>
+    </message>
+    <message>
+        <location line="+70"/>
         <source>%1 espera en el lobby</source>
         <translation>%1 is waiting in the lobby</translation>
     </message>
@@ -30653,7 +30693,7 @@ DOWN</translation>
 <context>
     <name>Red</name>
     <message>
-        <location filename="../src/app/red/Red.cpp" line="+241"/>
+        <location filename="../src/app/red/Red.cpp" line="+249"/>
         <source>Falta el usuario.</source>
         <translation>The user is missing.</translation>
     </message>
@@ -42649,6 +42689,21 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de retorno: resolución máxima</source>
+        <translation>Return video: maximum resolution</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Automática (según la carga)</source>
+        <translation>Automatic (by load)</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo más que recibe cualquier invitado como video de retorno. Automática: arranca en la calidad más alta del retorno (720p) y, si la máquina no da abasto (el retorno sale con menos cuadros de los que debería con el procesador cargado, o el codificador descarta cuadros), baja de a un escalón (480p, 360p); cuando sobra margen un rato, vuelve a subir. Fija: siempre como mucho esa (1080p solo si el programa es de 1080). Cada calidad se codifica una sola vez para todos; dentro del tope, cada invitado recibe la que aguanta su red.</source>
+        <translation>The most any guest receives as return video. Automatic: starts at the highest return quality (720p) and, if the machine can&apos;t keep up (the return goes out with fewer frames than it should while the processor is loaded, or the encoder drops frames), steps down one level at a time (480p, 360p); when there is headroom for a while, it goes back up. Fixed: always at most that one (1080p only if the program is 1080). Each quality is encoded only once for everyone; within the ceiling, each guest gets what their network can hold.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de retorno: cuadros completos cada al menos</source>
         <translation>Return video: full frames at least every</translation>
     </message>
@@ -43173,7 +43228,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>isn&apos;t one of the options</translation>
     </message>
     <message>
-        <location line="-243"/>
+        <location line="-244"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Chat messages kept</translation>
     </message>
@@ -43303,7 +43358,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Operator console, speakers board and phones: each one is a connection.</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+15"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation>Windows: the H.264 that guests send is decoded on the GPU. Off (or without a GPU), guests send and receive VP8 in software.</translation>
     </message>
@@ -45102,9 +45157,14 @@ Choose something else in Outputs → Screens.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+169"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+171"/>
         <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
         <translation>startup: the system audio (Qt Multimedia, on its own thread), %1 ms</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>arranque: las cámaras del sistema (Qt Multimedia, en su hilo), %1 ms</source>
+        <translation>startup: the system cameras (Qt Multimedia, on its own thread), %1 ms</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -45152,7 +45212,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>startup: configuration, %1 ms</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+77"/>
         <source>el motor no pudo arrancar: %1</source>
         <translation>the engine couldn&apos;t start: %1</translation>
     </message>
@@ -48022,7 +48082,7 @@ Data (from %2): %3</translation>
         <translation>the physical input &apos;%1&apos; conflicts with another source; not created</translation>
     </message>
     <message>
-        <location filename="../src/app/audio/RackManager.cpp" line="+519"/>
+        <location filename="../src/app/audio/RackManager.cpp" line="+543"/>
         <source>Otras fuentes</source>
         <translation>Other sources</translation>
     </message>
@@ -50866,7 +50926,7 @@ Data (from %2): %3</translation>
         <translation>the interface freeze lasted about %1 ms (stacks in %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-426"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-429"/>
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples only works with --test: not turned on</translation>
     </message>
@@ -56350,12 +56410,12 @@ Data (from %2): %3</translation>
         <translation>room test: ended (%1); credential revoked, %2 test participants removed</translation>
     </message>
     <message>
-        <location line="+227"/>
+        <location line="+228"/>
         <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
         <translation>video: video engine load %1; low-layer fps go from step %2 to %3 (of %4)</translation>
     </message>
     <message>
-        <location line="-3367"/>
+        <location line="-3368"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>addresses: network %1, outside %2</translation>
     </message>
@@ -56655,7 +56715,7 @@ Data (from %2): %3</translation>
         <translation>turn: TEST MODE (--turn-prueba): TURN starts without pinggy, local network only</translation>
     </message>
     <message>
-        <location line="+271"/>
+        <location line="+273"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>tunnel: --tunnel-token is visible in the process list; prefer %1</translation>
     </message>
@@ -56675,7 +56735,7 @@ Data (from %2): %3</translation>
         <translation>tunnel: disabled in the configuration (local access only)</translation>
     </message>
     <message>
-        <location line="-649"/>
+        <location line="-651"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>network: machine IP %1; in the QR: %2</translation>
     </message>
@@ -56725,7 +56785,7 @@ Data (from %2): %3</translation>
         <translation>https: ba-web isn&apos;t handling it; starting the built-in terminator</translation>
     </message>
     <message>
-        <location line="+219"/>
+        <location line="+221"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>room door: https on %1:%2</translation>
     </message>
@@ -57124,6 +57184,31 @@ Data (from %2): %3</translation>
         <location line="+3"/>
         <source>SetProcessDefaultCpuSets falló (%1)</source>
         <translation>SetProcessDefaultCpuSets failed (%1)</translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/TopeRetorno.cpp" line="+194"/>
+        <source>retorno: fijo en %1p (Configuración)</source>
+        <translation>return: fixed at %1p (Configuration)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>retorno: automático, arranca en %1p</source>
+        <translation>return: automatic, starts at %1p</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>retorno: baja a %1p: salía a %2 de %3 cps con la máquina al %4 % (%5 invitados)</source>
+        <translation>return: down to %1p: it was going out at %2 of %3 fps with the machine at %4 % (%5 guests)</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>retorno: baja a %1p: el codificador descartaba el %2 % de los cuadros</source>
+        <translation>return: down to %1p: the encoder was dropping %2 % of the frames</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>retorno: sube a %1p: sobra margen (salía a %2 de %3 cps, máquina al %4 %, %5 invitados)</source>
+        <translation>return: up to %1p: there is headroom (it was going out at %2 of %3 fps, machine at %4 %, %5 guests)</translation>
     </message>
 </context>
 <context>
@@ -59704,7 +59789,7 @@ Empty values leave no dangling separators: “{nombre} — {cargo}” with no ti
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+265"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+268"/>
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>TEST MODE (--test): the MCP doesn&apos;t ask for approvals, not even on-air ones</translation>
     </message>
@@ -61685,7 +61770,7 @@ WHAT YOU MUST KNOW WHEN TURNING IT ON: the approvals safeguard (`mcp.approval`) 
         <translation>Ask the server to watch for something (clipping, silence, end of a track, a speaker&apos;s time, lobby, chat, dropouts, disk, timers) and alert or act on its own. Saves having to check periodically: the alert arrives in the assistant&apos;s chat.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+700"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+705"/>
         <source>Notificadores</source>
         <translation>Notifiers</translation>
     </message>
@@ -63037,7 +63122,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <translation>The control surface (tablet via QR, Stream Deck, MIDI via plugin) and the app&apos;s event bus (what&apos;s on air, outputs, levels, alarms) for buttons, plugins and triggers.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-172"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-177"/>
         <source>Temas del bus de eventos</source>
         <translation>Event bus topics</translation>
     </message>
@@ -63540,7 +63625,7 @@ THE `id` IT RETURNS IS USED AS IS in `audio_module_add`. The six in the catalog 
         <translation>Runs the `accion` (id from acciones_listar) as if its shortcut were pressed, but with the requester&apos;s permissions and on-air guard.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+87"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+92"/>
         <source>Modo en vivo</source>
         <translation>Live mode</translation>
     </message>
@@ -74016,7 +74101,7 @@ Each step goes through the same path as if you called it yourself: arguments are
         <translation>What happened in the three processes: read it, filter it and decide how much gets logged.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-262"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-267"/>
         <source>Leer el registro</source>
         <translation>Read the log</translation>
     </message>
@@ -74071,6 +74156,11 @@ Note: what is BELOW the level the process is logging at isn&apos;t written anywh
         <location line="+2"/>
         <source>Solo lo de los últimos N minutos.</source>
         <translation>Only the last N minutes.</translation>
+    </message>
+    <message>
+        <location line="+186"/>
+        <source>El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s), el TURN (asignaciones, conexiones, bytes) y `retornoTope` (la resolución máxima del retorno: el tope, por qué, los umbrales y las últimas decisiones). Lo usa tools/carga/medir-sala.py.</source>
+        <translation>The Conference server (gateway) internals, for measuring load: `uso` (CPU, threads, memory, rings, return), `fronteras` (each handoff between threads: handoffs/s, wakeups/s, handoffs per wakeup, kB/s, work per handoff in µs, queue wait in µs, over 1 s windows), the TURN (allocations, connections, bytes) and `retornoTope` (the maximum return resolution: the ceiling, why, the thresholds and the latest decisions). Used by tools/carga/medir-sala.py.</translation>
     </message>
     <message>
         <location filename="../src/app/mcp/McpRegistroTools.cpp" line="+9"/>
@@ -74239,9 +74329,14 @@ After writing one, `ext_listar` again: `problema` says if something is missing, 
         <translation>Name (or unique prefix) or id of the person.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+145"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-41"/>
         <source>Estado de la conferencia</source>
         <translation>Conference status</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo). `retornoTope`: la resolución máxima del video de retorno a los invitados (ajuste retorno.tope: auto, 360p, 480p, 720p, 1080p) con `modo` (auto/fijo), `alto`, `causa` (inicio, fijo, cps, codificador, margen), `motivo`, `medida` (CPU de la máquina y del gateway, cps del retorno logrados y debidos, descartes del codificador, oyentes) y `decision` (la medida que decidió el último cambio). El historial de decisiones está en gateway_estado (`retornoTope`).</source>
+        <translation>Everything about the conference: name, PIN, lobby/locked, link, each person (state, slot, microphone, camera, screen, raised hand, connection, info and contact, speaker turn), shared files, recent chat, speaker config and the staggered entry: `entrando` (the approved people waiting their turn to come in, each one with `entrando`) and `entradaPorSegundo` (the pace, setting room.entradaPorSegundo). `retornoTope`: the maximum resolution of the return video to the guests (setting retorno.tope: auto, 360p, 480p, 720p, 1080p) with `modo` (auto/fixed), `alto`, `causa` (inicio, fijo, cps, codificador, margen), `motivo`, `medida` (machine and gateway CPU, return fps achieved and expected, encoder drops, listeners) and `decision` (the measurement that decided the last change). The decision history is in gateway_estado (`retornoTope`).</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -74871,7 +74966,7 @@ If there is no free slot in the conference (`room_status` -&gt; `slotsFree`) the
         <translation>This is the local network address: for someone outside, room_link {&quot;target&quot;: &quot;remote&quot;}.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+39"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+40"/>
         <source>Red y acceso de invitados</source>
         <translation>Guest network and access</translation>
     </message>
@@ -75711,7 +75806,7 @@ When it reaches 500 profiles it turns itself off and says so. Without `activo` i
         <translation>The latest measurement (every second) of the app and the gateway: total CPU in cores (1.0 = one whole core), memory, the most consuming threads with their name (GStreamer ones are named after their element: that shows which part of the video is spending) and, on Windows, the process GPU per engine (3D, VideoDecode, VideoEncode, Copy). The history is in Logs/perfil-app.jsonl and Logs/perfil-gateway.jsonl; every 10 s a summary goes to the log (log_leer, component perfil).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-423"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-428"/>
         <source>Estado general</source>
         <translation>Overall status</translation>
     </message>
@@ -79707,22 +79802,12 @@ The files: app.log (Process A), gateway.log (Process B), graficos.log, launcher.
         <translation>Latest value of a topic</translation>
     </message>
     <message>
-        <location line="+27"/>
-        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo).</source>
-        <translation>Everything about the conference: name, PIN, lobby/locked, link, each person (state, slot, microphone, camera, screen, raised hand, connection, info and contact, speaker turn), shared files, recent chat, speaker config and the staggered entry: `entrando` (the approved people waiting their turn to come in, each one with `entrando`) and `entradaPorSegundo` (the pace, setting room.entradaPorSegundo).</translation>
-    </message>
-    <message>
-        <location line="+30"/>
+        <location line="+61"/>
         <source>El gateway por dentro (para medir)</source>
         <translation>The gateway internals (for measuring)</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.</source>
-        <translation>The Conference server (gateway) internals, for measuring load: `uso` (CPU, threads, memory, rings, return), `fronteras` (each handoff between threads: handoffs/s, wakeups/s, handoffs per wakeup, kB/s, work per handoff in µs, queue wait in µs, over 1 s windows) and the TURN (allocations, connections, bytes). Used by tools/carga/medir-sala.py.</translation>
-    </message>
-    <message>
-        <location line="+70"/>
+        <location line="+74"/>
         <source>Carpeta del sistema, credenciales y respaldos</source>
         <translation>System folder, credentials and backups</translation>
     </message>
@@ -82052,7 +82137,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>Output id (letters, numbers, - and _).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-429"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-434"/>
         <source>Las salidas del aparato</source>
         <translation>The device&apos;s outputs</translation>
     </message>
@@ -93146,7 +93231,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>there&apos;s no translation “%1”</translation>
     </message>
     <message>
-        <location filename="../src/app/audio/ClapHost.cpp" line="+116"/>
+        <location filename="../src/app/audio/ClapHost.cpp" line="+122"/>
         <source>modo seguro: los plugins CLAP de terceros no se cargan</source>
         <translation>safe mode: third-party CLAP plugins aren&apos;t loaded</translation>
     </message>

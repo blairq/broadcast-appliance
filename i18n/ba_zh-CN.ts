@@ -5274,12 +5274,12 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+1044"/>
+        <location line="+1068"/>
         <source>Tiempo</source>
         <translation>时间</translation>
     </message>
     <message>
-        <location line="-1038"/>
+        <location line="-1062"/>
         <source>Tiempo general para cada orador (m:ss o minutos)</source>
         <translation>每位发言人的总时间（m:ss 或分钟）</translation>
     </message>
@@ -5539,18 +5539,18 @@ Recorrer la tira no cambia lo que se ve.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+516"/>
+        <location line="+540"/>
         <source>Reiniciar</source>
         <translation>重启</translation>
     </message>
     <message>
-        <location line="-516"/>
-        <location line="+516"/>
+        <location line="-540"/>
+        <location line="+540"/>
         <source>Cancelar</source>
         <translation>取消</translation>
     </message>
     <message>
-        <location line="-513"/>
+        <location line="-537"/>
         <source>La conferencia se está reiniciando.</source>
         <translation>会议正在重启。</translation>
     </message>
@@ -5618,12 +5618,12 @@ Compartí el enlace y el PIN (panel Acceso).</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+191"/>
+        <location line="+215"/>
         <source>Invitar con QR</source>
         <translation>用二维码邀请</translation>
     </message>
     <message>
-        <location line="-186"/>
+        <location line="-210"/>
         <source>PIN copiado: %1</source>
         <translation>PIN 已复制：%1</translation>
     </message>
@@ -5693,6 +5693,21 @@ Compartí el enlace y el PIN (panel Acceso).</source>
     </message>
     <message>
         <location line="+17"/>
+        <source>Video de retorno</source>
+        <translation>返送视频</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>hasta %1p (automático)</source>
+        <translation>最高 %1p（自动）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>hasta %1p (fijo)</source>
+        <translation>最高 %1p（固定）</translation>
+    </message>
+    <message>
+        <location line="+19"/>
         <source>Hilo más cargado: %1</source>
         <translation>最繁忙线程：%1</translation>
     </message>
@@ -6146,7 +6161,32 @@ El PIN anterior deja de servir para entrar.</source>
         <translation>队列中没有其他人</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+18"/>
+        <source>Fijo (Configuración → Conferencia)</source>
+        <translation>固定（设置 → 会议）</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automático: arranca en la calidad más alta</source>
+        <translation>自动：从最高画质开始</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bajó: el retorno salía a %1 de %2 cps con la máquina al %3 % (invitados: %4)</source>
+        <translation>已降低：返送只达到 %1/%2 帧/秒，机器负载 %3 %（嘉宾：%4）</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Bajó: el codificador del retorno descartaba el %1 % de los cuadros</source>
+        <translation>已降低：返送编码器丢弃了 %1 % 的帧</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Subió: sobraba margen (retorno a %1 de %2 cps, máquina al %3 %)</source>
+        <translation>已提高：有余量（返送 %1/%2 帧/秒，机器 %3 %）</translation>
+    </message>
+    <message>
+        <location line="+70"/>
         <source>%1 espera en el lobby</source>
         <translation>%1 在等候室等候</translation>
     </message>
@@ -30515,7 +30555,7 @@ APRETADO</source>
 <context>
     <name>Red</name>
     <message>
-        <location filename="../src/app/red/Red.cpp" line="+241"/>
+        <location filename="../src/app/red/Red.cpp" line="+249"/>
         <source>Falta el usuario.</source>
         <translation>缺少用户名。</translation>
     </message>
@@ -40998,6 +41038,21 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de retorno: resolución máxima</source>
+        <translation>返送视频：最高分辨率</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Automática (según la carga)</source>
+        <translation>自动（按负载）</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lo más que recibe cualquier invitado como video de retorno. Automática: arranca en la calidad más alta del retorno (720p) y, si la máquina no da abasto (el retorno sale con menos cuadros de los que debería con el procesador cargado, o el codificador descarta cuadros), baja de a un escalón (480p, 360p); cuando sobra margen un rato, vuelve a subir. Fija: siempre como mucho esa (1080p solo si el programa es de 1080). Cada calidad se codifica una sola vez para todos; dentro del tope, cada invitado recibe la que aguanta su red.</source>
+        <translation>任何嘉宾收到的返送视频的最高画质。自动：从返送的最高画质（720p）开始；如果机器跟不上（处理器负载高时返送的帧数低于应有值，或编码器丢帧），每次降一级（480p、360p）；有一段时间余量充足时再升回去。固定：始终不超过所选画质（只有节目为 1080 时才有 1080p）。每种画质只为所有人编码一次；在上限之内，每位嘉宾得到其网络能承受的画质。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de retorno: cuadros completos cada al menos</source>
         <translation>回传视频：完整画面至少间隔</translation>
     </message>
@@ -41522,7 +41577,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不是可选项之一</translation>
     </message>
     <message>
-        <location line="-243"/>
+        <location line="-244"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>保留的聊天消息数</translation>
     </message>
@@ -41652,7 +41707,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>操作员控制台、发言人看板和手机：每个都是一个连接。</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+15"/>
         <source>Windows: el H.264 que suben los invitados se decodifica en la placa de video. Apagado (o sin placa), los invitados suben y reciben en VP8 por software.</source>
         <translation>Windows：嘉宾上传的 H.264 在 GPU 上解码。关闭时（或没有 GPU），嘉宾以软件 VP8 上传和接收。</translation>
     </message>
@@ -44931,9 +44986,14 @@ Elegí otra cosa en Salidas → Pantallas.</source>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+169"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+171"/>
         <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
         <translation>启动：系统音频（Qt Multimedia，在独立线程中），%1 毫秒</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>arranque: las cámaras del sistema (Qt Multimedia, en su hilo), %1 ms</source>
+        <translation>启动：系统摄像头（Qt Multimedia，在其线程中），%1 毫秒</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -44981,7 +45041,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>启动：配置，%1 毫秒</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+77"/>
         <source>el motor no pudo arrancar: %1</source>
         <translation>引擎无法启动：%1</translation>
     </message>
@@ -47849,7 +47909,7 @@ Datos (de %2): %3</source>
         <translation>物理输入「%1」与另一个来源冲突；不创建</translation>
     </message>
     <message>
-        <location filename="../src/app/audio/RackManager.cpp" line="+519"/>
+        <location filename="../src/app/audio/RackManager.cpp" line="+543"/>
         <source>Otras fuentes</source>
         <translation>其他来源</translation>
     </message>
@@ -50692,7 +50752,7 @@ Datos (de %2): %3</source>
         <translation>界面卡顿持续了约 %1 毫秒（调用栈在 %2）</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-426"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-429"/>
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples 只能与 --test 一起使用：未开启</translation>
     </message>
@@ -56175,12 +56235,12 @@ Datos (de %2): %3</source>
         <translation>会场测试：已结束（%1）；凭据已撤销，已移出 %2 名测试参与者</translation>
     </message>
     <message>
-        <location line="+227"/>
+        <location line="+228"/>
         <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
         <translation>视频：视频引擎负载 %1；低层帧率从第 %2 级变为第 %3 级（共 %4 级）</translation>
     </message>
     <message>
-        <location line="-3367"/>
+        <location line="-3368"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>地址：网络 %1，外部 %2</translation>
     </message>
@@ -56480,7 +56540,7 @@ Datos (de %2): %3</source>
         <translation>turn：测试模式（--turn-prueba）：TURN 不经 pinggy 启动，仅限局域网</translation>
     </message>
     <message>
-        <location line="+271"/>
+        <location line="+273"/>
         <source>túnel: --tunnel-token es visible en la lista de procesos; preferir %1</source>
         <translation>隧道：--tunnel-token 在进程列表中可见；建议使用 %1</translation>
     </message>
@@ -56500,7 +56560,7 @@ Datos (de %2): %3</source>
         <translation>隧道：已在配置中停用（仅限本地访问）</translation>
     </message>
     <message>
-        <location line="-649"/>
+        <location line="-651"/>
         <source>red: IP de la máquina %1; en el QR: %2</source>
         <translation>网络：本机 IP %1；二维码中：%2</translation>
     </message>
@@ -56550,7 +56610,7 @@ Datos (de %2): %3</source>
         <translation>https：ba-web 不处理；启动自带的终结器</translation>
     </message>
     <message>
-        <location line="+219"/>
+        <location line="+221"/>
         <source>puerta de la sala: https en %1:%2</source>
         <translation>会场入口：https 位于 %1:%2</translation>
     </message>
@@ -56949,6 +57009,31 @@ Datos (de %2): %3</source>
         <location line="+3"/>
         <source>SetProcessDefaultCpuSets falló (%1)</source>
         <translation>SetProcessDefaultCpuSets 失败（%1）</translation>
+    </message>
+    <message>
+        <location filename="../src/gateway/TopeRetorno.cpp" line="+194"/>
+        <source>retorno: fijo en %1p (Configuración)</source>
+        <translation>返送：固定为 %1p（设置）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>retorno: automático, arranca en %1p</source>
+        <translation>返送：自动，从 %1p 开始</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>retorno: baja a %1p: salía a %2 de %3 cps con la máquina al %4 % (%5 invitados)</source>
+        <translation>返送：降到 %1p：只达到 %2/%3 帧/秒，机器负载 %4 %（%5 位嘉宾）</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>retorno: baja a %1p: el codificador descartaba el %2 % de los cuadros</source>
+        <translation>返送：降到 %1p：编码器丢弃了 %2 % 的帧</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>retorno: sube a %1p: sobra margen (salía a %2 de %3 cps, máquina al %4 %, %5 invitados)</source>
+        <translation>返送：升到 %1p：有余量（达到 %2/%3 帧/秒，机器 %4 %，%5 位嘉宾）</translation>
     </message>
 </context>
 <context>
@@ -59529,7 +59614,7 @@ Lo que queda vacío no deja separadores colgando: «{nombre} — {cargo}» sin c
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+265"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+268"/>
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>测试模式（--test）：MCP 不请求任何批准，包括在播操作</translation>
     </message>
@@ -61550,7 +61635,7 @@ LO QUE HAY QUE SABER AL PRENDERLO: la salvaguarda de aprobaciones (`mcp.approval
         <translation>请服务器监视某些情况（过载、静音、曲目结束、发言人时间、等候室、聊天、中断、磁盘、计时器），并自动通知或处理。无需定期查询：通知会发到助手的聊天中。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+481"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+486"/>
         <source>Notificadores</source>
         <translation>通知器</translation>
     </message>
@@ -62901,7 +62986,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>控制界面（通过二维码配对的平板、Stream Deck、通过插件的 MIDI）以及应用的事件总线（在播内容、输出、电平、警报），供按钮、插件和触发器使用。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-172"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-177"/>
         <source>Temas del bus de eventos</source>
         <translation>事件总线主题</translation>
     </message>
@@ -63403,7 +63488,7 @@ EL `id` QUE DEVUELVE SE USA TAL CUAL en `audio_module_add`. Los seis del catalog
         <translation>执行 `accion`（acciones_listar 中的 id），如同按下其快捷键，但使用请求者的权限和在播保护。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+87"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+92"/>
         <source>Modo en vivo</source>
         <translation>直播模式</translation>
     </message>
@@ -73869,7 +73954,7 @@ Cada paso pasa por el mismo camino que si lo llamaras vos: se validan los argume
         <translation>三个进程中发生的事：读取、筛选以及决定记录多少。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-262"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-267"/>
         <source>Leer el registro</source>
         <translation>读取日志</translation>
     </message>
@@ -73924,6 +74009,11 @@ Ojo: lo que está por DEBAJO del nivel al que el proceso está registrando no se
         <location line="+2"/>
         <source>Solo lo de los últimos N minutos.</source>
         <translation>仅最近 N 分钟的内容。</translation>
+    </message>
+    <message>
+        <location line="+186"/>
+        <source>El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s), el TURN (asignaciones, conexiones, bytes) y `retornoTope` (la resolución máxima del retorno: el tope, por qué, los umbrales y las últimas decisiones). Lo usa tools/carga/medir-sala.py.</source>
+        <translation>会议服务器（gateway）内部情况，用于测量负载：`uso`（CPU、线程、内存、环形缓冲、监看）、`fronteras`（线程间的每次交接：交接/秒、唤醒/秒、每次唤醒的交接数、kB/s、每次交接的工作量 µs、队列等待 µs，以 1 秒为窗口）、TURN（分配、连接、字节）以及 `retornoTope`（返送的最高分辨率：上限、原因、阈值和最近的决策）。由 tools/carga/medir-sala.py 使用。</translation>
     </message>
     <message>
         <location filename="../src/app/mcp/McpRegistroTools.cpp" line="+9"/>
@@ -74092,9 +74182,14 @@ Despues de escribir una, `ext_listar` de nuevo: `problema` dice si le falta algo
         <translation>人员的姓名（或唯一前缀）或 id。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+145"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-41"/>
         <source>Estado de la conferencia</source>
         <translation>会议状态</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo). `retornoTope`: la resolución máxima del video de retorno a los invitados (ajuste retorno.tope: auto, 360p, 480p, 720p, 1080p) con `modo` (auto/fijo), `alto`, `causa` (inicio, fijo, cps, codificador, margen), `motivo`, `medida` (CPU de la máquina y del gateway, cps del retorno logrados y debidos, descartes del codificador, oyentes) y `decision` (la medida que decidió el último cambio). El historial de decisiones está en gateway_estado (`retornoTope`).</source>
+        <translation>会议的全部信息：名称、PIN、等候室/锁定、链接、每个人（状态、位置、麦克风、摄像头、屏幕、举手、连接、信息和联系方式、发言顺序）、共享文件、最近聊天、发言人配置以及分批进入：`entrando`（已批准、等待轮到进入的人，每人带 `entrando`）和 `entradaPorSegundo`（速度，设置 room.entradaPorSegundo）。 `retornoTope`：发给嘉宾的返送视频的最高分辨率（设置 retorno.tope：auto、360p、480p、720p、1080p），含 `modo`（自动/固定）、`alto`、`causa`（inicio、fijo、cps、codificador、margen）、`motivo`、`medida`（机器和 gateway 的 CPU、返送实际与应有帧率、编码器丢帧、收看人数）和 `decision`（决定上次变更的测量值）。决策历史在 gateway_estado（`retornoTope`）中。</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -74723,7 +74818,7 @@ Si no hay lugar libre en la conferencia (`room_status` -&gt; `slotsFree`) el gat
         <translation>这是本地网络地址：给外部的人用 room_link {&quot;target&quot;: &quot;remote&quot;}。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="+39"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="+40"/>
         <source>Red y acceso de invitados</source>
         <translation>嘉宾网络和访问</translation>
     </message>
@@ -75565,7 +75660,7 @@ Llegando a 500 fichas se apaga solo y lo dice. Sin `activo` solo informa como es
         <translation>应用和网关的最新测量（每秒一次）：以核心数表示的总 CPU（1.0 = 一个完整核心）、内存、消耗最多的线程及其名称（GStreamer 的线程以其元素命名：由此可见视频的哪部分在消耗资源），在 Windows 上还有按引擎划分的进程 GPU（3D、VideoDecode、VideoEncode、Copy）。历史记录在 Logs/perfil-app.jsonl 和 Logs/perfil-gateway.jsonl 中；每 10 秒在日志中写入一条摘要（log_leer，组件 perfil）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-423"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-428"/>
         <source>Estado general</source>
         <translation>总体状态</translation>
     </message>
@@ -79514,22 +79609,12 @@ Los archivos: app.log (Proceso A), gateway.log (Proceso B), graficos.log, launch
         <translation>主题的最新值</translation>
     </message>
     <message>
-        <location line="+27"/>
-        <source>Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo).</source>
-        <translation>会议的全部信息：名称、PIN、等候室/锁定、链接、每个人（状态、位置、麦克风、摄像头、屏幕、举手、连接、信息和联系方式、发言顺序）、共享文件、最近聊天、发言人配置以及分批进入：`entrando`（已批准、等待轮到进入的人，每人带 `entrando`）和 `entradaPorSegundo`（速度，设置 room.entradaPorSegundo）。</translation>
-    </message>
-    <message>
-        <location line="+30"/>
+        <location line="+61"/>
         <source>El gateway por dentro (para medir)</source>
         <translation>gateway 内部（用于测量）</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.</source>
-        <translation>会议服务器（gateway）内部情况，用于测量负载：`uso`（CPU、线程、内存、环形缓冲、监看）、`fronteras`（线程间的每次交接：交接/秒、唤醒/秒、每次唤醒的交接数、kB/s、每次交接的工作量 µs、队列等待 µs，以 1 秒为窗口）以及 TURN（分配、连接、字节）。由 tools/carga/medir-sala.py 使用。</translation>
-    </message>
-    <message>
-        <location line="+70"/>
+        <location line="+74"/>
         <source>Carpeta del sistema, credenciales y respaldos</source>
         <translation>系统文件夹、凭据和备份</translation>
     </message>
@@ -81859,7 +81944,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>输出的 id（字母、数字、- 和 _）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpFoto.cpp" line="-429"/>
+        <location filename="../src/app/mcp/McpFoto.cpp" line="-434"/>
         <source>Las salidas del aparato</source>
         <translation>设备的输出</translation>
     </message>
@@ -92951,7 +93036,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>没有翻译「%1」</translation>
     </message>
     <message>
-        <location filename="../src/app/audio/ClapHost.cpp" line="+116"/>
+        <location filename="../src/app/audio/ClapHost.cpp" line="+122"/>
         <source>modo seguro: los plugins CLAP de terceros no se cargan</source>
         <translation>安全模式：不加载第三方 CLAP 插件</translation>
     </message>

@@ -3853,7 +3853,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 699
+        "linea": 704
       },
       "roles": [
         "asistente"
@@ -4082,7 +4082,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 155
+        "linea": 161
       },
       "roles": [
         "asistente"
@@ -4124,7 +4124,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 190
+        "linea": 196
       },
       "roles": [
         "asistente"
@@ -4171,7 +4171,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 221
+        "linea": 227
       },
       "roles": [
         "asistente"
@@ -4212,7 +4212,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 277
+        "linea": 283
       },
       "roles": [
         "asistente"
@@ -4247,7 +4247,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpAssistantTools.cpp",
-        "linea": 127
+        "linea": 133
       },
       "roles": [
         "asistente"
@@ -4925,7 +4925,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMatrizTools.cpp",
-        "linea": 219
+        "linea": 220
       },
       "roles": [
         "asistente",
@@ -4959,7 +4959,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMatrizTools.cpp",
-        "linea": 181
+        "linea": 182
       },
       "roles": [
         "asistente",
@@ -4997,7 +4997,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMatrizTools.cpp",
-        "linea": 198
+        "linea": 199
       },
       "roles": [
         "asistente",
@@ -5235,7 +5235,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMatrizTools.cpp",
-        "linea": 241
+        "linea": 243
       },
       "roles": [
         "asistente",
@@ -5482,7 +5482,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMatrizTools.cpp",
-        "linea": 297
+        "linea": 299
       },
       "roles": [
         "asistente",
@@ -5870,7 +5870,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpMatrizTools.cpp",
-        "linea": 259
+        "linea": 261
       },
       "roles": [
         "asistente",
@@ -8757,7 +8757,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 648
+        "linea": 653
       },
       "roles": [
         "asistente"
@@ -8789,7 +8789,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 660
+        "linea": 665
       },
       "roles": [
         "asistente"
@@ -11064,7 +11064,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 134
+        "linea": 136
       },
       "roles": [
         "asistente"
@@ -11097,7 +11097,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 151
+        "linea": 153
       },
       "roles": [
         "asistente"
@@ -13993,7 +13993,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1207
+        "linea": 1211
       },
       "roles": [
         "asistente",
@@ -14077,7 +14077,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1227
+        "linea": 1231
       },
       "roles": [
         "asistente",
@@ -14869,7 +14869,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1242
+        "linea": 1246
       },
       "roles": [
         "asistente",
@@ -14935,7 +14935,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1172
+        "linea": 1176
       },
       "roles": [
         "asistente",
@@ -15019,7 +15019,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpService.cpp",
-        "linea": 1263
+        "linea": 1267
       },
       "roles": [
         "asistente",
@@ -22909,7 +22909,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 391
+        "linea": 393
       },
       "roles": [
         "asistente",
@@ -22948,7 +22948,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 371
+        "linea": 373
       },
       "roles": [
         "asistente",
@@ -22984,7 +22984,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 428
+        "linea": 430
       },
       "roles": [
         "asistente",
@@ -23322,7 +23322,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 491
+        "linea": 493
       },
       "roles": [
         "asistente",
@@ -23371,7 +23371,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 531
+        "linea": 533
       },
       "roles": [
         "asistente",
@@ -23399,7 +23399,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 513
+        "linea": 515
       },
       "roles": [
         "asistente",
@@ -23529,7 +23529,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 360
+        "linea": 362
       },
       "roles": [
         "asistente",
@@ -23664,7 +23664,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 457
+        "linea": 459
       },
       "roles": [
         "asistente",
@@ -23692,7 +23692,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 446
+        "linea": 448
       },
       "roles": [
         "asistente",
@@ -29271,7 +29271,7 @@
       "nombre": "gateway_estado",
       "titulo": "El gateway por dentro (para medir)",
       "categoria": "sala",
-      "descripcion": "El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.",
+      "descripcion": "El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s), el TURN (asignaciones, conexiones, bytes) y `retornoTope` (la resolución máxima del retorno: el tope, por qué, los umbrales y las últimas decisiones). Lo usa tools/carga/medir-sala.py.",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -29287,7 +29287,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 610
+        "linea": 614
       },
       "roles": [
         "asistente",
@@ -29433,7 +29433,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 48
+        "linea": 50
       },
       "roles": [
         "asistente",
@@ -29499,7 +29499,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 628
+        "linea": 633
       },
       "roles": [
         "asistente",
@@ -30356,7 +30356,7 @@
       "nombre": "room_status",
       "titulo": "Estado de la conferencia",
       "categoria": "sala",
-      "descripcion": "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo).",
+      "descripcion": "Todo lo de la conferencia: nombre, PIN, lobby/cerrada, enlace, cada persona (estado, lugar, microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, ajuste room.entradaPorSegundo). `retornoTope`: la resolución máxima del video de retorno a los invitados (ajuste retorno.tope: auto, 360p, 480p, 720p, 1080p) con `modo` (auto/fijo), `alto`, `causa` (inicio, fijo, cps, codificador, margen), `motivo`, `medida` (CPU de la máquina y del gateway, cps del retorno logrados y debidos, descartes del codificador, oyentes) y `decision` (la medida que decidió el último cambio). El historial de decisiones está en gateway_estado (`retornoTope`).",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -30515,7 +30515,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 88
+        "linea": 90
       },
       "roles": [
         "asistente"
@@ -30565,7 +30565,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 540
+        "linea": 542
       },
       "roles": [
         "asistente"
@@ -30627,7 +30627,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 286
+        "linea": 288
       },
       "roles": [
         "asistente"
@@ -30653,7 +30653,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 70
+        "linea": 72
       },
       "roles": [
         "asistente"
@@ -30696,7 +30696,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 259
+        "linea": 261
       },
       "roles": [
         "asistente"
@@ -30801,7 +30801,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 436
+        "linea": 438
       },
       "roles": [
         "asistente"
@@ -30836,7 +30836,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 459
+        "linea": 461
       },
       "roles": [
         "asistente"
@@ -31102,7 +31102,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 485
+        "linea": 487
       },
       "roles": [
         "asistente"
@@ -31155,7 +31155,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 515
+        "linea": 517
       },
       "roles": [
         "asistente"
@@ -31217,7 +31217,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 351
+        "linea": 353
       },
       "roles": [
         "asistente"
@@ -31251,7 +31251,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 418
+        "linea": 420
       },
       "roles": [
         "asistente"
@@ -31307,7 +31307,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 389
+        "linea": 391
       },
       "roles": [
         "asistente"
@@ -31334,7 +31334,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 334
+        "linea": 336
       },
       "roles": [
         "asistente"
@@ -32404,7 +32404,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 201
+        "linea": 203
       },
       "roles": [
         "asistente"
@@ -32455,7 +32455,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 229
+        "linea": 231
       },
       "roles": [
         "asistente"
@@ -32493,7 +32493,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 129
+        "linea": 131
       },
       "roles": [
         "asistente"
@@ -32528,7 +32528,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrabacionTools.cpp",
-        "linea": 174
+        "linea": 176
       },
       "roles": [
         "asistente"
@@ -32621,7 +32621,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpFoto.cpp",
-        "linea": 683
+        "linea": 688
       },
       "roles": [
         "asistente"
@@ -33717,7 +33717,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 191
+        "linea": 193
       },
       "roles": [
         "asistente"
@@ -33743,7 +33743,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 216
+        "linea": 218
       },
       "roles": [
         "asistente"
@@ -33769,7 +33769,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 179
+        "linea": 181
       },
       "roles": [
         "asistente"
@@ -33802,7 +33802,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 230
+        "linea": 232
       },
       "roles": [
         "asistente"
@@ -34433,7 +34433,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 245
+        "linea": 247
       },
       "roles": [
         "asistente"
@@ -34478,7 +34478,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 262
+        "linea": 264
       },
       "roles": [
         "asistente"
@@ -34511,7 +34511,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 313
+        "linea": 315
       },
       "roles": [
         "asistente"
@@ -34544,7 +34544,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 297
+        "linea": 299
       },
       "roles": [
         "asistente"
@@ -35233,7 +35233,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpTransmisionTools.cpp",
-        "linea": 330
+        "linea": 332
       },
       "roles": [
         "asistente"

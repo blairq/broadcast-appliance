@@ -95,6 +95,9 @@ struct ResumenSala {
     QVariantList chatTargets;
     int conectados = 0; ///< peopleConnected
     QVariantMap uso;
+    /// La resolución máxima del retorno (`retornoTope` de la sala: src/gateway/TopeRetorno.hpp).
+    /// Avisa con el uso.
+    QVariantMap retornoTope;
     double clockOffset = 0;
     QVariantList onAir;
     std::vector<bool> monitor; ///< [0..8]: lobby k se escucha

@@ -402,7 +402,7 @@ class Capa : public webrtc::EncodedImageCallback {
 
     void codificar(const std::shared_ptr<Emision>& e, std::int64_t ahora) {
         const int srcW = e->i420->width(), srcH = e->i420->height();
-        const std::vector<CapaRetorno> niveles = capasPara(srcH, capasRetorno());
+        const std::vector<CapaRetorno> niveles = capasPara(srcH, capasRetornoVigentes());
         if (!enUso(ahora) || indice_ >= static_cast<int>(niveles.size()) || srcH <= 0) {
             e->terminar(this, Resultado::Estado::Descartado, nullptr, nullptr);
             return;
@@ -833,7 +833,7 @@ class EncoderPaso : public webrtc::VideoEncoder {
             std::lock_guard<std::mutex> l(p_->m);
             p_->estado = b.estado();
             if (p_->estado) p_->estado->fuente.store(1, std::memory_order_relaxed);
-            const std::vector<CapaRetorno> niveles = capasPara(e->i420->height(), capasRetorno());
+            const std::vector<CapaRetorno> niveles = capasPara(e->i420->height(), capasRetornoVigentes());
             if (niveles.empty()) return WEBRTC_VIDEO_CODEC_OK;
             std::vector<int> kbps;
             for (const CapaRetorno& c : niveles) kbps.push_back(c.kbps);

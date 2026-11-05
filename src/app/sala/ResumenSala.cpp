@@ -194,6 +194,7 @@ std::shared_ptr<const ResumenSala> ResumenSala::construir(const QJsonObject& s, 
     r->uso["conVideo"] = conVideo;
     r->uso["enSala"] = enSala;
     r->uso["lugares"] = maxG;
+    r->retornoTope = s.value("retornoTope").toObject().toVariantMap();
     if (s.contains("serverNowMs")) {
         const double off = s.value("serverNowMs").toDouble() - static_cast<double>(o.ahoraMs);
         r->clockOffset = ant != nullptr && std::abs(off - ant->clockOffset) < kRelojTolMs ? ant->clockOffset : off;
@@ -230,7 +231,7 @@ std::shared_ptr<PaqueteSala> PaqueteSala::diferencia(const std::shared_ptr<const
     if (r->gente != b.gente) x |= Gente;
     if (r->firmaSala != b.firmaSala) x |= Sala;
     if (r->speakerCfg != b.speakerCfg || r->speakerMode != b.speakerMode) x |= OradoresCfg;
-    if (r->uso != b.uso || r->clockOffset != b.clockOffset) x |= Uso;
+    if (r->uso != b.uso || r->clockOffset != b.clockOffset || r->retornoTope != b.retornoTope) x |= Uso;
     if (r->monitor != b.monitor) x |= Monitor;
     if (r->conectados != b.conectados || r->slotNames != b.slotNames || r->chatTargets != b.chatTargets) x |= Participantes;
     if (r->directa != b.directa) x |= Directa;

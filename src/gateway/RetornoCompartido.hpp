@@ -60,6 +60,19 @@ std::vector<CapaRetorno> capasRetorno();
 /// <= la fuente. Si la fuente es más chica que todas, una sola a su alto, con el bitrate de
 /// la más chica.
 std::vector<CapaRetorno> capasPara(int altoFuente, const std::vector<CapaRetorno>& todas);
+/// Las capas con el TOPE DE LA SALA (`topeAlto`, 0 = sin tope; TopeRetorno.hpp): las de alto
+/// <= el tope y, si el tope no es una de ellas y queda por encima de las que quedan, una capa
+/// nueva a la altura del tope (su bitrate, escalado del de la capa más cercana: los bits van
+/// más o menos con los píxeles^0,75). Así «480p» codifica de verdad 480p (y no 360p), y
+/// «1080p» agrega la capa de 1080 que las de fábrica no tienen. Sigue habiendo UNA
+/// codificación por calidad: el tope cambia qué calidades hay, no cuántas veces se codifica.
+std::vector<CapaRetorno> capasConTope(const std::vector<CapaRetorno>& todas, int topeAlto);
+/// El tope de la sala que rige ahora (0 = sin tope). Lo pone el regulador (TopeRetorno.hpp,
+/// SignalingServer) y lo leen los codificadores del retorno en cada cuadro.
+void ponerTopeSala(int alto);
+int topeSala();
+/// Las capas que rigen ahora: capasConTope(capasRetorno(), topeSala()).
+std::vector<CapaRetorno> capasRetornoVigentes();
 /// El índice de la capa más alta que permite un tope de `topeAlto` (0 = sin tope): la
 /// primera de alto <= tope; si todas lo pasan, la última.
 int indiceTope(const std::vector<CapaRetorno>& capas, int topeAlto);

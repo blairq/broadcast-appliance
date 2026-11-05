@@ -301,6 +301,10 @@ class WebrtcSession {
     /// Diagnosticos: bloques de audio / frames de video de retorno inyectados.
     uint64_t localAudioBlocks() const;
     uint64_t localVideoFrames() const;
+    /// Los cuadros del video de retorno que le salieron de verdad (los que el codificador de
+    /// paso entregó a su conexión): contra localVideoFrames, cuánto de lo que se le dio le
+    /// llega (el regulador del tope del retorno, TopeRetorno.hpp). 0 sin libwebrtc.
+    uint64_t retornoCuadros() const;
 
    private:
     struct Impl;

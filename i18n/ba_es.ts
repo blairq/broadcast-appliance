@@ -309,7 +309,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+201"/>
+        <location line="+225"/>
         <source>%n conexión</source>
         <translation>
             <numerusform>%n conexión</numerusform>

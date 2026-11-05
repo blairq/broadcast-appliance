@@ -385,6 +385,52 @@ Descartar cuadros antes de decodificar no sirve: el H.264 de los navegadores es 
 referencia y la cadena de referencias se arma antes del decodificador (el siguiente quedaría
 esperando al que se tiró). Lo que no se va a decodificar, mejor que no se mande.
 
+### Resolución máxima del retorno (`retorno.tope`)
+
+El video que reciben los invitados (el programa, el retorno) se codifica **una vez por
+calidad** para todos (`retorno.capas`, de fábrica 720p, 360p y 180p) y cada conexión recibe
+la que aguanta su red. Con muchos invitados por cable la red ya no frena: casi todos piden
+720p y el que no da abasto es el gateway (medido con 200 en la PC de pruebas: el retorno
+salía a 6 cps de 30). El ajuste **Configuración → Conferencia → «Video de retorno:
+resolución máxima»** pone un techo para toda la sala:
+
+- **Automática** (de fábrica): arranca en la calidad más alta del retorno (720p) y la
+  regula el gateway según lo que mide;
+- **360p, 480p, 720p, 1080p**: fija (1080p solo si el programa que llega es de 1080).
+
+El tope cambia **qué calidades hay**, no cuántas veces se codifica: con 480p son 480p, 360p
+y 180p (la de 480 aparece con su bitrate, escalado del de la de 360); con 360p, dos. El tope
+que el operador le pone a una persona (calidad 360p desde la red) sigue mandando si es más
+bajo, y dentro del tope cada uno recibe lo que aguanta su red.
+
+**Cómo decide el automático.** Cada segundo, con el promedio de los últimos 3:
+
+| Mide | De dónde |
+|---|---|
+| CPU de la máquina (y la del gateway, que se informa) | el sistema (Windows, macOS, Linux) |
+| cps del retorno logrados contra debidos | los cuadros que salen hacia cada invitado contra los que le dio la fuente |
+| descartes del codificador del retorno | las calidades que no llegan a codificar a tiempo |
+| oyentes | los invitados que reciben el retorno |
+
+- **No llega** si el codificador descarta el 10 % o más, o si el retorno sale a menos del
+  70 % de lo que debería **con la máquina al 80 % o más**. Sostenido 3 s: baja un escalón
+  (720p → 480p → 360p). Con la máquina holgada un retorno lento es la red de alguien: eso lo
+  arregla el control de congestión de su conexión, no el tope de todos.
+- **Sobra margen** si el retorno sale al 90 % o más (o no hay nadie), la máquina está al
+  65 % o menos y el codificador no descarta. Sostenido 20 s: sube un escalón.
+- Entre medio se queda; entre dos cambios pasan al menos 5 s.
+- Al bajar de un escalón anota con cuántos invitados no llegaba: volver a él con la misma
+  gente (o más) espera un minuto, y el doble cada vez que al volver no llega enseguida (hasta
+  10 minutos). Con menos gente (menos del 80 %), vuelve apenas sobra margen.
+
+**Dónde se ve.** En la Conferencia, panel «Uso de la conferencia»: «Video de retorno: hasta
+480p (automático)» y por qué («Bajó: el retorno salía a 6,3 de 30 cps con la máquina al
+88 %…»). Por MCP, `room_status` → `retornoTope` (`modo`, `alto`, `causa`: inicio, fijo, cps,
+codificador o margen, `motivo`, `medida` y `decision`, la medida que decidió el último
+cambio) y `gateway_estado` → `retornoTope` (además los umbrales y las últimas decisiones).
+Se cambia con `settings_set` (`{"retorno.tope": "480p"}`; rige en el acto). Cada cambio
+queda en el registro del gateway con el motivo.
+
 ### Nombres
 
 **Nombre en cada celda** (`nombres`): sin nombre, el nombre, o el nombre y el cargo o

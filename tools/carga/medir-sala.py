@@ -791,6 +791,8 @@ def main():
                             k = f"retorno {sa['codec']}"
                             cods[k] = cods.get(k, 0) + 1
                     m["sala"]["codecs"] = cods
+                    # La resolución máxima del retorno (src/gateway/TopeRetorno.hpp): tope y por qué.
+                    m["sala"]["retorno_tope"] = sala.get("retornoTope")
                 except Exception as ex:
                     m["sala"] = {"error": str(ex)}
             if t - ultimo_app >= 5:
@@ -1218,6 +1220,19 @@ def resumir_f0(r, a, muestras, lineas, extras, hdir, remoto, estable_t, app_info
     ses = [(m.get("sala") or {}).get("codecs") for m in reg if (m.get("sala") or {}).get("codecs")]
     if ses:
         r["codecs_por_sesion"] = ses[-1]
+    # El tope del retorno a lo largo de TODA la corrida (no solo el régimen): cada cambio con su
+    # segundo, el alto, la causa y la medida que lo decidió.
+    topes = []
+    for m in muestras:
+        t = (m.get("sala") or {}).get("retorno_tope") if isinstance(m.get("sala"), dict) else None
+        if not isinstance(t, dict) or not t.get("alto"):
+            continue
+        clave = (t.get("modo"), t.get("alto"), t.get("causa"), t.get("desdeMs"))
+        if not topes or topes[-1]["clave"] != clave:
+            topes.append({"clave": clave, "s": m["s"], "modo": t.get("modo"), "alto": t.get("alto"),
+                          "causa": t.get("causa"), "motivo": t.get("motivo"), "decision": t.get("decision")})
+    if topes:
+        r["retorno_tope"] = [{k: v for k, v in x.items() if k != "clave"} for x in topes]
     # Los hilos por nombre: en Windows de muestrear-win.ps1 (cada muestra); en la Mac de xctrace.
     hil = {}
     if a.remoto:
@@ -1435,6 +1450,8 @@ def en_texto_f0(r):
         l.append(f"- códecs del gateway (placa o software): {r['codecs_gateway']}")
     if r.get("codecs_por_sesion"):
         l.append(f"- códec por sesión (room_status): {r['codecs_por_sesion']}")
+    for x in r.get("retorno_tope") or []:
+        l.append(f"- tope del retorno a los {x['s']} s: {x['alto']}p ({x['modo']}, {x['causa']}): {x.get('motivo')}")
     for k in ("demora", "rafaga", "palabra", "transmision"):
         if r.get(k):
             l.append(f"- {k}: {json.dumps(r[k], ensure_ascii=False)[:1500]}")

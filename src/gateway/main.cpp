@@ -1200,6 +1200,8 @@ int main(int argc, char** argv) {
         // F3: quién se decodifica (capas pedidas, decodificadores trabajando o en pausa) y los
         // cps de la capa baja según la carga del motor de video (CpsSegunCarga.hpp).
         out["videoSegunCarga"] = server.estadoCargaVideo();
+        // La resolución máxima del retorno: el tope, por qué y las últimas decisiones (TopeRetorno.hpp).
+        out["retornoTope"] = server.estadoTopeRetorno();
         if (pinggy) {
             const PinggySupervisor::Estado st = pinggy->estado();
             out["pinggy"] = {{"turnPublico", st.turnPublico}, {"turnTipo", st.turnTipo}, {"turnUdp", st.turnUdp}};

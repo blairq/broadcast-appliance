@@ -287,6 +287,11 @@ class Room {
     /// mix-minus no está abierto). Viaja en su participante (`retorno`: "ok" | "apagado")
     /// para que el operador lo vea. Publica solo si cambió.
     void setSinRetorno(std::vector<int> lugares);
+    /// La resolución máxima del video de retorno (TopeRetorno.hpp: ReguladorRetorno::estado):
+    /// viaja en el snapshot como `retornoTope` ({modo, alto, causa, motivo, desdeMs, medida,
+    /// decision, escalones}). Publica en el acto si cambió el tope, el modo o la causa; la
+    /// medida de cada segundo viaja con el próximo snapshot.
+    void setRetornoTope(const nlohmann::json& t);
 
     /// Vista de solo lectura para la tablet: fila, fichas, tiempos (sin claves
     /// ni IPs ni chat).
@@ -392,6 +397,7 @@ class Room {
     SpeakerCfg spk_;
     nlohmann::json usage_ = nlohmann::json::object();
     std::vector<int> sinRetorno_; // ordenados (setSinRetorno)
+    nlohmann::json retornoTope_ = nlohmann::json::object(); // setRetornoTope
     int64_t usageSentMs_ = 0;        // ultimo snapshot mandado solo por el uso
     std::vector<std::string> order_; ///< ids en el orden de la fila de oradores
     int64_t lastNowMs_ = 0;          // ultimo "ahora" visto (para admisiones sin reloj propio)

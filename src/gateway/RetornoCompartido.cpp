@@ -10,6 +10,7 @@
 #include "diag/Registro.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdlib>
 #include <sstream>
@@ -56,6 +57,32 @@ std::vector<CapaRetorno> capasPara(int altoFuente, const std::vector<CapaRetorno
     if (out.empty() && !todas.empty() && altoFuente > 0) out.push_back({altoFuente, todas.back().kbps});
     return out;
 }
+
+std::vector<CapaRetorno> capasConTope(const std::vector<CapaRetorno>& todas, int topeAlto) {
+    if (topeAlto <= 0 || todas.empty()) return todas;
+    std::vector<CapaRetorno> out;
+    for (const CapaRetorno& c : todas)
+        if (c.alto <= topeAlto) out.push_back(c);
+    if (!out.empty() && out.front().alto == topeAlto) return out;
+    // Una capa a la altura del tope, con el bitrate escalado de la más cercana.
+    const CapaRetorno* cerca = &todas.front();
+    for (const CapaRetorno& c : todas)
+        if (std::abs(c.alto - topeAlto) < std::abs(cerca->alto - topeAlto)) cerca = &c;
+    const double escala = std::pow(static_cast<double>(topeAlto) / static_cast<double>(cerca->alto), 1.5);
+    const int kbps = std::max(50, static_cast<int>(std::lround(cerca->kbps * escala / 50.0)) * 50);
+    out.insert(out.begin(), CapaRetorno{topeAlto, kbps});
+    if (out.size() > 4) out.resize(4); // como leerCapasRetorno: más capas, más codificadores
+    return out;
+}
+
+namespace {
+std::atomic<int> g_topeSala{0};
+} // namespace
+
+void ponerTopeSala(int alto) { g_topeSala.store(std::max(0, alto), std::memory_order_relaxed); }
+int topeSala() { return g_topeSala.load(std::memory_order_relaxed); }
+
+std::vector<CapaRetorno> capasRetornoVigentes() { return capasConTope(capasRetorno(), topeSala()); }
 
 int indiceTope(const std::vector<CapaRetorno>& capas, int topeAlto) {
     if (topeAlto <= 0 || capas.empty()) return 0;

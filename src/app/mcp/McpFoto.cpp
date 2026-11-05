@@ -582,7 +582,11 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
             "microfono, camara, pantalla, mano levantada, conexion, info y contacto, turno de orador), "
             "archivos compartidos, chat reciente, config de oradores y la entrada escalonada: `entrando` (los "
             "aprobados que esperan su turno para pasar, cada uno con `entrando`) y `entradaPorSegundo` (el ritmo, "
-            "ajuste room.entradaPorSegundo).");
+            "ajuste room.entradaPorSegundo). `retornoTope`: la resolución máxima del video de retorno a los "
+            "invitados (ajuste retorno.tope: auto, 360p, 480p, 720p, 1080p) con `modo` (auto/fijo), `alto`, "
+            "`causa` (inicio, fijo, cps, codificador, margen), `motivo`, `medida` (CPU de la máquina y del gateway, "
+            "cps del retorno logrados y debidos, descartes del codificador, oyentes) y `decision` (la medida que "
+            "decidió el último cambio). El historial de decisiones está en gateway_estado (`retornoTope`).");
         t.hilo = Hilo::Foto;
         t.run = [f](const json&, Done done) {
             std::optional<json> r = f.sala ? f.sala("/api/v1/room") : std::nullopt;
@@ -614,8 +618,9 @@ void registrarHerramientasDeFoto(McpCore& core, FuentesDeFoto f) {
         t.description = QT_TRANSLATE_NOOP(
             "mcp", "El servidor de la conferencia (gateway) por dentro, para medir la carga: `uso` (CPU, hilos, memoria, "
                    "anillos, retorno), `fronteras` (cada pase entre hilos: pases/s, despertadas/s, pases por "
-                   "despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s) y el "
-                   "TURN (asignaciones, conexiones, bytes). Lo usa tools/carga/medir-sala.py.");
+                   "despertada, kB/s, trabajo por pase en µs, espera en la cola en µs, en ventanas de 1 s), el "
+                   "TURN (asignaciones, conexiones, bytes) y `retornoTope` (la resolución máxima del retorno: el "
+                   "tope, por qué, los umbrales y las últimas decisiones). Lo usa tools/carga/medir-sala.py.");
         t.hilo = Hilo::Foto;
         t.run = [f](const json&, Done done) {
             const std::optional<json> r = f.sala ? f.sala("/api/v1/gateway") : std::nullopt;

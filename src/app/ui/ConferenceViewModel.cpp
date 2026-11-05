@@ -297,6 +297,30 @@ void ConferenceViewModel::speakerNext() {
 void ConferenceViewModel::speakerMove(const QString& id, int index) { oradores_->mover(ss(id), index); }
 void ConferenceViewModel::speakerRequeue(const QString& id) { oradores_->aLaFila(ss(id)); }
 QVariantMap ConferenceViewModel::usage() const { return client_->resumen().uso; }
+int ConferenceViewModel::retornoTopeAlto() const { return client_->resumen().retornoTope.value("alto").toInt(); }
+bool ConferenceViewModel::retornoTopeAuto() const {
+    return client_->resumen().retornoTope.value("modo").toString() != QLatin1String("fijo");
+}
+QString ConferenceViewModel::retornoTopeMotivo() const {
+    const QVariantMap t = client_->resumen().retornoTope;
+    const QVariantMap m = t.value("decision").toMap();
+    const QString causa = t.value("causa").toString();
+    const auto n = [](const QVariant& v, int dec) {
+        const double x = v.toDouble();
+        return x < 0 ? QStringLiteral("?") : QString::number(x, 'f', dec);
+    };
+    if (causa == QLatin1String("fijo")) return tr("Fijo (Configuración → Conferencia)");
+    if (causa == QLatin1String("inicio")) return tr("Automático: arranca en la calidad más alta");
+    if (causa == QLatin1String("cps"))
+        return tr("Bajó: el retorno salía a %1 de %2 cps con la máquina al %3 % (invitados: %4)")
+            .arg(n(m.value("cps"), 1), n(m.value("cps_debido"), 1), n(m.value("cpu_maquina"), 0), m.value("oyentes").toString());
+    if (causa == QLatin1String("codificador"))
+        return tr("Bajó: el codificador del retorno descartaba el %1 % de los cuadros").arg(n(m.value("descartes_pct"), 1));
+    if (causa == QLatin1String("margen"))
+        return tr("Subió: sobraba margen (retorno a %1 de %2 cps, máquina al %3 %)")
+            .arg(n(m.value("cps"), 1), n(m.value("cps_debido"), 1), n(m.value("cpu_maquina"), 0));
+    return {};
+}
 
 QString ConferenceViewModel::photoOf(const QString& idOrName) const {
     // Como data: URL (va dentro de un mensaje al operador, no a una vista).
