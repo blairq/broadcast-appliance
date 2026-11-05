@@ -25,6 +25,7 @@
 //      60, a 30 sin atrasarse; una a 15, sus 15.
 //  16. F3: la celda que llena el hilo que decodificó (pedirCelda/guardarCelda/soltarCelda),
 //      del tamaño de su lugar, con el mismo balde; DestinoCamara sin ba-app.
+//  17. La foto (JPEG) de quien no manda video, abierta con libyuv; el video en vivo gana.
 // ============================================================================
 
 #include <algorithm>
@@ -38,6 +39,8 @@
 #include "Grillas.hpp"
 #include "HttpIo.hpp"
 #include "Log.hpp"
+
+#include "jpeg_azul.inc"
 
 using ba::gateway::Grillas;
 using json = nlohmann::json;
@@ -557,6 +560,37 @@ int main() {
         d.soltarCelda(std::move(dc));
         ba::gateway::DestinoCamara sinGrilla(nullptr, 1, nullptr, "sala:a");
         CHECK(!sinGrilla.pedirCelda(640, 360).vale(), "sin grillas: nada");
+    }
+    // 17. La foto de quien no manda video (un integrante de la asamblea): el JPEG se abre con
+    //     libyuv, la misma del producto (antes, sin libwebrtc, quedaba la silueta y esto no se
+    //     probaba). Con video en vivo de hace menos de 3 s, gana el video.
+    {
+        Grillas g(log);
+        const json pedido = {
+            {"grillas",
+             {{{"canal", 1}, {"ancho", 160}, {"alto", 90}, {"transicion_ms", 0}, {"celdas", {celda("asamblea:7", 0, 0, 160, 90)}}}}}};
+        CHECK(g.aplicar(pedido, 1000).empty(), "aplica");
+        const std::string jpeg(reinterpret_cast<const char*>(kJpegAzul), sizeof(kJpegAzul));
+        g.foto("asamblea:7", jpeg, 1000);
+        std::vector<std::uint8_t> l;
+        int w = 0, h = 0;
+        CHECK(g.pintar(1, 1000, l, w, h) && w == 160 && h == 90, "pinta");
+        const std::uint32_t c = pixel(l, w, 80, 45);
+        // 16×16 agrandado a la celda: el bilineal de libyuv deja el alfa y el azul en 0xFD, no 0xFF.
+        CHECK((c >> 24) > 0xF0 && (c & 0xFF) > 220 && ((c >> 8) & 0xFF) < 40 && ((c >> 16) & 0xFF) < 40,
+              "la celda tiene la foto (azul)");
+        CHECK(g.estado()["grillas"][0]["celdas"][0]["imagen"] == true, "y el estado dice que tiene imagen");
+        g.foto("nadie", jpeg, 1000);
+        CHECK(g.estado()["grillas"][0]["celdas"].size() == 1, "la foto de quien no está en ninguna grilla se ignora");
+        // Un JPEG roto no rompe nada: queda lo que había.
+        g.foto("asamblea:7", std::string("\xff\xd8\xff\xe0 no es un jpeg"), 1100);
+        CHECK(g.pintar(1, 1100, l, w, h) && pixel(l, w, 80, 45) == c, "un JPEG roto se ignora");
+        // Con video en vivo, la foto no lo tapa.
+        const std::uint32_t rojo = 0xFFFF0000u;
+        const auto px = liso(160, 90, rojo);
+        g.cuadro("asamblea:7", px.data(), 160, 90, 2000);
+        g.foto("asamblea:7", jpeg, 2500);
+        CHECK(g.pintar(1, 2500, l, w, h) && pixel(l, w, 80, 45) == rojo, "con video en vivo, gana el video");
     }
     if (g_fallos == 0) std::printf("test_grillas: OK\n");
     return g_fallos == 0 ? 0 : 1;
