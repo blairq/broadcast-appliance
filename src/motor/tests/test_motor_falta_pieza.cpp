@@ -58,11 +58,14 @@ void leerComoLaApp(const json& e) {
     (void)e.value("programa", json::object()).value("rms_db", -120.0);
     (void)e.value("video", json::object()).value("programa", json::object()).value("capas", json::array());
     (void)e.value("video", json::object()).value("preview", json::object()).value("capas", json::array());
-    for (const auto& [sid, s] : e.value("salidas", json::object()).items()) {
+    // Con nombre antes de recorrerlos: un for sobre .items() de un temporal lo recorre ya destruido.
+    const json salidas = e.value("salidas", json::object());
+    for (const auto& [sid, s] : salidas.items()) {
         (void)s.value("programa", json::object()).value("pico_db", -120.0);
         (void)s.value("video", json::object()).value("programa", json::object()).value("anda", false);
     }
-    for (const auto& [id, en] : e.value("entradas", json::object()).items())
+    const json entradas = e.value("entradas", json::object());
+    for (const auto& [id, en] : entradas.items())
         (void)en.value("error", std::string());
 }
 } // namespace
