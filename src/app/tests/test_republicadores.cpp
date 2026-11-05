@@ -18,6 +18,7 @@
 #include <QTcpSocket>
 #include <QTemporaryDir>
 
+#include <cctype>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
@@ -67,7 +68,11 @@ struct FalsoB {
                     if (cab.rfind("GET /api/v1/events", 0) == 0) {
                         ++conexiones;
                         ultimoLastId.clear();
-                        if (const auto p = cab.find("Last-Event-ID: "); p != std::string::npos)
+                        // Los nombres de cabecera no distinguen mayúsculas (RFC 9110), y desde
+                        // Qt 6.7 QNetworkRequest los manda en minúsculas («last-event-id»).
+                        std::string min = cab;
+                        for (auto& ch : min) ch = static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+                        if (const auto p = min.find("last-event-id: "); p != std::string::npos)
                             ultimoLastId = cab.substr(p + 15, cab.find("\r\n", p) - p - 15);
                         sse = s;
                         const std::string r = "HTTP/1.1 200 OK\r\nContent-Type: text/event-stream\r\n\r\nid: " + idProximo +
