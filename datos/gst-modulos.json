@@ -235,6 +235,13 @@
    "uso": "Interno.",
    "tarjeta": false
   },
+  "cc708overlay": {
+   "titulo": "Mostrar CC 708 (DirectWrite)",
+   "categoria": "Subtítulos (closed captions)",
+   "para": "Dibuja los closed captions CEA-708 que trae el video, con las letras de Windows (DirectWrite).",
+   "uso": "Ver los subtítulos de una señal digital en una máquina con Windows.",
+   "tarjeta": true
+  },
   "ccdetect": {
    "titulo": "Detectar subtítulos CC",
    "categoria": "Subtítulos (closed captions)",
@@ -310,6 +317,111 @@
    "categoria": "Mezcla y composición",
    "para": "Junta varias entradas en una imagen, cada una con posición, tamaño, opacidad y orden.",
    "uso": "Un mosaico de cámaras o una imagen en imagen. En el grafo es el nodo «Compositor» del estudio.",
+   "tarjeta": false
+  },
+  "d3d12colorconvert": {
+   "titulo": "Convertir color (Direct3D 12)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Convierte formatos de color en la GPU.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "d3d12compositor": {
+   "titulo": "Compositor (Direct3D 12)",
+   "categoria": "Mezcla y composición",
+   "para": "Como el compositor, en la GPU con Direct3D 12: varias entradas con posición, tamaño, opacidad y orden.",
+   "uso": "Mosaicos de muchas entradas en Windows sin cargar el procesador.",
+   "tarjeta": false
+  },
+  "d3d12convert": {
+   "titulo": "Convertir y escalar (Direct3D 12)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Convierte el color, escala y gira en la GPU.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "d3d12deinterlace": {
+   "titulo": "Desentrelazar (Direct3D 12)",
+   "categoria": "Formato y entrelazado",
+   "para": "Saca el entrelazado de una señal 1080i/576i en la GPU, con Direct3D 12.",
+   "uso": "Como «Desentrelazar», en Windows: una cámara o placa SDI que entrega entrelazado.",
+   "tarjeta": true
+  },
+  "d3d12download": {
+   "titulo": "Bajar de Direct3D 12",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Baja cuadros de la GPU (Direct3D 12) a memoria.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "d3d12ipcsink": {
+   "titulo": "Salida a otro proceso (Direct3D 12)",
+   "categoria": "Salidas",
+   "para": "Manda el video a otro programa de la misma máquina (d3d12ipcsrc) sin sacarlo de la GPU.",
+   "uso": "Conectar dos programas con GStreamer en Windows.",
+   "tarjeta": false
+  },
+  "d3d12ipcsrc": {
+   "titulo": "Entrada de otro proceso (Direct3D 12)",
+   "categoria": "Fuentes",
+   "para": "Recibe el video que manda otro programa de la misma máquina con d3d12ipcsink, sin copiarlo de la GPU.",
+   "uso": "Conectar dos programas con GStreamer en Windows.",
+   "tarjeta": false
+  },
+  "d3d12mipmapping": {
+   "titulo": "Mipmaps (Direct3D 12)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Genera los mipmaps de una textura de Direct3D 12.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "d3d12scale": {
+   "titulo": "Escalar (Direct3D 12)",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Escala en la GPU.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "d3d12screencapturesrc": {
+   "titulo": "Captura de pantalla (Direct3D 12)",
+   "categoria": "Fuentes",
+   "para": "Captura una pantalla o una ventana de Windows directo a la GPU (Desktop Duplication o Windows Graphics Capture).",
+   "uso": "Mostrar una presentación o un programa que corre en la misma máquina con Windows.",
+   "tarjeta": false
+  },
+  "d3d12swapchainsink": {
+   "titulo": "Salida a una superficie Direct3D 12",
+   "categoria": "Salidas",
+   "para": "Dibuja el video en una cadena de intercambio de Direct3D 12 para que la muestre otra interfaz.",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "d3d12testsrc": {
+   "titulo": "Señal de prueba (Direct3D 12)",
+   "categoria": "Fuentes",
+   "para": "Patrones de prueba generados en la GPU con Direct3D 12.",
+   "uso": "Igual que «Señal de prueba».",
+   "tarjeta": false
+  },
+  "d3d12upload": {
+   "titulo": "Subir a Direct3D 12",
+   "categoria": "Internos (no van como tarjeta)",
+   "para": "Sube cuadros a la GPU (Direct3D 12).",
+   "uso": "Interno.",
+   "tarjeta": false
+  },
+  "d3d12videosink": {
+   "titulo": "Ventana Direct3D 12",
+   "categoria": "Salidas",
+   "para": "Muestra el video en una ventana de Windows con Direct3D 12.",
+   "uso": "Pruebas.",
+   "tarjeta": false
+  },
+  "d3dvideosink": {
+   "titulo": "Ventana Direct3D 9",
+   "categoria": "Salidas",
+   "para": "Muestra el video en una ventana de Windows con Direct3D 9 (la vieja).",
+   "uso": "Pruebas.",
    "tarjeta": false
   },
   "debugqroverlay": {
@@ -396,6 +508,41 @@
    "uso": "Necesita el flujo del DVD.",
    "tarjeta": false
   },
+  "dwriteclockoverlay": {
+   "titulo": "Reloj (DirectWrite)",
+   "categoria": "Textos y superposiciones",
+   "para": "Superpone la hora actual con DirectWrite (formato configurable).",
+   "uso": "La hora en pantalla en un noticiero o en un monitor de cabina, en Windows.",
+   "tarjeta": true
+  },
+  "dwritesubtitleoverlay": {
+   "titulo": "Subtítulos (DirectWrite)",
+   "categoria": "Textos y superposiciones",
+   "para": "Dibuja sobre el video los subtítulos de texto que llegan por su segunda entrada (SRT, WebVTT…), con DirectWrite.",
+   "uso": "Mostrar los subtítulos de un archivo; necesita el flujo de subtítulos, no va como tarjeta.",
+   "tarjeta": false
+  },
+  "dwritetextoverlay": {
+   "titulo": "Texto (DirectWrite)",
+   "categoria": "Textos y superposiciones",
+   "para": "Escribe un texto sobre la imagen con DirectWrite, el motor de letras de Windows (emojis en color, todas las fuentes instaladas).",
+   "uso": "Un rótulo rápido o una marca «EN VIVO» sin armar un gráfico, en una máquina con Windows.",
+   "tarjeta": true
+  },
+  "dwritetimeoverlay": {
+   "titulo": "Marca de tiempo (DirectWrite)",
+   "categoria": "Textos y superposiciones",
+   "para": "Superpone el tiempo del flujo (running time o timestamp) con DirectWrite.",
+   "uso": "Medir retrasos entre cámaras en Windows: la misma marca en dos salidas.",
+   "tarjeta": true
+  },
+  "dx9screencapsrc": {
+   "titulo": "Captura de pantalla (DirectX 9)",
+   "categoria": "Fuentes",
+   "para": "Captura la pantalla de Windows con la interfaz vieja de DirectX 9.",
+   "uso": "Compatibilidad con máquinas viejas; mejor la de Direct3D 12.",
+   "tarjeta": false
+  },
   "edgetv": {
    "titulo": "Bordes (efecto)",
    "categoria": "Efectos artísticos",
@@ -465,6 +612,13 @@
    "para": "Desenfoca (sigma positivo) o afila (sigma negativo) la imagen.",
    "uso": "Desenfocar una cámara de fondo para una pantalla de espera, o afilar una imagen blanda.",
    "tarjeta": true
+  },
+  "gdiscreencapsrc": {
+   "titulo": "Captura de pantalla (GDI)",
+   "categoria": "Fuentes",
+   "para": "Captura la pantalla o un rectángulo de Windows con GDI, en el procesador.",
+   "uso": "Cuando no anda la captura por Direct3D 12 (máquinas sin GPU, escritorio remoto); es más lenta.",
+   "tarjeta": false
   },
   "gdkpixbufoverlay": {
    "titulo": "Imagen encima",
@@ -928,6 +1082,13 @@
    "uso": "Un monitor de programa o de multiview en una máquina con Linux sin escritorio.",
    "tarjeta": false
   },
+  "ksvideosrc": {
+   "titulo": "Cámara de Windows (Kernel Streaming)",
+   "categoria": "Fuentes",
+   "para": "Captura una cámara con la interfaz vieja de Windows (Kernel Streaming / DirectShow).",
+   "uso": "Placas de captura viejas que no aparecen en Media Foundation; si no, mejor «Cámara de Windows».",
+   "tarjeta": false
+  },
   "line21decoder": {
    "titulo": "Leer CC de la línea 21",
    "categoria": "Subtítulos (closed captions)",
@@ -948,6 +1109,13 @@
    "para": "Distorsión tipo mármol (turbulencia).",
    "uso": "Efecto visual.",
    "tarjeta": true
+  },
+  "mfvideosrc": {
+   "titulo": "Cámara de Windows",
+   "categoria": "Fuentes",
+   "para": "Captura una cámara o una placa de captura de Windows con Media Foundation.",
+   "uso": "Una cámara USB o una placa de captura HDMI en Windows, tomada directo por GStreamer.",
+   "tarjeta": false
   },
   "mirror": {
    "titulo": "Espejo partido",
@@ -1501,6 +1669,27 @@
    "para": "Ondas concéntricas como una gota.",
    "uso": "Efecto visual.",
    "tarjeta": true
+  },
+  "webview2src": {
+   "titulo": "Página web (WebView2)",
+   "categoria": "Fuentes",
+   "para": "Muestra una página web como video con WebView2 (el Edge de Windows).",
+   "uso": "Un gráfico o un tablero hecho en HTML como entrada, en Windows.",
+   "tarjeta": false
+  },
+  "win32ipcvideosink": {
+   "titulo": "Salida a otro proceso (Windows)",
+   "categoria": "Salidas",
+   "para": "Manda el video a otro programa de la misma máquina (win32ipcvideosrc) por memoria compartida.",
+   "uso": "Conectar dos programas con GStreamer en Windows.",
+   "tarjeta": false
+  },
+  "win32ipcvideosrc": {
+   "titulo": "Entrada de otro proceso (Windows)",
+   "categoria": "Fuentes",
+   "para": "Recibe el video que manda otro programa de la misma máquina con win32ipcvideosink (memoria compartida).",
+   "uso": "Conectar dos programas con GStreamer en Windows.",
+   "tarjeta": false
   },
   "wrappercamerabinsrc": {
    "titulo": "Cámara (camerabin)",
