@@ -65,7 +65,11 @@ def _almacen():
 ALMACEN = _almacen()
 CAIDAS = RAIZ / "dist" / "caidas"
 MS = "https://msdl.microsoft.com/download/symbols"
-SYMBOLIZER = "/trabajo/ba/extern/toolchain/llvm/bin/llvm-symbolizer"
+# En el volumen: la base (de solo lectura, tools/ci/capa-docker.sh) o, en un volumen viejo, el
+# clon único de antes de las capas. El primero que esté.
+SYMBOLIZERS = ("/trabajo/base/extern/toolchain/llvm/bin/llvm-symbolizer",
+               "/trabajo/ba/extern/toolchain/llvm/bin/llvm-symbolizer")
+SYMBOLIZER_SH = 'for s in %s; do [ -x "$s" ] && exec "$s" "$@"; done; echo "no hay llvm-symbolizer en el volumen" >&2; exit 127' % " ".join(SYMBOLIZERS)
 REGS = ["rax", "rcx", "rdx", "rbx", "rsp", "rbp", "rsi", "rdi", "r8", "r9", "r10", "r11", "r12", "r13", "r14", "r15"]
 CODIGOS = {0xC0000005: "violación de acceso", 0xC0000374: "corrupción del heap", 0xC0000409: "fail-fast / desborde de búfer",
            0xC00000FD: "desbordamiento de pila", 0xE06D7363: "excepción de C++ sin atrapar", 0xE0000BAB: "abort (o terminate)",
@@ -451,7 +455,7 @@ def simbolizar(md, direcciones):
             lineas.append((d, "CODE /x/%s/%s 0x%x" % (carpeta.name, m.nombre, d - m.base)))
         if lineas:
             cmd = ["docker", "run", "--rm", "-i", "--platform", "linux/amd64", "-v", "ba-trabajo:/trabajo:ro",
-                   "-v", "%s:/x:ro" % tmp, "ba-compilar", SYMBOLIZER, "--relative-address", "--inlines",
+                   "-v", "%s:/x:ro" % tmp, "ba-compilar", "sh", "-c", SYMBOLIZER_SH, "sh", "--relative-address", "--inlines",
                    "--demangle", "--output-style=JSON"]
             try:
                 r = subprocess.run(cmd, input="\n".join(l for _, l in lineas) + "\n", capture_output=True,
@@ -474,7 +478,7 @@ def simbolizar(md, direcciones):
                         arch = s.get("FileName") or ""
                         if arch:
                             arch = arch.replace("\\", "/")
-                            for corte in ("/broadcast-appliance/", "/trabajo/ba/", "/ba/src/"):
+                            for corte in ("/broadcast-appliance/", "/trabajo/ba/", "/trabajo/base/", "/merged/", "/ba/src/"):
                                 if corte in arch:
                                     arch = arch.split(corte, 1)[1]
                             arch = "%s:%s" % (arch, s.get("Line", 0))
