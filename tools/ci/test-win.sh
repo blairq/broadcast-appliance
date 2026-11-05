@@ -70,7 +70,7 @@ rm -f "$RES" && : >"$RES"
 # Qué hay que correr: lo que no está en la caché.
 find "$B/src" "$B/win-mt/src" -name 'test_*.exe' 2>/dev/null | sort |
     python3 "$ROOT/tools/ci/tests-con-cache.py" wine-preparar --build "$B" --herramienta "$WINE_NAME" \
-        --objdump "$TC/llvm/bin/llvm-objdump" --ruta "$WINEPATH" --pendientes "$PEND" || exit 1
+        --ruta "$WINEPATH" --pendientes "$PEND" || exit 1
 
 # ¿El test dijo «<test>: OK» al terminar? (ver el reintento de abajo)
 dijo_ok() { tail -n 3 "$2" 2>/dev/null | grep -q "^$1: OK"; }

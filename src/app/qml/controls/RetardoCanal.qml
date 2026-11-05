@@ -1,9 +1,11 @@
 // Sincronizar un canal de audio con su video (sincro labios): el retardo del canal,
 // a mano o medido con aplausos. El mismo en la tarjeta del Mezclador, en su ventana
-// y en «Sincronía y red» (el modelo es Studio.mezcla.retardoUi / setRetardoUi, como
-// audio_sincro del asistente).
+// y en «Sincronía y red» (el modelo es Studio.mezcla.setRetardoUi, como audio_sincro del
+// asistente).
 //
-// abrir(fuente) lo abre para ese canal; `aplicado` avisa para refrescar la vista.
+// abrir(fuente, ms) lo abre para ese canal con el retardo que tiene (el rol `retardoMs` del
+// Mezclador, que muestra quien lo abre: la vista no le pregunta al modelo con una función,
+// que en el tablero web contesta tarde); `aplicado` avisa para refrescar la vista.
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
@@ -17,9 +19,9 @@ Popup {
     property string resultado: ""
     signal aplicado(string fuente, int ms)
 
-    function abrir(f) {
+    function abrir(f, retardoMs) {
         fuente = f
-        ms = Studio.mezcla.retardoUi(f)
+        ms = retardoMs || 0
         retMs.value = ms
         resultado = ""
         open()

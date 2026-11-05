@@ -220,12 +220,6 @@ void SourcesModel::pedir(const char* que, const std::string& name, std::function
         });
 }
 
-QVariantMap SourcesModel::capa(int fila) const {
-    if (fila < 0 || fila >= rowCount()) return {};
-    const QModelIndex i = index(fila, 0);
-    return QVariantMap{{"nombre", data(i, NameRole)}, {"visible", data(i, VisibleRole)}};
-}
-
 bool SourcesModel::setVisible(const QString& name, bool visible) {
     const std::string n = name.toStdString();
     const int row = rowOf(n);
@@ -236,6 +230,12 @@ bool SourcesModel::setVisible(const QString& name, bool visible) {
         return rt.setSourceVisible(escena, n, visible) ? std::string() : rt.lastError();
     });
     return true;
+}
+
+bool SourcesModel::alternarVisible(const QString& name) {
+    const int row = rowOf(name.toStdString());
+    if (row < 0) return false;
+    return setVisible(name, !data(index(row), VisibleRole).toBool());
 }
 
 bool SourcesModel::move(const QString& name, int delta) {
@@ -740,13 +740,6 @@ QVariantMap MixerModel::picos() const {
     return out;
 }
 
-QVariantMap MixerModel::canal(int fila) const {
-    if (fila < 0 || fila >= static_cast<int>(names_.size())) return {};
-    const QModelIndex i = index(fila, 0);
-    return QVariantMap{
-        {"nombre", data(i, NameRole)}, {"volumenDb", data(i, VolumeDbRole)}, {"mudo", data(i, MutedRole)}};
-}
-
 // Se pide al dueño; mientras vuelve, la tira muestra lo pedido. El aviso a las demás
 // vistas lo trae la foto: igual que si lo cambia el asistente, el AFV o la otra vista.
 bool MixerModel::setVolumeDb(const QString& name, double db) {
@@ -768,6 +761,29 @@ bool MixerModel::setMuted(const QString& name, bool muted) {
     emit dataChanged(index(row), index(row), {MutedRole});
     pedir("mezcla_mute", n, [n, muted, salida = salida_](AppRuntime& rt) { rt.setMuted(n, muted, salida); });
     return true;
+}
+
+bool MixerModel::moverVolumenDb(const QString& name, double pasoDb) {
+    const int row = filaDe(name.toStdString());
+    if (row < 0) return false;
+    // Lo que muestra la tira (con lo pedido): dos pasos seguidos suman, aunque el primero no volvió.
+    const double ahora = data(index(row), VolumeDbRole).toDouble();
+    return setVolumeDb(name, std::clamp(ahora + pasoDb, -60.0, 12.0));
+}
+
+bool MixerModel::alternarMuted(const QString& name) {
+    const int row = filaDe(name.toStdString());
+    if (row < 0) return false;
+    return setMuted(name, !data(index(row), MutedRole).toBool());
+}
+
+void MixerModel::alternarMudoGrupo(const QString& grupo) {
+    const std::string g = grupo.toStdString();
+    if (g.empty()) return;
+    bool alguna = false;
+    for (std::size_t i = 0; i < grupos_.size() && !alguna; ++i)
+        if (grupos_[i] == g) alguna = !data(index(static_cast<int>(i)), MutedRole).toBool();
+    setMutedGrupo(grupo, alguna);
 }
 
 void MixerModel::despues(std::function<void()> listo) {

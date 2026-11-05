@@ -76,6 +76,11 @@ class ControlCamaras : public QObject {
     Q_PROPERTY(QVariantList camaras READ camaras NOTIFY cambio)
     /// Las entradas que se ven al aire ahora (el interlock): cambia con cada corte.
     Q_PROPERTY(QStringList alAireEntradas READ alAireEntradas NOTIFY alAireCambio)
+    /// {entrada: motivo} de las cámaras que hoy no se mueven sin confirmar (la regla de
+    /// chequearMovimiento, para un movimiento común): la vista pregunta si su entrada está acá,
+    /// sin llamar a una función (en el tablero web, la respuesta de una función llega tarde).
+    /// Cambia con cada corte y con el ajuste del interlock.
+    Q_PROPERTY(QVariantMap motivosInterlock READ motivosInterlock NOTIFY alAireCambio)
     /// {entrada: {x, y, zoom, moviendo}}: el encuadre del PTZ digital de las entradas que
     /// alguna vista usa (`usar(vista, si, entrada)`). Se lee mientras se mueve.
     Q_PROPERTY(QVariantMap encuadres READ encuadres NOTIFY encuadresCambio)
@@ -99,6 +104,7 @@ class ControlCamaras : public QObject {
     QVariantList encontradas() const;
     bool mejoraGeneral() const;
     QStringList alAireEntradas() const { return alAire_; }
+    QVariantMap motivosInterlock() const;
     QVariantMap encuadres() const { return encuadres_; }
     QVariantMap fotos() const;
     /// Una vista empieza o deja de mirar el encuadre de `entrada` (la cuenta es por vista:

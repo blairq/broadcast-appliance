@@ -28,7 +28,7 @@ ColumnLayout {
 
     /// Mueve si se puede; si la cámara está al aire, pregunta primero (la regla es del modelo).
     function conPermiso(fn) {
-        const motivo = v.t.cc.chequearMovimiento(v.t.entrada, false, "")
+        const motivo = v.t.cc.motivosInterlock[v.t.entrada] || ""
         if (motivo === "") { fn(); return }
         ApplicationWindow.window.confirm({ title: qsTr("La cámara está al aire"), text: qsTr("%1 ¿Mover igual?").arg(motivo),
                                            accept: qsTr("Mover igual"), reject: qsTr("Cancelar"), action: fn })

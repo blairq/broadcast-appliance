@@ -101,7 +101,11 @@ ba_test_py(test_py_replica_permitidas ARCHIVOS test_replica_permitidas.py
                     "${CMAKE_SOURCE_DIR}/src/app/qml/pages/DashboardPage.qml"
                     "${CMAKE_SOURCE_DIR}/src/app/qml/cards" "${CMAKE_SOURCE_DIR}/src/app/qml/controls"
                     "${CMAKE_SOURCE_DIR}/src/tablero-web/qml" "${CMAKE_SOURCE_DIR}/docs/mcp.json"
-                    "${CMAKE_SOURCE_DIR}/src/app/control/ReplicaPermitidas.inc")
+                    "${CMAKE_SOURCE_DIR}/src/app/control/ReplicaPermitidas.inc"
+                    # La QML del tablero no lee por funciones: las Q_INVOKABLE de la app (sus .hpp,
+                    # con el lector de tools/diag) y qué es acción (ReplicaPublicador::esAccion).
+                    "${CMAKE_SOURCE_DIR}/src/app/control/ReplicaPublicador.cpp"
+                    "${CMAKE_SOURCE_DIR}/tools/diag/acoples.py" ${BA_PY_ACOPLES_QML})
 ba_test_py(test_py_caos_comparar ARCHIVOS test_caos_comparar.py
            ENTRADAS "${CMAKE_SOURCE_DIR}/tools/caos" "${CMAKE_SOURCE_DIR}/tools/test/asamblea-mcp.py")
 ba_test_py(test_py_enlace_eco ARCHIVOS test_enlace_eco.py

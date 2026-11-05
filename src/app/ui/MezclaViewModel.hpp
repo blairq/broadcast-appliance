@@ -101,10 +101,8 @@ class MezclaViewModel : public QObject {
     Q_INVOKABLE void pflUi(const QString& fuente);
     /// AFL: lo mismo con el fader y el mute de la salida activa (la del Mezclador).
     Q_INVOKABLE void aflUi(const QString& fuente);
-    /// Retardo del audio de una fuente respecto de su video (ms, como audio_sincro): el de
-    /// la foto, al abrir el diálogo.
-    Q_INVOKABLE int retardoUi(const QString& fuente) const;
-    /// Se pide al dueño; "" (si no se pudo, llega por notify).
+    /// Retardo del audio de una fuente respecto de su video (ms, como audio_sincro). Lo que
+    /// tiene, la vista lo lee del rol `retardoMs` del Mezclador. Se pide al dueño; "" (si no se pudo, llega por notify).
     Q_INVOKABLE bool setRetardoUi(const QString& fuente, int ms);
     /// Medir con aplauso: mide `segundos` sobre el programa de `salida` ("" = la por
     /// omisión) y llama a `listo` con el resultado (ver BroadcastEngine::terminarMedicionSincro);

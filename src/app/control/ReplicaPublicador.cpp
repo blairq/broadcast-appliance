@@ -198,11 +198,16 @@ void ReplicaPublicador::negarFunciones(const QStringList& nombres) {
 }
 
 bool ReplicaPublicador::esAccion(const QString& n) {
+    // Una acción tomada por lectura la réplica la guardaba y no la volvía a mandar con los mismos
+    // argumentos (aprobar el cargo de un invitado, definir una capa del DSK, sacar la foto de una
+    // cámara…). tests/test_replica_permitidas.py lee esta lista: la QML del tablero no usa lo
+    // que devuelve una lectura.
     static const QRegularExpression re(QStringLiteral(
         "^(set|toggle|alternar|agregar|quitar|borrar|crear|mover|poner|ir|abrir|cerrar|iniciar|detener|arrancar|parar|"
         "aplicar|medir|guardar|cargar|limpiar|reset|restablecer|take|tomar|armar|elegir|cambiar|renombrar|conectar|"
         "desconectar|silenciar|reconocer|pedir|enviar|mandar|siguiente|anterior|go|hold|saltar|repetir|insertar|"
-        "descartar|confirmar|admit|reject|request|speaker)"));
+        "descartar|confirmar|admit|reject|request|speaker|aprobar|completar|definir|editar|grabar|importar|nuev|"
+        "plantillaLsa|sacar)"));
     return re.match(n).hasMatch();
 }
 
