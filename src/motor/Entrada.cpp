@@ -735,6 +735,7 @@ void Entrada::leer(const json& a) {
     if (anilloComunV_) descripcion_ = "bavideoanillocomun name=ba_anillo canal=" + canalV;
     if (anilloComunA_) descripcionAudio_ = "baanillocomun canal=" + canalA;
     daVideoSinCandado_ = daVideo();
+    daAudioSinCandado_ = daAudio();
     std::lock_guard<std::mutex> lc(canalesM_);
     canalVideo_ = std::move(canalV);
     canalAudio_ = std::move(canalA);
@@ -2121,6 +2122,12 @@ json Entrada::estado() const {
         e = estadoAnterior_.is_object() ? estadoAnterior_ : json{{"id", id_}, {"anda", false}};
     }
     if (ocupadas_.load() > 0) e["ocupada"] = true;
+    // Si da audio es de sus ajustes, no de cómo anda: va siempre al día. Lo demás es lo
+    // último que se supo, y mientras se arma (el trabajador tiene el candado: cientos de ms,
+    // segundos con un micrófono de WASAPI que tarda en abrir) no se refresca. Con «audio»
+    // en lo de antes, una entrada recién agregada no tenía audio para la app (su canal en
+    // el mezclador, su rack: «no tiene audio») hasta que terminaba de armarse.
+    e["audio"] = daAudioSinCandado_.load();
     return e;
 }
 

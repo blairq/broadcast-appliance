@@ -21,12 +21,6 @@ std::string ipTexto(std::uint32_t redes) {
            std::to_string(b[3]);
 }
 
-int64_t ahoraMs() {
-    return std::chrono::duration_cast<std::chrono::milliseconds>(
-               std::chrono::system_clock::now().time_since_epoch())
-        .count();
-}
-
 /// Separa en palabras contando cualquier racha de espacios como separador.
 /// No intenta ser un tokenizador: lo unico que importa es que la cuenta sea la
 /// MISMA de los dos lados (servidor y navegador), asi que las dos hacen esto.
@@ -35,6 +29,13 @@ bool esEspacio(unsigned char c) {
 }
 
 } // namespace
+
+int64_t Prompter::ahoraMs() const {
+    if (reloj_) return reloj_();
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+               std::chrono::system_clock::now().time_since_epoch())
+        .count();
+}
 
 int Prompter::contarPalabras(const std::string& texto) {
     int n = 0;
