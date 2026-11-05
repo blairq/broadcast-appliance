@@ -108,8 +108,8 @@ De paso: con la grabación partida en tramos, al terminar se pasan a MP4/MOV tod
 |---|---|---|---|---|
 | src/gateway/MediaPump.cpp:900 | 1 s | invitado sin video → placa | `guests.sinVideoPlaca` (ms) | alta |
 | src/gateway/SignalingServer.hpp:324-325 | 5 intentos / 60 s | PIN: intentos por IP y bloqueo | `room.pinIntentos`, `room.pinBloqueo` | alta |
-| src/gateway/Webrtc.cpp:1299 | 10 s / 20 s | limpieza de visores caídos | `room.visorCaidoS` | media |
-| src/gateway/Webrtc.cpp:775-776 | 5/2 %, 400/200 ms, 50/30 ms | semáforo de red del invitado | `room.semaforo*` | media |
+| src/gateway/webrtc/Webrtc.cpp:1299 | 10 s / 20 s | limpieza de visores caídos | `room.visorCaidoS` | media |
+| src/gateway/webrtc/Webrtc.cpp:775-776 | 5/2 %, 400/200 ms, 50/30 ms | semáforo de red del invitado | `room.semaforo*` | media |
 | src/gateway/Webrtc.hpp:252 | 48 | tope de visores WebRTC | `room.maxVisores` | media |
 | src/gateway/Config.hpp:90 | 16 | integrantes mirando un canal a la vez | `sesion.vistasRemotas` | media |
 | src/gateway/Room.hpp:66,68 | 180 s / 10 s | tiempo por orador y gracia | `room.oradorSeg`, `room.oradorGracia` | media |

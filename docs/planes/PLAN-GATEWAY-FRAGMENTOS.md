@@ -358,7 +358,7 @@ Criterio: la tabla de fronteras con números medidos en vez de estimados.
 
 ### F1 — Lo vertical de la red: TURN y red de WebRTC en el mismo hilo, sin el kernel
 
-1. `rtc::PacketSocketFactory` propio (`src/gateway/rtc/SocketsEnMemoria.*`): el puerto
+1. `rtc::PacketSocketFactory` propio (`src/gateway/webrtc/SocketsEnMemoria.*`): el puerto
    de relay del TURN se entrega en memoria a la red de WebRTC (#3, #14).
 2. Los sockets del TURN (TCP y UDP) en el bucle del hilo de red
    (`rtc::PhysicalSocketServer`), no en un `poll` aparte (#1, #2).
@@ -600,21 +600,21 @@ todo):
    hilos (#5) vía un `TaskQueueFactory` propio para las colas de decodificación.
 2. Achicar la celda en el mismo hilo que decodificó (#6).
 3. Windows con la placa: decodificar con D3D11/D3D12 y codificar los retornos con
-   AMF/D3D12 en la RX 5700 XT (`src/gateway/CodecsWin.*`, como `CodecsMac.mm`), con caída
+   AMF/D3D12 en la RX 5700 XT (`src/gateway/webrtc/CodecsWin.*`, como `CodecsMac.mm`), con caída
    a software.
 
 Criterio: en la PC de Windows, menos de 120 hilos con 40 y la mitad de CPU con 10.
 
 Hecho (2026-11-02, adelantado por pedido del usuario: «en Windows quiero H.264 ya»):
 
-- `src/gateway/CodecsVideo.{hpp,cpp}`: las fábricas por plataforma. Todos los
+- `src/gateway/webrtc/CodecsVideo.{hpp,cpp}`: las fábricas por plataforma. Todos los
   decodificadores van envueltos: los de software con `gateway.hilosPorDecodificador`
   hilos (1 por omisión; libwebrtc les pasaba todos los núcleos) y cada uno anotado (log
   y `uso.codecsVideo` en `room_status`). «auto» de `retorno.codec` = H.264 en macOS y
   Windows (42e01f, packetization-mode=1 primero), VP8 en Linux.
 - macOS: VideoToolbox para subir y bajar (ya estaba; ahora también lo elige «auto» con
   hinchada, que manda H.264 por omisión).
-- Windows (`src/gateway/CodecsWin.{hpp,cpp}`, Media Foundation): decodifica con el
+- Windows (`src/gateway/webrtc/CodecsWin.{hpp,cpp}`, Media Foundation): decodifica con el
   decodificador H.264 de Windows + D3D11 (DXVA, motor «Video Decode»), NV12→I420 con
   libyuv; codifica el retorno con el MFT por hardware de la placa (asincrónico, CBR, sin
   B, clave y bitrate en caliente). Sin placa o si no arranca: el H.264 por software de

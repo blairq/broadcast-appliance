@@ -143,5 +143,5 @@ avisa «cambiaron las redes» a TODAS; las que todavía no conectaron (por el TU
 que directo) volvían a juntar un puerto UDP nuevo por red sin soltar los anteriores, y el
 rango (`rtcPortMin/Max`, 100) se acababa: las últimas quedaban solo con IPv6, sin un par de
 ICE posible con el relay IPv4 del invitado, «conectando» para siempre. Ahora cada conexión
-ve la lista por su `RedesDeSesion` (`src/gateway/RedesSesionRtc.hpp`, `test_webrtc_redes`):
+ve la lista por su `RedesDeSesion` (`src/gateway/webrtc/RedesSesionRtc.hpp`, `test_webrtc_redes`):
 un aviso por sesión y otro solo si la lista cambia de verdad.

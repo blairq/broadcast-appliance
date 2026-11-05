@@ -130,7 +130,7 @@ Queda por hacer (ver [`docs/historia/PLAN_MULTIPLATAFORMA.md`](../../docs/histor
 │   │   └── …                 #   una carpeta por función: audio, video, mcp, evento, ptz…
 │   ├── motor/                # el motor de emisión sobre GStreamer
 │   ├── gst-plugins/          # plugins de GStreamer propios
-│   └── gateway/              # ba-gateway — Proceso B (WebRTC, flag BA_GATEWAY_HAVE_WEBRTC)
+│   └── gateway/              # ba-gateway — Proceso B (WebRTC: núcleo + backend webrtc/ o nulo/)
 ├── assets/                   # assets de despliegue (no se compilan)
 │   └── web/                  #   apps web: invitado, control, pizarra (las sirve B)
 ├── packaging/                # flatpak (manifiesto) + .desktop

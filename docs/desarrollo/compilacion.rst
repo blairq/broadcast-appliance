@@ -50,8 +50,8 @@ El `CMakeLists.txt` raíz añade estos subdirectorios, cada uno con su target:
 - `src/app` → `ba-app` (ejecutable, implementado; flag `BA_APP_HAVE_GUI`).
 - `src/obs-module` → `ba-sources` (DLL libobs, implementado; flag
   `BA_HAVE_LIBOBS`).
-- `src/gateway` → `ba-gateway` (ejecutable, implementado; flag
-  `BA_GATEWAY_HAVE_WEBRTC`).
+- `src/gateway` → `ba-gateway` (ejecutable, implementado; backend `webrtc/` o
+  `nulo/` según se enlace).
 
 Versiones fijadas
 -----------------
