@@ -127,7 +127,8 @@ class Red : public QObject {
                     std::function<void(bool ok, QString texto)> listo);
 
     Biblioteca& biblioteca() { return biblioteca_; }
-    const Oui& oui() const { return oui_; }
+    /// Los fabricantes por MAC: se leen la primera vez que hacen falta (ver ouiRuta_).
+    const Oui& oui() const;
 
    signals:
     void cambio();
@@ -151,7 +152,12 @@ class Red : public QObject {
     QPointer<ptz::ControlCamaras> camaras_;
     QString dirCred_;
     Biblioteca biblioteca_;
-    Oui oui_;
+    // datos/oui.tsv son ~58 mil líneas (2 MB): leerlas al construir le costaba ~0,2 s al
+    // arranque de la interfaz (volcados de la .177). Solo hacen falta al reconocer equipos
+    // de un barrido de la red: se leen ahí, la primera vez.
+    std::string ouiRuta_;
+    mutable Oui oui_;
+    mutable bool ouiLeido_ = false;
     QNetworkAccessManager* http_ = nullptr;
     bool escaneando_ = false;
     QString progreso_;

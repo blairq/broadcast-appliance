@@ -5,6 +5,7 @@
 #include "audio/RackManager.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "audio/GrupoDeSalida.hpp"
+#include "platform/Hilo.hpp"
 #include "platform/Paths.hpp"
 #include "dispositivos/Conocidos.hpp"
 
@@ -27,6 +28,7 @@
 #include <QThread>
 
 #include <atomic>
+#include <thread>
 
 #include "emision/ApiMotor.hpp"
 #include "emision/FotoMotor.hpp"
@@ -320,18 +322,40 @@ HostServices* RackManager::services() const { return services_; }
 
 double RackManager::sampleRate() const { return 48000.0; }
 
+namespace {
+/// Dónde se buscan los plugins LSP, en orden.
+std::vector<fs::path> candidatasLsp(const fs::path& root) {
+    std::vector<fs::path> candidates;
+    if (const char* env = std::getenv("BA_LSP_CLAP")) candidates.emplace_back(env);
+    // Viene con el programa: del bundle; y de la raíz de datos (copia sombra, layout viejo).
+    candidates.push_back(ba::platform::bundleRoot() / "plugins" / "lsp" / "lsp-plugins.clap");
+    candidates.push_back(root / "plugins" / "lsp" / "lsp-plugins.clap");
+#ifdef BA_DEV_LSP_CLAP
+    candidates.emplace_back(BA_DEV_LSP_CLAP); // arbol de build (desarrollo)
+#endif
+    return candidates;
+}
+} // namespace
+
+void RackManager::precargar(const fs::path& dataRoot) {
+    // Uno a mano (desarrollo) no se carga antes de tiempo: puede ser de terceros, y en modo
+    // seguro esos no se cargan (ClapLibrary::open lo decide, no esto).
+    if (std::getenv("BA_LSP_CLAP") != nullptr) return;
+    std::thread([candidatas = candidatasLsp(dataRoot)]() {
+        ba::platform::nombrarHilo("precarga-lsp");
+        for (const auto& p : candidatas) {
+            std::error_code ec;
+            if (!fs::exists(p, ec)) continue;
+            ClapLibrary::precargarBinario(p.string());
+            return; // la primera que está es la que va a abrir library()
+        }
+    }).detach();
+}
+
 std::shared_ptr<ClapLibrary> RackManager::library(std::string* error) {
     if (!libTried_) {
         libTried_ = true;
-        std::vector<fs::path> candidates;
-        if (const char* env = std::getenv("BA_LSP_CLAP")) candidates.emplace_back(env);
-        // Viene con el programa: del bundle; y de la raíz de datos (copia sombra, layout viejo).
-        candidates.push_back(ba::platform::bundleRoot() / "plugins" / "lsp" / "lsp-plugins.clap");
-        candidates.push_back(root_ / "plugins" / "lsp" / "lsp-plugins.clap");
-#ifdef BA_DEV_LSP_CLAP
-        candidates.emplace_back(BA_DEV_LSP_CLAP); // arbol de build (desarrollo)
-#endif
-        for (const auto& p : candidates) {
+        for (const auto& p : candidatasLsp(root_)) {
             std::error_code ec;
             if (!fs::exists(p, ec)) continue;
             lib_ = ClapLibrary::open(p.string(), &libError_);

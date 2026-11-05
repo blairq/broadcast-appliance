@@ -157,8 +157,8 @@ QString McpService::agentPrompt() const {
 void McpService::registerHelp() {
     core_.setServerInfo("broadcast-appliance", "1.0", instrucciones());
     for (const TopicDef& t : kTopics)
-        core_.addTopic(HelpTopic{t.id, ba::i18n::traducir("mcp", t.title), ba::i18n::traducir("mcp", t.summary),
-                                 ba::i18n::leer(std::string("ayuda/") + t.id + ".md")});
+        core_.addTopic(HelpTopic{t.id, ba::i18n::traducir("mcp", t.title), ba::i18n::traducir("mcp", t.summary), {},
+                                 [id = std::string(t.id)]() { return ba::i18n::leer("ayuda/" + id + ".md"); }});
 
     InterfazMcp& vm = vm_;
     SettingsModel* settings = settings_.get();

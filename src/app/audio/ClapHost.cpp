@@ -104,6 +104,12 @@ bool ParamInfo::isEnum() const { return (flags & CLAP_PARAM_IS_ENUM) != 0; }
 
 // --- Biblioteca -----------------------------------------------------------------------
 
+void ClapLibrary::precargarBinario(const std::string& path) {
+    // El manejador no se suelta nunca: la cuenta de referencias del sistema lo mantiene
+    // cargado y el `open` de verdad (con su propia referencia) lo usa tal cual.
+    (void)openLib(path, nullptr);
+}
+
 std::shared_ptr<ClapLibrary> ClapLibrary::open(const std::string& path, std::string* error) {
     // Modo seguro (F1-10): los CLAP de terceros no se cargan. Propios son los que
     // vienen con el programa (adentro del bundle) y los LSP que trae (también en

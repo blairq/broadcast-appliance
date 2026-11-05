@@ -702,7 +702,16 @@ std::int64_t sostenido(const Seguimiento& sg, std::int64_t t, const Recursos::Um
 struct Recursos::Impl {
     // Lo que se lee del sistema: solo un hilo a la vez (el que mide o un test).
     std::mutex medirMu;
-    Sistema sistema;
+    // Se arma en la primera medición, en el hilo que mide: en Windows abrir los contadores
+    // (PdhAddEnglishCounterW: el catálogo de contadores del sistema, cientos de recursos de
+    // DLL y el registro de rendimiento) tarda ~1 s, y armarlo en el constructor lo pagaba la
+    // interfaz al arrancar (RecursosViewModel se crea con el modelo de la app: volcados de
+    // la .177, 2026-11-05).
+    std::unique_ptr<Sistema> sistema;
+    Sistema& elSistema() {
+        if (!sistema) sistema = std::make_unique<Sistema>();
+        return *sistema;
+    }
     Crudo previo;
     bool hayPrevio = false;
     std::chrono::steady_clock::time_point tPrevio;
@@ -844,7 +853,7 @@ Recursos::Muestra Recursos::medir() {
     quienes.insert(quienes.begin(), std::make_pair(std::string("app"), pidPropio()));
 
     Crudo c;
-    d_->sistema.leer(c);
+    d_->elSistema().leer(c);
     const auto t = std::chrono::steady_clock::now();
     const double dt = d_->hayPrevio ? std::chrono::duration<double>(t - d_->tPrevio).count() : 0;
     const Crudo& p = d_->previo;
@@ -892,7 +901,7 @@ Recursos::Muestra Recursos::medir() {
         Proceso pr;
         pr.nombre = nom;
         pr.pid = pid;
-        const CrudoProceso cp = d_->sistema.proceso(pid);
+        const CrudoProceso cp = d_->elSistema().proceso(pid);
         if (!cp.ok) {
             m.procesos.push_back(pr); // está pedido pero no anda: se lo muestra desconocido
             continue;

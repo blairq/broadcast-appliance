@@ -249,6 +249,11 @@ struct HelpTopic {
     std::string title;
     std::string summary;
     std::string body; ///< markdown
+    /// El cuerpo, leído cuando se pide (si `body` está vacío): los de la app son archivos
+    /// del idioma (ayuda/<id>.md) y leerlos todos al armar el servidor era la mitad de lo
+    /// que tardaba en arrancar en Windows, con la interfaz esperando (volcados de la .177).
+    std::function<std::string()> leer;
+    std::string cuerpo() const { return body.empty() && leer ? leer() : body; }
 };
 
 struct Resource {
