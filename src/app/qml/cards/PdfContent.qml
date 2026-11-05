@@ -24,8 +24,14 @@ Item {
         return fuentes.length ? fuentes[0] : null
     }
 
+    // Escribiendo en un campo de texto (de ESTA ventana: en el tablero web, la del navegador),
+    // las teclas son del texto. Es de la vista: no se le pregunta al modelo.
+    function escribiendo() {
+        const f = tarjeta.Window.activeFocusItem
+        return !!f && (f instanceof TextInput || f instanceof TextEdit)
+    }
     Keys.onPressed: (e) => {
-        if (!tarjeta.f || Studio.focoEnTexto()) return
+        if (!tarjeta.f || tarjeta.escribiendo()) return
         if (e.key === Qt.Key_Right || e.key === Qt.Key_PageDown || e.key === Qt.Key_Space) { tarjeta.pe.paso(tarjeta.f.nombre, 1); e.accepted = true }
         else if (e.key === Qt.Key_Left || e.key === Qt.Key_PageUp) { tarjeta.pe.paso(tarjeta.f.nombre, -1); e.accepted = true }
         else if (e.key === Qt.Key_Home) { tarjeta.pe.irA(tarjeta.f.nombre, 1); e.accepted = true }
