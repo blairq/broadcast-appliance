@@ -1162,7 +1162,11 @@ endif()
     add_test(NAME test_mcp_herramientas COMMAND test_mcp_herramientas)
     # El plano de control con la interfaz trabada (F3-03): MCP, alarmas y relojes, sin QML; y
     # las herramientas de la foto (McpFoto) contra un documento de aire de verdad.
-    add_executable(test_plano_control tests/test_plano_control.cpp)
+    # Un solo programa partido por tema (tests/PlanoControlPrueba.hpp): los .cpp se compilan a la vez.
+    add_executable(test_plano_control tests/test_plano_control.cpp tests/plano_control_foto.cpp
+                                      tests/plano_control_aire.cpp tests/plano_control_sala.cpp
+                                      tests/plano_control_mezcla.cpp tests/plano_control_resto.cpp
+                                      tests/plano_control_imagen.cpp)
     # NivelesMotor lee motor/NivelAudio.hpp (sin el motor).
     target_include_directories(test_plano_control PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}/src/motor")
     target_link_libraries(test_plano_control PRIVATE ba_app_ui ba_app_mcp ba_app_emision ba_app_control ba_app_agente ba_app_evento ba_core Qt6::Core Qt6::Network)
