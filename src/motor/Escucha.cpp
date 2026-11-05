@@ -9,6 +9,8 @@
 #include "Piezas.hpp"
 #include "Reloj.hpp"
 
+#include <gst/gst.h>
+
 #include <algorithm>
 #include <cmath>
 #include "ajustes/Ajustes.hpp"

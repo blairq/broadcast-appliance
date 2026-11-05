@@ -20,6 +20,7 @@
 
 #include "GpuPerdida.hpp"
 #include "Motor.hpp"
+#include "Reloj.hpp"
 #include "Piezas.hpp"
 #include "fault/FallasProgramadas.hpp"
 

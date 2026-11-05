@@ -10,6 +10,7 @@
 // ============================================================================
 
 #include "emision/NivelesMotor.hpp"
+#include "NivelAudio.hpp"
 #include "ui/RelojNiveles.hpp"
 
 #include <QCoreApplication>

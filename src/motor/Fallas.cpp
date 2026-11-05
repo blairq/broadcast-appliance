@@ -8,6 +8,8 @@
 #include "fault/FallasProgramadas.hpp"
 #include "i18n/I18nTexto.hpp"
 
+#include <gst/gst.h>
+
 namespace ba::motor {
 
 namespace {

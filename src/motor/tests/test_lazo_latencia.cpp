@@ -19,6 +19,9 @@
 
 #include "LectorAnillo.hpp"
 #include "Motor.hpp"
+#include "Mezcla.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 #include "tests/Puntualidad.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "ipc/CanalesSalida.hpp"

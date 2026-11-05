@@ -10,6 +10,8 @@
 //   - un canal que no está en la lista no se toca.
 
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 #include "ipc/SharedAudioRing.hpp"
 
 #include <gst/gst.h>

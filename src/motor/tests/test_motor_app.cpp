@@ -10,6 +10,8 @@
 //   - remux de una grabación MKV a MP4 sin recodificar.
 
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 #include "tests/Puntualidad.hpp"
 #include "Salidas.hpp"
 

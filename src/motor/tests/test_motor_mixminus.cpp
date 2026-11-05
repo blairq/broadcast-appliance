@@ -12,6 +12,8 @@
 
 #include "LectorAnillo.hpp"
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 #include "ipc/CanalesSalida.hpp"
 
 #include <gst/gst.h>

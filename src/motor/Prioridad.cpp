@@ -12,6 +12,8 @@
 
 #include "platform/TiempoReal.hpp"
 
+#include <gst/gst.h>
+
 #include <gst/audio/gstaudioaggregator.h>
 #include <gst/base/gstaggregator.h>
 

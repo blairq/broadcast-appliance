@@ -12,7 +12,7 @@
 
 #include "AnalisisCeldas.hpp"
 
-#include <gst/gst.h>
+#include "GstAdelantado.hpp"
 
 #include <memory>
 #include <mutex>

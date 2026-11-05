@@ -13,6 +13,8 @@
 //   - crear y borrar una salida andando sin romper la por omisión (que no se borra).
 
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 #include "ajustes/Ajustes.hpp"
 
 #include <gst/gst.h>

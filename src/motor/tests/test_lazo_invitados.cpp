@@ -26,6 +26,8 @@
 
 #include "LectorAnillo.hpp"
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 #include "tests/Puntualidad.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/HealthBlock.hpp"

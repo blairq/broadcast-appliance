@@ -28,7 +28,7 @@
 // ============================================================================
 #pragma once
 
-#include <gst/gst.h>
+#include "GstAdelantado.hpp"
 #include <nlohmann/json.hpp>
 
 namespace ba::motor {

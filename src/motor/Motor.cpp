@@ -6,13 +6,22 @@
 #include "diag/Utf8.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "Candado.hpp"
+#include "Composicion.hpp"
+#include "Entrada.hpp"
+#include "Escucha.hpp"
 #include "GpuPerdida.hpp"
 #include "Memoria.hpp"
+#include "Mezcla.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
+#include "Sondas.hpp"
 #include "Trabajos.hpp"
 #include "OrigenRed.hpp"
+#include "Vistas.hpp"
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/LugaresSala.hpp"
 
+#include <gst/gst.h>
 #include <gst/net/net.h>
 
 #include <gst/app/gstappsink.h>
@@ -27,6 +36,23 @@ namespace ba::motor {
 using json = nlohmann::json;
 using ba::i18n::llenar;
 using ba::i18n::traducir;
+
+static_assert(Motor::kSinMirarMs == Vistas::kSinMirarUs / 1000, "Motor::kSinMirarMs es el de Vistas");
+
+/// Lo de Motor que necesita los tipos completos de las piezas o de GStreamer (ver Motor.hpp):
+/// así Motor.hpp no los trae. Una clase anidada: ve lo privado del motor.
+struct Motor::Interno {
+    /// Para Composicion::Opciones::esperarEntrada: qué capas no están listas aunque pasen cuadros.
+    static std::function<Composicion::Espera(const std::string&, const std::string&)> esperaDeCapas(Motor& m);
+    /// Las de la composición de una escena interna, con esperaDeCapas.
+    static Composicion::Opciones opcionesDeEscena(Motor& m, const Escena& e);
+    /// Cada bloque del audio del programa de una salida a sus oyentes (appsink «new-sample»).
+    static GstFlowReturn alAudio(GstElement* sink, gpointer d);
+};
+
+Reloj& Motor::reloj() { return *reloj_; }
+
+bool Motor::bajarLatenciaEstudio() { return reloj_ && reloj_->bajarLatencia(); }
 
 Motor::Motor(Config c) : cfg_(std::move(c)) {
     fijarColorSalida(cfg_.lienzo);
@@ -237,7 +263,7 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
     if (cfg_.video) {
         Composicion::Opciones vop;
         vop.gpu = cfg_.videoGpu;
-        vop.esperarEntrada = esperaDeCapas();
+        vop.esperarEntrada = Interno::esperaDeCapas(*this);
         Composicion::Opciones pop = vop;
         pop.dsk = true; // el PROGRAMA con DSK y clean feed
         s.programa = std::make_unique<Composicion>(*reloj_, cfg_.lienzo, "programa" + suf, pop);
@@ -776,32 +802,32 @@ std::string Motor::ponerPistasYa(const std::string& id, const std::vector<int>& 
     return {};
 }
 
-std::function<Composicion::Espera(const std::string&, const std::string&)> Motor::esperaDeCapas() {
+std::function<Composicion::Espera(const std::string&, const std::string&)> Motor::Interno::esperaDeCapas(Motor& m) {
     // El TAKE no saca al aire una capa con la placa de una entrada cuya señal está llegando
     // (se rearmó al volver a usarse), ni una escena interna con capas así: se esperan como
     // una sin cuadro. Una entrada sin video (un micrófono en la escena) no se espera. Lo
     // llama Composicion::tic, en el hilo del motor y con su candado (canales_, vEscenas_).
     using Espera = Composicion::Espera;
-    return [this](const std::string& id, const std::string& productor) -> Espera {
+    return [&m](const std::string& id, const std::string& productor) -> Espera {
         for (const bool mini : {false, true}) {
             const std::string pre = mini ? "video:mini:" : "video:escena:";
             if (productor.rfind(pre, 0) != 0) continue;
-            const auto& comps = mini ? vMinis_ : vEscenas_;
+            const auto& comps = mini ? m.vMinis_ : m.vEscenas_;
             auto it = comps.find(productor.substr(pre.size()));
             return it != comps.end() && it->second.comp && !it->second.comp->completa() ? Espera::Esperar : Espera::Normal;
         }
         // Lo que se ve viene de otra parte (traer): lo de esa entrada no dice nada.
         if (!productor.empty() && productor != id + ":video") return Espera::Normal;
-        auto it = canales_.find(id);
-        if (it == canales_.end() || !it->second.entrada) return Espera::Normal;
+        auto it = m.canales_.find(id);
+        if (it == m.canales_.end() || !it->second.entrada) return Espera::Normal;
         if (it->second.entrada->sinVideo()) return Espera::NoEsperar;
         return it->second.entrada->esperandoSenal() ? Espera::Esperar : Espera::Normal;
     };
 }
 
-Composicion::Opciones Motor::opcionesDeEscena(const Escena& e) {
+Composicion::Opciones Motor::Interno::opcionesDeEscena(Motor& m, const Escena& e) {
     Composicion::Opciones op = Composicion::Opciones::de(e);
-    op.esperarEntrada = esperaDeCapas(); // lo de adentro también se espera (completa)
+    op.esperarEntrada = esperaDeCapas(m); // lo de adentro también se espera (completa)
     return op;
 }
 
@@ -861,7 +887,7 @@ std::string Motor::definirEscenaYa(const json& j) {
         // También otro mezclador (la «Mezcla de GStreamer»: otro módulo, o una propiedad fija).
         if (c.lienzo().ancho != l.ancho || c.lienzo().alto != l.alto || !c.ponerFiltros(e.filtros) || !c.ponerMezclador(e.mezclador)) {
             std::unique_ptr<Composicion> vieja = std::move(it->second.comp);
-            it->second.comp = std::make_unique<Composicion>(*reloj_, l, (mini ? "mini:" : "escena:") + e.nombre, opcionesDeEscena(e));
+            it->second.comp = std::make_unique<Composicion>(*reloj_, l, (mini ? "mini:" : "escena:") + e.nombre, Interno::opcionesDeEscena(*this, e));
             desarmarAparte(std::move(vieja));
         }
         it->second.comp->mostrar(e);
@@ -1334,7 +1360,7 @@ std::string Motor::usarEscenaYa(const std::string& nombre, bool mini) {
     CompEscena& c = (mini ? vMinis_ : vEscenas_)[nombre];
     if (!c.comp) {
         c.comp = std::make_unique<Composicion>(*reloj_, lienzoDe(e->second, mini), (mini ? "mini:" : "escena:") + nombre,
-                                               opcionesDeEscena(e->second));
+                                               Interno::opcionesDeEscena(*this, e->second));
         c.comp->mostrar(e->second);
     }
     ++c.pedidos;
@@ -1436,7 +1462,7 @@ void Motor::masterVolumenYa(double lineal, int ms, const std::string& salida) {
     if (Salida* s = laSalida(salida); s != nullptr && s->mezcla) s->mezcla->ponerMaster(lineal, ms);
 }
 
-GstFlowReturn Motor::alAudio(GstElement* sink, gpointer d) {
+GstFlowReturn Motor::Interno::alAudio(GstElement* sink, gpointer d) {
     const auto* t = static_cast<const TomaPrograma*>(d);
     Motor* m = t->motor;
     GstSample* s = gst_app_sink_pull_sample(GST_APP_SINK(sink));
@@ -1489,7 +1515,7 @@ void Motor::armarTomaAudio(const std::string& salida) {
     t->salida = salida.empty() ? porOmision_ : salida;
     t->pipeline = p;
     GstElement* sk = gst_bin_get_by_name(GST_BIN(p), "s");
-    g_signal_connect(sk, "new-sample", G_CALLBACK(&Motor::alAudio), t.get());
+    g_signal_connect(sk, "new-sample", G_CALLBACK(&Motor::Interno::alAudio), t.get());
     gst_object_unref(sk);
     reloj_->adoptar(p);
     gst_pipeline_set_latency(GST_PIPELINE(p), static_cast<GstClockTime>(s->mezcla->latenciaSalidaNs() + margenMezclaNs()));

@@ -8,6 +8,7 @@
 // nunca pasa el tope.
 
 #include "Motor.hpp"
+#include "Piezas.hpp"
 #include "Reloj.hpp"
 
 #include <gst/gst.h>

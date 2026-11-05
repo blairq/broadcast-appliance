@@ -13,6 +13,8 @@
 #include "emision/BroadcastEngine.hpp"
 
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 #include "Salidas.hpp"
 #include "arranque/ArchivoConfig.hpp"
 #include "audio/GstRack.hpp"

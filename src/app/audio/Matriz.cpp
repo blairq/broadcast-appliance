@@ -21,6 +21,7 @@
 #include "ui/ListaObjetos.hpp"
 #include "emision/FuentesApp.hpp"
 #include "Motor.hpp"
+#include "Mezcla.hpp"  // latenciaOidoNs: lo que espera un bus de oído
 #include "Piezas.hpp" // Vigia: las placas de salida
 #include "Prioridad.hpp"
 #include "platform/Ritmo.hpp"

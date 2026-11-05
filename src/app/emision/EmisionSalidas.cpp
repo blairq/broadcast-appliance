@@ -12,6 +12,7 @@
 #include <tuple>
 
 #include "Motor.hpp"
+#include "Reloj.hpp"
 #include "Pedido.hpp"
 #include "Salidas.hpp"
 #include "ajustes/Ajustes.hpp"

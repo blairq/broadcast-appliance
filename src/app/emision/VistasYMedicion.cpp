@@ -10,7 +10,10 @@
 #include <cstdlib>
 #include <thread>
 
+#include <glib.h>
+
 #include "Motor.hpp"
+#include "Reloj.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "camaras/SincroLabios.hpp"
 #include "diag/Registro.hpp"

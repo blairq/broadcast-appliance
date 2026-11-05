@@ -14,8 +14,6 @@
 // ============================================================================
 #pragma once
 
-#include <gst/gst.h>
-
 #include <string>
 
 namespace ba::motor {

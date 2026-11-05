@@ -32,8 +32,6 @@
 // ============================================================================
 #pragma once
 
-#include "NivelAudio.hpp"
-
 #include <atomic>
 #include <cstdint>
 #include <functional>
@@ -45,6 +43,13 @@
 #include <vector>
 
 #include <nlohmann/json.hpp>
+
+// Un nivel de la foto (motor/NivelAudio.hpp: id, pico y RMS por canal): solo lo nombra. Quien lee
+// los niveles uno por uno (el Mezclador, los vúmetros) incluye NivelAudio.hpp; los demás que
+// usan el canal (la mayoría: el pico del programa, el loudness) no dependen del motor.
+namespace ba::motor {
+struct NivelAudio;
+} // namespace ba::motor
 
 namespace ba::app {
 

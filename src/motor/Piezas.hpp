@@ -8,6 +8,8 @@
 // ============================================================================
 #pragma once
 
+#include "Lienzo.hpp"
+
 #include <gst/gst.h>
 
 #include <nlohmann/json.hpp>
@@ -27,14 +29,6 @@
 
 namespace ba::motor {
 
-/// El lienzo del estudio: a qué se normaliza cada entrada y a qué sale el programa.
-struct Lienzo {
-    int ancho = 1920, alto = 1080;
-    int fpsN = 30, fpsD = 1;
-    std::string color = "bt709";  ///< bt601, bt709, bt2100-pq, bt2100-hlg
-    bool rangoCompleto = false;
-    bool diezBits = false;        ///< P010 en vez de NV12 (también con HDR)
-};
 
 /// Las caps de color del lienzo («video/x-raw,format=NV12,colorimetry=…»).
 std::string capsColorDelLienzo(const Lienzo& l);

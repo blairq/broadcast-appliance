@@ -88,25 +88,29 @@
 // POR AHORA sigue a la salida por omisión el multiview (su PROGRAMA y su PREVIEW
 // son los de la por omisión; el tally rojo es «al aire en ALGUNA salida»). Las
 // pistas 2-6 y los retornos son de cada salida; la escucha, de la que se elige.
+//
+// LO PÚBLICO Y LAS PIEZAS: esta cabecera es lo que ven la app, el emisor y los tests. Trae
+// solo los valores que pasan por su interfaz (Lienzo.hpp, Escena.hpp, Cuadro.hpp, NivelAudio.hpp, el
+// candado) y nombra las piezas internas (Entrada, Mezcla, Composicion, Escucha, Vistas,
+// Sondas, Reloj) sin traerlas: tocar una pieza recompila la pieza y lo que de verdad la
+// usa. Ni GStreamer (GstAdelantado.hpp): quien use una pieza o hable con GStreamer, la
+// incluye. Lo que necesita los tipos completos de las piezas va en Motor::Interno (Motor.cpp).
 // ============================================================================
 #pragma once
 
 #include "Candado.hpp"
-#include "Sondas.hpp"
-
-#include "Composicion.hpp"
-#include "Entrada.hpp"
-#include "Escucha.hpp"
-#include "Mezcla.hpp"
+#include "Cuadro.hpp"
+#include "Escena.hpp"
+#include "GstAdelantado.hpp"
+#include "Lienzo.hpp"
 #include "NivelAudio.hpp"
-#include "Piezas.hpp"
-#include "Reloj.hpp"
-#include "Vistas.hpp"
 
 #include <nlohmann/json.hpp>
 
 #include <atomic>
 #include <condition_variable>
+#include <cstddef>
+#include <cstdint>
 #include <deque>
 #include <functional>
 #include <future>
@@ -119,6 +123,15 @@
 #include <vector>
 
 namespace ba::motor {
+
+// Las piezas (cada una en su cabecera): el motor las tiene, la interfaz no las muestra.
+class Composicion;
+class Entrada;
+class Escucha;
+class Mezcla;
+class Reloj;
+class Sondas;
+class Vistas;
 
 class Motor {
    public:
@@ -310,8 +323,9 @@ class Motor {
     /// Cada cuadro de una vista ya pedida (en el hilo de datos). fn vacía = sacar.
     void verAvisar(const std::string& clave, std::function<void(const Cuadro&)> fn);
     /// Dormir las vistas que nadie mira en `sinMirarMs` (Vistas::soltarSinMirar; la política
-    /// térmica, F4-05).
-    void vistasSinMirar(bool soltar, int sinMirarMs = static_cast<int>(Vistas::kSinMirarUs / 1000));
+    /// térmica, F4-05). De fábrica, el de Vistas (Vistas::kSinMirarUs: Motor.cpp lo comprueba).
+    static constexpr int kSinMirarMs = 10000;
+    void vistasSinMirar(bool soltar, int sinMirarMs = kSinMirarMs);
     /// Un cuadro para una entrada tipo=app.
     bool empujarCuadro(const std::string& id, const std::uint8_t* bgra, int ancho, int alto, int stride);
 
@@ -325,7 +339,7 @@ class Motor {
     /// Si la latencia del estudio puede bajar sola (sin nada al aire). En vivo solo sube.
     void permitirBajarLatencia(bool si) { permitirBajar_ = si; }
     /// Bajarla ahora a lo que piden las entradas sincronizadas (el operador lo pide).
-    bool bajarLatenciaEstudio() { return reloj_ && reloj_->bajarLatencia(); }
+    bool bajarLatenciaEstudio();
     nlohmann::json analizarTerminar(const std::string& entrada);
     /// La última foto de `estado()` que publicó el bucle del motor (cada ~100 ms).
     /// NO toma el candado: es lo que lee la interfaz (los vúmetros la leen cada
@@ -356,7 +370,7 @@ class Motor {
     /// Que la próxima vuelta del bucle (20 ms) publique la foto, sin esperar las
     /// 10 vueltas de siempre: lo pide quien acaba de cambiar algo.
     void pedirFoto() { fotoPedida_.store(true); }
-    Reloj& reloj() { return *reloj_; }
+    Reloj& reloj();
     /// Publica el reloj del estudio en la red (GstNetTimeProvider) para que otros
     /// aparatos lo usen (reloj «red»). 0 = dejar de publicar. "" o el error.
     std::string publicarReloj(int puerto);
@@ -367,6 +381,9 @@ class Motor {
     std::string productorDeBus(const std::string& bus, std::int64_t* latenciaNs = nullptr, const std::string& salida = "");
 
    private:
+    /// Lo que necesita los tipos completos de las piezas o de GStreamer (Motor.cpp): las
+    /// esperas de las capas, las opciones de una composición, el audio del programa.
+    struct Interno;
     struct Canal {
         std::shared_ptr<Entrada> entrada; ///< compartida con el buzón de cuadros (ver empujarCuadro)
         bool global = false, interna = false;
@@ -588,10 +605,8 @@ class Motor {
     std::string ponerMuteYa(const std::string& id, bool mute, const std::string& salida);
     std::string ponerPistasYa(const std::string& id, const std::vector<int>& pistas);
     void escenaAlAireYa(const std::vector<std::string>& ids, int fundidoMs, const std::string& salida);
-    /// Para Composicion::Opciones::esperarEntrada: qué capas no están listas aunque pasen cuadros.
-    std::function<Composicion::Espera(const std::string&, const std::string&)> esperaDeCapas();
-    /// Las de la composición de una escena interna, con esperaDeCapas.
-    Composicion::Opciones opcionesDeEscena(const Escena& e);
+    // (Interno::esperaDeCapas y Interno::opcionesDeEscena: las esperas de las capas y las
+    // opciones de la composición de una escena interna.)
     /// El audio de la escena que sale al aire: ya, o cuando su imagen corte (Salida::audioPendiente).
     void audioDeEscena(Salida& s, const std::string& salida, const std::vector<std::string>& ids, int fundidoMs);
     std::string controlMedioYa(const std::string& id, const std::string& accion, std::int64_t ms);
@@ -668,7 +683,7 @@ class Motor {
     std::map<int, Oyente> oyentes_; ///< bajo tomaMu_
     bool hayOyentes(const std::string& salida); ///< toma tomaMu_
     int proximoOyente_ = 1;
-    static GstFlowReturn alAudio(GstElement* sink, gpointer d);
+    // (Interno::alAudio: cada bloque del programa a sus oyentes.)
     void actualizarMultiview();
     /// Qué entradas está mostrando alguien (composiciones y vistas): las demás
     /// van a 2 cuadros/s (Entrada::ponerEnUso). Con mu_ tomado.

@@ -12,6 +12,7 @@
 // que importa es el arranque de las piezas, no la fuente.
 
 #include "Motor.hpp"
+#include "Reloj.hpp"
 #include "Piezas.hpp"
 
 #include <gst/gst.h>

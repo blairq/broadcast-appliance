@@ -1,6 +1,7 @@
 // src/app/emision/NivelesMotor.cpp — ver el .hpp
 
 #include "emision/NivelesMotor.hpp"
+#include "NivelAudio.hpp"
 
 #include <algorithm>
 

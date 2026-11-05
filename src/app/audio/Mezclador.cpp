@@ -7,6 +7,7 @@
 #include "audio/Matriz.hpp"
 #include "audio/RackManager.hpp"
 #include "emision/NivelesMotor.hpp"
+#include "NivelAudio.hpp"
 #include "emision/VentanillaMotor.hpp"
 
 #include <QDateTime>

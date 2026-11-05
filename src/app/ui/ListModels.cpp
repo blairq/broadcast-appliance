@@ -21,6 +21,7 @@
 #include "arranque/RuntimeMotor.hpp"
 #include "emision/InputSpecs.hpp"
 #include "emision/VentanillaMotor.hpp"
+#include "NivelAudio.hpp"
 #include "video/Camaras.hpp"
 
 #include <nlohmann/json.hpp>

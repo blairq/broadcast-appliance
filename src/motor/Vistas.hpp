@@ -38,6 +38,8 @@
 // ============================================================================
 #pragma once
 
+#include "Cuadro.hpp"
+
 #include <gst/gst.h>
 
 #include <nlohmann/json.hpp>
@@ -55,38 +57,6 @@
 namespace ba::motor {
 
 class Reloj;
-
-/// Los bytes de un cuadro: el buffer de GStreamer mismo, mapeado para leer y con su
-/// referencia (copiar un Pixeles es contar una referencia más, no copiar bytes). El buffer
-/// se desmapea y se suelta con el último que lo tiene.
-class Pixeles {
-   public:
-    Pixeles() = default;
-    /// Una referencia a `b`, mapeado; `desde`/`bytes`: la parte que es el cuadro (0 = todo).
-    Pixeles(GstBuffer* b, std::size_t desde, std::size_t bytes);
-    const std::uint8_t* data() const { return datos_; }
-    std::size_t size() const { return bytes_; }
-    bool empty() const { return bytes_ == 0; }
-
-   private:
-    struct Mapa;
-    std::shared_ptr<const Mapa> mapa_;
-    const std::uint8_t* datos_ = nullptr;
-    std::size_t bytes_ = 0;
-};
-
-struct Cuadro {
-    Pixeles bgra; ///< BGRA, filas de `stride` bytes (en NV12: desde el plano Y hasta el final del UV)
-    int ancho = 0, alto = 0, stride = 0;
-    /// Una vista pedida en NV12: el plano UV empieza `desdeUv` bytes después del Y, con
-    /// filas de `strideUv` bytes (alto/2 filas).
-    bool nv12 = false;
-    std::size_t desdeUv = 0;
-    int strideUv = 0;
-    std::uint64_t serie = 0;
-    /// La hora de lo que muestra, en el reloj de los sellos (HealthBlock::nowQpc); 0 = no se sabe.
-    std::uint64_t contenidoQpc = 0;
-};
 
 class Vistas {
    public:

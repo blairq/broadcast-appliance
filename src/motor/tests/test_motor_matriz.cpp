@@ -14,6 +14,8 @@
 //   - quitar el bus lo saca de los niveles y del estado.
 
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 
 #include <gst/gst.h>
 

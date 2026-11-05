@@ -15,6 +15,8 @@
 
 #include "Memoria.hpp"
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 #include "Trabajos.hpp"
 
 #include <gst/gst.h>

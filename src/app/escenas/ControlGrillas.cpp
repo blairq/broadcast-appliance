@@ -34,6 +34,8 @@
 #include <QPainter>
 #include <QPointer>
 
+#include <gst/gst.h>
+
 #include <algorithm>
 #include <cmath>
 #include <optional>

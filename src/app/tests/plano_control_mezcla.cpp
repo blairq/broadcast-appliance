@@ -9,6 +9,7 @@
 
 #include "agent/EntradasAlarmas.hpp"
 #include "emision/NivelesMotor.hpp"
+#include "NivelAudio.hpp"
 #include "emision/VentanillaMotor.hpp"
 
 #include <algorithm>

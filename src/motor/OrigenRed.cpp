@@ -8,6 +8,8 @@
 #include "Piezas.hpp"
 #include "Reloj.hpp"
 
+#include <gst/gst.h>
+
 #include <gio/gio.h>
 #include "platform/Hilo.hpp"
 

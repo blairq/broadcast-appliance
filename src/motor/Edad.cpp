@@ -5,6 +5,8 @@
 
 #include "Reloj.hpp"
 
+#include <gst/gst.h>
+
 #include <algorithm>
 #include <atomic>
 #include <deque>

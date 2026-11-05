@@ -5,6 +5,8 @@
 
 #include "i18n/I18nTexto.hpp"
 
+#include <gst/gst.h>
+
 #include <algorithm>
 #include <cmath>
 #include <cstdio>

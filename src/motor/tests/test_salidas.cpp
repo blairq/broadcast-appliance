@@ -9,6 +9,8 @@
 // (los colores del multiview), sin copiar los bytes y con la hora de su contenido (F2-13).
 
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 #include "Salidas.hpp"
 #include "ipc/HealthBlock.hpp"
 

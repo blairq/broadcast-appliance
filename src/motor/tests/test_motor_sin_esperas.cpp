@@ -8,6 +8,8 @@
 // ============================================================================
 #include "Candado.hpp"
 #include "Motor.hpp"
+#include "Piezas.hpp"
+#include "Reloj.hpp"
 
 #include <gst/gst.h>
 
