@@ -123,6 +123,12 @@ inline void atender(int ms) {
     l.exec();
 }
 
+/// Una carpeta temporal de ESTA corrida (con el pid): dos corridas a la vez (dos worktrees con
+/// `make test`, o uno a mano) se pisaban los archivos y se borraban la carpeta una a la otra.
+inline fs::path carpetaTemporal(const std::string& nombre) {
+    return fs::temp_directory_path() / (nombre + "-" + std::to_string(QCoreApplication::applicationPid()));
+}
+
 /// Lo que arma el principio del test y usan las partes; y lo que una parte deja para otra.
 struct Banco {
     QCoreApplication& app;

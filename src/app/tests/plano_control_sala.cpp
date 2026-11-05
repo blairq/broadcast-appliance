@@ -195,7 +195,7 @@ void probarSala(Banco& b, const Resto& resto) {
         using ba::app::FotoMotor;
         using ba::app::VentanillaMotor;
         using ba::app::control::CapasDsk;
-        const fs::path datosC = fs::temp_directory_path() / "ba-test-plano-control-dsk";
+        const fs::path datosC = carpetaTemporal("ba-test-plano-control-dsk");
         fs::remove_all(datosC);
         fs::create_directories(datosC / "Config");
         // El motor sintético: qué capa está arriba en cada salida; lo que se le pide, contado

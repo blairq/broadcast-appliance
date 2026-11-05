@@ -41,7 +41,7 @@ void probarAire(Banco& b, const Resto& resto) {
     plano.encolar([]() { ba::app::TurnoMotor::participar("control"); });
     core.setTurno({[&turno](int ms) { return turno.tomarHasta(ms); }, [&turno]() { turno.soltar(); },
                    [&turno]() { return turno.estado(); }});
-    const fs::path datos8 = fs::temp_directory_path() / "ba-test-plano-control-aire";
+    const fs::path datos8 = carpetaTemporal("ba-test-plano-control-aire");
     fs::remove_all(datos8);
     fs::create_directories(datos8 / "Runtime");
     ba::app::salidas::DocumentoAire doc8(datos8 / "Runtime");

@@ -37,7 +37,7 @@ void probarFoto(Banco& b, const Resto& resto) {
     [[maybe_unused]] auto& http = b.http;
 
     // --- 7. Las herramientas de la foto, con un estado sintético ------------------------
-    const fs::path datos = fs::temp_directory_path() / "ba-test-plano-control";
+    const fs::path datos = carpetaTemporal("ba-test-plano-control");
     fs::remove_all(datos);
     for (const char* d : {"Config", "Runtime", "Logs"}) fs::create_directories(datos / d);
     std::ofstream(datos / "Config" / "salidas.json") << R"({"salidas":[{"id":"principal","nombre":"Principal"}]})";

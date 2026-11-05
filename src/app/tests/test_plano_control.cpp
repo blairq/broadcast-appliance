@@ -276,7 +276,7 @@ void probarFinal(Banco& b) {
     // --- El contenido de una capa DSK, por el id de cada escena (escenas/RefEscena.hpp) ---
     {
         using ba::app::control::CapasDsk;
-        const fs::path datosE = fs::temp_directory_path() / "ba-test-plano-control-dsk-ids";
+        const fs::path datosE = carpetaTemporal("ba-test-plano-control-dsk-ids");
         fs::remove_all(datosE);
         fs::create_directories(datosE / "Config");
         // Un dsk.json de antes: la escena por el nombre, al lado de una fuente.
