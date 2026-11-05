@@ -110,12 +110,17 @@ int main() {
     std::printf("bucle de 10 ms con %u hilos ocupados: sin tiempo real p99 %.0f us, max %.0f us; con tiempo real p99 "
                 "%.0f us, max %.0f us\n",
                 n, normal.p99, normal.max, real.p99, real.max);
-    if (subio && ba::pruebas::bajoWine() && real.p99 >= 2000.0 && g_fallos == 0) {
-        // Wine acepta la prioridad (THREAD_PRIORITY_TIME_CRITICAL contesta que sí) pero no la da
-        // de verdad: sobre Linux (y en Docker, sobre Rosetta) sus hilos son hilos comunes.
-        std::printf("SKIP: bajo Wine la prioridad de tiempo real se acepta pero no se da (p99 %.0f us con la CPU "
-                    "llena): no se puede probar ahí\n",
-                    real.p99);
+    // Bajo un emulador la prioridad se acepta pero no se da de verdad: Wine contesta que sí a
+    // THREAD_PRIORITY_TIME_CRITICAL y sus hilos son hilos comunes de Linux; el Linux x86_64 de
+    // Docker en una Mac ARM corre todo por Rosetta (y ahí, sin permisos de SCHED_FIFO, queda en
+    // «nice»). Lo mismo que resultadoTiempoReal: SKIP con el motivo, salvo en modo estricto.
+    // (Antes miraba solo Wine: bajo Rosetta, el p99 de 17 ms daba un rojo que no era del programa.)
+    if (subio && (ba::pruebas::bajoWine() || ba::pruebas::bajoRosetta()) && !ba::pruebas::tiempoRealEstricto() &&
+        real.p99 >= 2000.0 && g_fallos == 0) {
+        std::printf("SKIP: bajo %s la prioridad de tiempo real se acepta pero no se da (p99 %.0f us con la CPU "
+                    "llena): no se puede probar ahí. En una máquina de verdad se exige.\n",
+                    ba::pruebas::bajoWine() ? "Wine" : "Rosetta (el Linux x86_64 de Docker en una Mac ARM)", real.p99);
+        std::fflush(stdout);
         return 77;
     }
     if (subio) CHECK(real.p99 < 2000.0, "en tiempo real se despierta a tiempo aun con la CPU llena (p99 < 2 ms)");
