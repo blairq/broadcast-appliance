@@ -215,11 +215,16 @@ int main() {
     esperarQue([&] { return motor.estado()["recursos"].value("en_reposo", -1) == 2 * kLugares; });
     const int h3 = hilosEnCalma();
     const std::int64_t m3 = memoria::privada();
+    // Cada ida y cada vuelta, hasta que el motor la hizo (los que llegan, andando; los que se
+    // van, en reposo): antes eran 800 ms fijos por paso (4,8 s del test), que con la máquina
+    // cargada podían no alcanzar (la vuelta empezaba con la ida a medio hacer) y sola sobraban.
     for (int vuelta = 0; vuelta < 3; ++vuelta) {
         motor.ponerLugares(lugares(kLlegan));
-        esperar(800);
+        CHECK(esperarQue([&] { return motor.estado()["recursos"].value("en_reposo", -1) == 2 * (kLugares - kLlegan); }),
+              "ir y venir: llegan");
         motor.ponerLugares(lugares(0));
-        esperar(800);
+        CHECK(esperarQue([&] { return motor.estado()["recursos"].value("en_reposo", -1) == 2 * kLugares; }),
+              "ir y venir: se van");
     }
     esperarQue([&] {
         rec = motor.estado()["recursos"];
