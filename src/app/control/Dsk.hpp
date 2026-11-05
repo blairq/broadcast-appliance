@@ -116,12 +116,6 @@ class Dsk : public QObject {
         if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
     }
     void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
-    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
-    bool sinError(const QString& e) {
-        avisarError(e);
-        return e.isEmpty();
-    }
-    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     Q_PROPERTY(QVariantList capas READ capasUi NOTIFY cambio)
    public:
     using json = nlohmann::json;
@@ -143,9 +137,10 @@ class Dsk : public QObject {
     void setAlCambiar(std::function<void(const json&)> fn) { alCambiar_ = std::move(fn); }
 
     QVariantList capasUi() const;
-    Q_INVOKABLE bool definirUi(int capa, const QVariantMap& def);
+    /// El error va por la señal del modelo (la vista no usa lo que devuelven: en el tablero web no vuelve nada).
+    Q_INVOKABLE void definirUi(int capa, const QVariantMap& def);
     Q_INVOKABLE void mostrarUi(int capa, bool visible, bool confirmada);
-    Q_INVOKABLE bool plantillaLsaUi(int capa, const QString& entrada);
+    Q_INVOKABLE void plantillaLsaUi(int capa, const QString& entrada);
     Q_INVOKABLE bool fija(int capa) const;
 
    signals:

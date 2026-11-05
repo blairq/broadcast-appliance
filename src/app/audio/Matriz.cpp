@@ -680,7 +680,11 @@ void Matriz::aplicarGuardado(const std::string& f) {
         });
 }
 
-QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activo) {
+void Matriz::setCruce(const QString& fuente, const QString& bus, bool activo) {
+    avisarError(ponerCruce(fuente, bus, activo));
+}
+
+QString Matriz::ponerCruce(const QString& fuenteQ, const QString& busQ, bool activo) {
     const std::string fuente = fuenteQ.toStdString(), bus = busQ.toStdString();
     if (bus.rfind("pista", 0) == 0) {
         const int i = std::atoi(bus.c_str() + 5) - 1;
@@ -718,9 +722,9 @@ QString Matriz::setCruce(const QString& fuenteQ, const QString& busQ, bool activ
     return {};
 }
 
-QString Matriz::alternar(const QString& fuente, const QString& bus) {
+void Matriz::alternar(const QString& fuente, const QString& bus) {
     // Solo ese cruce (no la matriz entera).
-    return setCruce(fuente, bus, !cruce(fuente, bus).value("activo").toBool());
+    avisarError(ponerCruce(fuente, bus, !cruce(fuente, bus).value("activo").toBool()));
 }
 
 void Matriz::setAjustes(const QString& fuente, const QString& bus, bool on) {
@@ -751,8 +755,8 @@ void Matriz::ajustar(const QString& fuente, const QString& bus, double nivelDb, 
 
 // --- Buses virtuales --------------------------------------------------------------------
 
-QString Matriz::agregarSalidaVirtual(const QString& nombre, const QString& dispositivo) {
-    if (buses_.size() >= kMaxVirtuales) return tr("No entran más buses virtuales.");
+void Matriz::agregarSalidaVirtual(const QString& nombre, const QString& dispositivo) {
+    if (buses_.size() >= kMaxVirtuales) return avisarError(tr("No entran más buses virtuales."));
     auto b = std::make_unique<Bus>();
     int n = 1;
     while (buscar("salida" + std::to_string(n)) != nullptr)
@@ -763,38 +767,36 @@ QString Matriz::agregarSalidaVirtual(const QString& nombre, const QString& dispo
     b->tipo = "salida";
     buses_.push_back(std::move(b));
     // Con un dispositivo que no anda, no queda un bus mudo guardado como si estuviera bien.
-    if (const QString e = setDispositivo(QString::fromStdString(buses_.back()->id), dispositivo); !e.isEmpty()) {
+    if (const QString e = ponerDispositivo(QString::fromStdString(buses_.back()->id), dispositivo); !e.isEmpty()) {
         buses_.pop_back();
-        armarPlan(); // setDispositivo ya lo había armado con el bus adentro
+        armarPlan(); // ponerDispositivo ya lo había armado con el bus adentro
         emit cambio();
-        return e;
+        return avisarError(e);
     }
     armarPlan();
     guardar();
     emit cambio();
-    return {};
 }
 
-QString Matriz::agregarEntradaVirtual(const QString& nombre) {
-    if (buses_.size() >= kMaxVirtuales) return tr("No entran más buses virtuales.");
-    if (v_ == nullptr) return tr("El motor de audio no está arriba.");
+void Matriz::agregarEntradaVirtual(const QString& nombre) {
+    if (buses_.size() >= kMaxVirtuales) return avisarError(tr("No entran más buses virtuales."));
+    if (v_ == nullptr) return avisarError(tr("El motor de audio no está arriba."));
     int n = 1;
     while (buscar("entrada" + std::to_string(n)) != nullptr)
         ++n;
     std::string nom =
         nombre.trimmed().isEmpty() ? tr("Entrada virtual %1").arg(n).toStdString() : nombre.trimmed().toStdString();
-    if (existe(nom)) return tr("Ya hay una fuente con ese nombre.");
+    if (existe(nom)) return avisarError(tr("Ya hay una fuente con ese nombre."));
     auto b = std::make_unique<Bus>();
     b->id = "entrada" + std::to_string(n);
     b->nombre = nom;
     b->tipo = "entrada";
-    if (!crearEntradaVirtual(nom, b->id)) return tr("No se pudo crear la fuente.");
+    if (!crearEntradaVirtual(nom, b->id)) return avisarError(tr("No se pudo crear la fuente."));
     b->entradaCreada = true;
     buses_.push_back(std::move(b));
     armarPlan(); // el bus en el motor (si no, la entrada lee un productor que no existe)
     refrescar();
     guardar();
-    return {};
 }
 
 bool Matriz::crearEntradaVirtual(const std::string& nom, const std::string& busId) {
@@ -822,7 +824,7 @@ bool Matriz::crearEntradaVirtual(const std::string& nom, const std::string& busI
     return true;
 }
 
-QString Matriz::quitarBus(const QString& idQ) {
+void Matriz::quitarBus(const QString& idQ) {
     const std::string id = idQ.toStdString();
     for (auto it = buses_.begin(); it != buses_.end(); ++it) {
         if ((*it)->id != id) continue;
@@ -841,9 +843,9 @@ QString Matriz::quitarBus(const QString& idQ) {
         if (motor::Motor* m = motorGst()) m->quitarMatrizBus(muerto->id);
         refrescar();
         guardar();
-        return {};
+        return;
     }
-    return tr("No existe el bus.");
+    avisarError(tr("No existe el bus."));
 }
 
 void Matriz::renombrar(const QString& idQ, const QString& nombreQ) {
@@ -873,7 +875,11 @@ void Matriz::renombrar(const QString& idQ, const QString& nombreQ) {
     guardar();
 }
 
-QString Matriz::setDispositivo(const QString& idQ, const QString& dispositivo) {
+void Matriz::setDispositivo(const QString& id, const QString& dispositivo) {
+    avisarError(ponerDispositivo(id, dispositivo));
+}
+
+QString Matriz::ponerDispositivo(const QString& idQ, const QString& dispositivo) {
     Bus* b = buscar(idQ.toStdString());
     if (b == nullptr || b->tipo != "salida") return tr("No es una salida virtual.");
     b->dispositivo = dispositivo.toStdString();
@@ -888,16 +894,15 @@ QString Matriz::setDispositivo(const QString& idQ, const QString& dispositivo) {
     return esta ? QString() : tr("Ese dispositivo ya no está.");
 }
 
-QString Matriz::setSalida(const QString& idQ, const QString& salida) {
+void Matriz::setSalida(const QString& idQ, const QString& salida) {
     Bus* b = buscar(idQ.toStdString());
-    if (b == nullptr || b->tipo != "salida") return tr("No es una salida virtual.");
+    if (b == nullptr || b->tipo != "salida") return avisarError(tr("No es una salida virtual."));
     // El mute de cada fuente en este bus pasa a ser el de esa salida (lo aplica el motor; una
     // salida que después se borra vuelve sola a la por omisión).
     b->salida = salida.toStdString();
     armarPlan();
     guardar();
     emit cambio();
-    return {};
 }
 
 bool Matriz::migrarPlacas() {

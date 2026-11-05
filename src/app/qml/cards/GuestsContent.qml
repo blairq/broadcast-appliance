@@ -18,8 +18,7 @@ Item {
     // Mientras se ve, el estado del túnel se consulta cada 5 s.
     Suscripcion { objetivo: tarjeta.acceso; activa: tarjeta.visible }
     function conectar(id) {
-        if (acceso.conectar(id))
-            Studio.notify(qsTr("Conectando la conferencia a internet… (la conferencia se reinicia: los invitados se reconectan solos)"), "info")
+        acceso.conectar(id) // el «conectando» o el error los avisa el modelo
     }
     DialogoQrSala { id: qrDlg }
 
@@ -87,10 +86,7 @@ Item {
                             title: qsTr("¿Desconectar la conferencia de internet?"),
                             text: qsTr("Los invitados y los integrantes que entraron desde afuera se cortan, y nadie de afuera puede volver a entrar hasta que la conectes de nuevo. La conferencia se reinicia (los de la red local se reconectan solos)."),
                             accept: qsTr("Desconectar"), reject: qsTr("Cancelar"), espera: 3,
-                            action: function() {
-                                if (tarjeta.acceso.desconectar())
-                                    Studio.notify(qsTr("La conferencia vuelve a ser solo de la red local (se reinicia)"), "info")
-                            }
+                            action: function() { tarjeta.acceso.desconectar() }
                         })
                     } else {
                         vpnMenu.popup(vpnBtn, 0, vpnBtn.height)
@@ -260,7 +256,7 @@ Item {
             readonly property string info: acciones.lugar ? acciones.lugar.info : ""
             text: qsTr("Aprobar su cargo para el zócalo: «%1»").arg(info || "—")
             enabled: info !== "" && acciones.pid !== ""
-            onTriggered: { const e = Studio.sala.aprobarInfoInvitado(acciones.pid, ""); Studio.notify(e !== "" ? e : qsTr("Cargo aprobado para el zócalo"), e !== "" ? "error" : "info") }
+            onTriggered: Studio.sala.aprobarInfoInvitado(acciones.pid, "")
         }
     }
 }

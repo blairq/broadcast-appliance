@@ -9,11 +9,10 @@ Joystick {
     /// La entrada que mueve y la velocidad máxima (0..1).
     property string entrada: ""
     property real velocidad: 0.6
-    /// Lo que contestó el modelo al empezar a mover ("" si anduvo).
-    signal aviso(string texto)
 
+    // mover no devuelve nada: lo que no se pudo lo avisa el modelo (su señal `aviso`).
     readonly property var cc: Studio.camaras
-    onApretado: (px, py) => ptz.aviso(ptz.cc.mover(ptz.entrada, px * ptz.velocidad, py * ptz.velocidad, 0))
+    onApretado: (px, py) => ptz.cc.mover(ptz.entrada, px * ptz.velocidad, py * ptz.velocidad, 0)
     onMover: (px, py) => ptz.cc.mover(ptz.entrada, px * ptz.velocidad, py * ptz.velocidad, 0)
     onSoltado: ptz.cc.parar(ptz.entrada)
 }

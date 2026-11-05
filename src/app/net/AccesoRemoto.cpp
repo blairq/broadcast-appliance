@@ -149,6 +149,7 @@ bool AccesoRemoto::conectar(const QString& id) {
         if (ventanilla_.foto().sala.tunel)
             if (const QString e = aplicarPinggy_({{"gateway.tunnel", false}}); !e.isEmpty()) return sinError(e);
         configurarConApiKey(); // asíncrono: el resultado en `cuenta`
+        avisarConectando();
         return true;
     }
     QVariantMap cambios;
@@ -163,8 +164,25 @@ bool AccesoRemoto::conectar(const QString& id) {
     } else {
         return sinError(tr("No conozco esa forma de conectar: «%1».").arg(id));
     }
-    avisarError(aplicarPinggy_(cambios));
+    if (const QString e = aplicarPinggy_(cambios); !e.isEmpty())
+        avisarError(e);
+    else
+        avisarConectando();
     return true;
+}
+
+// Lo que se avisa al conectar y al desconectar (la vista no mira lo que devuelven: en el
+// tablero web no vuelve nada). Los textos eran de la tarjeta Invitados: con su contexto
+// conservan la traducción.
+void AccesoRemoto::avisarConectando() {
+    emit notify(QCoreApplication::translate("GuestsContent", "Conectando la conferencia a internet… (la conferencia se "
+                                                             "reinicia: los invitados se reconectan solos)"),
+                "info");
+}
+
+void AccesoRemoto::avisarDesconectado() {
+    emit notify(QCoreApplication::translate("GuestsContent", "La conferencia vuelve a ser solo de la red local (se reinicia)"),
+                "info");
 }
 
 bool AccesoRemoto::desconectar() {
@@ -172,8 +190,14 @@ bool AccesoRemoto::desconectar() {
     if (enVivo_ && enVivo_())
         return sinError(tr("Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia)."));
     const FotoMotor::SalaYEvento& g = ventanilla_.foto().sala;
-    if (!g.pinggyActivo && !g.tunel) return true;
-    avisarError(aplicarPinggy_({{"pinggy.activo", false}, {"gateway.tunnel", false}}));
+    if (!g.pinggyActivo && !g.tunel) {
+        avisarDesconectado();
+        return true;
+    }
+    if (const QString e = aplicarPinggy_({{"pinggy.activo", false}, {"gateway.tunnel", false}}); !e.isEmpty())
+        avisarError(e);
+    else
+        avisarDesconectado();
     return true;
 }
 

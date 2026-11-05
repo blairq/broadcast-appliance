@@ -374,6 +374,19 @@ QVariantMap InformeEventoViewModel::importarEscaleta(const QString& rutaOUrl, bo
     const json r = lineaImportar(formato, f.readAll().toStdString(), probar, QFileInfo(ruta).completeBaseName().toStdString());
     return QJsonDocument::fromJson(QByteArray::fromStdString(r.dump(-1, ' ', false, json::error_handler_t::replace))).object().toVariantMap();
 }
+
+void InformeEventoViewModel::importarEscaletaUi(const QString& ruta, bool probar) {
+    const QVariantMap r = importarEscaleta(ruta, probar);
+    if (!r.value("ok").toBool()) return avisarError(r.value("error").toString());
+    if (!probar) return;
+    int pasos = 0; // los que se suman al final de la línea
+    for (const QVariant& d : r.value("diff").toList()) {
+        const QVariantMap m = d.toMap();
+        if (m.value("tipo").toString() == "paso" && m.value("que").toString() == "agregado") ++pasos;
+    }
+    escaletaProbada_ = {{"ruta", ruta}, {"pasos", pasos}, {"avisos", r.value("avisos").toList()}, {"vez", ++vecesProbada_}};
+    emit escaletaProbadaCambio();
+}
 } // namespace ba::app
 
 #include "moc_InformeEventoViewModel.cpp"

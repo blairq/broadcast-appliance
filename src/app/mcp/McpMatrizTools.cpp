@@ -132,7 +132,7 @@ void McpService::registerMatrizTools() {
             const QString f = QString::fromStdString(a.value("fuente", std::string()));
             const QString b = QString::fromStdString(a.value("bus", std::string()));
             if (a.contains("activo")) {
-                const QString e = m->setCruce(f, b, a.value("activo", true));
+                const QString e = errorDe([&] { m->setCruce(f, b, a.value("activo", true)); });
                 if (!e.isEmpty()) return done(err(e));
             }
             if (a.contains("ajustes") && !a.value("ajustes", true)) m->setAjustes(f, b, false);
@@ -166,11 +166,12 @@ void McpService::registerMatrizTools() {
                            {"dispositivo", {{"type", "string"}}}}}};
         t.run = [m, err](const json& a, Done done) {
             const QString nombre = QString::fromStdString(a.value("nombre", std::string()));
-            const QString e =
-                a.value("tipo", std::string()) == "entrada"
-                    ? m->agregarEntradaVirtual(nombre)
-                    : m->agregarSalidaVirtual(nombre,
-                                              QString::fromStdString(a.value("dispositivo", std::string())));
+            const QString e = errorDe([&] {
+                if (a.value("tipo", std::string()) == "entrada")
+                    m->agregarEntradaVirtual(nombre);
+                else
+                    m->agregarSalidaVirtual(nombre, QString::fromStdString(a.value("dispositivo", std::string())));
+            });
             if (!e.isEmpty()) return done(err(e));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Agregado.")).data(m->estado()));
         };
@@ -187,7 +188,7 @@ void McpService::registerMatrizTools() {
         t.inputSchema = {
             {"type", "object"}, {"required", {"bus"}}, {"properties", {{"bus", {{"type", "string"}}}}}};
         t.run = [m, err](const json& a, Done done) {
-            const QString e = m->quitarBus(QString::fromStdString(a.value("bus", std::string())));
+            const QString e = errorDe([&] { m->quitarBus(QString::fromStdString(a.value("bus", std::string()))); });
             if (!e.isEmpty()) return done(err(e));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Quitado.")));
         };
@@ -228,9 +229,10 @@ void McpService::registerMatrizTools() {
             {"required", {"bus", "dispositivo"}},
             {"properties", {{"bus", {{"type", "string"}}}, {"dispositivo", {{"type", "string"}}}}}};
         t.run = [m, err](const json& a, Done done) {
-            const QString e =
+            const QString e = errorDe([&] {
                 m->setDispositivo(QString::fromStdString(a.value("bus", std::string())),
                                   QString::fromStdString(a.value("dispositivo", std::string())));
+            });
             if (!e.isEmpty()) return done(err(e));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Listo.")));
         };

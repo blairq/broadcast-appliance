@@ -104,8 +104,8 @@ class SalaViewModel : public QObject {
     /// Desde la interfaz: "" o el error inmediato (el resultado llega como aviso).
     Q_INVOKABLE QString cupoUi(int n);
     /// Aprueba lo que el invitado escribió de sí mismo (o un `texto` corregido)
-    /// como el cargo de su zócalo. "" o el error.
-    Q_INVOKABLE QString aprobarInfoInvitado(const QString& participante, const QString& texto = {});
+    /// como el cargo de su zócalo. El error (y el «aprobado») van por `notify`.
+    Q_INVOKABLE void aprobarInfoInvitado(const QString& participante, const QString& texto = {});
     /// Chat: los recientes con {key, source, author, text, destacado}; destacar y sacar.
     Q_INVOKABLE QVariantList chatRecientesUi() const;
     Q_INVOKABLE bool destacarChatUi(const QString& key);

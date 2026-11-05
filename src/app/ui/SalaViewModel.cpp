@@ -23,6 +23,7 @@
 #include "ui/RecursosViewModel.hpp"
 #include "ui/SettingsModel.hpp"
 
+#include <QCoreApplication>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QPointer>
@@ -146,16 +147,18 @@ QObject* SalaViewModel::accesoRemotoQml() const { return deCpp(accesoRemoto_.get
 
 QString SalaViewModel::cupoUi(int n) { return QString::fromStdString(cupoSala_->cambiar(n)); }
 
-QString SalaViewModel::aprobarInfoInvitado(const QString& participante, const QString& texto) {
+void SalaViewModel::aprobarInfoInvitado(const QString& participante, const QString& texto) {
     const QJsonObject sala = p_.conferencia.client().snapshot();
     for (const QJsonValue& v : sala.value("participants").toArray()) {
         const QJsonObject pa = v.toObject();
         if (pa.value("id").toString() == participante || pa.value("name").toString() == participante) {
             infoAprobada_[pa.value("id").toString()] = texto.isEmpty() ? pa.value("info").toString() : texto;
-            return {};
+            // El texto era de la tarjeta (GuestsContent): con su contexto conserva la traducción.
+            emit notify(QCoreApplication::translate("GuestsContent", "Cargo aprobado para el zócalo"), "info");
+            return;
         }
     }
-    return tr("no hay un invitado «%1» en la conferencia").arg(participante);
+    avisarError(tr("no hay un invitado «%1» en la conferencia").arg(participante));
 }
 
 QVariantList SalaViewModel::chatRecientesUi() const {

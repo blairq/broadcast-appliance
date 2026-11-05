@@ -108,7 +108,8 @@ Flow {
                         const def = { nombre: nombreF.text, fijo: fijoF.checked,
                                       contenido: contenidoF.editText.split(",").map(s => s.trim()).filter(s => s !== ""),
                                       recuadro: posF.currentIndex === 0 ? {} : { posicion: posF.currentText, tamano: 0.28, margen: 0.03 } }
-                        if (fila.dsk.definirUi(editor.capa.capa, def)) editor.close()
+                        fila.dsk.definirUi(editor.capa.capa, def) // si no se pudo, lo avisa el modelo
+                        editor.close()
                     }
                 }
                 GlassButton {
@@ -117,7 +118,8 @@ Flow {
                     ToolTip.text: qsTr("La primera fuente del contenido (la cámara del intérprete) en un recuadro abajo a la derecha, fija")
                     onClicked: {
                         const primera = contenidoF.editText.split(",").map(s => s.trim()).filter(s => s !== "")[0] || ""
-                        if (fila.dsk.plantillaLsaUi(editor.capa.capa, primera)) editor.close()
+                        fila.dsk.plantillaLsaUi(editor.capa.capa, primera)
+                        editor.close()
                     }
                 }
                 Item { Layout.fillWidth: true }

@@ -376,6 +376,25 @@ void ControlViewModel::emparejarTabletUi(const QString& perfil, const QString& n
     });
 }
 
+void ControlViewModel::emparejarConPerfilUi(const QString& nombrePerfil, const QString& plantilla, const QString& nombre,
+                                            int venceDias) {
+    std::string id;
+    for (const auto& p : botonera_->perfiles())
+        if (p.value("nombre", std::string()) == nombrePerfil.toStdString()) id = p.value("id", std::string());
+    if (id.empty()) {
+        // Con las escenas de ahora: una escena nueva se suma después en la página Botonera.
+        if (const std::string e = botonera_->crearPerfil({{"nombre", nombrePerfil.toStdString()}}, plantilla.toStdString(), &id);
+            !e.empty()) {
+            emit emparejamientoListo({{"error", qs(e)}});
+            return;
+        }
+    } else {
+        // Uno hecho antes de que la plantilla tuviera los botones del guion: se le suman.
+        botonera_->completarGuion(id);
+    }
+    emparejarTabletUi(qs(id), nombre, venceDias);
+}
+
 void ControlViewModel::aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil) {
     const std::string e = botoneraGw_->resolver(solicitud.toStdString(), aprobar, perfil.toStdString());
     if (!e.empty()) {

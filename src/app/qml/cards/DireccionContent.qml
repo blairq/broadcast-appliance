@@ -44,7 +44,18 @@ Item {
     // El reloj del guion: lo lleva el modelo (al segundo, solo mientras se lo lee: sin verse, no).
     readonly property var reloj: visible ? corridaVm.relojVivo : ({})
     readonly property bool corriendo: corridaVm.estado === "corriendo"
-
+    // Arrancar va con la revisión previa: si encontró algo grave no arranca y el modelo lo
+    // dice en frenoArranque (una propiedad: también le llega al tablero web). Avisa solo la
+    // tarjeta que lo pidió.
+    property bool esperaArranque: false
+    readonly property var frenoArranque: corridaVm.frenoArranque
+    readonly property string estadoCorrida: corridaVm.estado
+    onEstadoCorridaChanged: esperaArranque = false
+    onFrenoArranqueChanged: {
+        if (!esperaArranque || !frenoArranque || !frenoArranque.graves) return
+        esperaArranque = false
+        Studio.notify(qsTr("La revisión encontró %n problema grave: miralos en Guion del evento (ahí se puede arrancar igual).", "", frenoArranque.graves), "error")
+    }
 
     QrControlEscenas { id: qrEscenas; parent: Overlay.overlay }
 
@@ -240,9 +251,9 @@ Item {
                     text: parent.parent.enMarcha ? qsTr("Siguiente cue ▶") : (tarjeta.corridaVm.ensayo ? qsTr("Arrancar el ensayo") : qsTr("Arrancar el guion"))
                     onClicked: {
                         if (parent.parent.enMarcha) { tarjeta.corridaVm.go(); return }
-                        // Con la revisión: si encontró algo grave no arranca y avisa.
-                        const graves = tarjeta.corridaVm.arrancarRevisando(false)
-                        if (graves > 0) Studio.notify(qsTr("La revisión encontró %n problema grave: miralos en Guion del evento (ahí se puede arrancar igual).", "", graves), "error")
+                        // Con la revisión: si encontró algo grave no arranca y avisa (frenoArranque).
+                        tarjeta.esperaArranque = true
+                        tarjeta.corridaVm.arrancarUi(false)
                     }
                 }
                 GlassButton {

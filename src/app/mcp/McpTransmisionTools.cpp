@@ -122,8 +122,10 @@ void McpService::registerTransmisionTools() {
                          {"required", {"participant"}},
                          {"properties", {{"participant", {{"type", "string"}}}, {"texto", {{"type", "string"}}}}}};
         t.run = [&vm](const json& a, Done done) {
-            const QString e = vm.sala().aprobarInfoInvitado(QString::fromStdString(a.value("participant", std::string())),
-                                                      QString::fromStdString(a.value("texto", std::string())));
+            const QString e = errorDe([&] {
+                vm.sala().aprobarInfoInvitado(QString::fromStdString(a.value("participant", std::string())),
+                                              QString::fromStdString(a.value("texto", std::string())));
+            });
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             done(ToolResult::ok(ba::i18n::traducir("mcp", "Aprobado: el zocalo ya lo usa.")));
         };

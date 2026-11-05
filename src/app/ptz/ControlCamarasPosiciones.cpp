@@ -431,4 +431,34 @@ QVariantMap ControlCamaras::irAPosicion(const QString& entrada, const QString& i
     return {{"ok", true}, {"nombre", p->nombre}, {"aviso", avisos.join("; ")}};
 }
 
+// --- Las de la vista: lo que contestan, a `avisos` ------------------------------------------
+
+void ControlCamaras::avisarDe(const QString& entrada, const QVariantMap& r, const QString& listo) {
+    QString texto = r.value("ok").toBool() ? r.value("aviso").toString() : r.value("error").toString();
+    if (texto.isEmpty() && r.value("ok").toBool()) texto = listo;
+    avisos_[entrada] = QVariantMap{{"texto", texto}, {"vez", ++vezAviso_}};
+    emit avisosCambio();
+    emit aviso(texto);
+}
+
+void ControlCamaras::crearPosicionUi(const QString& entrada, const QString& nombre, const QString& comentario,
+                                     double velocidad, double segundos) {
+    avisarDe(entrada, crearPosicion(entrada, nombre, comentario, velocidad, segundos));
+}
+
+void ControlCamaras::editarPosicionUi(const QString& entrada, const QString& idONombre, const QVariantMap& cambios) {
+    const QString nombre = datosPosicion(entrada, idONombre).value("nombre").toString();
+    const QVariantMap r = editarPosicion(entrada, idONombre, cambios);
+    // El texto era de la ventana PTZ: con su contexto conserva la traducción.
+    avisarDe(entrada, r,
+             cambios.value("regrabar").toBool() ? QCoreApplication::translate("PtzVentana", "«%1» regrabado").arg(nombre)
+                                                : QString());
+}
+
+void ControlCamaras::irAPosicionUi(const QString& entrada, const QString& idONombre, double segundos) {
+    avisarDe(entrada, irAPosicion(entrada, idONombre, segundos));
+}
+
+void ControlCamaras::sacarFotoUi(const QString& entrada) { avisarDe(entrada, sacarFoto(entrada)); }
+
 } // namespace ba::app::ptz

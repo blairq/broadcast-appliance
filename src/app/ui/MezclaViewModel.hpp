@@ -53,12 +53,6 @@ class MezclaViewModel : public QObject {
         if (!e.isEmpty() && !::ba::app::CapturaError::tomar(e)) emit notify(e, "error");
     }
     void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
-    /// Para las acciones que dicen si se hicieron: el error a quien mira y true si no hubo.
-    bool sinError(const QString& e) {
-        avisarError(e);
-        return e.isEmpty();
-    }
-    bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
     /// Balística de los medidores (T31): "pico", "ppm" (EBU tipo IIb) o "vu".
     Q_PROPERTY(QString balistica READ balistica WRITE setBalistica NOTIFY balisticaChanged)
     /// La fuente en solo por el monitor (PFL o AFL), "" si ninguna.
@@ -67,6 +61,11 @@ class MezclaViewModel : public QObject {
     Q_PROPERTY(QString pflModo READ pflModo NOTIFY pflChanged)
     /// La salida de la escucha fija: de cuál son su fader y su mute ("" = la por omisión).
     Q_PROPERTY(QString salidaEscucha READ salidaEscucha WRITE setSalidaEscucha NOTIFY pflChanged)
+    /// La medición con aplauso de la GUI (medirSincroUi): {midiendo, vez} mientras mide y,
+    /// al terminar, {midiendo: false, vez, ok, retardo_ms, aplausos, dispersion_ms, confiable}
+    /// o {midiendo: false, vez, ok: false, problema}. Una propiedad (antes era una señal, que
+    /// al tablero web no le llega): la vista que la pidió muestra el resultado.
+    Q_PROPERTY(QVariantMap medicionSincro READ medicionSincro NOTIFY medicionSincroCambio)
    public:
     struct Partes {
         AppRuntime& rt;
@@ -102,8 +101,9 @@ class MezclaViewModel : public QObject {
     /// AFL: lo mismo con el fader y el mute de la salida activa (la del Mezclador).
     Q_INVOKABLE void aflUi(const QString& fuente);
     /// Retardo del audio de una fuente respecto de su video (ms, como audio_sincro). Lo que
-    /// tiene, la vista lo lee del rol `retardoMs` del Mezclador. Se pide al dueño; "" (si no se pudo, llega por notify).
-    Q_INVOKABLE bool setRetardoUi(const QString& fuente, int ms);
+    /// tiene, la vista lo lee del rol `retardoMs` del Mezclador. Se pide al dueño; si no se
+    /// pudo, llega por notify.
+    Q_INVOKABLE void setRetardoUi(const QString& fuente, int ms);
     /// Medir con aplauso: mide `segundos` sobre el programa de `salida` ("" = la por
     /// omisión) y llama a `listo` con el resultado (ver BroadcastEngine::terminarMedicionSincro);
     /// con `aplicarA` (una fuente) y una medición confiable, le suma el retardo medido al que
@@ -113,13 +113,15 @@ class MezclaViewModel : public QObject {
     QString medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo,
                         std::function<void(const QString&)> fallo, const std::string& salida = "",
                         const std::string& aplicarA = "");
-    /// Lo mismo para la GUI (la salida activa): el resultado llega por medicionSincroLista(resultado).
-    Q_INVOKABLE bool medirSincroUi(int segundos, const QString& salida = {});
+    /// Lo mismo para la GUI: el resultado, en `medicionSincro`; lo que no deja ni empezar
+    /// (ya se está midiendo), por notify.
+    Q_INVOKABLE void medirSincroUi(int segundos, const QString& salida = {});
+    QVariantMap medicionSincro() const { return medicionSincro_; }
 
    signals:
     void balisticaChanged();
     void pflChanged();
-    void medicionSincroLista(const QVariantMap& resultado);
+    void medicionSincroCambio();
     /// Para el operador (ya traducido).
     void notify(const QString& texto, const QString& nivel);
 
@@ -133,6 +135,8 @@ class MezclaViewModel : public QObject {
     void terminarSincro(std::function<void(const nlohmann::json&)> listo, const std::string& aplicarA);
     Partes p_;
     std::string balisticaPedida_; ///< la pedida, hasta que vuelve (pendiente)
+    QVariantMap medicionSincro_;  ///< la propiedad `medicionSincro`
+    int vezSincro_ = 0;
     // El orden es el de destrucción al revés: lo que usa a otro va después.
     std::unique_ptr<audio::RackManager> racks_;
     std::unique_ptr<audio::Matriz> matriz_;
