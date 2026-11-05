@@ -42,6 +42,15 @@
 # ============================================================================
 
 option(BA_PCH "Headers precompilados con lo de afuera (std, nlohmann/json, Qt, GStreamer)" ON)
+# Windows (clang-cl, /Yc /Yu): APAGADO. clang-cl en modo MSVC exige que quien usa el PCH tenga
+# EXACTAMENTE las definiciones del donante: con una de más avisa (-Wclang-cl-pch «definition of
+# macro … does not match definition in precompiled header»), no lo usa y lee las cabeceras como
+# texto (más lento que sin PCH). Compartir el PCH entre objetivos no sirve ahí, y uno por objetivo
+# con ccache sobre /Yu no está probado. Medido en Docker el 2026-11-04.
+set(BA_PCH_ACTIVO ${BA_PCH})
+if(MSVC)
+    set(BA_PCH_ACTIVO OFF)
+endif()
 # Linux: glib le pasa -pthread a lo que enlaza GStreamer; esos usan los donantes «_pthread».
 if(UNIX AND NOT APPLE)
     set(BA_PCH_CON_PTHREAD ON)
@@ -57,9 +66,12 @@ set(BA_PCH_STD
     <mutex> <optional> <set> <string> <string_view> <thread> <tuple> <type_traits>
     <unordered_map> <utility> <vector>)
 set(BA_PCH_JSON <nlohmann/json.hpp>)
-# QtCore: lo que usan las áreas de la app (ba_app_ui, ba_app_mcp, sala, equipos…).
+# QtCore: lo que usan las áreas de la app (ba_app_ui, ba_app_mcp, sala, equipos…). Sin
+# <QCoreApplication>: en Windows declara `QDebug operator<<(QDebug, const MSG &)` con tagMSG
+# incompleto, y en todo .cpp que registra nlohmann::json como QMetaType la conversión implícita
+# del json probaba ese operador y no compilaba (asamblea/SesionRemota.cpp, visto en Windows).
 set(BA_PCH_QT
-    <QAbstractListModel> <QByteArray> <QCoreApplication> <QDateTime> <QHash>
+    <QAbstractListModel> <QByteArray> <QDateTime> <QHash>
     <QJsonArray> <QJsonDocument> <QJsonObject> <QJsonValue> <QList> <QMap> <QMetaObject>
     <QObject> <QPointer> <QSet> <QString> <QStringList> <QTimer> <QUrl> <QVariant>
     <QVariantList> <QVariantMap>)
@@ -95,7 +107,7 @@ endfunction()
 # PCH de un sabor, en la carpeta actual. PTHREAD (Linux): con -pthread, para los que lo traen.
 function(ba_pch_donante sabor)
     cmake_parse_arguments(PARSE_ARGV 1 _d "PIC;PTHREAD" "" "ENLAZA;CABECERAS")
-    if(NOT BA_PCH)
+    if(NOT BA_PCH_ACTIVO)
         return()
     endif()
     set(_n ba_pch_${sabor})
@@ -378,6 +390,10 @@ endfunction()
 function(ba_pch_aplicar)
     if(NOT BA_PCH)
         message(STATUS "BA_PCH=OFF: sin headers precompilados")
+        return()
+    endif()
+    if(NOT BA_PCH_ACTIVO)
+        message(STATUS "PCH: apagado con MSVC/clang-cl (ver cmake/BaPch.cmake)")
         return()
     endif()
     if(TARGET nlohmann_json::nlohmann_json)
