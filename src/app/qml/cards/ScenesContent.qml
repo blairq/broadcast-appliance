@@ -56,6 +56,12 @@ Item {
         tarjeta.elegida = tarjeta.elegida < 0 ? 0 : Math.max(0, Math.min(n - 1, tarjeta.elegida + paso))
     }
 
+    // Escribiendo en un campo de texto (de ESTA ventana: en el tablero web, la del navegador),
+    // las teclas son del texto. Es de la vista: no se le pregunta al modelo.
+    function escribiendo() {
+        const f = tarjeta.Window.activeFocusItem
+        return !!f && (f instanceof TextInput || f instanceof TextEdit)
+    }
     Keys.onPressed: (e) => {
         switch (e.key) {
             case Qt.Key_Left:
@@ -70,7 +76,7 @@ Item {
                 e.accepted = true
                 break
             case Qt.Key_T:
-                if (Studio.focoEnTexto()) break // escribiendo: no es TAKE
+                if (tarjeta.escribiendo()) break // escribiendo: no es TAKE
                 if (Studio.escenaArmada !== "") Studio.escenas.take()
                 e.accepted = true
                 break

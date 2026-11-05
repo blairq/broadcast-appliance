@@ -1547,11 +1547,6 @@ QObject* StudioViewModel::alarmasQml() const {
 
 agent::AlertEngine& StudioViewModel::alerts() { return alarmas_->motor(); }
 
-bool StudioViewModel::focoEnTexto() const {
-    QObject* f = QGuiApplication::focusObject();
-    return f != nullptr && (f->inherits("QQuickTextInput") || f->inherits("QQuickTextEdit"));
-}
-
 QObject* StudioViewModel::cuerpoQml() const { return asamblea_->cuerpoQml(); }
 
 QObject* StudioViewModel::bancasQml() const { return asamblea_->bancasQml(); }

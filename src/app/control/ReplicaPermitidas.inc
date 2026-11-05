@@ -64,12 +64,6 @@ R"json([
  },
  {
   "o": "Studio.camaras",
-  "n": "chequearMovimiento",
-  "tipo": "llamar",
-  "mcp": "ptz_ir_posicion"
- },
- {
-  "o": "Studio.camaras",
   "n": "home",
   "tipo": "llamar",
   "mcp": "ptz_ir_posicion"
@@ -155,12 +149,6 @@ R"json([
  {
   "o": "Studio.conference",
   "n": "speakerOnAir",
-  "tipo": "llamar",
-  "mcp": "participant_admit"
- },
- {
-  "o": "Studio.conference.waiting",
-  "n": "fila",
   "tipo": "llamar",
   "mcp": "participant_admit"
  },
@@ -640,12 +628,6 @@ R"json([
  },
  {
   "o": "Studio.mezcla",
-  "n": "retardoUi",
-  "tipo": "llamar",
-  "mcp": "audio_set"
- },
- {
-  "o": "Studio.mezcla",
   "n": "salidaEscucha",
   "tipo": "poner",
   "mcp": "audio_set"
@@ -748,7 +730,19 @@ R"json([
  },
  {
   "o": "Studio.mixer",
-  "n": "canal",
+  "n": "alternarMudoGrupo",
+  "tipo": "llamar",
+  "mcp": "audio_set"
+ },
+ {
+  "o": "Studio.mixer",
+  "n": "alternarMuted",
+  "tipo": "llamar",
+  "mcp": "audio_set"
+ },
+ {
+  "o": "Studio.mixer",
+  "n": "moverVolumenDb",
   "tipo": "llamar",
   "mcp": "audio_set"
  },
@@ -873,12 +867,6 @@ R"json([
   "mcp": "salida_editar"
  },
  {
-  "o": "Studio.salidas.lista",
-  "n": "fila",
-  "tipo": "llamar",
-  "mcp": "salida_editar"
- },
- {
   "o": "Studio.seguidor",
   "n": "seguir",
   "tipo": "llamar",
@@ -910,7 +898,7 @@ R"json([
  },
  {
   "o": "Studio.sources",
-  "n": "capa",
+  "n": "alternarVisible",
   "tipo": "llamar",
   "mcp": "source_update"
  },

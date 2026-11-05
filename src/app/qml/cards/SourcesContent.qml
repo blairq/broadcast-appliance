@@ -15,16 +15,18 @@ Item {
     id: tarjeta
     focus: true
     property int elegido: -1
+    // La elegida se trae a la vista: así su fila existe y el teclado sabe cuál es (por su rol).
+    onElegidoChanged: if (elegido >= 0) capas.positionViewAtIndex(elegido, ListView.Contain)
 
     function mover(paso) {
         const n = Studio.sources.rowCount()
         if (n === 0) return
         tarjeta.elegido = tarjeta.elegido < 0 ? 0 : Math.max(0, Math.min(n - 1, tarjeta.elegido + paso))
     }
+    // Cuál es, lo dice su fila (el rol `name`); mostrarla u ocultarla lo decide el modelo.
     function alternar() {
-        const c = Studio.sources.capa(tarjeta.elegido)
-        if (!c || c.nombre === undefined) return
-        Studio.sources.setVisible(c.nombre, !c.visible)
+        const fila = tarjeta.elegido >= 0 ? capas.itemAtIndex(tarjeta.elegido) : null
+        if (fila) Studio.sources.alternarVisible(fila.name)
     }
 
     Keys.onPressed: (e) => {
@@ -42,6 +44,7 @@ Item {
         spacing: 6
         Text { text: Studio.currentScene; color: Theme.textFaint; font.pixelSize: 11 }
         ListView {
+            id: capas
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true

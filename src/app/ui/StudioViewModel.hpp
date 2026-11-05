@@ -512,8 +512,6 @@ class StudioViewModel : public QObject {
     /// Cambia la política del supervisor ({espera_ui_s, matar_si_ui_trabada_sin_aire}); el
     /// error, a `notify`.
     Q_INVOKABLE void latidoPoliticaUi(const QVariantMap& cambios);
-    /// El foco del teclado está en un campo de texto (las teclas T/Enter no son TAKE).
-    Q_INVOKABLE bool focoEnTexto() const;
     /// Sale algo (transmisión, grabación o señal limpia): BroadcastEngine::haySalida.
     bool alAire() const;
     QObject* cuerpoQml() const;

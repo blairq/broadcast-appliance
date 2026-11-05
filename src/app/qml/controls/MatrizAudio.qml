@@ -602,7 +602,8 @@ Item {
                         return -1
                     }
                     onActivated: (i) => {
-                        const f = Studio.salidas.lista.fila(i)
+                        const f = Studio.salidas.filasLista[i]
+                        if (!f) return
                         mx.msg = mx.mz.setSalida(busPop.bus.id, f.porOmision ? "" : f.id)
                     }
                 }
