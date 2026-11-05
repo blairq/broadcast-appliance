@@ -5,9 +5,9 @@
 #
 # La clave de cada test es el sha256 de TODO lo que puede cambiar su resultado:
 #   - su ejecutable y las bibliotecas que carga, siguiendo la cadena entera
-#     (macOS: otool -l con @rpath/@loader_path; Linux: DT_NEEDED/DT_RPATH/DT_RUNPATH leídos del ELF acá mismo, sin procesos; Windows: la tabla de
-#     importaciones de cada PE con llvm-objdump, como tools/deps/check-portable-win.sh
-#     y con el mismo formato de caché «sha<TAB>dll dll...»). Lo del sistema
+#     (macOS: otool -l con @rpath/@loader_path; Linux: DT_NEEDED/DT_RPATH/DT_RUNPATH leídos del ELF acá mismo, sin procesos; Windows: las tablas de
+#     importaciones y de importaciones diferidas de cada PE, también leídas acá
+#     sin procesos, con la caché «sha<TAB>dll dll...»). Lo del sistema
 #     (/usr/lib, /System, las DLL de Wine) no: lo cubre la versión del sistema;
 #   - lo que LEE: las rutas de su línea de comando y de su ENVIRONMENT, las rutas
 #     que le pasa CMake por definiciones de compilación y las declaradas con
@@ -39,7 +39,7 @@
 #       Sin correr nada: qué tests correrían y por qué (para auditar que no corra
 #       nada de más). Lo mismo que dice `make test` antes de correrlos.
 #   tests-con-cache.py wine-preparar --build build/win --herramienta <wine> \
-#       --objdump <llvm-objdump> --ruta "$WINEPATH" --pendientes F  < lista de .exe
+#       --ruta "$WINEPATH" --pendientes F  < lista de .exe
 #   tests-con-cache.py wine-guardar --build build/win --resultados F
 #       (los usa tools/ci/test-win.sh)
 #
@@ -185,20 +185,94 @@ def leer_dinamica_elf(p):
         return [[], [], []]
 
 
+def leer_importaciones_pe(p):
+    """Las DLL que importa un PE (.exe/.dll), leyendo el archivo: la tabla de importaciones y la de
+    importaciones diferidas (directorios 1 y 13 del encabezado opcional); las direcciones (RVA) se
+    pasan a posición en el archivo con la tabla de secciones. Antes era un `llvm-objdump -p` por
+    archivo: bajo Rosetta (el contenedor x86 de Docker en una Mac) lanzar procesos desde varios
+    hilos trabó el proceso entero (47 min, y 28 min el 2026-11-04 con un solo hilo). Lo que no se
+    puede leer: vacío."""
+    import struct
+    try:
+        with open(p, "rb") as f:
+            datos = f.read()
+    except OSError:
+        return []
+    if datos[:2] != b"MZ" or len(datos) < 0x40:
+        return []
+    try:
+        pe, = struct.unpack_from("<I", datos, 0x3C)
+        if datos[pe:pe + 4] != b"PE\0\0":
+            return []
+        coff = pe + 4
+        nsec, = struct.unpack_from("<H", datos, coff + 2)
+        tam_opt, = struct.unpack_from("<H", datos, coff + 16)
+        opt = coff + 20
+        magia, = struct.unpack_from("<H", datos, opt)
+        if magia == 0x20B:       # PE32+ (64 bits)
+            base_imagen, = struct.unpack_from("<Q", datos, opt + 24)
+            dirs = opt + 112
+        elif magia == 0x10B:     # PE32
+            base_imagen, = struct.unpack_from("<I", datos, opt + 28)
+            dirs = opt + 96
+        else:
+            return []
+        ndirs, = struct.unpack_from("<I", datos, dirs - 4)
+        secciones = []
+        for i in range(nsec):
+            vtam, vdir, crudo, pcrudo = struct.unpack_from("<IIII", datos, opt + tam_opt + i * 40 + 8)
+            secciones.append((vdir, max(vtam, crudo), pcrudo))
+
+        def posicion(rva):
+            for va, tam, ptr in secciones:
+                if va <= rva < va + tam:
+                    return ptr + rva - va
+            return None
+
+        def texto(rva):
+            o = posicion(rva)
+            if o is None:
+                return None
+            return datos[o:datos.index(b"\0", o)].decode("ascii", "replace")
+
+        nombres = []
+        # Importaciones: descriptores de 20 bytes, el nombre en +12. Diferidas: de 32 bytes, los
+        # atributos en +0 (bit 0 en 1: RVA; en 0, el formato viejo con direcciones virtuales) y
+        # el nombre en +4. Las dos tablas terminan en un descriptor en cero.
+        for indice, tam, campo in ((1, 20, 12), (13, 32, 4)):
+            if ndirs <= indice:
+                continue
+            rva, _ = struct.unpack_from("<II", datos, dirs + indice * 8)
+            o = posicion(rva) if rva else None
+            while o is not None and o + tam <= len(datos):
+                desc = datos[o:o + tam]
+                if desc == bytes(tam):
+                    break
+                nrva, = struct.unpack_from("<I", desc, campo)
+                if indice == 13 and not (struct.unpack_from("<I", desc, 0)[0] & 1) and nrva >= base_imagen:
+                    nrva -= base_imagen
+                n = texto(nrva) if nrva else None
+                if n and n not in nombres:
+                    nombres.append(n)
+                o += tam
+        return nombres
+    except (struct.error, ValueError):
+        return []
+
+
 class Cierre:
     """Las bibliotecas que carga un binario, siguiendo toda la cadena."""
 
-    def __init__(self, memo, cache_dir, ruta_pe=(), objdump=None):
+    def __init__(self, memo, cache_dir, ruta_pe=()):
         self.memo = memo
         self.cache_dir = cache_dir
         self.ruta_pe = list(ruta_pe)
-        self.objdump = objdump
         self.candado = threading.Lock()
         self.macho = self._leer_json("macho.json")
         self.elf = self._leer_json("elf.json")
         self.pe = {}
         try:
-            with open(os.path.join(cache_dir, "importaciones-pe.tsv")) as f:
+            with open(os.path.join(cache_dir, "importaciones-pe-2.tsv")) as f:
                 for linea in f:
                     h, _, dlls = linea.rstrip("\n").partition("\t")
                     if h:
@@ -224,11 +298,11 @@ class Cierre:
             with open(tmp, "w") as f:
                 json.dump(datos, f, separators=(",", ":"))
             os.replace(tmp, os.path.join(self.cache_dir, nombre))
-        tmp = os.path.join(self.cache_dir, "importaciones-pe.tsv.tmp.%d" % os.getpid())
+        tmp = os.path.join(self.cache_dir, "importaciones-pe-2.tsv.tmp.%d" % os.getpid())
         with open(tmp, "w") as f:
             for h in sorted(self.pe):
                 f.write("%s\t%s\n" % (h, self.pe[h]))
-        os.replace(tmp, os.path.join(self.cache_dir, "importaciones-pe.tsv"))
+        os.replace(tmp, os.path.join(self.cache_dir, "importaciones-pe-2.tsv"))
 
     def de(self, exe):
         t = tipo_binario(exe)
@@ -381,8 +455,7 @@ class Cierre:
         with self.candado:
             if h in self.pe:
                 return self.pe[h].split()
-        r = subprocess.run([self.objdump, "-p", p], capture_output=True, text=True)
-        dlls = " ".join(l.split("DLL Name:", 1)[1].strip() for l in r.stdout.splitlines() if "DLL Name:" in l)
+        dlls = " ".join(leer_importaciones_pe(p))
         with self.candado:
             self.pe[h] = dlls
             self.cambio = True
@@ -413,12 +486,12 @@ class Cierre:
 
 
 class Cache:
-    def __init__(self, build, global_partes, ruta_pe=(), objdump=None):
+    def __init__(self, build, global_partes, ruta_pe=()):
         self.build = os.path.abspath(build)
         self.dir = os.path.join(self.build, ".cache-tests")
         os.makedirs(os.path.join(self.dir, "ok"), exist_ok=True)
         self.memo = huellas.Memo(os.path.join(self.dir, "huellas.json"))
-        self.cierre = Cierre(self.memo, self.dir, ruta_pe, objdump)
+        self.cierre = Cierre(self.memo, self.dir, ruta_pe)
         self.global_partes = global_partes
         self.raices = {self.build, os.path.dirname(self.build)}
         fuente = leer_cmakecache(self.build, "CMAKE_HOME_DIRECTORY")
@@ -597,10 +670,10 @@ def leer_entradas(arbol):
 
 def hilos(procesos=True):
     """Cuántos hilos para calcular las claves. TESTS_CACHE_HILOS lo fija. Bajo Rosetta (el
-    contenedor x86 de Docker en una Mac) UNO si calcular lanza procesos (llvm-objdump, en
-    Wine): lanzarlos desde varios hilos a la vez trabó el proceso entero (17 hilos esperando
-    un candado de Rosetta, 47 minutos, sin hijos); lo que se lee queda en la caché de
-    importaciones. Los ELF se leen acá mismo, sin procesos: en paralelo también bajo Rosetta."""
+    contenedor x86 de Docker en una Mac) UNO si calcular lanza procesos: lanzarlos desde varios
+    hilos a la vez trabó el proceso entero (17 hilos esperando un candado de Rosetta, 47
+    minutos, sin hijos). Los ELF y los PE (Wine) se leen acá mismo, sin procesos: en paralelo
+    también bajo Rosetta."""
     v = os.environ.get("TESTS_CACHE_HILOS", "")
     if v.isdigit() and int(v) > 0:
         return int(v)
@@ -790,7 +863,6 @@ def modo_wine_preparar(argv):
     ap = argparse.ArgumentParser(prog="tests-con-cache.py wine-preparar")
     ap.add_argument("--build", required=True)
     ap.add_argument("--herramienta", required=True)
-    ap.add_argument("--objdump", required=True)
     ap.add_argument("--ruta", default="")
     ap.add_argument("--pendientes", required=True)
     a = ap.parse_args(argv)
@@ -799,7 +871,7 @@ def modo_wine_preparar(argv):
     exes = [l.strip() for l in sys.stdin if l.strip()]
     entorno = ["%s=%s" % (k, os.environ[k]) for k in ("WINEPATH", "WINEDLLOVERRIDES", "BA_LSP_CLAP")
                if k in os.environ]
-    cache = Cache(build, partes_globales("wine " + a.herramienta), ruta, a.objdump)
+    cache = Cache(build, partes_globales("wine " + a.herramienta), ruta)
     arboles = {}
 
     def arbol_de(exe):
@@ -819,7 +891,7 @@ def modo_wine_preparar(argv):
     if sin_cache():
         res = [("", arbol_de(exe).get(os.path.basename(exe)[:-4], {}).get("lento", False)) for exe in exes]
     else:
-        res = calcular(cache, exes, una)
+        res = calcular(cache, exes, una, procesos=False)  # los PE se leen acá, sin llvm-objdump
     usar = not sin_cache()
     if not usar:
         log("TESTS_SIN_CACHE=1: corren todos, sin calcular claves ni anotar")

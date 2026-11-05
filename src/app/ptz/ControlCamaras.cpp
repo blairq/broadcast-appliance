@@ -764,9 +764,18 @@ QString ControlCamaras::chequearMovimiento(const QString& entrada, bool forzar, 
                            modo);
 }
 
+QVariantMap ControlCamaras::motivosInterlock() const {
+    QVariantMap out;
+    for (const QString& e : alAire_)
+        if (const QString m = chequearMovimiento(e); !m.isEmpty()) out.insert(e, m);
+    return out;
+}
+
 void ControlCamaras::setInterlock(const QVariantMap& c) {
+    const bool antes = interlockActivo_;
     if (c.contains("activo")) interlockActivo_ = c.value("activo").toBool();
     if (c.contains("seguir_suave_permitido")) seguirSuavePermitido_ = c.value("seguir_suave_permitido").toBool();
+    if (interlockActivo_ != antes) emit alAireCambio(); // motivosInterlock
     config::guardar(rt_.dataRoot() / "Config" / "ptz-interlock.json",
                     {{"activo", interlockActivo_}, {"seguir_suave_permitido", seguirSuavePermitido_}});
 }

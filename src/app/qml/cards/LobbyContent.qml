@@ -18,6 +18,8 @@ Item {
     focus: true
     readonly property var conf: Studio.conference
     property int elegido: -1
+    // La elegida se trae a la vista: así su fila existe y el teclado sabe a quién apunta (por su rol).
+    onElegidoChanged: if (elegido >= 0) espera.positionViewAtIndex(elegido, ListView.Contain)
 
     function mover(paso) {
         const n = tarjeta.conf.waiting.count
@@ -32,17 +34,18 @@ Item {
     }
 
     Keys.onPressed: (e) => {
-        const p = tarjeta.conf.waiting.fila(tarjeta.elegido)
+        // A quién apunta, lo dice su fila (el rol `uid`): lo que se ve marcado es a quien se admite.
+        const p = tarjeta.elegido >= 0 ? espera.itemAtIndex(tarjeta.elegido) : null
         switch (e.key) {
             case Qt.Key_Up:   tarjeta.mover(-1); e.accepted = true; break
             case Qt.Key_Down: tarjeta.mover(1);  e.accepted = true; break
             case Qt.Key_Return:
             case Qt.Key_Enter:
-                if (p && p.uid !== undefined) { tarjeta.conf.admit(p.uid); tarjeta.acomodar() }
+                if (p) { tarjeta.conf.admit(p.uid); tarjeta.acomodar() }
                 e.accepted = true
                 break
             case Qt.Key_Delete:
-                if (p && p.uid !== undefined) { tarjeta.conf.reject(p.uid); tarjeta.acomodar() }
+                if (p) { tarjeta.conf.reject(p.uid); tarjeta.acomodar() }
                 e.accepted = true
                 break
         }
@@ -67,6 +70,7 @@ Item {
             font { pixelSize: 13; weight: conf.waiting.count > 0 ? Font.DemiBold : Font.Normal }
         }
         ListView {
+            id: espera
             Layout.fillWidth: true
             Layout.fillHeight: true
             clip: true

@@ -203,8 +203,8 @@ Item {
                     opacity: t.alAire ? 0.55 : 1
                     onClicked: {
                         const ir = function() { const r = t.cc.irAPosicion(t.entrada, modelData.id, -1); t.avisar(r.ok ? (r.aviso || "") : r.error) }
-                        // La regla del interlock es del modelo: si pide confirmar, se pregunta.
-                        const motivo = t.cc.chequearMovimiento(t.entrada, false, "")
+                        // La regla del interlock es del modelo (motivosInterlock): si pide confirmar, se pregunta.
+                        const motivo = t.cc.motivosInterlock[t.entrada] || ""
                         if (motivo === "") { ir(); return }
                         ApplicationWindow.window.confirm({ title: qsTr("La cámara está al aire"), text: qsTr("%1 ¿Mover igual?").arg(motivo),
                                                            accept: qsTr("Mover igual"), reject: qsTr("Cancelar"), action: ir })

@@ -26,9 +26,15 @@ import "../controls"
 Item {
     id: tarjeta
     focus: true
+    // Escribiendo en un campo de texto (de ESTA ventana: en el tablero web, la del navegador),
+    // las teclas son del texto. Es de la vista: no se le pregunta al modelo.
+    function escribiendo() {
+        const f = tarjeta.Window.activeFocusItem
+        return !!f && (f instanceof TextInput || f instanceof TextEdit)
+    }
     Keys.onPressed: (e) => {
         if ((e.key === Qt.Key_T || e.key === Qt.Key_Return || e.key === Qt.Key_Enter) &&
-            Studio.escenaArmada !== "" && !Studio.focoEnTexto()) {
+            Studio.escenaArmada !== "" && !tarjeta.escribiendo()) {
             Studio.escenas.take()
             e.accepted = true
         }
