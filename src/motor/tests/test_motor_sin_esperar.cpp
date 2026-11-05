@@ -10,6 +10,7 @@
 // Al soltarlo, el estado de la entrada vuelve a estar al día.
 
 #include "Motor.hpp"
+#include "Piezas.hpp" // hayFabrica
 #include "Reloj.hpp"
 
 #include <gst/gst.h>
