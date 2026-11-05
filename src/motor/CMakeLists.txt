@@ -29,6 +29,13 @@ if(BUILD_TESTING OR TRUE)
     add_dependencies(test_motor gstbaaudio gstbaipc) # balimitador; baanillosink
     add_test(NAME test_motor COMMAND test_motor)
     set_tests_properties(test_motor PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
+    # El mismo, con el video en la CPU (el camino de Linux, y el de una Mac o Windows cuya GPU
+    # no pasa la autoprueba): en la Mac y Windows el de arriba va por la GPU, y lo que difería
+    # (lo fijo a 30 cuadros en la CPU) salía recién en la validación de Linux.
+    if(APPLE OR WIN32)
+        add_test(NAME test_motor_cpu COMMAND test_motor)
+        set_tests_properties(test_motor_cpu PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120 ENVIRONMENT "BA_MOTOR_CPU=1")
+    endif()
 
     # F1-14: las fallas que inyecta el banco de caos (diag_falla, solo --test).
     add_executable(test_fallas tests/test_fallas.cpp)
