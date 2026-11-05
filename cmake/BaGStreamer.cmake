@@ -53,8 +53,14 @@ elseif(UNIX AND NOT APPLE AND EXISTS "${CMAKE_SOURCE_DIR}/extern/gstreamer-linux
     target_link_libraries(ba::gstreamer INTERFACE ${_libs} PkgConfig::BA_GLIB)
     target_compile_definitions(ba::gstreamer INTERFACE BA_HAVE_GST=1)
     install(DIRECTORY "${_g}/" DESTINATION bin/64bit/gstreamer USE_SOURCE_PERMISSIONS
-            PATTERN "include" EXCLUDE PATTERN "pkgconfig" EXCLUDE PATTERN ".version" EXCLUDE PATTERN "*.a" EXCLUDE
-            PATTERN "python3.*" EXCLUDE)
+            PATTERN "include" EXCLUDE PATTERN "pkgconfig" EXCLUDE PATTERN ".version" EXCLUDE PATTERN ".version-rs" EXCLUDE
+            PATTERN "*.a" EXCLUDE PATTERN "python3.*" EXCLUDE)
+    # gst-plugins-rs (tools/deps/gst-plugins-rs-linux.sh): sin intersink/intersrc el motor no
+    # puede armar el programa. No es opcional: frena la configuración.
+    if(NOT EXISTS "${_g}/lib/gstreamer-1.0/libgstrsinter.so")
+        ba_falta("Motor: unir sus pipelines (intersink/intersrc de gst-plugins-rs)"
+                 "no están en extern/gstreamer-linux ('make deps-gst-plugins-rs-linux')")
+    endif()
     # Los bindings de Python (gi con los overrides de Gst), al Python de los plugins.
     if(EXISTS "${_g}/lib/python3.12/site-packages")
         install(DIRECTORY "${_g}/lib/python3.12/site-packages/" DESTINATION python/lib/python3.12/site-packages

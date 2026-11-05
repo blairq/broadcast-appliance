@@ -2,7 +2,7 @@
 # Lo incluye el Makefile de la raíz (las variables comunes están allá).
 
 .PHONY: deps-lspdsp-linux deps-linux deps-linux-todo deps-terceros-linux deps-lsp \
-        deps-chrome-headless-linux deps-craft-linux deps-llamacpp-linux deps-gstreamer-linux release \
+        deps-chrome-headless-linux deps-craft-linux deps-llamacpp-linux deps-gstreamer-linux deps-gst-plugins-rs-linux release \
         dist-linux dist-linux-tar
 
 deps-lspdsp-linux:
@@ -15,7 +15,7 @@ deps-linux:
 	@$(DEPS_ATAJO) --nombre deps-linux --clave-en $(EXTERNS_DIR)/.atajos/deps-linux.json -- $(MAKE) deps-linux-todo
 
 deps-linux-todo: deps-terceros-linux deps-qt-host deps-src deps-estaticas-linux deps-libyuv deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
-            deps-clap deps-lsp deps-lspdsp-linux deps-craft-linux deps-fuentes-texto deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
+            deps-clap deps-lsp deps-lspdsp-linux deps-craft-linux deps-fuentes-texto deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-gst-plugins-rs-linux deps-python \
             deps-llamacpp-linux deps-chrome-headless-linux deps-hinchada
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux
 
@@ -71,6 +71,12 @@ deps-llamacpp-linux:
 .PHONY: deps-gstreamer-linux
 deps-gstreamer-linux: deps-terceros-linux
 	bash tools/deps/gstreamer-linux.sh $(JOBS)
+
+# Los plugins de gst-plugins-rs que usa el programa (intersink/intersrc del motor y los del
+# catálogo), compilados con cargo para ese GStreamer (tools/deps/gst-plugins-rs-linux.sh).
+.PHONY: deps-gst-plugins-rs-linux
+deps-gst-plugins-rs-linux: deps-gstreamer-linux
+	bash tools/deps/gst-plugins-rs-linux.sh $(JOBS)
 
 # --- Bundle portable (layout §5.1) ------------------------------------------
 # Instala el esqueleto del layout portable sobre release (bin/64bit,
