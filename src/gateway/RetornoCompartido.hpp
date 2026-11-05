@@ -12,7 +12,7 @@
 //     `retorno.capas`) y por códec negociado (VP8; H.264 si la conexión lo negoció). Solo se
 //     codifican las capas que alguien usa (un «alquiler» que renueva cada cuadro que la usa).
 //   - Cada conexión sigue teniendo su PeerConnection con su codificador, pero ese codificador
-//     es de PASO (EncoderPaso en RetornoCompartido.cpp): no codifica, entrega los bytes ya
+//     es de PASO (EncoderPaso en webrtc/RetornoRtc.cpp): no codifica, entrega los bytes ya
 //     codificados de la capa que le toca. Así libwebrtc hace todo lo suyo por conexión como
 //     siempre (números de imagen VP8 continuos, empaquetado, NACK con su historial, control
 //     de congestión) y ninguna conexión gasta un codificador.
@@ -33,7 +33,7 @@
 // sirve a los dos (los bytes son los mismos; cambia el momento en que se mandan).
 //
 // Este archivo es la parte sin libwebrtc (se prueba sola: test_retorno_compartido). Lo que usa
-// libwebrtc (flujos, capas, el codificador de paso) está en RetornoCompartido.cpp.
+// libwebrtc (flujos, capas, el codificador de paso) está en webrtc/RetornoRtc.cpp.
 // ============================================================================
 #pragma once
 

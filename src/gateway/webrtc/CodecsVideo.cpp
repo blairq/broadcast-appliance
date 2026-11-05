@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/CodecsVideo.cpp — Las fábricas de video del gateway, por plataforma
+// src/gateway/webrtc/CodecsVideo.cpp — Las fábricas de video del gateway, por plataforma
 //
 // Qué códec sube cada invitado y cuál baja con su retorno lo decide preferirCodec
 // (Webrtc.cpp) con `retorno.codec`; acá están las fábricas que lo hacen posible:
@@ -21,9 +21,8 @@
 //     está en pausa (su capa no viaja: libwebrtc no lo suelta, pero no gasta la placa).
 // ============================================================================
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
-#include "CodecsVideo.hpp"
+#include "webrtc/CodecsVideo.hpp"
 
 #include <algorithm>
 #include <cctype>
@@ -66,10 +65,10 @@
 #include "api/video_codecs/video_encoder_factory_template_open_h264_adapter.h"
 
 #ifdef __APPLE__
-#include "CodecsMac.hpp"
+#include "webrtc/CodecsMac.hpp"
 #endif
 #ifdef _WIN32
-#include "CodecsWin.hpp"
+#include "webrtc/CodecsWin.hpp"
 #endif
 
 namespace ba::gateway::codecs {
@@ -434,4 +433,3 @@ nlohmann::json estado() {
 
 } // namespace ba::gateway::codecs
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

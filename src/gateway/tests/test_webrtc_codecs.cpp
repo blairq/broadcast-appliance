@@ -47,7 +47,7 @@
 #include "modules/video_coding/include/video_codec_interface.h"
 #include "modules/video_coding/include/video_error_codes.h"
 
-#include "CodecsVideo.hpp"
+#include "webrtc/CodecsVideo.hpp"
 
 using namespace ba::gateway;
 

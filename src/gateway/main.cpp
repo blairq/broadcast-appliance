@@ -443,7 +443,7 @@ int main(int argc, char** argv) {
 
     log.info(llenar(traducir("gateway", "arranque: guests=%1 port=%2 room=%3 webroot=%4 webrtc=%5"),
                     {std::to_string(cfg.guests), std::to_string(cfg.port), cfg.room, cfg.webroot,
-                     BA_GATEWAY_HAVE_WEBRTC ? "libwebrtc" : "NULL"}));
+                     nombreBackendRtc()}));
     // F4 (PLAN-GATEWAY-FRAGMENTOS.md): los hilos del gateway en el bloque de caché que no usan
     // los medios de ba-app, sin los núcleos de las interrupciones de la placa de red. Antes de
     // arrancar nada: en Linux los hilos que se crean después heredan la afinidad del principal;

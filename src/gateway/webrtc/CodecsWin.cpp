@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/CodecsWin.cpp — H.264 por la placa (D3D11) y Media Foundation en Windows
+// src/gateway/webrtc/CodecsWin.cpp — H.264 por la placa (D3D11) y Media Foundation en Windows
 //
 // Lo mismo que CodecsMac.mm con VideoToolbox: que la placa de video decodifique lo que
 // sube cada invitado y codifique el retorno, en vez del procesador (libvpx). El libwebrtc
@@ -33,9 +33,9 @@
 // VP8/VP9/AV1 y «auto» vuelve a VP8 (CodecsVideo.cpp).
 // ============================================================================
 
-#if BA_GATEWAY_HAVE_WEBRTC && defined(_WIN32)
+#if defined(_WIN32)
 
-#include "CodecsWin.hpp"
+#include "webrtc/CodecsWin.hpp"
 
 #ifndef NOMINMAX
 #define NOMINMAX
@@ -77,7 +77,7 @@
 #include "diag/Registro.hpp"
 #include "platform/Hilo.hpp"
 
-#include "CodecsVideo.hpp" // CuadroEnPlaca (F3)
+#include "webrtc/CodecsVideo.hpp" // CuadroEnPlaca (F3)
 #include "H264Sintaxis.hpp"
 
 #include "api/video/encoded_image.h"
@@ -2104,4 +2104,4 @@ nlohmann::json estado() {
 
 } // namespace ba::gateway::codecs::win
 
-#endif // BA_GATEWAY_HAVE_WEBRTC && _WIN32
+#endif // _WIN32

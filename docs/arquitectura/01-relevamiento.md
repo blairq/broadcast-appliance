@@ -279,7 +279,7 @@ de la configuración (ver Apéndice A).
 | `acceptThread_` + `adminAcceptThread_` + control LAN + puerta HTTP + túnel | `accept()` por escucha | `src/gateway/SignalingServer.cpp:272`, `333`, `349`, `362`, `378` |
 | uno por conexión HTTP/WS | desprendido; incluye el SSE de la app | `SignalingServer.cpp` (`acceptLoop`); cupo por escucha `ajustes:room.maxConexiones`=256, por IP `room.maxConexionesPorIp`=32, API de control `room.maxConexionesAdmin`=32 + la app siempre (F0-07) |
 | `statsThread_` | cada 2 s: estadísticas WebRTC, direcciones, quién mira el programa | `SignalingServer.cpp:274-296` |
-| libwebrtc: `network`, `worker`, `signaling` | hilos de libwebrtc | `src/gateway/Webrtc.cpp:1106-1108` |
+| libwebrtc: `network`, `worker`, `signaling` | hilos de libwebrtc | `src/gateway/webrtc/Webrtc.cpp:1106-1108` |
 | `PullAdm` | cada 10 ms tira del audio recibido (NetEq) | `Webrtc.cpp:171-236` |
 | `Webrtc` loop | — | `Webrtc.cpp:202` |
 | `MediaPump`: retorno de audio, retorno de video (`BA.Program`), una por `BA.Escena.<k>` (4), audio del operador, voz del atendedor, una voz por canal de registro (8), video del operador, placas | fijos desde el arranque | `src/gateway/MediaPump.cpp:262-283` |
@@ -438,7 +438,7 @@ Recorrido de un cuadro del programa principal hasta un invitado WebRTC, según e
 | 7 | `SpoutSender::send` | `memcpy` al buffer compartido | `src/core/ipc/SpoutTransport.cpp:312` |
 | 8 | B `SpoutReceiver::receive` | `memcpy` del buffer compartido | `SpoutTransport.cpp:399`; `MediaPump.cpp:651-652` |
 | 9 | `scaleBgra` | `libyuv::ARGBScale` (filtro box) al tamaño de la sesión | `MediaPump.cpp:85-88`, `655` |
-| 10 | por **cada sesión**: `AddFrame` | `libyuv::ARGBToI420` | `src/gateway/Webrtc.cpp:238-250`, `953-956` |
+| 10 | por **cada sesión**: `AddFrame` | `libyuv::ARGBToI420` | `src/gateway/webrtc/Webrtc.cpp:238-250`, `953-956` |
 | 11 | por cada sesión | codificación (VP8/VP9/H.264/AV1) en libwebrtc | `Webrtc.cpp:1118-1131` |
 
 En Windows (D3D12) la etapa 2 es `d3d12upload ! d3d12convert ! d3d12download`
@@ -653,7 +653,7 @@ de animación (`GraficoSource.hpp:10-13`).
 F32LE intercalado, 48 kHz, 2 canales en todo el motor (`src/motor/Entrada.cpp:188`;
 `Mezcla.cpp:84-85`), en los anillos (`SharedAudioRing.hpp:58-60`) y en los buses
 de la Matriz (`src/app/audio/RingEstereo.hpp:18`, planar). WebRTC: int16, 48 kHz,
-2 canales, bloques de 10 ms (`src/gateway/Webrtc.cpp:166-168`).
+2 canales, bloques de 10 ms (`src/gateway/webrtc/Webrtc.cpp:166-168`).
 
 ### 5.2 Captura
 
@@ -1101,7 +1101,7 @@ Fuentes: `src/motor/Piezas.cpp:383-455`, `1008-1023`, `1145-1170`; `src/motor/Ca
 `src/core/platform/GstEntorno.hpp:31-33`, `GstEntorno.cpp:119-124`; `src/motor/Escucha.cpp:20-30`;
 `src/app/audio/EquipoAudio.cpp:28-45`; `src/core/platform/Segmento.hpp`; `LocalSocket_*.cpp`;
 `src/core/ipc/HealthBlock.cpp:108-120`; `src/motor/Prioridad.cpp`; `src/gateway/CMakeLists.txt:139-215`,
-`340-360`; `src/gateway/Webrtc.cpp:1118-1131`; `src/gst-plugins/CMakeLists.txt:103-160`;
+`340-360`; `src/gateway/webrtc/Webrtc.cpp:1118-1131`; `src/gst-plugins/CMakeLists.txt:103-160`;
 `src/gst-plugins/superres/onnxsr.cpp:11-24`; `src/modelo-llama/CMakeLists.txt:1-10`;
 `src/launcher/Volcados.hpp:15-16`; `src/core/platform/Paths.hpp:53-71`.
 
@@ -1175,7 +1175,7 @@ proceso carga sus `ajustes` de su JSON (`src/core/ajustes/Ajustes.hpp:4-9`).
 | Buffers por canal de video | 3, alineados a 4096 B | `SpoutTransport.cpp:75-77` |
 | Sondeo de B sobre `BA.Program` | 4 ms | `MediaPump.cpp:593` |
 | Sondeo de A sobre canales (video/audio) | 4 ms (15/10 ms si quieto) | `gst-plugins/ipc/video.cpp:97`; `anillo.cpp:82` |
-| `PullAdm` | 10 ms | `src/gateway/Webrtc.cpp:220-235` |
+| `PullAdm` | 10 ms | `src/gateway/webrtc/Webrtc.cpp:220-235` |
 | Bloque del rack (`barack`) | ≤ 1024 muestras | `src/app/audio/GstRack.cpp:85` |
 | Bloque de la Matriz | 480 (10 ms); colchón 960; tope 3840 | `src/app/audio/RingEstereo.hpp:18-20` |
 | Salida del `audiomixer` | 10 ms | `src/motor/Mezcla.cpp:84` |

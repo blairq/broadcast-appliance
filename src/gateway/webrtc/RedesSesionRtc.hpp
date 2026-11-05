@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/RedesSesionRtc.hpp — las redes de UNA PeerConnection sobre la lista común
+// src/gateway/webrtc/RedesSesionRtc.hpp — las redes de UNA PeerConnection sobre la lista común
 //
 // El problema (ráfaga por el TURN, 2026-11-02): todas las PeerConnection comparten un
 // rtc::BasicNetworkManager (la lista de interfaces sin las virtuales). Cada sesión que
@@ -19,7 +19,7 @@
 // AsignadorDeSesion es el BasicPortAllocator que la trae (y la suelta después de él).
 //
 // Todo corre en el hilo de red de libwebrtc (como el NetworkManager común), menos los
-// constructores. Solo con libwebrtc (BA_GATEWAY_HAVE_WEBRTC).
+// constructores. Solo con libwebrtc (backend webrtc/).
 // ============================================================================
 #pragma once
 

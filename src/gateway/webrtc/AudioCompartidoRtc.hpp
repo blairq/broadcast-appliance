@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/AudioCompartidoRtc.hpp — el audio de retorno compartido por dentro (libwebrtc)
+// src/gateway/webrtc/AudioCompartidoRtc.hpp — el audio de retorno compartido por dentro (libwebrtc)
 //
 // Lo usa Webrtc.cpp: la fábrica de codificadores de audio de la PeerConnectionFactory y los
 // grupos (AudioCompartido). Ver AudioCompartido.hpp para el porqué.
@@ -16,7 +16,6 @@
 // ============================================================================
 #pragma once
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <atomic>
 #include <cstdint>
@@ -130,4 +129,3 @@ std::string firma(const webrtc::SdpAudioFormat& f);
 
 } // namespace ba::gateway::audioret
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

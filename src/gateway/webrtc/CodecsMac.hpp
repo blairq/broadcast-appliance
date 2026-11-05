@@ -1,4 +1,4 @@
-// src/gateway/CodecsMac.hpp — Codecs de video de macOS (H.264 por VideoToolbox). Ver CodecsMac.mm.
+// src/gateway/webrtc/CodecsMac.hpp — Codecs de video de macOS (H.264 por VideoToolbox). Ver CodecsMac.mm.
 #pragma once
 
 #include <memory>

@@ -24,9 +24,7 @@
 #include "ipc/CanalesSalida.hpp"
 #include "ipc/HealthBlock.hpp"
 
-#if BA_GATEWAY_HAVE_WEBRTC
-#include "third_party/libyuv/include/libyuv/scale_argb.h"
-#endif
+#include "libyuv/scale_argb.h"
 #include "ColaVoz.hpp"
 #include "Labios.hpp"
 #include "LectorVoz.hpp"
@@ -96,29 +94,11 @@ constexpr uint32_t kGeneration = 1;
 /// diferencia entre «más chico» y «peor».
 ///
 /// Y es de libyuv, o sea con SIMD. El de antes hacía dos divisiones enteras
-/// por píxel —novecientas mil por cuadro— en C escalar. Donde no hay libyuv
-/// (el backend NULL, el de los tests) queda el de antes: ahí no hay nadie
-/// mirando la imagen, solo se comprueba que los bytes lleguen.
+/// por píxel —novecientas mil por cuadro— en C escalar. Es el mismo en el producto y en
+/// las pruebas (libyuv del SDK de libwebrtc, o la de extern/ donde no hay SDK).
 void scaleBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh) {
     if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) return;
-#if BA_GATEWAY_HAVE_WEBRTC
     libyuv::ARGBScale(src, sw * 4, sw, sh, dst, dw * 4, dw, dh, libyuv::kFilterBox);
-#else
-    for (int y = 0; y < dh; ++y) {
-        const int sy = (y * sh) / dh;
-        const uint8_t* srow = src + static_cast<size_t>(sy) * sw * 4;
-        uint8_t* drow = dst + static_cast<size_t>(y) * dw * 4;
-        for (int x = 0; x < dw; ++x) {
-            const int sx = (x * sw) / dw;
-            const uint8_t* sp = srow + static_cast<size_t>(sx) * 4;
-            drow[0] = sp[0]; // B
-            drow[1] = sp[1]; // G
-            drow[2] = sp[2]; // R
-            drow[3] = sp[3]; // A
-            drow += 4;
-        }
-    }
-#endif
 }
 
 /// Ajusta (sw x sh) DENTRO de (dw x dh) conservando el aspecto, centrado y
@@ -138,21 +118,9 @@ void fitBgra(const uint8_t* src, int sw, int sh, uint8_t* dst, int dw, int dh) {
     }
     const int ox = (dw - fw) / 2;
     const int oy = (dh - fh) / 2;
-#if BA_GATEWAY_HAVE_WEBRTC
     // Como scaleBgra: con filtro y SIMD, directo a su lugar adentro de las barras. Las
     // vistas chicas (la del invitado para la interfaz, F3-11) pasan todas por acá.
     libyuv::ARGBScale(src, sw * 4, sw, sh, dst + (static_cast<size_t>(oy) * dw + ox) * 4, dw * 4, fw, fh, libyuv::kFilterBox);
-#else
-    for (int y = 0; y < fh; ++y) {
-        const int sy = static_cast<int>(static_cast<long long>(y) * sh / fh);
-        const uint8_t* srow = src + static_cast<size_t>(sy) * sw * 4;
-        uint8_t* drow = dst + (static_cast<size_t>(oy + y) * dw + ox) * 4;
-        for (int x = 0; x < fw; ++x) {
-            const int sx = static_cast<int>(static_cast<long long>(x) * sw / fw);
-            std::memcpy(drow + static_cast<size_t>(x) * 4, srow + static_cast<size_t>(sx) * 4, 4);
-        }
-    }
-#endif
 }
 
 /// Dónde va un cuadro de `w`×`h` que sube un participante, en un canal de `cw`×`ch` (F2-13,

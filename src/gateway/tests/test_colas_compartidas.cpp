@@ -1,7 +1,7 @@
 // ============================================================================
 // src/gateway/tests/test_colas_compartidas.cpp — las colas de libwebrtc sobre pocos hilos
 //
-// rtc/ColasCompartidas.hpp tiene que cumplir el contrato de webrtc::TaskQueueBase aunque
+// webrtc/ColasRtc.hpp tiene que cumplir el contrato de webrtc::TaskQueueBase aunque
 // muchas colas compartan pocos hilos:
 //   1. FIFO por cola, con varias colas y varios productores a la vez.
 //   2. Nunca dos tareas de la misma cola a la vez; Current()/IsCurrent() dentro de la tarea.
@@ -29,7 +29,7 @@
 #include "api/units/time_delta.h"
 
 #include "diag/Frontera.hpp"
-#include "rtc/ColasCompartidas.hpp"
+#include "webrtc/ColasRtc.hpp"
 
 using namespace ba::gateway;
 using Reloj = std::chrono::steady_clock;

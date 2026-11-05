@@ -44,7 +44,11 @@ componente modelo-llama    0   modelo-llama/
 
 # --- nivel 1 -------------------------------------------------------------------------------
 componente motor           1   motor/                        : ba_motor
-componente gateway         1   gateway/                      : ba_gateway_obj ba_gateway_logica ba_gateway_rtc
+componente gateway         1   gateway/                      : ba_gateway_nucleo ba_gateway_rtc
+# Los dos backends de gateway/Webrtc.hpp (src/gateway/CMakeLists.txt): usan el núcleo, el
+# núcleo no los conoce (el programa elige cuál enlaza).
+componente gateway/webrtc  1.2 gateway/webrtc/               : ba_gateway_webrtc
+componente gateway/nulo    1.2 gateway/nulo/                 : ba_gateway_nulo
 componente launcher        1   launcher/                     : BroadcastAppliance
 componente grafico         1   grafico/                      : ba-grafico
 componente gst-plugins     1   gst-plugins/                  : gstbacaptura gstbafiltros gstbaaudio gstbaipc gstbaplugins gstbasuperres gstbarostros

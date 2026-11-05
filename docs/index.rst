@@ -93,8 +93,8 @@ clases y namespaces reales:
 - :doc:`modules/core` — `ba_core` (dsp, ipc, persist, security, diag, fault,
   crypto, hw).
 - :doc:`modules/launcher` — `BroadcastAppliance` (supervisor + `RecoveryUi`).
-- :doc:`modules/gateway` — `ba-gateway` (Proceso B, implementado; flag
-  `BA_GATEWAY_HAVE_WEBRTC`).
+- :doc:`modules/gateway` — `ba-gateway` (Proceso B, implementado; backend `webrtc/` o
+  `nulo/` según se enlace).
 - :doc:`modules/app` — `ba-app` (Proceso A, implementado; flag
   `BA_APP_HAVE_GUI`).
 - :doc:`modules/obs-module` — `ba-sources` (módulo libobs, implementado; flag

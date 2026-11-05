@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/rtc/SocketsEnMemoria.hpp — los sockets UDP de WebRTC que hablan en memoria con
+// src/gateway/webrtc/SocketsEnMemoria.hpp — los sockets UDP de WebRTC que hablan en memoria con
 // el TURN y con el túnel (PLAN-GATEWAY-FRAGMENTOS.md F1 #3/#14 y F5 #18/#19)
 //
 // FabricaEnMemoria es el rtc::PacketSocketFactory de las PeerConnection (AsignadorDeSesion):
@@ -61,7 +61,6 @@ class EnlaceTunel {
 
 } // namespace ba::gateway::rtcred
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include "api/packet_socket_factory.h"
 #include "p2p/base/basic_packet_socket_factory.h"
@@ -93,4 +92,3 @@ class FabricaEnMemoria final : public rtc::PacketSocketFactory {
 
 } // namespace ba::gateway::rtcred
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

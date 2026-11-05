@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/CodecsMac.mm — Codecs de video de macOS para el gateway
+// src/gateway/webrtc/CodecsMac.mm — Codecs de video de macOS para el gateway
 //
 // El libwebrtc que usamos (Shiguredo) viene SIN OpenH264: con las fábricas de
 // plantilla, el gateway solo sabe VP8/VP9/AV1. Un televisor o un Chromecast casi
@@ -9,7 +9,7 @@
 // Objective-C lo suman a VP8/VP9/AV1. Ver Webrtc.cpp (fabricasDeVideo).
 // ============================================================================
 
-#include "CodecsMac.hpp"
+#include "webrtc/CodecsMac.hpp"
 
 #import "components/video_codec/RTCDefaultVideoDecoderFactory.h"
 #import "components/video_codec/RTCDefaultVideoEncoderFactory.h"

@@ -371,7 +371,7 @@
 - **Depende de:** nada. Ayuda a T33 (IFB).
 
 ### T15 · Estadísticas de conexión por invitado y disparador `guest_quality` — P0
-- **Estado: falta.** No hay `GetStats` en `src/gateway/Webrtc.cpp` ni en `Room.cpp`. El disparador más cercano es `guest_drop` (`src/app/agent/AlertEngine.cpp:93`).
+- **Estado: falta.** No hay `GetStats` en `src/gateway/webrtc/Webrtc.cpp` ni en `Room.cpp`. El disparador más cercano es `guest_drop` (`src/app/agent/AlertEngine.cpp:93`).
 - **Qué hacer.**
   - En `Webrtc.cpp`, llamar cada 2 s a `PeerConnection::GetStats` y extraer bitrate de entrada y salida, `packetsLost`, `jitter`, `roundTripTime`, `framesDropped` y la resolución recibida.
   - Guardar el resultado en `Room` por participante y exponerlo en la API de admin (`/api/v1/room` y por SSE).

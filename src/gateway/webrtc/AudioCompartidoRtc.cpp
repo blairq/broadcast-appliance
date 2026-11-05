@@ -1,9 +1,8 @@
 // ============================================================================
-// src/gateway/AudioCompartidoRtc.cpp — grupos Opus y el codificador de paso (AudioCompartidoRtc.hpp)
+// src/gateway/webrtc/AudioCompartidoRtc.cpp — grupos Opus y el codificador de paso (AudioCompartidoRtc.hpp)
 // ============================================================================
-#include "AudioCompartidoRtc.hpp"
+#include "webrtc/AudioCompartidoRtc.hpp"
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include "AudioCompartido.hpp"
 #include "diag/Frontera.hpp"
@@ -439,4 +438,3 @@ rtc::scoped_refptr<webrtc::AudioEncoderFactory> fabricaDePaso(rtc::scoped_refptr
 
 } // namespace ba::gateway::audioret
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

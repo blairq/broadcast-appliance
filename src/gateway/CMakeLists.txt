@@ -14,49 +14,50 @@
 #     (§8.8);
 #   - sirve la app web del invitado desde assets/web/guest/ (HTTP estático mínimo).
 #
-# Headless: sin Qt (spec §3.3). En Windows enlaza libwebrtc estáticamente;
-# en Linux / build offline se compila con un backend NULL de WebRTC para que
-# el árbol configure y compile sin el SDK.
+# Headless: sin Qt (spec §3.3).
+#
+# Tres bibliotecas (OBJECT: cada ejecutable lleva los mismos objetos), sin ningún #if de
+# por medio: el backend es la biblioteca que se enlaza.
+#
+#   ba_gateway_nucleo   todo el gateway menos main.cpp y el tiempo real: se compila UNA vez
+#                       y lo enlazan igual ba-gateway y todos sus tests. Escala y convierte
+#                       imagen con libyuv (ba_libyuv, cmake/BaLibyuv.cmake).
+#   ba_gateway_webrtc   webrtc/: Webrtc.hpp con libwebrtc (y lo que depende del SDK: los
+#                       códecs, el retorno y el audio compartidos, las colas y los sockets
+#                       en memoria). Solo donde hay SDK con la misma ABI que este build.
+#   ba_gateway_nulo     nulo/: Webrtc.hpp sin libwebrtc (la máquina de estados de la
+#                       señalización, sin RTP).
+#
+#   ba-gateway           núcleo + webrtc (núcleo + nulo en un build sin el SDK)
+#   tests de lógica      núcleo + nulo
+#   test_webrtc_*        núcleo + webrtc
+#
+# Antes el gateway entero se compilaba dos veces (con BA_GATEWAY_HAVE_WEBRTC=1 y =0) y los
+# tests de lógica probaban otro código (en Grillas y MediaPump, un escalado a mano en vez
+# de libyuv).
 #
 # /MD (CRT dinámica) por consistencia con libwebrtc — hereda del root.
 # ============================================================================
 
 # --- Sources ----------------------------------------------------------------
-file(GLOB_RECURSE BA_GATEWAY_SOURCES CONFIGURE_DEPENDS
+file(GLOB_RECURSE BA_GATEWAY_NUCLEO_SOURCES CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cxx"
     "${CMAKE_CURRENT_SOURCE_DIR}/*.cc"
 )
+# Fuera del núcleo: los tests (ejecutables propios, con su main), los dos backends y main.cpp.
+list(FILTER BA_GATEWAY_NUCLEO_SOURCES EXCLUDE REGEX ".*/tests/.*")
+list(FILTER BA_GATEWAY_NUCLEO_SOURCES EXCLUDE REGEX "^${CMAKE_CURRENT_SOURCE_DIR}/(webrtc|nulo)/.*")
+list(REMOVE_ITEM BA_GATEWAY_NUCLEO_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
 
-# Excluir los tests del target ba-gateway: son ejecutables propios (con su
-# propio main), no parte del gateway (mismo criterio que ba_core/launcher).
-list(FILTER BA_GATEWAY_SOURCES EXCLUDE REGEX ".*/tests/.*")
-
-# Todo el gateway menos main.cpp se compila UNA vez, en una biblioteca OBJECT
-# (`ba_gateway_obj`): la enlazan ba-gateway y los tests con libwebrtc de verdad;
-# los tests de lógica enlazan `ba_gateway_logica` (lo mismo con el backend NULL,
-# más abajo). Antes cada test recompilaba las ~70 fuentes del gateway: eran
-# 3600 de las 5300 compilaciones del build entero (docs/local/build-tiempos.md).
-# OBJECT y no STATIC: cada ejecutable lleva los mismos objetos que antes.
-# Todo lo que se le fija va PUBLIC: main.cpp (y los tests) se compilan con las
-# mismas definiciones e includes que el resto del gateway, como antes.
-set(BA_GATEWAY_OBJ_SOURCES ${BA_GATEWAY_SOURCES})
-list(REMOVE_ITEM BA_GATEWAY_OBJ_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/main.cpp")
-add_library(ba_gateway_obj OBJECT ${BA_GATEWAY_OBJ_SOURCES})
-
-# WIN32 en MSVC: subsistema GUI (sin consola). En el resto (MinGW cross y
-# Linux) es un ejecutable de consola: el launcher (Proceso 0) lo lanza en
-# segundo plano, así que la consola no se muestra.
-if(MSVC)
-    add_executable(ba-gateway WIN32 main.cpp)
-    # Sin consola pero con `main(argc, argv)`: el CRT entra por main.
-    target_link_options(ba-gateway PRIVATE /ENTRY:mainCRTStartup)
-else()
-    add_executable(ba-gateway main.cpp)
-endif()
-target_link_libraries(ba-gateway PRIVATE ba_gateway_obj)
-
-target_link_libraries(ba_gateway_obj PUBLIC ba_core mbedcrypto)
+# El núcleo: se compila una vez (antes cada test recompilaba las ~70 fuentes del gateway: eran
+# 3600 de las 5300 compilaciones del build entero, docs/local/build-tiempos.md). Todo lo que
+# se le fija va PUBLIC: main.cpp, los backends y los tests se compilan con las mismas
+# definiciones e includes que el núcleo.
+add_library(ba_gateway_nucleo OBJECT ${BA_GATEWAY_NUCLEO_SOURCES})
+# ba_libyuv: la del SDK o la de extern/, según haya SDK en este build (más abajo).
+include("${CMAKE_SOURCE_DIR}/cmake/BaLibyuv.cmake")
+target_link_libraries(ba_gateway_nucleo PUBLIC ba_core mbedcrypto ba_libyuv)
 
 # El eco del medidor del enlace (tools/vps/ba-enlace-eco.py) viaja adentro del gateway: el
 # instalador para el VPS (GET /api/v1/enlace/instalador) lleva el archivo de este mismo build.
@@ -64,16 +65,16 @@ include("${CMAKE_SOURCE_DIR}/cmake/BaEcoEnlace.cmake")
 set(BA_GW_GENERADO "${CMAKE_CURRENT_BINARY_DIR}/generado")
 ba_eco_enlace("${CMAKE_SOURCE_DIR}" "${BA_GW_GENERADO}")
 set(BA_ECO_ENLACE_PY "${CMAKE_SOURCE_DIR}/tools/vps/ba-enlace-eco.py")
-target_include_directories(ba_gateway_obj PUBLIC "${BA_GW_GENERADO}")
+target_include_directories(ba_gateway_nucleo PUBLIC "${BA_GW_GENERADO}")
 # El cliente HTTPS propio (mbedtls, sin Qt) de la app: lo usa el cliente ACME del proxy (T61).
 set(BA_GW_HTTPS "${CMAKE_SOURCE_DIR}/src/app/net/HttpsClient.cpp")
-target_sources(ba_gateway_obj PRIVATE "${BA_GW_HTTPS}")
+target_sources(ba_gateway_nucleo PRIVATE "${BA_GW_HTTPS}")
 set_source_files_properties("${BA_GW_HTTPS}" PROPERTIES INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/src/app")
-target_include_directories(ba_gateway_obj PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(ba_gateway_nucleo PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 # QR de ingreso (Nayuki, MIT) en third_party/: codigo ajeno, fuera del lint.
 set(BA_QRCODEGEN_DIR "${CMAKE_SOURCE_DIR}/third_party/qrcodegen")
-target_sources(ba_gateway_obj PRIVATE "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
-target_include_directories(ba_gateway_obj PUBLIC "${BA_QRCODEGEN_DIR}")
+target_sources(ba_gateway_nucleo PRIVATE "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
+target_include_directories(ba_gateway_nucleo PUBLIC "${BA_QRCODEGEN_DIR}")
 
 # --- lwIP (pila IP en espacio de usuario para el tunel WireGuard) ------------
 # extern/lwip (make deps-lwip). Sin lwIP el gateway compila igual, sin tunel.
@@ -85,52 +86,48 @@ if(EXISTS "${LWIP_DIR}/src/Filelists.cmake")
     target_include_directories(ba_lwip PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}/net/lwip-port" "${LWIP_DIR}/src/include")
     set_target_properties(ba_lwip PROPERTIES POSITION_INDEPENDENT_CODE ON C_STANDARD 99)
     target_compile_options(ba_lwip PRIVATE -w) # codigo de terceros: sin nuestros warnings
-    target_link_libraries(ba_gateway_obj PUBLIC ba_lwip)
-    target_compile_definitions(ba_gateway_obj PUBLIC BA_HAVE_LWIP=1)
+    target_link_libraries(ba_gateway_nucleo PUBLIC ba_lwip)
+    target_compile_definitions(ba_gateway_nucleo PUBLIC BA_HAVE_LWIP=1)
     set(BA_HAVE_LWIP ON)
 else()
     ba_falta("Túnel WireGuard (lwIP)" "falta extern/lwip ('make deps-lwip')")
-    get_target_property(_gw_srcs ba_gateway_obj SOURCES)
+    get_target_property(_gw_srcs ba_gateway_nucleo SOURCES)
     list(FILTER _gw_srcs EXCLUDE REGEX ".*/net/IpStack\\.cpp$")
-    set_target_properties(ba_gateway_obj PROPERTIES SOURCES "${_gw_srcs}")
-    target_compile_definitions(ba_gateway_obj PUBLIC BA_HAVE_LWIP=0)
+    set_target_properties(ba_gateway_nucleo PROPERTIES SOURCES "${_gw_srcs}")
+    target_compile_definitions(ba_gateway_nucleo PUBLIC BA_HAVE_LWIP=0)
 endif()
 
 # --- Dependencias de red / plataforma ---------------------------------------
 # El servidor de señalización usa sockets. En Windows es winsock2 (ws2_32);
 # en POSIX el stack ya está en libc.
 if(WIN32)
-    target_link_libraries(ba_gateway_obj PUBLIC ws2_32 iphlpapi) # iphlpapi: las IP de la máquina (net/NetUtil)
+    target_link_libraries(ba_gateway_nucleo PUBLIC ws2_32 iphlpapi) # iphlpapi: las IP de la máquina (net/NetUtil)
 endif()
 
-# --- libwebrtc (solo Windows, solo si el SDK está presente) ------------------
+# --- El backend NULL (nulo/) --------------------------------------------------
+# Siempre: lo enlazan los tests de lógica (el SDP de prueba no es un SDP real; los medios
+# reales los prueban los test_webrtc_*). Un OBJECT que «enlaza» otro OBJECT solo toma sus
+# usos (includes, definiciones), no sus objetos: el ejecutable enlaza los dos.
+add_library(ba_gateway_nulo OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/nulo/WebrtcNulo.cpp")
+target_link_libraries(ba_gateway_nulo PUBLIC ba_gateway_nucleo)
+
+# --- libwebrtc (el backend de verdad, si el SDK está presente) ----------------
 # El stack real de WebRTC (spec §8.1, decisión D4) es libwebrtc precompilado
 # (M123, versions.cmake). El SDK vive en `extern/webrtc` (include/ + lib/) y NO
 # se trae por FetchContent porque es un asset de despliegue grande. Si no está
-# presente (build offline / Linux) se compila con BA_GATEWAY_HAVE_WEBRTC=0 y el
-# backend NULL hace las veces de PeerConnection para que el árbol compile y la
-# señalización sea testeable sin el SDK.
+# presente (build offline / Linux) ba-gateway enlaza el backend NULL.
 #
 # BA_WEBRTC_ROOT: ruta al SDK (include/ + lib/). Se puede forzar con
 #   -D BA_WEBRTC_ROOT=<ruta>   (p. ej. extern/webrtc o un webrtc-build de
 #   Shiguredo). Por defecto se mira en <fuente>/extern/webrtc.
-#
-# El resultado queda en BA_GATEWAY_WEBRTC (0/1) para que el target ba-gateway
-# y los tests de abajo (bloque inferior) hereden el MISMO flag: sin el SDK el
-# test imprime SKIP y pasa.
 set(BA_GATEWAY_WEBRTC 0)
-# El backend REAL de libwebrtc se enciende SOLO con opt-in explícito
-# (-D BA_GATEWAY_USE_WEBRTC=1). La mera presencia del SDK en extern/webrtc
-# (lo deja `make deps`) NO basta: Webrtc.cpp aún se adapta a los headers M123
-# reales (absl/, api/, p2p/...), así que que el SDK esté descargado no debe
-# romper el verde del cross-build MinGW (WIN32). Sin el opt-in, el gateway y
-# sus tests siguen con el backend NULL (BA_GATEWAY_HAVE_WEBRTC=0).
+# Windows: el backend REAL de libwebrtc se enciende SOLO con opt-in explícito
+# (-D BA_GATEWAY_USE_WEBRTC=1, lo pasa la parte /MT: cmake/BaWinStaticPart.cmake).
 #
 # La puerta es MSVC (no WIN32): extern/webrtc/lib/webrtc.lib es un archivo COFF
 # con símbolos C++ mangling-MSVC y NO hay webrtc.dll, así que MinGW (mangling
-# Itanium) NO puede enlazarlo y el backend real solo ENLAZA bajo MSVC. El
-# cross-build MinGW entrega el backend NULL (BA_GATEWAY_HAVE_WEBRTC=0) y
-# valida el path real vía el target de compilación realcheck (bloque inferior).
+# Itanium) NO puede enlazarlo y el backend real solo ENLAZA bajo MSVC. Fuera de
+# MSVC se valida el path real vía el target de compilación realcheck (más abajo).
 if(NOT DEFINED BA_GATEWAY_USE_WEBRTC)
     set(BA_GATEWAY_USE_WEBRTC OFF)
 endif()
@@ -155,6 +152,10 @@ function(ba_escribir_si_cambia destino contenido)
     file(REMOVE "${destino}.nuevo")
 endfunction()
 
+# Las fuentes del backend de verdad (las dos plataformas con SDK en este build).
+file(GLOB BA_GATEWAY_WEBRTC_SOURCES CONFIGURE_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/webrtc/*.cpp")
+set(_gw_rtc "${CMAKE_CURRENT_SOURCE_DIR}/webrtc")
+
 # macOS: el libwebrtc de Shiguredo (macos_arm64) esta compilado contra la
 # libc++ del sistema (std::__1), la misma de Apple clang: se enlaza directo en
 # este build, sin el sub-build de Linux. Lo baja `make deps-webrtc` en macOS.
@@ -177,7 +178,7 @@ if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_
         "${BA_WEBRTC_ROOT}/include"
         "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp"
         "${BA_WEBRTC_ROOT}/include/third_party/libyuv/include")
-    target_compile_definitions(ba_webrtc_mac INTERFACE BA_GATEWAY_HAVE_WEBRTC=1 WEBRTC_POSIX WEBRTC_MAC)
+    target_compile_definitions(ba_webrtc_mac INTERFACE WEBRTC_POSIX WEBRTC_MAC)
     target_link_libraries(ba_webrtc_mac INTERFACE "${BA_WEBRTC_ROOT}/lib/libwebrtc.a"
         "-framework Foundation" "-framework CoreFoundation" "-framework CoreAudio" "-framework AudioToolbox"
         "-framework AudioUnit" "-framework CoreVideo" "-framework CoreMedia" "-framework VideoToolbox"
@@ -186,30 +187,24 @@ if(APPLE AND EXISTS "${BA_WEBRTC_ROOT}/lib/libwebrtc.a" AND EXISTS "${BA_WEBRTC_
         "-framework QuartzCore" "-framework CoreServices" "-framework Security"
         "-framework SystemConfiguration")
     # libwebrtc esta compilado sin RTTI.
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/RetornoCompartido.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/CodecsVideo.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/ColasCompartidas.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/BucleRtc.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/SocketsEnMemoria.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/HilosLote.cpp"
+    set_source_files_properties("${_gw_rtc}/Webrtc.cpp" "${_gw_rtc}/RetornoRtc.cpp" "${_gw_rtc}/CodecsVideo.cpp"
+                                "${_gw_rtc}/ColasRtc.cpp" "${_gw_rtc}/BucleRtc.cpp" "${_gw_rtc}/SocketsEnMemoria.cpp"
+                                "${_gw_rtc}/HilosLote.cpp"
                                 PROPERTIES COMPILE_OPTIONS "-fno-rtti")
-    # H.264 por VideoToolbox (el SDK de Objective-C): ver CodecsMac.mm. Va con el
-    # resto del gateway (ba_gateway_obj): lo tienen el gateway y sus pruebas con libwebrtc.
-    target_sources(ba_gateway_obj PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/CodecsMac.mm")
+    # H.264 por VideoToolbox (el SDK de Objective-C): ver CodecsMac.mm. Va con el backend:
+    # lo tienen el gateway y sus pruebas con libwebrtc.
+    list(APPEND BA_GATEWAY_WEBRTC_SOURCES "${_gw_rtc}/CodecsMac.mm")
     target_include_directories(ba_webrtc_mac SYSTEM INTERFACE "${BA_WEBRTC_ROOT}/include/sdk/objc"
                                "${BA_WEBRTC_ROOT}/include/sdk/objc/base")
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/CodecsMac.mm" PROPERTIES COMPILE_OPTIONS "-fno-rtti;-fobjc-arc")
+    set_source_files_properties("${_gw_rtc}/CodecsMac.mm" PROPERTIES COMPILE_OPTIONS "-fno-rtti;-fobjc-arc")
     # Las categorías de Objective-C de libwebrtc.a (RTCVideoCodecInfo+Private...) no se
     # enlazan solas: sin esto, «unrecognized selector» al pedir los codecs.
     target_link_options(ba_webrtc_mac INTERFACE "-Wl,-ObjC")
-    target_link_libraries(ba_gateway_obj PUBLIC ba_webrtc_mac)
-endif()
-
-if(BA_GATEWAY_WEBRTC_MAC)
-    # (configurado arriba)
+    add_library(ba_gateway_webrtc OBJECT ${BA_GATEWAY_WEBRTC_SOURCES})
+    target_link_libraries(ba_gateway_webrtc PUBLIC ba_gateway_nucleo ba_webrtc_mac)
+    ba_libyuv_del_sdk("${BA_WEBRTC_ROOT}" "${BA_WEBRTC_ROOT}/lib/libwebrtc.a")
 elseif(BA_GATEWAY_WEBRTC)
     message(STATUS "ba-gateway: libwebrtc en ${BA_WEBRTC_ROOT}")
-    target_compile_definitions(ba_gateway_obj PUBLIC BA_GATEWAY_HAVE_WEBRTC=1)
     # Binarios precompilados de Shiguredo: webrtc.lib en COFF con símbolos
     # C++ mangling-MSVC, CRT estatica (/MT) y sin webrtc.dll: solo enlazable
     # bajo MSVC/clang-cl y desde el sub-build /MT (cmake/BaWinStaticPart.cmake).
@@ -228,7 +223,7 @@ elseif(BA_GATEWAY_WEBRTC)
         "${BA_WEBRTC_ROOT}/include"
         "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp"
         "${BA_WEBRTC_ROOT}/include/third_party/libyuv/include")
-    target_compile_definitions(ba_webrtc_win INTERFACE BA_GATEWAY_HAVE_WEBRTC=1 WEBRTC_WIN)
+    target_compile_definitions(ba_webrtc_win INTERFACE WEBRTC_WIN)
     target_link_libraries(ba_webrtc_win INTERFACE "${BA_WEBRTC_ROOT}/lib/webrtc.lib"
         winmm secur32 ws2_32 iphlpapi crypt32 dmoguids wmcodecdspuuid msdmo strmiids
         ole32 oleaut32 d3d11 dxgi advapi32 user32 gdi32 shell32
@@ -236,16 +231,32 @@ elseif(BA_GATEWAY_WEBRTC)
         mfplat mfuuid)
     # libwebrtc esta compilado sin RTTI: las clases que heredan de sus
     # interfaces no pueden pedir typeinfo de sus bases.
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp" "${CMAKE_CURRENT_SOURCE_DIR}/CodecsVideo.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/CodecsWin.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
-    set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/rtc/ColasCompartidas.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/BucleRtc.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/SocketsEnMemoria.cpp"
-                                "${CMAKE_CURRENT_SOURCE_DIR}/rtc/HilosLote.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
-    target_link_libraries(ba_gateway_obj PUBLIC ba_webrtc_win)
+    set_source_files_properties("${_gw_rtc}/Webrtc.cpp" "${_gw_rtc}/CodecsVideo.cpp" "${_gw_rtc}/CodecsWin.cpp"
+                                "${_gw_rtc}/ColasRtc.cpp" "${_gw_rtc}/BucleRtc.cpp" "${_gw_rtc}/SocketsEnMemoria.cpp"
+                                "${_gw_rtc}/HilosLote.cpp" PROPERTIES COMPILE_OPTIONS "/GR-")
+    add_library(ba_gateway_webrtc OBJECT ${BA_GATEWAY_WEBRTC_SOURCES})
+    target_link_libraries(ba_gateway_webrtc PUBLIC ba_gateway_nucleo ba_webrtc_win)
+    ba_libyuv_del_sdk("${BA_WEBRTC_ROOT}" "${BA_WEBRTC_ROOT}/lib/webrtc.lib")
 else()
-    message(STATUS "ba-gateway (GCC): backend NULL para los tests de logica (BA_GATEWAY_HAVE_WEBRTC=0)")
-    target_compile_definitions(ba_gateway_obj PUBLIC BA_GATEWAY_HAVE_WEBRTC=0)
+    message(STATUS "ba-gateway: sin el SDK de libwebrtc en este build: el ba-gateway de acá enlaza el backend NULL")
+    ba_libyuv_propia()
+endif()
+
+# --- El programa --------------------------------------------------------------
+# WIN32 en MSVC: subsistema GUI (sin consola). En el resto (MinGW cross y
+# Linux) es un ejecutable de consola: el launcher (Proceso 0) lo lanza en
+# segundo plano, así que la consola no se muestra.
+if(MSVC)
+    add_executable(ba-gateway WIN32 main.cpp)
+    # Sin consola pero con `main(argc, argv)`: el CRT entra por main.
+    target_link_options(ba-gateway PRIVATE /ENTRY:mainCRTStartup)
+else()
+    add_executable(ba-gateway main.cpp)
+endif()
+if(TARGET ba_gateway_webrtc)
+    target_link_libraries(ba-gateway PRIVATE ba_gateway_nucleo ba_gateway_webrtc)
+else()
+    target_link_libraries(ba-gateway PRIVATE ba_gateway_nucleo ba_gateway_nulo)
 endif()
 
 # --- Validación por compilación del backend real (no-MSVC) ------------------
@@ -254,8 +265,9 @@ endif()
 # MSVC. Pero el cierre de headers M123 SÍ compila bajo MinGW si se neutraliza el
 # static_assert de sanity RTC_EXPORT_TEMPLATE_TEST(MSVC_HACK, __declspec(dllexport))
 # de rtc_base/system/rtc_export_template.h (GCC reescribe __declspec -> __attribute__).
-# Este target OBJECT compila SOLO Webrtc.cpp con BA_GATEWAY_HAVE_WEBRTC=1 (sin
-# enlazar webrtc.lib) como prueba de compilación del path real en toolchains no-MSVC.
+# Este target OBJECT compila SOLO webrtc/Webrtc.cpp (sin enlazar webrtc.lib) como
+# prueba de compilación del path real en toolchains no-MSVC; los includes y las
+# definiciones del núcleo los toma de ba_gateway_nucleo.
 if(NOT MSVC AND BA_GATEWAY_USE_WEBRTC AND DEFINED BA_WEBRTC_ROOT AND EXISTS "${BA_WEBRTC_ROOT}/include")
     # Solo UNA de las cuatro llamadas del auto-test falla bajo GCC: la de
     # __declspec(dllexport) (GCC la reescribe a __attribute__ y rompe el
@@ -269,14 +281,14 @@ if(NOT MSVC AND BA_GATEWAY_USE_WEBRTC AND DEFINED BA_WEBRTC_ROOT AND EXISTS "${B
     file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/webrtc-shadow/rtc_base/system")
     ba_escribir_si_cambia("${CMAKE_BINARY_DIR}/webrtc-shadow/rtc_base/system/rtc_export_template.h"
          "${_rtc_export_shaded}")
-    add_library(ba-gateway-webrtc-realcheck OBJECT "${CMAKE_CURRENT_SOURCE_DIR}/Webrtc.cpp")
-    target_compile_definitions(ba-gateway-webrtc-realcheck PRIVATE
-        BA_GATEWAY_HAVE_WEBRTC=1 WEBRTC_WIN OS_WIN UNICODE _UNICODE)
+    add_library(ba-gateway-webrtc-realcheck OBJECT "${_gw_rtc}/Webrtc.cpp")
+    target_compile_definitions(ba-gateway-webrtc-realcheck PRIVATE WEBRTC_WIN OS_WIN UNICODE _UNICODE)
     target_include_directories(ba-gateway-webrtc-realcheck BEFORE PRIVATE
         "${CMAKE_BINARY_DIR}/webrtc-shadow"
         "${BA_WEBRTC_ROOT}/include"
         "${BA_WEBRTC_ROOT}/include/third_party/abseil-cpp"
-        "${CMAKE_CURRENT_SOURCE_DIR}")
+        "${BA_WEBRTC_ROOT}/include/third_party/libyuv/include")
+    target_link_libraries(ba-gateway-webrtc-realcheck PRIVATE ba_gateway_nucleo)
 else()
     message(STATUS "ba-gateway: realcheck desactivado (sin SDK o sin BA_GATEWAY_USE_WEBRTC)")
 endif()
@@ -284,59 +296,23 @@ endif()
 # --- Tests del gateway (CTest) ----------------------------------------------
 # Mismo patrón que src/core: cada tests/test_*.cpp es un ejecutable con su
 # propio main() que devuelve 0 si pasa y != 0 si falla, y se registra con
-# add_test. El test compila los sources del gateway SIN main.cpp (aporta su
-# propio main) y hereda BA_GATEWAY_HAVE_WEBRTC: sin el SDK imprime
-# "SKIP: no libwebrtc" y pasa (path OFF que compila solo con std + ba_core).
+# add_test. Los de lógica enlazan el núcleo (el mismo de ba-gateway) con el backend NULL.
 file(GLOB_RECURSE BA_GATEWAY_TESTS CONFIGURE_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/tests/test_*.cpp"
 )
-# test_webrtc_*: necesitan libwebrtc de verdad; los compila el subproyecto
-# cmake/gateway-webrtc (clang + libc++ de Chromium), no este build.
+# test_webrtc_*: necesitan libwebrtc de verdad (abajo; en Linux, el subproyecto
+# cmake/gateway-webrtc, con clang + la libc++ de Chromium).
 list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_webrtc_[^/]*\\.cpp$")
 # Las colas compartidas son de libwebrtc (TaskQueueBase): van con los de medios reales.
 list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_colas_compartidas\\.cpp$")
-
-# Sources del gateway para los tests de lógica: los del propio directorio, net/,
-# proxy/, rtc/ y turn/ (todo menos main.cpp y los tests), con el backend NULL.
-file(GLOB BA_GATEWAY_LIB_SOURCES CONFIGURE_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/net/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/proxy/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/rtc/*.cpp"
-    "${CMAKE_CURRENT_SOURCE_DIR}/turn/*.cpp"
-)
-list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/tests/.*")
-list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/main\\.cpp$")
-list(APPEND BA_GATEWAY_LIB_SOURCES "${BA_GW_HTTPS}")
 if(NOT BA_HAVE_LWIP)
-    list(FILTER BA_GATEWAY_LIB_SOURCES EXCLUDE REGEX ".*/net/IpStack\\.cpp$")
     list(FILTER BA_GATEWAY_TESTS EXCLUDE REGEX ".*/test_ipstack\\.cpp$")
-endif()
-
-# Los tests de LÓGICA van siempre con el backend NULL (el SDP de prueba no es un
-# SDP real; los medios reales los prueban los test_webrtc_*): el gateway compilado
-# una sola vez así, en `ba_gateway_logica`, para todos. Si el ba-gateway de este
-# build ya es el NULL (Linux), es la misma biblioteca: nada se compila dos veces.
-if(BA_GATEWAY_WEBRTC OR BA_GATEWAY_WEBRTC_MAC)
-    add_library(ba_gateway_logica OBJECT ${BA_GATEWAY_LIB_SOURCES} "${BA_QRCODEGEN_DIR}/qrcodegen.cpp")
-    target_include_directories(ba_gateway_logica PUBLIC "${BA_QRCODEGEN_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}" "${BA_GW_GENERADO}")
-    target_compile_definitions(ba_gateway_logica PUBLIC BA_GATEWAY_HAVE_WEBRTC=0)
-    target_link_libraries(ba_gateway_logica PUBLIC ba_core mbedcrypto)
-    if(BA_HAVE_LWIP)
-        target_link_libraries(ba_gateway_logica PUBLIC ba_lwip)
-        target_compile_definitions(ba_gateway_logica PUBLIC BA_HAVE_LWIP=1)
-    endif()
-    if(WIN32)
-        target_link_libraries(ba_gateway_logica PUBLIC ws2_32 iphlpapi)
-    endif()
-else()
-    add_library(ba_gateway_logica ALIAS ba_gateway_obj)
 endif()
 
 foreach(test_source ${BA_GATEWAY_TESTS})
     get_filename_component(test_name ${test_source} NAME_WE)
     add_executable(${test_name} ${test_source})
-    target_link_libraries(${test_name} PRIVATE ba_gateway_logica)
+    target_link_libraries(${test_name} PRIVATE ba_gateway_nucleo ba_gateway_nulo)
     target_include_directories(${test_name} PRIVATE "${CMAKE_SOURCE_DIR}/src/core/tests")
     target_compile_definitions(${test_name} PRIVATE
         # El árbol fuente (assets/web/guest: el humo HTTP sirve el index del invitado
@@ -357,27 +333,19 @@ endforeach()
 # ctest: ver BA_TESTS_TIEMPO_REAL en cmake/BaTestsCache.cmake. Con RUN_SERIAL, los 18 de tiempo real corrían de a uno al final
 # de la suite: 409 s de 583 con un solo test andando (medido el 2026-11-04).
 
-# Windows: los tests de medios reales (RTP/SRTP sobre UDP local; el Opus del retorno
-# compartido) tambien.
-if(BA_GATEWAY_WEBRTC)
+# Los tests de medios reales (RTP/SRTP sobre UDP local; el Opus del retorno compartido; las
+# colas): el mismo núcleo y el mismo backend que ba-gateway, sin recompilarlos.
+if(TARGET ba_gateway_webrtc)
+    if(MSVC)
+        set(_gw_sin_rtti "/GR-")
+    else()
+        set(_gw_sin_rtti "-fno-rtti")
+    endif()
     foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes test_colas_compartidas test_webrtc_capas test_webrtc_lote)
         if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/${t}.cpp")
-            # El mismo gateway que ba-gateway (ba_gateway_obj, con libwebrtc), sin recompilarlo.
             add_executable(${t} tests/${t}.cpp)
-            target_link_libraries(${t} PRIVATE ba_gateway_obj)
-            set_source_files_properties(tests/${t}.cpp PROPERTIES COMPILE_OPTIONS "/GR-")
-            add_test(NAME ${t} COMMAND ${t})
-            set_tests_properties(${t} PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
-        endif()
-    endforeach()
-endif()
-if(BA_GATEWAY_WEBRTC_MAC)
-    foreach(t test_webrtc_loopback test_webrtc_audio_compartido test_webrtc_codecs test_webrtc_redes test_colas_compartidas test_webrtc_capas test_webrtc_lote)
-        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/tests/${t}.cpp")
-            # El mismo gateway que ba-gateway (ba_gateway_obj, con libwebrtc), sin recompilarlo.
-            add_executable(${t} tests/${t}.cpp)
-            target_link_libraries(${t} PRIVATE ba_gateway_obj)
-            set_source_files_properties(tests/${t}.cpp PROPERTIES COMPILE_OPTIONS "-fno-rtti")
+            target_link_libraries(${t} PRIVATE ba_gateway_nucleo ba_gateway_webrtc)
+            set_source_files_properties(tests/${t}.cpp PROPERTIES COMPILE_OPTIONS "${_gw_sin_rtti}")
             add_test(NAME ${t} COMMAND ${t})
             set_tests_properties(${t} PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 120)
         endif()
@@ -391,8 +359,8 @@ endif()
 # libwebrtc (Shiguredo M123) esta compilado contra la libc++ de Chromium
 # (std::__Cr) y la trae adentro. El gateway real se compila aparte, con clang y
 # esos headers (cmake/gateway-webrtc); reutiliza las libs de C de este build.
-# El ba-gateway de arriba (GCC, backend NULL) sigue existiendo para los tests
-# de logica. `make deps-webrtc BA_WEBRTC_TARGET=linux` baja el SDK.
+# El ba-gateway de arriba (GCC, núcleo + backend NULL) no se instala; el núcleo y el NULL
+# siguen para los tests de lógica. `make deps-webrtc BA_WEBRTC_TARGET=linux` baja el SDK.
 set(BA_GATEWAY_REAL_POSIX OFF)
 set(BA_GW_RTC_DIR "${CMAKE_BINARY_DIR}/gateway-webrtc")
 if(UNIX AND NOT APPLE AND BA_WEBRTC_ROOT
@@ -461,5 +429,5 @@ install(DIRECTORY "${CMAKE_SOURCE_DIR}/assets/web/" DESTINATION Web)
 include("${CMAKE_SOURCE_DIR}/cmake/BaTableroWeb.cmake")
 
 # --- TURN de la caja (src/gateway/turn, docs/funciones/TURN.md) --------------
-# turn/ va en ba_gateway_obj (GLOB_RECURSE) y en ba_gateway_logica (BA_GATEWAY_LIB_SOURCES):
+# turn/ va en el núcleo (ba_gateway_nucleo, GLOB_RECURSE):
 # lo tienen ba-gateway y todos los tests.

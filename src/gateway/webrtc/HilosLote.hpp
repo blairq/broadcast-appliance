@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/rtc/HilosLote.hpp — los hilos de red y de trabajo de libwebrtc con la frontera #4
+// src/gateway/webrtc/HilosLote.hpp — los hilos de red y de trabajo de libwebrtc con la frontera #4
 // en lote (LoteTrabajo.hpp), sin tocar libwebrtc
 //
 // Lo que M123 deja enganchar desde afuera (rtc_base/thread.h, socket_server.h):
@@ -29,7 +29,6 @@
 // ============================================================================
 #pragma once
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <cstdint>
 #include <memory>
@@ -116,4 +115,3 @@ class HiloRed final : public rtc::Thread {
 
 } // namespace ba::gateway::rtcred
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

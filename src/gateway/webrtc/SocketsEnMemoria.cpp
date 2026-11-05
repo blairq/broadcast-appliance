@@ -1,9 +1,8 @@
 // ============================================================================
-// src/gateway/rtc/SocketsEnMemoria.cpp — ver SocketsEnMemoria.hpp
+// src/gateway/webrtc/SocketsEnMemoria.cpp — ver SocketsEnMemoria.hpp
 // ============================================================================
-#include "rtc/SocketsEnMemoria.hpp"
+#include "webrtc/SocketsEnMemoria.hpp"
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <unordered_map>
 #include <unordered_set>
@@ -155,4 +154,3 @@ std::unique_ptr<webrtc::AsyncDnsResolverInterface> FabricaEnMemoria::CreateAsync
 
 } // namespace ba::gateway::rtcred
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

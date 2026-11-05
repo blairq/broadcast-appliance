@@ -14,7 +14,7 @@ deps-lspdsp-linux:
 deps-linux:
 	@$(DEPS_ATAJO) --nombre deps-linux --clave-en $(EXTERNS_DIR)/.atajos/deps-linux.json -- $(MAKE) deps-linux-todo
 
-deps-linux-todo: deps-terceros-linux deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
+deps-linux-todo: deps-terceros-linux deps-qt-host deps-src deps-libyuv deps-lwip deps-cacert deps-libvterm deps-fonts deps-cloudflared-host deps-pinggy \
             deps-clap deps-lsp deps-lspdsp-linux deps-craft-linux deps-fuentes-texto deps-sherpa-onnx deps-herramientas deps-gstreamer-linux deps-python \
             deps-llamacpp-linux deps-chrome-headless-linux deps-hinchada
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=linux

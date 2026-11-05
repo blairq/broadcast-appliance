@@ -130,7 +130,7 @@ Still to do (see [`docs/historia/PLAN_MULTIPLATAFORMA.md`](../../docs/historia/P
 │   │   └── …                 #   one folder per feature: audio, video, mcp, evento, ptz…
 │   ├── motor/                # the broadcast engine on top of GStreamer
 │   ├── gst-plugins/          # our own GStreamer plugins
-│   └── gateway/              # ba-gateway — Process B (WebRTC, flag BA_GATEWAY_HAVE_WEBRTC)
+│   └── gateway/              # ba-gateway — Process B (WebRTC: core + webrtc/ or nulo/ backend)
 ├── assets/                   # deployment assets (not compiled)
 │   └── web/                  #   web apps: guest, control, whiteboard (served by B)
 ├── packaging/                # flatpak (manifest) + .desktop

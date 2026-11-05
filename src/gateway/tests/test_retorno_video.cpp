@@ -25,6 +25,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <mutex>
 #include <string>
 #include <thread>
@@ -189,7 +190,9 @@ void testEntrantes() {
     CHECK(rx.subscribe(w(pre + "Guest.1").c_str()), "la app se suscribe a la cámara del lugar 1");
     std::vector<std::uint8_t> dst(1280u * 720u * 4u);
     // Manda `ancho`×`alto` de un color hasta leer uno de los suyos (entre medio puede pasar la
-    // placa del lugar vacío). El de color `valor` en el medio es el suyo.
+    // placa del lugar vacío). El de color `valor` en el medio es el suyo: con un margen de 2,
+    // porque al achicar (1920 a 1280) el filtro de caja de libyuv redondea para abajo (0x33 sale
+    // 0x32); por eso los colores de cada caso están lejos entre sí.
     const auto mandar = [&](int ancho, int alto, std::uint8_t valor, FrameMeta& m) {
         std::vector<std::uint8_t> px(static_cast<std::size_t>(ancho) * alto * 4, valor);
         for (int i = 0; i < 50; ++i) {
@@ -197,7 +200,7 @@ void testEntrantes() {
             std::fill(dst.begin(), dst.end(), 0);
             if (rx.receive(dst.data(), dst.size(), m)) {
                 const std::size_t wC = m.ancho != 0 ? m.ancho : 1280u, hC = m.alto != 0 ? m.alto : 720u;
-                if (dst[((hC / 2) * wC + wC / 2) * 4u] == valor) return true;
+                if (std::abs(static_cast<int>(dst[((hC / 2) * wC + wC / 2) * 4u]) - valor) <= 2) return true;
             }
             std::this_thread::sleep_for(10ms);
         }
@@ -207,10 +210,10 @@ void testEntrantes() {
     CHECK(mandar(640, 360, 0x31, m) && m.ancho == 640 && m.alto == 360, "640×360 viaja a 640×360 (no se agranda)");
     CHECK(dst[640u * 360u * 4u - 1] == 0x31 && dst[640u * 360u * 4u] == 0, "solo sus bytes, juntos");
     // Parado: una caja con la forma del canal, con barras, a su escala.
-    const bool ok = mandar(360, 640, 0x32, m);
+    const bool ok = mandar(360, 640, 0x52, m);
     CHECK(ok && m.ancho == 1138 && m.alto == 640, "parado (360×640): en 1138×640, sin agrandar");
-    CHECK(ok && dst[(320u * 1138u + 569u) * 4u] == 0x32 && dst[(320u * 1138u + 10u) * 4u] == 0, "con barras a los costados");
-    CHECK(mandar(1920, 1080, 0x33, m) && m.ancho == 0 && m.alto == 0, "más grande que el canal: al tamaño del canal");
+    CHECK(ok && dst[(320u * 1138u + 569u) * 4u] == 0x52 && dst[(320u * 1138u + 10u) * 4u] == 0, "con barras a los costados");
+    CHECK(mandar(1920, 1080, 0x73, m) && m.ancho == 0 && m.alto == 0, "más grande que el canal: al tamaño del canal");
     pump.stop();
 }
 

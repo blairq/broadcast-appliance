@@ -1,12 +1,11 @@
 // ============================================================================
-// src/gateway/RetornoRtc.hpp — el retorno compartido por dentro (solo con libwebrtc)
+// src/gateway/webrtc/RetornoRtc.hpp — el retorno compartido por dentro (solo con libwebrtc)
 //
 // Lo usan Webrtc.cpp (la fábrica de codificadores, la fuente de cada sesión) y
-// RetornoCompartido.cpp (flujos, capas y el codificador de paso). Ver RetornoCompartido.hpp.
+// webrtc/RetornoRtc.cpp (flujos, capas y el codificador de paso). Ver RetornoCompartido.hpp.
 // ============================================================================
 #pragma once
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <atomic>
 #include <cstdint>
@@ -107,4 +106,3 @@ std::unique_ptr<webrtc::VideoEncoderFactory> fabricaDePaso(std::shared_ptr<webrt
 
 } // namespace ba::gateway::retorno
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

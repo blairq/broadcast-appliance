@@ -6,17 +6,19 @@
    Página del componente gateway (src/gateway). IMPLEMENTADO: Webrtc (sesiones
    + hub), SignalingServer (HTTP + WebSocket), Cloudflared (túnel), MediaPump
    (IPC ↔ WebRTC) y TokenAuth (sobre ba_core::security::TokenService).
-   Feature-flag BA_GATEWAY_HAVE_WEBRTC. Sirve Web/guest/.
+   Backend de WebRTC: webrtc/ (libwebrtc) o nulo/, según se enlace. Sirve Web/guest/.
 
 ba-gateway (Proceso B)
 ======================
 
 `ba-gateway` es el **Proceso B**: gateway **WebRTC** + motor de conversación +
-túnel (spec §8). Es **headless**: ícono en bandeja, sin Qt (spec §3.3). En
-Windows enlaza `libwebrtc` estáticamente cuando el SDK está presente
-(feature-flag `BA_GATEWAY_HAVE_WEBRTC=1`); si no, usa un **backend NULL**
-(`BA_GATEWAY_HAVE_WEBRTC=0`) que completa la señalización (offer→answer) para
-que el flujo sea testeable sin el SDK. Usa `/MD` (CRT dinámica) por
+túnel (spec §8). Es **headless**: ícono en bandeja, sin Qt (spec §3.3). El
+gateway es un **núcleo** (`ba_gateway_nucleo`, compilado una vez) más uno de dos
+backends de `Webrtc.hpp`, según qué biblioteca se enlace: `webrtc/`
+(`ba_gateway_webrtc`, con `libwebrtc` estático cuando el SDK está presente) o
+`nulo/` (`ba_gateway_nulo`), un **backend NULL** que completa la señalización
+(offer→answer) para que el flujo sea testeable sin el SDK. Los tests de lógica
+enlazan el mismo núcleo que el programa, con el backend NULL. Usa `/MD` (CRT dinámica) por
 consistencia con libwebrtc.
 
 Estado actual: **IMPLEMENTADO**. La lógica vive en estas piezas:

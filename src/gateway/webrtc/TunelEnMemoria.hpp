@@ -1,5 +1,5 @@
 // ============================================================================
-// src/gateway/rtc/TunelEnMemoria.hpp — WireGuard ↔ red de WebRTC en memoria (F5 #18/#19)
+// src/gateway/webrtc/TunelEnMemoria.hpp — WireGuard ↔ red de WebRTC en memoria (F5 #18/#19)
 //
 // El sumidero de la pila IP del túnel (net::IpStack::setSumidero, lo de HL): en vez de un
 // socket local por invitado y un sendto a 127.0.0.1:P, cada tanda de datagramas que trae
@@ -12,14 +12,14 @@
 // ============================================================================
 #pragma once
 
-#if BA_GATEWAY_HAVE_WEBRTC && BA_HAVE_LWIP
+#if BA_HAVE_LWIP
 
 #include <cstdint>
 #include <unordered_map>
 
 #include "net/IpStack.hpp"
 #include "rtc/Conmutador.hpp"
-#include "rtc/SocketsEnMemoria.hpp"
+#include "webrtc/SocketsEnMemoria.hpp"
 
 namespace ba::gateway::rtcred {
 

@@ -1,7 +1,7 @@
 // ============================================================================
-// src/gateway/Webrtc.cpp — Sesiones WebRTC (libwebrtc M123 real + backend NULL)
+// src/gateway/webrtc/Webrtc.cpp — Sesiones WebRTC con libwebrtc M123 (el backend de verdad)
 //
-// Backend REAL (BA_GATEWAY_HAVE_WEBRTC=1):
+// Implementa Webrtc.hpp; el otro backend es nulo/WebrtcNulo.cpp (quién enlaza cuál: src/gateway/CMakeLists.txt):
 //   - B es el ANSWERER. SetRemoteDescription(offer) crea los transceivers que
 //     ofrece el navegador; recien DESPUES se agregan los tracks de retorno con
 //     AddTrack, que se enganchan a esos transceivers (un answerer no puede
@@ -33,7 +33,7 @@
 //     bytes, payload type del espectador). La fuente de ese sender no emite
 //     nunca, asi que B no codifica nada para los espectadores.
 //
-// Backend NULL (BA_GATEWAY_HAVE_WEBRTC=0): maquina de estados que completa la
+// Backend NULL (nulo/WebrtcNulo.cpp, los tests de lógica): máquina de estados que completa la
 // senalizacion sin RTP; sirve para testear el servidor sin el SDK.
 //
 // Threading: los callbacks de libwebrtc llegan desde SUS threads (signaling,
@@ -43,10 +43,11 @@
 
 #include "Webrtc.hpp"
 #include "AudioCompartido.hpp"
-#include "AudioCompartidoRtc.hpp"
+#include "webrtc/AudioCompartidoRtc.hpp"
 #include "CargaVideo.hpp"
+#include "EstadoCapas.hpp"
 #include "RetornoCompartido.hpp"
-#include "RetornoRtc.hpp"
+#include "webrtc/RetornoRtc.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "diag/Frontera.hpp"
 #include "diag/Registro.hpp"
@@ -73,8 +74,7 @@
 
 #include <nlohmann/json.hpp>
 
-#if BA_GATEWAY_HAVE_WEBRTC
-#include "RedesSesionRtc.hpp"
+#include "webrtc/RedesSesionRtc.hpp"
 #include "api/audio/audio_frame.h"
 #include "api/audio/audio_mixer.h"
 #include "api/audio_codecs/builtin_audio_decoder_factory.h"
@@ -106,19 +106,19 @@
 #if defined(WEBRTC_WIN)
 #include "rtc_base/win32_socket_init.h"
 #endif
-#include "CodecsVideo.hpp"
+#include "webrtc/CodecsVideo.hpp"
 #include "DestinoCamara.hpp"
 #include "media/base/adapted_video_track_source.h"
 #include "modules/audio_device/include/audio_device.h"
 #include "modules/audio_device/include/audio_device_default.h"
 #include "modules/audio_processing/include/audio_processing.h"
-#include "rtc/ColasCompartidas.hpp"
-#include "rtc/BucleRtc.hpp"
-#include "rtc/HilosLote.hpp"
+#include "webrtc/ColasRtc.hpp"
+#include "webrtc/BucleRtc.hpp"
+#include "webrtc/HilosLote.hpp"
 #include "rtc/LoteTrabajo.hpp"
-#include "rtc/SocketsEnMemoria.hpp"
+#include "webrtc/SocketsEnMemoria.hpp"
 #if BA_HAVE_LWIP
-#include "rtc/TunelEnMemoria.hpp"
+#include "webrtc/TunelEnMemoria.hpp"
 #endif
 #include "rtc_base/logging.h"
 #include "rtc_base/ssl_adapter.h"
@@ -127,143 +127,11 @@
 #include "system_wrappers/include/field_trial.h"
 #include "third_party/libyuv/include/libyuv/convert.h"
 #include "third_party/libyuv/include/libyuv/convert_argb.h"
-#endif
 
 namespace ba::gateway {
 
 using json = nlohmann::json;
 
-namespace {
-/// Las dos capas de la camara de una sesion (Capas.hpp), igual en los dos backends. Los
-/// cuadros llegan por los hilos de libwebrtc y los pedidos por el del servidor: candado.
-struct EstadoCapas {
-    mutable std::mutex mu;
-    SelectorCapas sel;
-    std::string midAlta, midBaja;
-
-    bool conLocked() const { return !midAlta.empty() && !midBaja.empty(); }
-    bool con() const {
-        std::lock_guard<std::mutex> l(mu);
-        return conLocked();
-    }
-    /// Conexion nueva (configure): el navegador arranca con las dos prendidas.
-    void reiniciar() {
-        std::lock_guard<std::mutex> l(mu);
-        sel.reiniciar();
-        midAlta.clear();
-        midBaja.clear();
-    }
-    /// Los mids que declaró el navegador. Otros que los de antes (o los primeros): es otro
-    /// juego de capas, que arranca con las dos prendidas.
-    void ponerMids(const std::string& alta, const std::string& baja) {
-        std::lock_guard<std::mutex> l(mu);
-        if (alta == midAlta && baja == midBaja) return;
-        midAlta = alta;
-        midBaja = baja;
-        sel.reiniciar();
-    }
-    /// La capa de un transceptor por su mid (Nada: no es una capa, o no hay capas).
-    Capa deMid(const std::string& mid) const {
-        std::lock_guard<std::mutex> l(mu);
-        if (!conLocked() || mid.empty()) return Capa::Nada;
-        return mid == midAlta ? Capa::Alta : mid == midBaja ? Capa::Baja : Capa::Nada;
-    }
-    /// true (con `a`) si hay que decirle al navegador qué capas prender.
-    bool pedir(Capa c, CapasActivas& a) {
-        std::lock_guard<std::mutex> l(mu);
-        if (!conLocked()) return false; // una sola cámara: no hay nada que elegir
-        const bool cambio = sel.pedir(c);
-        a = sel.activas();
-        return cambio;
-    }
-    bool llego(Capa c, bool& pasa, bool& anterior, bool& empieza, int& fundidoMs, CapasActivas& a) {
-        std::lock_guard<std::mutex> l(mu);
-        const auto ahora = std::chrono::duration_cast<std::chrono::milliseconds>(
-                               std::chrono::steady_clock::now().time_since_epoch())
-                               .count();
-        const bool cambio = sel.llego(c, pasa, anterior, empieza, ahora);
-        fundidoMs = sel.fundidoMs();
-        a = sel.activas();
-        return cambio;
-    }
-    void setFundidoMs(int ms) {
-        std::lock_guard<std::mutex> l(mu);
-        sel.setFundidoMs(ms);
-    }
-    Capa sale() const {
-        std::lock_guard<std::mutex> l(mu);
-        return sel.sale();
-    }
-    Capa pedida() const {
-        std::lock_guard<std::mutex> l(mu);
-        return sel.pedida();
-    }
-    CapasActivas activas() const {
-        std::lock_guard<std::mutex> l(mu);
-        return sel.activas();
-    }
-};
-} // namespace
-
-#if !BA_GATEWAY_HAVE_WEBRTC
-// ============================================================================
-// Backend NULL
-// ============================================================================
-struct WebrtcSession::Impl {
-    int slot = 0;
-    SessionCallbacks cb;
-    bool configured = false;
-    bool connected = false;
-    bool closed = false;
-    std::atomic<uint64_t> localAudioBlocks{0};
-    std::atomic<uint64_t> localVideoFrames{0};
-    EstadoCapas capas;
-    std::atomic<int> topeRetorno{0};
-
-    bool configure(const SessionCallbacks& c) {
-        cb = c;
-        configured = true;
-        capas.reiniciar();
-        topeRetorno = 0;
-        // configure() se llama de nuevo en cada reconexion: se limpia el estado
-        // para que la sesion no quede muerta tras el primer cierre.
-        closed = false;
-        connected = false;
-        localAudioBlocks.store(0);
-        localVideoFrames.store(0);
-        return true;
-    }
-    bool setRemoteOffer(const std::string&) {
-        if (!configured || closed) return false;
-        const bool first = !connected;
-        connected = true;
-        // Answer minimo coherente (el backend real lo genera libwebrtc).
-        if (cb.onLocalAnswer) {
-            cb.onLocalAnswer("v=0\r\no=- 0 0 IN IP4 127.0.0.1\r\ns=-\r\nt=0 0\r\n"
-                             "m=audio 9 UDP/TLS/RTP/SAVPF 111\r\na=rtpmap:111 opus/48000/2\r\n"
-                             "m=video 9 UDP/TLS/RTP/SAVPF 96\r\na=rtpmap:96 VP8/90000\r\n");
-        }
-        if (first && cb.onStateChange) cb.onStateChange(true);
-        return true;
-    }
-    bool addRemoteIce(const std::string&) { return configured && !closed; }
-    void pushLocalAudio(const float*, size_t n, int) {
-        if (n > 0 && connected) localAudioBlocks.fetch_add(1, std::memory_order_relaxed);
-    }
-    void pushLocalVideo() {
-        if (connected) localVideoFrames.fetch_add(1, std::memory_order_relaxed);
-    }
-    void close() {
-        if (closed) return;
-        closed = true;
-        const bool was = connected;
-        connected = false;
-        if (was && cb.onStateChange) cb.onStateChange(false);
-    }
-    std::string estadisticas() { return "{}"; }
-};
-
-#else
 // ============================================================================
 // Backend REAL (libwebrtc)
 // ============================================================================
@@ -1093,7 +961,7 @@ struct ParRtc {
 };
 
 /// Las colas de libwebrtc de TODAS las fábricas sobre los mismos grupos de hilos
-/// (rtc/ColasCompartidas.hpp): cada fábrica recibe una de paso a la común.
+/// (webrtc/ColasRtc.hpp): cada fábrica recibe una de paso a la común.
 class ColasDePaso final : public webrtc::TaskQueueFactory {
    public:
     explicit ColasDePaso(std::shared_ptr<webrtc::TaskQueueFactory> comun) : comun_(std::move(comun)) {}
@@ -1733,7 +1601,6 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
         }
     }
 };
-#endif // BA_GATEWAY_HAVE_WEBRTC
 
 // ============================================================================
 // CuadroSaliente (F2-13: una conversión por cuadro, no una por sesión)
@@ -1746,46 +1613,29 @@ std::atomic<uint64_t> g_bytesConvertidos{0};
 
 struct CuadroSaliente::Impl {
     int ancho = 0, alto = 0;
-#if BA_GATEWAY_HAVE_WEBRTC
     rtc::scoped_refptr<webrtc::I420Buffer> i420;
     std::shared_ptr<retorno::Emision> emision; ///< de qué flujo es (FlujoRetorno::emitir)
-#endif
 };
 
 struct FlujoRetorno::Impl {
-#if BA_GATEWAY_HAVE_WEBRTC
     std::shared_ptr<retorno::Flujo> flujo;
-#endif
 };
 
 struct AudioCompartido::Impl {
-#if BA_GATEWAY_HAVE_WEBRTC
     std::shared_ptr<audioret::Grupo> grupo;
-#endif
 };
 
 uint64_t AudioCompartido::codificar(const float* pcm, size_t n, int rate) const {
-#if BA_GATEWAY_HAVE_WEBRTC
     return impl_ && impl_->grupo ? impl_->grupo->codificar(pcm, n, rate) : 0;
-#else
-    (void)pcm;
-    (void)n;
-    (void)rate;
-    return 0;
-#endif
 }
 
 CuadroSaliente FlujoRetorno::emitir(const CuadroSaliente& c) const {
-#if BA_GATEWAY_HAVE_WEBRTC
     if (!impl_ || !impl_->flujo || c.vacio() || !c.impl_->i420) return c;
     auto impl = std::make_shared<CuadroSaliente::Impl>(*c.impl_);
     impl->emision = retorno::emitir(impl_->flujo, impl->i420);
     CuadroSaliente out;
     out.impl_ = std::move(impl);
     return out;
-#else
-    return c;
-#endif
 }
 
 CuadroSaliente CuadroSaliente::desdeBgra(const uint8_t* bgra, int ancho, int alto, int stride) {
@@ -1794,15 +1644,11 @@ CuadroSaliente CuadroSaliente::desdeBgra(const uint8_t* bgra, int ancho, int alt
     auto impl = std::make_shared<Impl>();
     impl->ancho = ancho;
     impl->alto = alto;
-#if BA_GATEWAY_HAVE_WEBRTC
     impl->i420 = webrtc::I420Buffer::Create(ancho, alto);
     // libyuv "ARGB" es B,G,R,A en memoria: justamente BGRA.
     libyuv::ARGBToI420(bgra, stride > 0 ? stride : ancho * 4, impl->i420->MutableDataY(), impl->i420->StrideY(),
                        impl->i420->MutableDataU(), impl->i420->StrideU(), impl->i420->MutableDataV(),
                        impl->i420->StrideV(), ancho, alto);
-#else
-    (void)stride;
-#endif
     g_conversiones.fetch_add(1, std::memory_order_relaxed);
     const uint64_t croma = static_cast<uint64_t>((ancho + 1) / 2) * static_cast<uint64_t>((alto + 1) / 2);
     g_bytesConvertidos.fetch_add(static_cast<uint64_t>(ancho) * static_cast<uint64_t>(alto) + 2 * croma,
@@ -1842,12 +1688,7 @@ WebrtcSession& WebrtcSession::operator=(WebrtcSession&& o) noexcept {
 }
 
 bool WebrtcSession::configure(const SessionCallbacks& cb, void* factory) {
-#if BA_GATEWAY_HAVE_WEBRTC
     return impl_ != nullptr && impl_->configure(cb, factory);
-#else
-    (void)factory;
-    return impl_ != nullptr && impl_->configure(cb);
-#endif
 }
 bool WebrtcSession::setRemoteOffer(const std::string& sdp) {
     return impl_ != nullptr && impl_->setRemoteOffer(sdp);
@@ -1875,14 +1716,8 @@ void WebrtcSession::pushLocalAudio(const float* s, size_t n, int rate) {
 }
 void WebrtcSession::pushLocalAudio(const float* s, size_t n, int rate, const AudioCompartido& grupo, uint64_t bloque) {
     if (impl_ == nullptr) return;
-#if BA_GATEWAY_HAVE_WEBRTC
     const uint16_t id = grupo.impl_ && grupo.impl_->grupo && bloque != 0 ? grupo.impl_->grupo->id() : 0;
     impl_->pushLocalAudio(s, n, rate, id, bloque);
-#else
-    (void)grupo;
-    (void)bloque;
-    impl_->pushLocalAudio(s, n, rate);
-#endif
 }
 void WebrtcSession::pushLocalVideo(const uint8_t* p, size_t bytes, int w, int h) {
     if (impl_ == nullptr || p == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
@@ -1891,11 +1726,7 @@ void WebrtcSession::pushLocalVideo(const uint8_t* p, size_t bytes, int w, int h)
 }
 void WebrtcSession::pushLocalVideo(const CuadroSaliente& c) {
     if (impl_ == nullptr || c.vacio()) return;
-#if BA_GATEWAY_HAVE_WEBRTC
     impl_->pushLocalVideo(c.impl_->i420, c.impl_->emision);
-#else
-    impl_->pushLocalVideo();
-#endif
 }
 bool WebrtcSession::connected() const { return impl_ != nullptr && impl_->connected; }
 void WebrtcSession::close() {
@@ -1904,28 +1735,16 @@ void WebrtcSession::close() {
 int WebrtcSession::slot() const { return impl_ != nullptr ? impl_->slot : 0; }
 void WebrtcSession::setTopeRetorno(int alto) {
     if (impl_ == nullptr) return;
-#if BA_GATEWAY_HAVE_WEBRTC
     impl_->retornoEstado->topeAlto.store(std::max(0, alto), std::memory_order_relaxed);
-#else
-    impl_->topeRetorno.store(std::max(0, alto), std::memory_order_relaxed);
-#endif
 }
 int WebrtcSession::topeRetorno() const {
     if (impl_ == nullptr) return 0;
-#if BA_GATEWAY_HAVE_WEBRTC
     return impl_->retornoEstado->topeAlto.load(std::memory_order_relaxed);
-#else
-    return impl_->topeRetorno.load(std::memory_order_relaxed);
-#endif
 }
 std::string WebrtcSession::estadisticas() {
     if (impl_ == nullptr) return "{}";
     std::string s = impl_->estadisticas();
-#if BA_GATEWAY_HAVE_WEBRTC
     const bool conRetorno = impl_->retornoEstado->fuente.load(std::memory_order_relaxed) != 0;
-#else
-    const bool conRetorno = false;
-#endif
     if (!impl_->capas.con() && !conRetorno) return s;
     json j = json::parse(s, nullptr, false);
     if (!j.is_object()) j = json::object();
@@ -1934,7 +1753,6 @@ std::string WebrtcSession::estadisticas() {
         j["capa"] = nombreCapa(impl_->capas.sale());
         j["capa_pedida"] = nombreCapa(impl_->capas.pedida());
     }
-#if BA_GATEWAY_HAVE_WEBRTC
     if (conRetorno) {
         // El video de retorno que le sale (RetornoCompartido.hpp): qué capa, por qué objetivo.
         const retorno::EstadoSesion& r = *impl_->retornoEstado;
@@ -1947,7 +1765,6 @@ std::string WebrtcSession::estadisticas() {
                         {"cuadros", r.cuadrosCompartidos.load(std::memory_order_relaxed) +
                                         r.cuadrosPropios.load(std::memory_order_relaxed)}};
     }
-#endif
     return j.dump(-1, ' ', false, json::error_handler_t::replace);
 }
 uint64_t WebrtcSession::localAudioBlocks() const {
@@ -1965,7 +1782,6 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
     sessions_.resize(static_cast<size_t>(guests) + 1);
     for (int s = 1; s <= guests; ++s)
         sessions_[static_cast<size_t>(s)] = WebrtcSession(s, videoW, videoH, audioRate, audioChannels);
-#if BA_GATEWAY_HAVE_WEBRTC
     rtc::LogMessage::LogToDebug(rtc::LS_ERROR);
     rtc::InitializeSSL();
     // Sondeo en ALR (RetornoCompartido.hpp): con el retorno compartido cada conexión manda
@@ -2048,7 +1864,7 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
         });
     }
     // Las colas de tareas de libwebrtc: las de TODAS las fábricas comparten dos grupos chicos
-    // de hilos (rtc/ColasCompartidas.hpp, `gateway.hilosColas`); −1: las de libwebrtc (un hilo
+    // de hilos (webrtc/ColasRtc.hpp, `gateway.hilosColas`); −1: las de libwebrtc (un hilo
     // por cola), para comparar o si algo anda mal.
     std::shared_ptr<webrtc::TaskQueueFactory> colasComunes;
     if (ba::ajustes::entero("gateway.hilosColas", 0) < 0) {
@@ -2132,10 +1948,8 @@ WebrtcHub::WebrtcHub(int guests, int videoW, int videoH, int audioRate, int audi
         for (ParRtc& p : st->pares) p.factory = nullptr;
         apagarCapas(st);
     }
-#endif
 }
 
-#if BA_GATEWAY_HAVE_WEBRTC
 namespace {
 /// Para y suelta todo lo de las capas (las fábricas ya no están).
 void apagarCapas(RtcHubState* st) {
@@ -2153,11 +1967,9 @@ void apagarCapas(RtcHubState* st) {
     delete st;
 }
 } // namespace
-#endif
 
 WebrtcHub::~WebrtcHub() {
     closeAll();
-#if BA_GATEWAY_HAVE_WEBRTC
     if (auto* st = static_cast<RtcHubState*>(rtcFactory_)) {
         std::vector<int> ids;
         {
@@ -2186,11 +1998,9 @@ WebrtcHub::~WebrtcHub() {
         rtcFactory_ = nullptr;
     }
     rtc::CleanupSSL();
-#endif
 }
 
 void WebrtcHub::setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopback, const std::vector<std::string>& ignorar) {
-#if BA_GATEWAY_HAVE_WEBRTC
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st == nullptr) return;
     st->minPort = minPort;
@@ -2215,32 +2025,22 @@ void WebrtcHub::setNetwork(uint16_t minPort, uint16_t maxPort, bool allowLoopbac
         for (ParRtc& p : st->pares)
             if (p.factory) p.factory->SetOptions(opts);
     }
-#else
-    (void)minPort;
-    (void)maxPort;
-    (void)allowLoopback;
-    (void)ignorar;
-#endif
 }
 
 std::vector<turn::Bucle*> WebrtcHub::buclesRed() const {
     std::vector<turn::Bucle*> v;
-#if BA_GATEWAY_HAVE_WEBRTC
     if (auto* st = static_cast<RtcHubState*>(rtcFactory_))
         for (CapaRed& c : st->red) v.push_back(c.bucle.get());
-#endif
     return v;
 }
 
 memoria::Conmutador* WebrtcHub::conmutador() const {
-#if BA_GATEWAY_HAVE_WEBRTC
     if (auto* st = static_cast<RtcHubState*>(rtcFactory_)) return st->conmutador.get();
-#endif
     return nullptr;
 }
 
 void WebrtcHub::conectarTunel(net::IpStack* pila) {
-#if BA_GATEWAY_HAVE_WEBRTC && BA_HAVE_LWIP
+#if BA_HAVE_LWIP
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st == nullptr) return;
     std::lock_guard<std::mutex> l(st->tunelM);
@@ -2261,7 +2061,6 @@ void WebrtcHub::conectarTunel(net::IpStack* pila) {
 }
 
 nlohmann::json WebrtcHub::capasEstado() const {
-#if BA_GATEWAY_HAVE_WEBRTC
     if (auto* st = static_cast<RtcHubState*>(rtcFactory_)) {
         nlohmann::json j = st->reparto->estado();
         int fabricas = 0;
@@ -2284,7 +2083,6 @@ nlohmann::json WebrtcHub::capasEstado() const {
                             {"trabajo", std::move(esperas)}};
         return j;
     }
-#endif
     return nlohmann::json::object();
 }
 
@@ -2295,7 +2093,6 @@ WebrtcSession* WebrtcHub::session(int idx) {
 
 FlujoRetorno WebrtcHub::flujoRetorno(const std::string& nombre) {
     FlujoRetorno out;
-#if BA_GATEWAY_HAVE_WEBRTC
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st == nullptr || !st->codificadores) return out;
     std::lock_guard<std::mutex> lock(st->flujosM);
@@ -2303,48 +2100,35 @@ FlujoRetorno WebrtcHub::flujoRetorno(const std::string& nombre) {
     if (!f) f = retorno::crearFlujo(nombre, st->codificadores);
     out.impl_ = std::make_shared<FlujoRetorno::Impl>();
     out.impl_->flujo = f;
-#else
-    (void)nombre;
-#endif
     return out;
 }
 
 AudioCompartido WebrtcHub::audioCompartido(const std::string& nombre) {
     AudioCompartido out;
-#if BA_GATEWAY_HAVE_WEBRTC
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st == nullptr || !st->audioGrupos) return out;
     out.impl_ = std::make_shared<AudioCompartido::Impl>();
     out.impl_->grupo = st->audioGrupos->grupo(nombre);
-#else
-    (void)nombre;
-#endif
     return out;
 }
 
 nlohmann::json WebrtcHub::audioCompartidoEstado() const {
-#if BA_GATEWAY_HAVE_WEBRTC
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st != nullptr && st->audioGrupos) return st->audioGrupos->estado();
-#endif
     return nlohmann::json::array();
 }
 
 nlohmann::json WebrtcHub::retornoCompartido() const {
     nlohmann::json out = nlohmann::json::array();
-#if BA_GATEWAY_HAVE_WEBRTC
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st == nullptr) return out;
     std::lock_guard<std::mutex> lock(st->flujosM);
     for (const auto& [n, f] : st->flujos) out.push_back(retorno::estado(*f));
-#endif
     return out;
 }
 
 nlohmann::json WebrtcHub::codecsVideo() const {
-#if BA_GATEWAY_HAVE_WEBRTC
     if (rtcFactory_ != nullptr) return codecs::estado();
-#endif
     return nlohmann::json::object();
 }
 
@@ -2357,7 +2141,6 @@ void WebrtcHub::closeAll() {
 // Espectadores (relay de video codificado)
 // ============================================================================
 
-#if BA_GATEWAY_HAVE_WEBRTC
 int WebrtcHub::openViewer(int session, bool screen, const std::string& offerSdp, std::string& answerSdp) {
     auto* st = static_cast<RtcHubState*>(rtcFactory_);
     if (st == nullptr || session < 1 || session > guests_) return 0;
@@ -2547,18 +2330,7 @@ WebrtcHub::EntradaCamara WebrtcHub::entradaCamara(int session) const {
         out.baja = it->second->bytesEntrada.load(std::memory_order_relaxed);
     return out;
 }
-#else
-// Backend NULL: sin RTP no hay nada que reenviar.
-int WebrtcHub::openViewer(int, bool, const std::string&, std::string&) { return 0; }
-void WebrtcHub::closeViewer(int) {}
-void WebrtcHub::closeViewersOf(int) {}
-void WebrtcHub::requestKeyFrame(int) {}
-void WebrtcHub::reapViewers() {}
-WebrtcHub::Trafico WebrtcHub::trafico() const { return {}; }
 
-int WebrtcHub::viewerCount() const { return 0; }
-int WebrtcHub::espectadoresDe(int) const { return 0; }
-WebrtcHub::EntradaCamara WebrtcHub::entradaCamara(int) const { return {}; }
-#endif
+const char* nombreBackendRtc() { return "libwebrtc"; }
 
 } // namespace ba::gateway
