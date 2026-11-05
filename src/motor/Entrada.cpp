@@ -683,9 +683,13 @@ void Entrada::leer(const json& a) {
         rotulo_->ancho = std::max(2, w);
         rotulo_->alto = std::max(2, h);
         rotulo_->fondo = 0x00000000;
+        // Las caps del appsrc van tal cual (no se fijan contra lo de abajo): sin el píxel
+        // cuadrado, d3d12 no negocia; sin interlace-mode, en la CPU tampoco: la normalización
+        // pide progressive y el imagefreeze rechaza unas caps que no lo dicen (not-negotiated:
+        // el rótulo no salía nunca y el corte a su escena no llegaba).
         descripcion_ = "appsrc name=ba_texto format=time caps=video/x-raw,format=BGRA" + tam + ",framerate=" +
                        std::to_string(lienzo_.fpsN) + "/" + std::to_string(lienzo_.fpsD) +
-                       ",pixel-aspect-ratio=1/1 ! imagefreeze is-live=true"; // sin el píxel cuadrado, d3d12 no negocia
+                       ",pixel-aspect-ratio=1/1,interlace-mode=progressive ! imagefreeze is-live=true";
         alfaTipo = true;
         conAudio_ = false;
     } else if (tipo == "app") {
