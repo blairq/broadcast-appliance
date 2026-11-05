@@ -257,15 +257,16 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
     // motor no lo leía nadie (~4 % de un núcleo, siempre).
     op.loudness = false;
     s.mezcla = std::make_unique<Mezcla>(*reloj_, "programa" + suf, op);
-    if (!s.mezcla->anda()) {
-        const std::string e = llenar(traducir("motor", "el bus PROGRAMA no arrancó: %1"), {s.mezcla->error()});
-        s.mezcla.reset();
-        s.errorMezcla = e; // estado() la muestra sin bus, con el motivo
-        return e;
-    }
+    // Sin su bus (falta una pieza) la salida se arma igual sin audio: el video, lo demás (que
+    // mira `s.mezcla`). estado() la muestra sin bus, con el motivo; el error vuelve al final.
     s.errorMezcla.clear();
-    s.mezcla->ponerLimitador(true, s.techoDb); // el loudness que tenía (ponerLoudness)
-    s.mezcla->ponerAgc(s.agc, s.objetivoLufs);
+    if (!s.mezcla->anda()) {
+        s.errorMezcla = llenar(traducir("motor", "el bus PROGRAMA no arrancó: %1"), {s.mezcla->error()});
+        s.mezcla.reset();
+    } else {
+        s.mezcla->ponerLimitador(true, s.techoDb); // el loudness que tenía (ponerLoudness)
+        s.mezcla->ponerAgc(s.agc, s.objetivoLufs);
+    }
     if (cfg_.video) {
         Composicion::Opciones vop;
         vop.gpu = cfg_.videoGpu;
@@ -286,7 +287,7 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
     // Con emisor aparte (F3-01), también al suyo: lo codifica otro proceso.
     if (cfg_.emisores.count(id) > 0) s.puenteEmisor = armarPuente(s, ba::ipc::sufijoAudioEmisor(id));
     if (hayOyentes(id)) armarTomaAudio(id); // la pidieron antes de que existiera
-    return {};
+    return s.errorMezcla;
 }
 
 GstElement* Motor::armarPuente(Salida& s, const std::string& canal) {

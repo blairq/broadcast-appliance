@@ -126,6 +126,10 @@ int main() {
         CHECK(e["salidas"].is_object() && !e["salidas"].empty(), "estado: las salidas");
         for (const auto& [sid, s] : e["salidas"].items()) CHECK(tieneError(s["programa"]), "la salida, con su bus que no está y el motivo");
         CHECK(e["video"]["programa"].is_object() && e["video"]["preview"].is_object(), "el video del programa y del preview: objetos");
+        // Sin el bus de audio el video se arma igual (acá también falla, por intersink: con su motivo).
+        CHECK(e["video"]["programa"].contains("capas"), "el video del programa se armó aunque el bus no");
+        CHECK(e["video"]["programa"].value("error", std::string()).find("intersink") != std::string::npos,
+              "y su motivo también dice qué falta");
         leerComoLaApp(e);
         CHECK(e["entradas"].contains("tono"), "la entrada quedó (aunque no pueda llegar al programa)");
 
