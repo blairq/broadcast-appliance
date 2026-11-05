@@ -65,6 +65,7 @@ shcore.dll
 shell32.dll
 shlwapi.dll
 ucrtbase.dll
+uiautomationcore.dll
 user32.dll
 userenv.dll
 uxtheme.dll
