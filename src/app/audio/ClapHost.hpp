@@ -79,6 +79,10 @@ struct PortInfo {
 class ClapLibrary {
    public:
     static std::shared_ptr<ClapLibrary> open(const std::string& path, std::string* error);
+    /// Carga el binario del sistema (LoadLibrary / dlopen) y lo deja cargado, sin iniciarlo:
+    /// lo caro (abrirlo, que el antivirus lo revise, mapearlo) queda hecho en el hilo que
+    /// llama, y el `open` de después lo encuentra ya cargado. Ver RackManager::precargar.
+    static void precargarBinario(const std::string& path);
     ~ClapLibrary();
     ClapLibrary(const ClapLibrary&) = delete;
     ClapLibrary& operator=(const ClapLibrary&) = delete;

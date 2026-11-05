@@ -11,6 +11,7 @@
 #include "arranque/GuiMode.hpp"
 #include "ajustes/Ajustes.hpp"
 #include "arranque/ArranqueAviso.hpp"
+#include "audio/RackManager.hpp"
 #include "control/MonitorBus.hpp"
 #include "ui/FotosPersonas.hpp"
 #include "ui/ProveedorFotos.hpp"
@@ -84,6 +85,7 @@
 #include <QFont>
 #include <QImage>
 #include <QAudioDevice>
+#include <QCameraDevice>
 #include <QMediaDevices>
 #include <QPainter>
 #include <QPointer>
@@ -144,6 +146,15 @@ class AudioDelSistema {
             (void)QMediaDevices::audioInputs();
             ba::diag::registro().info(ba::i18n::llenar(
                 ba::i18n::traducir("arranque", "arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms"),
+                {std::to_string(reloj.elapsed())}));
+            // Las cámaras, también acá: la primera lista en Windows es Media Foundation
+            // conectándose a su servidor de cámaras (FrameServer), ~0,4 s, y la pedía la
+            // interfaz (la firma de los equipos, dispositivos/Registro) al terminar de abrir
+            // (volcados de la .177, 2026-11-05).
+            reloj.restart();
+            (void)QMediaDevices::videoInputs();
+            ba::diag::registro().info(ba::i18n::llenar(
+                ba::i18n::traducir("arranque", "arranque: las cámaras del sistema (Qt Multimedia, en su hilo), %1 ms"),
                 {std::to_string(reloj.elapsed())}));
         });
 #ifdef _WIN32
@@ -437,6 +448,9 @@ int runGui(int argc, char** argv) {
         ba::diag::registro().info(ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: la configuración, %1 ms"),
                                                    {std::to_string(reloj.elapsed())}));
     }
+    // Los plugins LSP (lo más pesado que carga la interfaz al armar el modelo), del disco ya,
+    // en otro hilo: mientras arranca el motor (ver RackManager::precargar).
+    audio::RackManager::precargar(rt.dataRoot());
     // Los servidores (OpenCode, el modelo local) de una corrida que murió sin pararlos.
     ba::app::agent::hijos::barrerHuerfanos();
     // EL PLANO DE CONTROL (F3-03): su hilo con el canal del launcher, el documento de aire,

@@ -59,6 +59,12 @@ class RackManager : public QObject {
 
     /// Los plugins LSP (se abren la primera vez). nullptr + error si no estan.
     std::shared_ptr<ClapLibrary> library(std::string* error = nullptr);
+    /// Los plugins LSP (lsp-plugins.clap, decenas de MB) cargados del disco en otro hilo,
+    /// ANTES de que haga falta: el primer `library()` corre en el hilo de la interfaz al
+    /// armar el modelo de la app, y en Windows cargar ese binario (abrirlo con el antivirus
+    /// revisándolo) le costaba ~0,4 s al arranque (volcados de la .177, 2026-11-05). Se llama
+    /// una vez, al arrancar; no espera a nada.
+    static void precargar(const std::filesystem::path& dataRoot);
     /// Fuentes con audio: [{nombre, tipo, rack: bool, modulos: n}].
     json audioSources() const;
     /// La vista general del audio (página Audio → Estudio; MCP audio_estudio):
