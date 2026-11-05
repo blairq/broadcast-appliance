@@ -686,6 +686,13 @@ int main() {
     for (const char* modulo : {"compositor", "glvideomixer", "d3d12compositor"}) {
         if (!hayFabrica(modulo) || (std::string(modulo) != "compositor" && memoriaDeTrabajo(modulo) != memoriaDelMotor())) continue;
         if (std::string(modulo).rfind("gl", 0) == 0 && ba::pruebas::sinGlPorWine((std::string("la mezcla con ") + modulo).c_str())) continue;
+        // d3d12compositor también toma memoria del sistema, pero sin una placa D3D12 que ande
+        // (la autoprueba del motor no pasó: Wine en Docker) no saca imagen.
+        if (std::string(modulo) == "d3d12compositor" && gpu() != Gpu::D3D12) {
+            std::printf("se saltea la mezcla con d3d12compositor: D3D12 no pasa la autoprueba en esta máquina (el motor compone en %s)\n",
+                        nombreGpu());
+            continue;
+        }
         const std::string mod = modulo;
         Composicion::Opciones op;
         op.mezclador = {{"elemento", mod}};
