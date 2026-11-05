@@ -32,6 +32,21 @@
 dist-linux-docker:
 	tools/ci/compilar-en-docker.sh linux
 
+# La base de las capas de Docker (tools/ci/capa-docker.sh): master compilado para Linux y
+# Windows. Después de integrar a master, desde el árbol principal en master: las ramas
+# compilan solo lo que difieren de ella. Espera a que no corra ninguna capa y las tira.
+.PHONY: docker-base docker-capas docker-capas-limpiar
+docker-base:
+	@rc=0; BA_DOCKER_BASE=1 tools/ci/compilar-en-docker.sh todo || rc=$$?; \
+	if [ $$rc = 3 ] && [ "$$(uname -s)" = Darwin ]; then \
+	  echo "AVISO: tests de Windows bajo Wine fallaron (Wine sobre Rosetta): la base quedó igual." >&2; \
+	elif [ $$rc != 0 ]; then exit $$rc; fi
+docker-capas:
+	@tools/ci/capas-docker.sh listar
+DIAS ?= 7
+docker-capas-limpiar:
+	@tools/ci/capas-docker.sh limpiar $(DIAS)
+
 # Los tests de Windows corren bajo Wine. En una Mac, Wine va encima de Rosetta
 # y algunos fallan sin que el programa ande mal (en el runner del CI pasan):
 # ahi el fallo se AVISA pero no frena. En un Linux de verdad, frena.
