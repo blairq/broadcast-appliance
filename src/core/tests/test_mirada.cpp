@@ -152,11 +152,29 @@ void testCanal() {
     SpoutReceiver rx2;
     CHECK(rx2.subscribe(nombre2.c_str()), "suscribirse al otro");
     std::vector<std::uint8_t> p2(16 * 16 * 4, 0);
+    // Lo medido es una media de los intervalos entre envíos (mirada::periodoMedido): queda
+    // entre el más corto y el más largo DE VERDAD. Se compara con los intervalos que hubo, no
+    // con los 20 ms pedidos: con la máquina cargada un sleep de 20 ms duerme 35 y el canal
+    // mide bien 35 (antes daba FALLO contra un tope fijo de 30 ms).
+    // Cada envío entre dos horas (antes y después de send: la hora que anota el canal cae en
+    // el medio), así los intervalos de verdad quedan acotados sin margen.
+    std::vector<std::pair<Reloj::time_point, Reloj::time_point>> envios;
     for (std::uint64_t i = 1; i <= 4; ++i) {
+        const auto antesDeEnviar = Reloj::now();
         tx2.send(p2.data(), p2.size(), FrameMeta{i, i});
+        envios.emplace_back(antesDeEnviar, Reloj::now());
         std::this_thread::sleep_for(20ms);
     }
-    CHECK(rx2.periodoNs() >= 18 * kMs && rx2.periodoNs() <= 30 * kMs, "el período medido (~20 ms)");
+    Reloj::duration corto = Reloj::duration::max(), largo = Reloj::duration::zero();
+    for (std::size_t k = 1; k < envios.size(); ++k) {
+        corto = std::min(corto, envios[k].first - envios[k - 1].second);
+        largo = std::max(largo, envios[k].second - envios[k - 1].first);
+    }
+    const Reloj::duration medido = std::chrono::nanoseconds(rx2.periodoNs());
+    std::printf("período medido %.2f ms (los intervalos de los envíos: entre %.2f y %.2f ms)\n",
+                std::chrono::duration<double, std::milli>(medido).count(), std::chrono::duration<double, std::milli>(corto).count(),
+                std::chrono::duration<double, std::milli>(largo).count());
+    CHECK(medido >= corto && medido <= largo, "el período medido (el de los envíos, ~20 ms)");
 }
 
 /// Cómo se mira: cada 4 ms (antes), al ritmo del productor (el batido) o con proximaMirada.
@@ -223,6 +241,10 @@ Resultado faseVideo(int temblorUs, Modo modo, bool conLector) {
     std::uint64_t i = 0;
     while (Reloj::now() - desde < std::chrono::duration<double>(segundosDePrueba())) {
         proximo += std::chrono::microseconds(33'333);
+        // Un escritor que despertó tarde (la máquina cargada) sigue desde ahora: sin ráfagas para
+        // alcanzar. Si no, mandaba varios cuadros seguidos y un lector de UN cuadro (el canal
+        // guarda el último) perdía los del medio aunque mirara bien.
+        if (Reloj::now() > proximo + std::chrono::microseconds(33'333)) proximo = Reloj::now();
         ba::platform::dormirHasta(proximo + std::chrono::microseconds(temblor(azar)));
         tx.send(px.data(), px.size(), FrameMeta{++i, mirada::ahoraNs()});
     }
@@ -323,13 +345,18 @@ void testAntesDespues() {
         mostrar("cada 33 ms (al ritmo: bate)", batido, base);
         mostrar("proximaMirada (F2-14)", ahora, base);
         mostrar("timbre (F3-13)", timbre, base);
+        // NO PERDER CUADROS es de tiempo: el canal guarda el último cuadro, así que un lector que
+        // el sistema no despierta en un período (33 ms) pierde uno, mire como mire. Visto con 4
+        // corridas a la vez y otros compilando (2026-11-05): en la misma fase «cada 33 ms» se
+        // atrasó 98 ms y proximaMirada perdió el 11 %; sola, 0 %. Con la máquina en hora se
+        // exige (CHECK_TIEMPO: con la máquina impuntual, SKIP con el motivo).
         if (Timbre::hayPrimitiva()) {
-            CHECK(timbre.leidos + 1 >= timbre.publicados, "con el timbre no se pierden cuadros");
+            CHECK_TIEMPO(timbre.leidos + 1 >= timbre.publicados, "con el timbre no se pierden cuadros");
             CHECK(timbre.vueltasS < 1.3 * 30, "con el timbre, una vuelta por cuadro");
             CHECK_TIEMPO(timbre.demoraMediaMs < ahora.demoraMediaMs, "con el timbre, menos demora por salto que con Mirada");
             CHECK_TIEMPO(timbre.demoraMediaMs < 0.3, "con el timbre, la demora de un salto en décimas de ms");
         }
-        CHECK(ahora.leidos + 1 >= ahora.publicados, "con proximaMirada no se pierden cuadros");
+        CHECK_TIEMPO(ahora.leidos + 1 >= ahora.publicados, "con proximaMirada no se pierden cuadros");
         // (Sin cuenta de despertadas del sistema —Windows—, las vueltas del bucle.)
         if (antes.despertadasS > 0)
             CHECK(ahora.despertadasS - base < 0.6 * (antes.despertadasS - base), "bastante menos despertadas que a 4 ms");
