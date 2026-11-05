@@ -977,7 +977,15 @@ void Entrada::armar() {
     // invitados, menos cuadros, archivos), el videorate completo.
     const double cpsLienzo = lienzo_.fpsD > 0 ? static_cast<double>(lienzo_.fpsN) / lienzo_.fpsD : 30.0;
     const bool soloTira = !medio_ && !camara_.empty() && modoCamara_.is_object() && modoCamara_.value("cps", 0.0) >= cpsLienzo - 0.5;
-    const std::string ritmoV = soloTira ? "videorate skip-to-first=true drop-only=true ! " : "videorate skip-to-first=true ! ";
+    // Lo FIJO (color, imagen, texto) sale a UN cuadro por segundo (ver «LO FIJO … A UN CUADRO
+    // POR SEGUNDO»): sin videorate y con 1/1 en las caps de la normalización. En la CPU, el
+    // videorate y las caps a los cuadros del lienzo lo volvían a llevar a 30 (en la GPU la
+    // normalización ya lo saltea: lo estático no lleva ritmo ni cuadros). El compositor
+    // repite el último cuadro de la capa.
+    const std::string ritmoV = fija_      ? std::string()
+                               : soloTira ? "videorate skip-to-first=true drop-only=true ! "
+                                          : "videorate skip-to-first=true ! ";
+    const std::string fpsNormal = fija_ ? std::string("1/1") : fps;
     // Una cámara a 29,97 en un lienzo de 30 (F2-17): el videorate repite un cuadro cada ~33 s.
     // Se avisa (lo que repite y tira de verdad lo cuenta tiempos_pipeline); no se cambia nada.
     if (!camara_.empty() && modoCamara_.is_object())
@@ -985,7 +993,7 @@ void Entrada::armar() {
             avisos_.push_back(std::move(a));
     if (normalizar_) {
         antes = desentrelazar + ritmoV + "videoconvertscale ! ";
-        capsVideo = capsColorDelLienzo(lienzo_) + ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fps;
+        capsVideo = capsColorDelLienzo(lienzo_) + ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fpsNormal;
     }
     // LOS FILTROS (las tarjetas del grafo). La superresolución vieja es uno más.
     std::vector<Filtro> filtrosV = filtrosV_;
@@ -1030,7 +1038,7 @@ void Entrada::armar() {
     if (alfa_) {
         // Con transparencia (croma, recorte): BGRA.
         capsVideo = "video/x-raw,format=BGRA";
-        if (normalizar_) capsVideo += ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fps;
+        if (normalizar_) capsVideo += ",interlace-mode=progressive,pixel-aspect-ratio=1/1,framerate=" + fpsNormal;
     }
     if (usaGpu) {
         // EN LA GPU (docs/desarrollo/MAPA-GPU-CPU.md): la cámara y el decodificador entregan
