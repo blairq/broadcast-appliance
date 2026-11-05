@@ -30,7 +30,9 @@
 #   - release-win/release: instalación incremental (tools/ci/instalar-incremental.sh);
 #     strip de Linux, chequeo de portabilidad y manifest solo si cambió el bundle;
 #   - .zip/.tar.gz y su copia a dist/ de acá: solo si cambió el bundle;
-#   - símbolos de Windows: solo si cambió el bundle.
+#   - símbolos (los .pdb de Windows, los .debug de Linux): solo con SIMBOLOS=1 (lo pone
+#     `make publicar`) y solo si cambió el bundle, al almacén ÚNICO de la máquina
+#     (BA_SIMBOLOS: dist/simbolos del árbol principal, también desde un worktree).
 # Lo de adentro del contenedor está en tools/ci/receta-docker.sh. Cada corrida deja su
 # registro en dist/logs/ (y los de lo que falló, en dist/logs/<corrida>/).
 # SIN_CACHE=1 lo hace todo de cero (`make publicar` lo pone solo).
@@ -100,6 +102,16 @@ SHA="$(git rev-parse HEAD)"
 # apunta a una ruta de la Mac que el contenedor no ve).
 GITDIR="$(cd "$(git rev-parse --git-common-dir)" && pwd)"
 mkdir -p "$ROOT/dist"
+# El almacén de símbolos: uno por máquina (antes, uno por worktree: ~16 GB por corrida de
+# Windows en cada uno), y solo si se pidió (SIMBOLOS=1: `make publicar`, o un paquete que va
+# a la PC de pruebas). Sin pedirlo, ni se monta.
+MONTAR_SIMBOLOS=""
+if [ "${SIMBOLOS:-0}" = 1 ]; then
+    BA_SIMBOLOS="${BA_SIMBOLOS:-$(cd "$GITDIR/.." && pwd)/dist/simbolos}"
+    case "$BA_SIMBOLOS" in *" "*) morir "BA_SIMBOLOS no puede tener espacios: $BA_SIMBOLOS" ;; esac
+    mkdir -p "$BA_SIMBOLOS"
+    MONTAR_SIMBOLOS="-v $BA_SIMBOLOS:/simbolos"
+fi
 
 # Un registro por corrida en dist/logs/ (ignorado por git): todo lo que sale por la
 # terminal, para ver después qué falló y dónde se fue el tiempo. Los registros de los
@@ -114,10 +126,10 @@ d build -q --platform linux/amd64 -t ba-compilar -f "$ROOT/tools/ci/compilar.Doc
 
 log "compilando $QUE en el commit $(git rev-parse --short HEAD) (la primera vez tarda horas)"
 d run --rm --platform linux/amd64 \
-    -v ba-trabajo:/trabajo -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" \
+    -v ba-trabajo:/trabajo -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" $MONTAR_SIMBOLOS \
     -v ba-ccache:/ccache -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
     -e SHA="$SHA" -e QUE="$QUE" -e CORRIDA="$CORRIDA" -e PERFILAR="${PERFILAR:-0}" -e DIAG_ACOPLES="${DIAG_ACOPLES:-1}" \
-    -e SIN_CACHE="${SIN_CACHE:-0}" -e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
+    -e SIN_CACHE="${SIN_CACHE:-0}" -e SIMBOLOS="${SIMBOLOS:-0}"-e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
     -e TESTS_SIN_LENTOS="${TESTS_SIN_LENTOS:-0}" ${TESTS_WIN_JOBS:+-e TESTS_WIN_JOBS="$TESTS_WIN_JOBS"} ${TESTS_JOBS:+-e TESTS_JOBS="$TESTS_JOBS"} \
     ${PYTEST_ARGS:+-e PYTEST_ARGS="$PYTEST_ARGS"} \
     ba-compilar bash -c '

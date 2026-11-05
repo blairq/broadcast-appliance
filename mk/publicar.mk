@@ -54,6 +54,9 @@ publicar publicar-macos publicar-linux publicar-win: export SIN_CACHE = 1
 # Lo que se publica sale sin el detector de acoples (solo desarrollo y pruebas).
 publicar publicar-macos publicar-linux publicar-win paquetes paquete-mac paquete-linux paquete-windows: export DIAG_ACOPLES = 0
 publicar publicar-macos publicar-linux publicar-win: export TESTS_JOBS = 1
+# Lo que se publica deja sus símbolos en el almacén único (BA_SIMBOLOS, el Makefile):
+# para leer después las pilas de los volcados de esa versión (tools/caidas/analizar.py).
+publicar publicar-macos publicar-linux publicar-win: export SIMBOLOS = 1
 publicar:
 	tools/publicar.sh --solo-chequear
 	rm -f $(DIST_LINUX)* $(DIST_WIN)* $(DIST_MACOS)*

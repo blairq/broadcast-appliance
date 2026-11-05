@@ -5,14 +5,19 @@
 # En macOS -g deja la información de depuración en los .o del build; dsymutil
 # la junta en un .dSYM por binario. Se guarda por el UUID del binario (lo que
 # trae el informe de caídas de macOS, ~/Library/Logs/DiagnosticReports/*.ips):
-#   dist/simbolos/macos/<binario>/<UUID>/<binario>.dSYM
+#   <almacén>/macos/<binario>/<UUID>/<binario>.dSYM
 # Para leer una pila: atos -o <ese .dSYM>/Contents/Resources/DWARF/<binario> -l <base> <dirección>
+# El almacén es uno por máquina (BA_SIMBOLOS; si no, dist/simbolos del árbol principal,
+# también desde un worktree): lo que ya está no se repite.
 #
 # Uso: tools/caidas/simbolos-mac.sh <release> [destino]
 # ============================================================================
 set -euo pipefail
 REL="$1"
-DEST="${2:-$(cd "$(dirname "$0")/../.." && pwd)/dist/simbolos/macos}"
+if [ -z "${BA_SIMBOLOS:-}" ]; then
+    BA_SIMBOLOS="$(cd "$(git -C "$(dirname "$0")" rev-parse --path-format=absolute --git-common-dir)/.." && pwd)/dist/simbolos"
+fi
+DEST="${2:-$BA_SIMBOLOS/macos}"
 n=0
 while IFS= read -r -d '' f; do
     file -b "$f" | grep -q "Mach-O" || continue

@@ -23,7 +23,7 @@
 #   1. Lee el minidump (hilos, módulos, memoria, la excepción).
 #   2. Desenrolla la pila de cada hilo con las tablas .pdata de cada módulo
 #      (como RtlVirtualUnwind): necesita el MISMO binario, que busca en el
-#      almacén (dist/simbolos, lo llena tools/caidas/simbolos.py en cada build)
+#      almacén (dist/simbolos del árbol principal, lo llena simbolos.py al publicar)
 #      o, para los de Windows, en el servidor público de símbolos de Microsoft
 #      (queda en dist/simbolos también).
 #   3. Pone nombres y líneas con llvm-symbolizer y los .pdb (el del toolchain
@@ -47,7 +47,22 @@ import urllib.request
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parents[2]
-ALMACEN = RAIZ / "dist" / "simbolos"
+
+
+def _almacen():
+    """El almacén de símbolos: uno por máquina (BA_SIMBOLOS; si no, dist/simbolos del
+    árbol principal, también desde un worktree: es donde lo llenan publicar y la Mac)."""
+    if os.environ.get("BA_SIMBOLOS"):
+        return Path(os.environ["BA_SIMBOLOS"])
+    try:
+        comun = subprocess.run(["git", "-C", str(RAIZ), "rev-parse", "--path-format=absolute", "--git-common-dir"],
+                               capture_output=True, text=True, check=True).stdout.strip()
+        return Path(comun).parent / "dist" / "simbolos"
+    except (OSError, subprocess.CalledProcessError):
+        return RAIZ / "dist" / "simbolos"
+
+
+ALMACEN = _almacen()
 CAIDAS = RAIZ / "dist" / "caidas"
 MS = "https://msdl.microsoft.com/download/symbols"
 SYMBOLIZER = "/trabajo/ba/extern/toolchain/llvm/bin/llvm-symbolizer"

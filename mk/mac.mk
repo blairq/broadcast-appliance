@@ -104,7 +104,7 @@ release-macos:
 app-macos: release-macos
 	@mkdir -p dist
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app
-	tools/caidas/simbolos-mac.sh release || echo "ATENCION: no se guardaron los .dSYM" >&2
+	tools/caidas/simbolos-mac.sh release "$(BA_SIMBOLOS)/macos" || echo "ATENCION: no se guardaron los .dSYM" >&2
 
 # Para probar mientras se programa: lo mismo que app-macos, pero sin borrar
 # release/ ni la .app. Solo se copia, firma, revisa y hashea lo que cambió
@@ -123,7 +123,7 @@ dmg-macos: release-macos
 	tools/deps/app-macos.sh release dist/BroadcastAppliance.app dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg
 	@cd dist && $(SHA256) BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg > BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.sha256
 	@echo "$(ESTE_COMMIT)" > dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg.commit
-	tools/caidas/simbolos-mac.sh release || echo "ATENCION: no se guardaron los .dSYM" >&2
+	tools/caidas/simbolos-mac.sh release "$(BA_SIMBOLOS)/macos" || echo "ATENCION: no se guardaron los .dSYM" >&2
 	@echo "dist/BroadcastAppliance-$(BA_VERSION)-macos-arm64$(BA_SUFIJO).dmg"
 
 dist-macos: release-macos

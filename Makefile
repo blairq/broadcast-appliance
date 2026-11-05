@@ -51,6 +51,17 @@ BA_SUFIJO = $(if $(filter 1,$(PERFILAR)),-perfil,)
 export PERFILAR
 export DIAG_ACOPLES
 
+# El almacén de símbolos (para leer los volcados: tools/caidas/analizar.py) es UNO por
+# máquina: dist/simbolos del árbol principal, también desde un worktree (cada worktree
+# con el suyo eran ~16 GB por corrida de Windows). Se llena al publicar (SIMBOLOS=1, lo
+# pone `make publicar`); un paquete de prueba que va a la PC de pruebas, con SIMBOLOS=1
+# a mano. BA_SIMBOLOS cambia dónde vive. La Mac guarda sus .dSYM siempre (por UUID: lo
+# que ya está no se repite).
+SIMBOLOS ?= 0
+BA_SIMBOLOS ?= $(abspath $(shell git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || echo .git)/..)/dist/simbolos
+export SIMBOLOS
+export BA_SIMBOLOS
+
 # El -j: el que da el árbitro de los agentes si está (los núcleos repartidos entre
 # los que compilan en este momento: solo, la máquina entera), si no los núcleos.
 # Una vez por make (`:=`), no en cada receta. JOBS=n (línea o entorno) manda.
