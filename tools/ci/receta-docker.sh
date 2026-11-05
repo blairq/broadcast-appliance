@@ -37,6 +37,10 @@ find build -name core -type f -size +1M -delete 2>/dev/null || true
 etapa "checkout"
 
 J=$(nproc)
+# Sin símbolos que guardar (SIMBOLOS=1 lo pone `make publicar`), sin información de depuración:
+# solo se valida, y con ella el build de Linux ocupaba 31 GB y el de Windows 17 GB del disco de
+# colima (y tardaba más en compilar y enlazar). Lo que se publica sale con ella.
+[ "${SIMBOLOS:-0}" = 1 ] || export DEPURACION=0
 VALIDAR="${VALIDAR:-0}"
 ETAPA="${ETAPA:-todo}"
 [ "$VALIDAR" = 1 ] && echo "[compilar-en-docker] VALIDAR=1 ($(uname -m)): compilar + tests, sin paquetes; INCOMPLETO=${INCOMPLETO:-0}"
@@ -73,7 +77,7 @@ compilar_si_cambio() {
     local nombre="$1" dir="$2"; shift 2
     mkdir -p "$dir/atajos"
     python3 tools/ci/huellas.py atajo --nombre "$nombre" --clave-en "$dir/atajos/compilado.json" \
-        --texto "árbol $(git rev-parse "$SHA^{tree}")" --texto "make $* DIAG_ACOPLES=${DIAG_ACOPLES:-}" --centinelas extern \
+        --texto "árbol $(git rev-parse "$SHA^{tree}")" --texto "make $* DIAG_ACOPLES=${DIAG_ACOPLES:-} DEPURACION=${DEPURACION:-1}" --centinelas extern \
         --salida "$dir/CMakeCache.txt" -- make "$@"
 }
 

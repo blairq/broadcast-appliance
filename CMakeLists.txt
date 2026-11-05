@@ -69,6 +69,11 @@ endif()
 # DIAG_ACOPLES=0): con la opción apagada no se define BA_DIAG_ACOPLES, BA_ACOPLE queda en
 # ((void)0), no hay herramienta MCP diag_acoples y no queda ningún símbolo del detector.
 option(BA_DIAG_ACOPLES "El detector de acoples de la interfaz (desarrollo y pruebas; no en lo que se publica)" ON)
+# BA_DEPURACION: la información de depuración (-g; /Zi y /DEBUG en Windows). Prendida: los
+# volcados se leen con ella (dist/simbolos, tools/caidas). Apagada solo en las validaciones en
+# Docker que no guardan símbolos (DEPURACION=0, tools/ci/receta-docker.sh sin SIMBOLOS=1): con
+# ella los builds de Linux y Windows ocupaban 31 y 17 GB del disco de colima. No cambia el código.
+option(BA_DEPURACION "Información de depuración (-g, /Zi): los símbolos para leer los volcados" ON)
 if(NOT BA_DIAG_ACOPLES)
     message(STATUS "BA_DIAG_ACOPLES: sin el detector de acoples (paquete para publicar)")
 endif()
@@ -204,9 +209,12 @@ if(MSVC)
     )
     # CRT: /MD por defecto (CMAKE_MSVC_RUNTIME_LIBRARY); el sub-build de
     # launcher+gateway la pasa a /MT (cmake/BaWinStaticPart.cmake).
-    # /Zi garantiza PDBs en todos los configurados; PDBs de enlace siempre.
-    add_compile_options(/Zi)
-    add_link_options(/DEBUG)
+    # /Zi garantiza PDBs en todos los configurados; PDBs de enlace siempre (salvo
+    # BA_DEPURACION=OFF: las validaciones en Docker, que no guardan símbolos).
+    if(BA_DEPURACION)
+        add_compile_options(/Zi)
+        add_link_options(/DEBUG)
+    endif()
     # /DEBUG apaga por defecto /OPT:REF y /OPT:ICF (sacar lo que nadie usa y
     # juntar funciones idénticas): se vuelven a prender fuera de Debug, así el
     # código queda igual que sin símbolos. Los .pdb van aparte (dist/simbolos).
@@ -222,7 +230,10 @@ else()
     # Símbolos siempre (también en Release): -g no cambia el código que se
     # genera, solo agrega la información para leer una pila. En macOS queda en
     # los .o y dsymutil la junta en un .dSYM; en Linux va aparte (dist/simbolos).
-    add_compile_options(-g)
+    # BA_DEPURACION=OFF solo en las validaciones en Docker (ver la opción).
+    if(BA_DEPURACION)
+        add_compile_options(-g)
+    endif()
     # macOS: el equivalente del --as-needed que Ubuntu usa por defecto. Sin
     # esto, todo lo que enlaza ba_core arrastra las dylibs de sus dependencias
     # opcionales (ONNX Runtime) aunque no las use, y el launcher, que no tiene

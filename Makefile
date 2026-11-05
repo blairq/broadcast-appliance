@@ -49,13 +49,19 @@ DIAG_ACOPLES ?= 1
 # la validación nativa arm64 en Docker (lo que no tiene par arm64 queda en la lista de
 # faltantes). Explícito siempre: un build no hereda el permiso del caché.
 INCOMPLETO ?= 0
+# DEPURACION=0: sin información de depuración (-g, /Zi): solo las validaciones en Docker, que
+# no guardan símbolos (tools/ci/receta-docker.sh lo pone sin SIMBOLOS=1). Con ella los builds
+# de Linux y Windows ocupaban 31 y 17 GB. De fábrica prendida: los volcados la necesitan.
+DEPURACION ?= 1
 BA_CMAKE_PERFIL = -DBA_PERFILAR=$(if $(filter 1,$(PERFILAR)),ON,OFF) \
 	-DBA_DIAG_ACOPLES=$(if $(filter 0,$(DIAG_ACOPLES)),OFF,ON) \
-	-DBA_PERMITIR_INCOMPLETO=$(if $(filter 1,$(INCOMPLETO)),ON,OFF)
+	-DBA_PERMITIR_INCOMPLETO=$(if $(filter 1,$(INCOMPLETO)),ON,OFF) \
+	-DBA_DEPURACION=$(if $(filter 0,$(DEPURACION)),OFF,ON)
 BA_SUFIJO = $(if $(filter 1,$(PERFILAR)),-perfil,)
 export PERFILAR
 export DIAG_ACOPLES
 export INCOMPLETO
+export DEPURACION
 
 # El almacén de símbolos (para leer los volcados: tools/caidas/analizar.py) es UNO por
 # máquina: dist/simbolos del árbol principal, también desde un worktree (cada worktree
