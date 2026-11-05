@@ -127,6 +127,7 @@ las mediciones crudas (fuera del repo: `tabla.md`, cada corrida con
 | 160 | 160 | 378 % | 615 % | 340 / 40,8k | 9,9 / 7,8, 30 | 12,8 ms | 0 (1,3 s; 7 de más de 1 s) | 0 | 4222 congel., 101 bajados | **83 / 100 %** |
 | 200 | 108-112 | 235-419 % | — | 333 | — | 13,5-14,5 ms | 3-4 (**2,5 s**) | 0 | — | 40-43 / 81-91 % |
 | 200, guardia de hilos en 3000 | 200 (todos con medios a los 103 s) | 496 % | 707 % | 387 / 40,1k | 7,5 / 7,3, 29,3 (6 perdidos) | 12,5 ms | 2 (**2,7 s**) | 0 | 14240 congel., 159 bajados | **87 / 100 %** |
+| **200, 2026-11-05** (Qt 6.8, arranque fuera de la interfaz) | 200 (**todos con medios a los 26 s**) | 632 % | 1110 % | 381 / 37,4k | **13,2 / 13,0, 30 (0 perdidos)** | 14,4 ms | **0 (1,0 s)** | 0 | 11152 congel., 70 bajados (130 en 320×180) | 64 / 100 % |
 
 (La de 120 a 2/s quedó afectada por las capturas de la ventana cada 10 s que se sacaron durante la
 entrada; ver «Franjas» abajo. Memoria de la PC sin problema: 10 GB disponibles como mínimo con 200;
