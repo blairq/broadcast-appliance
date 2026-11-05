@@ -52,6 +52,11 @@ int main() {
         std::printf("SKIP: sin GStreamer (%s)\n", err.c_str());
         return 77;
     }
+    // El programa sale por intersink (gst-plugins-rs), como en los demás tests del motor.
+    if (!hayFabrica("intersink")) {
+        std::printf("SKIP: falta intersink\n");
+        return 77;
+    }
     Motor::Config cfg;
     cfg.prefijoAnillos = ""; // sin gateway
     cfg.sinkEscucha = "fakesink sync=true";
