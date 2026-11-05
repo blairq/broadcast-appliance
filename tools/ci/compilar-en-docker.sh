@@ -129,7 +129,7 @@ d run --rm --platform linux/amd64 \
     -v ba-trabajo:/trabajo -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" $MONTAR_SIMBOLOS \
     -v ba-ccache:/ccache -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
     -e SHA="$SHA" -e QUE="$QUE" -e CORRIDA="$CORRIDA" -e PERFILAR="${PERFILAR:-0}" -e DIAG_ACOPLES="${DIAG_ACOPLES:-1}" \
-    -e SIN_CACHE="${SIN_CACHE:-0}" -e SIMBOLOS="${SIMBOLOS:-0}"-e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
+    -e SIN_CACHE="${SIN_CACHE:-0}" -e SIMBOLOS="${SIMBOLOS:-0}" -e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
     -e TESTS_SIN_LENTOS="${TESTS_SIN_LENTOS:-0}" ${TESTS_WIN_JOBS:+-e TESTS_WIN_JOBS="$TESTS_WIN_JOBS"} ${TESTS_JOBS:+-e TESTS_JOBS="$TESTS_JOBS"} \
     ${PYTEST_ARGS:+-e PYTEST_ARGS="$PYTEST_ARGS"} \
     ba-compilar bash -c '
