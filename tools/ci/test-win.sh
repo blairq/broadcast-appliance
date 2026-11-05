@@ -74,6 +74,8 @@ find "$B/src" "$B/win-mt/src" -name 'test_*.exe' 2>/dev/null | sort |
 
 # ¿El test dijo «<test>: OK» al terminar? (ver el reintento de abajo)
 dijo_ok() { tail -n 3 "$2" 2>/dev/null | grep -q "^$1: OK"; }
+# ¿Se cayó por la aserción AVX de Rosetta? (ver el reintento de abajo)
+rosetta_avx() { grep -q "x86_avx_state_ptr->xsave_header" "$1" 2>/dev/null; }
 
 if [ -s "$PEND" ]; then
 timeout 300 "$W" wineboot -u >/dev/null 2>&1
@@ -100,11 +102,15 @@ xargs -P "$JOBS" -I{} bash -c 'uno "$1"' _ {} <"$PEND"
 # Rosetta, con la máquina llena de tests a la vez), no el test (un test que se cae bajo Wine
 # sale con el código de la excepción de Windows, no con una señal). Se reintentan de a uno.
 # Igual los que dijeron «<test>: OK» y aun así salieron con otro código: el programa
-# terminó bien y algo se rompió al cerrarse el proceso bajo Wine.
+# terminó bien y algo se rompió al cerrarse el proceso bajo Wine. Y los que se cayeron por
+# la aserción de Rosetta al volver de una señal con estado AVX («assertion failed
+# [x86_avx_state_ptr->xsave_header…] (ThreadContextSignals.cpp … rt_sigreturn)»): es del
+# emulador y cae en un test distinto cada vez (test_mcp, test_ipstack, test_sse_epoch el
+# 2026-11-04), en el proceso del test o en uno que lanza.
 : >"$B/wine-logs/.reintentar"
 : >"$RES.tmp"
 while read -r rc seg n log t; do
-    if [ "$rc" = 133 ] || { [ "$rc" != 0 ] && [ "$rc" != 77 ] && dijo_ok "$n" "$log"; }; then
+    if [ "$rc" = 133 ] || { [ "$rc" != 0 ] && [ "$rc" != 77 ] && { dijo_ok "$n" "$log" || rosetta_avx "$log"; }; }; then
         echo "$t" >>"$B/wine-logs/.reintentar"
     else
         echo "$rc $seg $n $log $t" >>"$RES.tmp"
@@ -128,6 +134,10 @@ while read -r rc seg n log _; do
         133) entorno+=("$n"); echo "---- $n: rc=133 dos veces (SIGTRAP del emulador: Wine sobre Rosetta; del entorno, no del test)" ;;
         *) if dijo_ok "$n" "$log"; then
                entorno+=("$n"); echo "---- $n: dijo OK y Wine devolvió rc=$rc dos veces (al cerrarse el proceso; confirmar en Windows)"
+               continue
+           fi
+           if rosetta_avx "$log"; then
+               entorno+=("$n"); echo "---- $n: rc=$rc dos veces por la aserción AVX de Rosetta (del emulador; confirmar en Windows)"
                continue
            fi
            failed+=("$n($rc)"); echo "---- $n (rc=$rc, ${seg} s)"; grep -E "FALLO|FAIL" "$log" | head -5 ;;
