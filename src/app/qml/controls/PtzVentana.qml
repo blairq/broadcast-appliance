@@ -34,7 +34,7 @@ ColumnLayout {
                                            accept: qsTr("Mover igual"), reject: qsTr("Cancelar"), action: fn })
     }
     function irA(p) {
-        v.conPermiso(function() { const r = v.t.cc.irAPosicion(v.t.entrada, p.id, -1); v.t.avisar(r.ok ? (r.aviso || "") : r.error) })
+        v.conPermiso(function() { v.t.cc.irAPosicionUi(v.t.entrada, p.id, -1) })
     }
     // Digital: el encuadre se da en coordenadas de la toma entera.
     readonly property real zoom: v.t.pos.zoom || 1
@@ -54,7 +54,7 @@ ColumnLayout {
         GlassButton {
             visible: !v.t.mueveDigital
             compact: true; text: qsTr("Sacar foto"); icon: "📷"
-            onClicked: { const r = v.t.cc.sacarFoto(v.t.entrada); v.t.avisar(r.ok ? (r.aviso || "") : r.error) }
+            onClicked: v.t.cc.sacarFotoUi(v.t.entrada)
             ToolTip.visible: hovered; ToolTip.delay: 400
             ToolTip.text: qsTr("Una foto de lo que ve ahora (mejor bien abierta): después, tocar un punto de la foto lleva la cámara ahí")
         }
@@ -321,8 +321,7 @@ ColumnLayout {
                                 }
                                 const c = {}
                                 c[modelData.q] = true
-                                const r = v.t.cc.editarPosicion(v.t.entrada, p.id, c)
-                                v.t.avisar(r.ok ? (r.aviso || (modelData.q === "regrabar" ? qsTr("«%1» regrabado").arg(p.nombre) : "")) : r.error)
+                                v.t.cc.editarPosicionUi(v.t.entrada, p.id, c) // lo que contesta, en cc.avisos
                             }
                         }
                         ToolTip.visible: bm.containsMouse
@@ -360,9 +359,8 @@ ColumnLayout {
                     compact: true; text: qsTr("Guardar donde está"); icon: "＋"
                     enabled: nombreNuevo.text.trim() !== ""
                     onClicked: {
-                        const r = v.t.cc.crearPosicion(v.t.entrada, nombreNuevo.text.trim(), "", 0, -1)
-                        v.t.avisar(r.ok ? (r.aviso || "") : r.error)
-                        if (r.ok) nombreNuevo.text = ""
+                        v.t.cc.crearPosicionUi(v.t.entrada, nombreNuevo.text.trim(), "", 0, -1)
+                        nombreNuevo.text = ""
                     }
                 }
             }

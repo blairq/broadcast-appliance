@@ -1006,7 +1006,7 @@ void McpService::registerModeloTools() {
             if (a.contains("contestar_con_voz")) voz->setContestarConVoz(a.value("contestar_con_voz", true));
             if (a.contains("auriculares")) {
                 const QString e =
-                    voz->setAuriculares(QString::fromStdString(a.value("auriculares", std::string())));
+                    errorDe([&] { voz->setAuriculares(QString::fromStdString(a.value("auriculares", std::string()))); });
                 if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));
             }
             if (a.contains("herramienta"))

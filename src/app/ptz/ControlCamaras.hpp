@@ -86,6 +86,11 @@ class ControlCamaras : public QObject {
     Q_PROPERTY(QVariantMap encuadres READ encuadres NOTIFY encuadresCambio)
     /// {entrada: foto(entrada)}: la foto del panel PTZ de cada cámara (y si se movió desde entonces).
     Q_PROPERTY(QVariantMap fotos READ fotos NOTIFY fotosCambio)
+    /// {entrada: {texto, vez}}: lo que contestó la última acción de una vista sobre esa cámara
+    /// (las …Ui de abajo: ir a una posición, la foto, crear o editar una posición): el error,
+    /// el aviso o "" si anduvo. La vista lo muestra junto a la cámara; no usa lo que devuelve
+    /// una acción (en el tablero web no vuelve nada). `vez` cambia siempre (el mismo error dos veces).
+    Q_PROPERTY(QVariantMap avisos READ avisos NOTIFY avisosCambio)
     /// Los backends de hardware que se pueden elegir y sus campos.
     Q_PROPERTY(QVariantList backends READ backends CONSTANT)
     Q_PROPERTY(bool buscando READ buscando NOTIFY busquedaCambio)
@@ -183,21 +188,27 @@ class ControlCamaras : public QObject {
     /// Registra donde está ahora la cámara (cabeza y/o recorte) con ese
     /// nombre. {ok, error, aviso, id}.
     /// `numero`: su número de preset (0 = el primero libre).
-    Q_INVOKABLE QVariantMap crearPosicion(const QString& entrada, const QString& nombre,
-                                          const QString& comentario, double velocidad = 0, double segundos = -1,
-                                          int numero = 0);
+    QVariantMap crearPosicion(const QString& entrada, const QString& nombre, const QString& comentario,
+                              double velocidad = 0, double segundos = -1, int numero = 0);
     /// cambios: {nombre?, comentario?, numero? (su número de preset, libre), velocidad? (0..1, 0 = la de la cámara),
     /// segundos? (-1 = sin fijar), regrabar?: bool (vuelve a registrar donde
     /// está ahora, con foto nueva), miniatura?: bool (solo la foto)}. {ok, error, aviso}.
-    Q_INVOKABLE QVariantMap editarPosicion(const QString& entrada, const QString& idONombre,
-                                           const QVariantMap& cambios);
+    QVariantMap editarPosicion(const QString& entrada, const QString& idONombre, const QVariantMap& cambios);
     /// Borra la posición (y libera su memoria en la cámara).
     Q_INVOKABLE void borrarPosicion(const QString& entrada, const QString& idONombre);
     /// Va a la posición: la cámara a su memoria (con su velocidad) y el
     /// recorte a su encuadre, en `segundos` (-1 = los de la posición, o 1).
     /// {ok, error, aviso}.
-    Q_INVOKABLE QVariantMap irAPosicion(const QString& entrada, const QString& idONombre,
-                                        double segundos = -1);
+    QVariantMap irAPosicion(const QString& entrada, const QString& idONombre, double segundos = -1);
+    /// Lo mismo para las vistas (las de arriba y sacarFoto son de C++: el MCP, la asamblea, la
+    /// línea): no devuelven nada; lo que contestan va a `avisos` (y a la señal `aviso`).
+    /// editarPosicionUi con `regrabar` avisa «regrabado» si no hay otro aviso.
+    Q_INVOKABLE void crearPosicionUi(const QString& entrada, const QString& nombre, const QString& comentario,
+                                     double velocidad = 0, double segundos = -1);
+    Q_INVOKABLE void editarPosicionUi(const QString& entrada, const QString& idONombre, const QVariantMap& cambios);
+    Q_INVOKABLE void irAPosicionUi(const QString& entrada, const QString& idONombre, double segundos = -1);
+    Q_INVOKABLE void sacarFotoUi(const QString& entrada);
+    QVariantMap avisos() const { return avisos_; }
     /// De una posición: {existe, id, nombre, digital (tiene encuadre digital), x, y,
     /// zoom, motorizada (tiene memoria en una cámara con motor)}. Para la fuente
     /// «Banca con la palabra»: con digital, recorta la toma entera sin mover nada.
@@ -220,7 +231,7 @@ class ControlCamaras : public QObject {
     /// Saca una foto de lo que muestra la entrada y anota dónde está la cabeza
     /// (en una memoria interna de la cámara, si tiene): tocar la foto lleva la
     /// cámara ahí (apuntarEnFoto). {ok, error, aviso}.
-    Q_INVOKABLE QVariantMap sacarFoto(const QString& entrada);
+    QVariantMap sacarFoto(const QString& entrada);
     /// {hay, url, conMemoria (puede volver a donde se sacó), movida (se movió desde
     /// entonces), cuando}.
     QVariantMap foto(const QString& entrada) const;
@@ -238,7 +249,9 @@ class ControlCamaras : public QObject {
     void alAireCambio();
     void encuadresCambio();
     void fotosCambio();
-    /// Lo que salió mal en algo que terminó después (la foto de una posición).
+    void avisosCambio();
+    /// Lo que salió mal en algo que terminó después (la foto de una posición), y lo que
+    /// contestan las …Ui (también en `avisos`).
     void aviso(const QString& texto);
 
    private:
@@ -278,6 +291,9 @@ class ControlCamaras : public QObject {
     void importarPresetsDeLaCamara(Camara& c);
     /// Un nombre que no esté en la cámara: `base`, o «base (2)»...
     QString nombreLibre(const Camara& c, const QString& base) const;
+    /// Lo que contestó una acción de la vista ({ok, error, aviso}) a `avisos` y a `aviso`;
+    /// `listo`, lo que se dice si anduvo sin aviso.
+    void avisarDe(const QString& entrada, const QVariantMap& r, const QString& listo = {});
 
     std::function<void(const QString&)> dejarDeSeguir_;
     bool interlockActivo_ = true;
@@ -304,6 +320,8 @@ class ControlCamaras : public QObject {
     std::map<std::string, QVariantMap> red_; ///< por entrada presente: lo de la red (vacío si no es)
     std::unique_ptr<UsoPorVistas> usoEncuadre_;
     QVariantMap encuadres_;
+    QVariantMap avisos_; ///< {entrada: {texto, vez}} (la propiedad `avisos`)
+    int vezAviso_ = 0;
     std::map<std::string, qint64> despiertos_; ///< las que se releen: hasta cuándo aunque no se muevan
     QTimer lecturaEncuadres_;
 };

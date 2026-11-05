@@ -21,18 +21,9 @@ Dialog {
     function generar() {
         dlg.error = ""
         dlg.r = ({})
-        let id = ""
-        for (const p of (dlg.bot ? dlg.bot.perfiles : [])) if (p.nombre === dlg.kPerfil) id = p.id
-        if (id === "") {
-            // Con las escenas de ahora: una escena nueva se suma después en la página Botonera.
-            const res = dlg.bot.crearPerfilUi(dlg.kPerfil, "director")
-            if (res.startsWith("error:")) { dlg.error = res.slice(6).trim(); return }
-            id = res
-        } else {
-            // Uno hecho antes de que la plantilla tuviera los botones del guion: se le suman.
-            dlg.bot.completarGuionUi(id)
-        }
-        Studio.control.emparejarTabletUi(id, qsTr("Tablet de escenas"), 30)
+        // Buscar el perfil (o armarlo con la plantilla) es del modelo: lo que salga, o el
+        // error, llega por emparejamientoListo.
+        Studio.control.emparejarConPerfilUi(dlg.kPerfil, "director", qsTr("Tablet de escenas"), 30)
     }
 
     anchors.centerIn: parent

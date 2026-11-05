@@ -154,9 +154,9 @@ void MezclaViewModel::aflUi(const QString& fuente) {
     avisarError(matriz_->ponerPfl(pfl() == fuente && pflModo() == "afl" ? QString() : fuente, QStringLiteral("afl"), salida));
 }
 
-bool MezclaViewModel::setRetardoUi(const QString& fuente, int ms) {
+void MezclaViewModel::setRetardoUi(const QString& fuente, int ms) {
     const std::string f = fuente.toStdString();
-    if (p_.ventanilla.foto().tipoDe(f).empty()) return sinError(tr("No existe la fuente «%1».").arg(fuente));
+    if (p_.ventanilla.foto().tipoDe(f).empty()) return avisarError(tr("No existe la fuente «%1».").arg(fuente));
     p_.ventanilla.pedir(
         this, "mezcla_retardo",
         [&rt = p_.rt, f, ms = std::clamp(ms, -5000, 5000)]() -> std::string {
@@ -168,7 +168,6 @@ bool MezclaViewModel::setRetardoUi(const QString& fuente, int ms) {
         [this](const std::string& e) {
             if (!e.empty()) emit notify(qs(e), "error");
         });
-    return true;
 }
 
 QString MezclaViewModel::medirSincro(int segundos, std::function<void(const nlohmann::json&)> listo,
@@ -223,11 +222,29 @@ void MezclaViewModel::terminarSincro(std::function<void(const nlohmann::json&)> 
         });
 }
 
-bool MezclaViewModel::medirSincroUi(int segundos, const QString& salida) {
-    return sinError(medirSincro(
-        segundos, [this](const nlohmann::json& r) { emit medicionSincroLista(aMapa(r)); },
-        [this](const QString& e) { emit medicionSincroLista(aMapa({{"ok", false}, {"problema", e.toStdString()}})); },
-        salida.toStdString()));
+void MezclaViewModel::medirSincroUi(int segundos, const QString& salida) {
+    // Se anota antes de pedir (por si la vuelta llegara en el acto); si ni empieza, queda
+    // como estaba y el error va por notify.
+    const int antes = vezSincro_;
+    const QVariantMap previa = medicionSincro_;
+    const int vez = ++vezSincro_;
+    medicionSincro_ = {{"midiendo", true}, {"vez", vez}};
+    const auto terminar = [this, vez](QVariantMap r) {
+        if (vez != vezSincro_) return; // ya empezó otra
+        r.insert("midiendo", false);
+        r.insert("vez", vez);
+        medicionSincro_ = r;
+        emit medicionSincroCambio();
+    };
+    const QString e = medirSincro(
+        segundos, [terminar](const nlohmann::json& r) { terminar(aMapa(r)); },
+        [terminar](const QString& problema) { terminar({{"ok", false}, {"problema", problema}}); }, salida.toStdString());
+    if (!e.isEmpty()) {
+        vezSincro_ = antes;
+        medicionSincro_ = previa;
+        return avisarError(e);
+    }
+    emit medicionSincroCambio();
 }
 
 } // namespace ba::app

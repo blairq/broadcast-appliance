@@ -1203,18 +1203,18 @@ QVariantList Voz::salidasAudio() const {
     return out;
 }
 
-QString Voz::setAuriculares(const QString& id) {
-    if (racks_ == nullptr) return tr("el audio no está disponible");
+void Voz::setAuriculares(const QString& id) {
+    if (racks_ == nullptr) return avisarError(tr("el audio no está disponible"));
     const std::string e = racks_->setAuriculares(id.toStdString());
     emit cambio();
     if (e.empty() && contestarConVoz_ && vozLista_) decir(tr("Te escucho por acá."));
-    return QString::fromStdString(e);
+    avisarError(e);
 }
 
 #else
 QString Voz::auriculares() const { return {}; }
 QVariantList Voz::salidasAudio() const { return {}; }
-QString Voz::setAuriculares(const QString&) { return tr("el audio no está disponible"); }
+void Voz::setAuriculares(const QString&) { avisarError(tr("el audio no está disponible")); }
 #endif
 
 void Voz::setContestarConVoz(bool on) {

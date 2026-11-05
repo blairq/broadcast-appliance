@@ -23,16 +23,26 @@ ColumnLayout {
     signal pedirInforme()
     spacing: 8
 
-    function arrancar() {
-        // La revisión previa la hace el view model; si hay algo grave, se pregunta.
-        const graves = cond.corridaVm.arrancarRevisando(false)
-        if (graves === 0) return
+    // La revisión previa la hace el view model; si hay algo grave no arranca y lo dice en
+    // frenoArranque (una propiedad: también le llega al tablero web). Pregunta solo la vista
+    // que lo pidió.
+    property bool esperaArranque: false
+    readonly property var frenoArranque: corridaVm ? corridaVm.frenoArranque : null
+    readonly property string estadoCorrida: corridaVm ? corridaVm.estado : ""
+    onEstadoCorridaChanged: esperaArranque = false
+    onFrenoArranqueChanged: {
+        if (!esperaArranque || !frenoArranque || !frenoArranque.graves) return
+        esperaArranque = false
         ApplicationWindow.window.confirm({
             title: qsTr("¿Correr el guion igual?"),
-            text: qsTr("La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.", "", graves),
+            text: qsTr("La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.", "", frenoArranque.graves),
             accept: qsTr("Correr igual"), reject: qsTr("Revisar"),
-            action: function() { cond.corridaVm.arrancarRevisando(true) }
+            action: function() { cond.corridaVm.arrancarUi(true) }
         })
+    }
+    function arrancar() {
+        cond.esperaArranque = true
+        cond.corridaVm.arrancarUi(false)
     }
 
     Text {

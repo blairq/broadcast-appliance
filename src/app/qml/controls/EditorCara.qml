@@ -43,9 +43,10 @@ Popup {
     Suscripcion { objetivo: Studio.frames; que: "entrada:" + dlg.entrada; activa: dlg.opened && dlg.modo === "camara" && dlg.entrada !== "" }
 
     Suscripcion { objetivo: dlg.cc; que: dlg.entrada; activa: dlg.opened && dlg.digital && dlg.entrada !== "" }
-    // Interlock: la regla es del modelo (chequearMovimiento); si pide confirmar, se pregunta.
+    // Interlock: la regla es del modelo (motivosInterlock, la de chequearMovimiento para un
+    // movimiento común); si pide confirmar, se pregunta.
     function siNoAlAire(accion) {
-        const motivo = dlg.cc ? dlg.cc.chequearMovimiento(dlg.entrada, false, "") : ""
+        const motivo = dlg.cc ? (dlg.cc.motivosInterlock[dlg.entrada] || "") : ""
         if (motivo === "") { accion(); return }
         ApplicationWindow.window.confirm({
             title: qsTr("La cámara «%1» está al aire").arg(dlg.entrada),

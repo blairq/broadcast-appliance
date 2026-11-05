@@ -67,6 +67,10 @@ Item {
     }
 
     function avisar(e) { t.error = e || "" }
+    // Lo que contestó el modelo a una acción sobre esta cámara (ir a una posición, la foto,
+    // crear o editar una posición): una propiedad, que también le llega al tablero web.
+    readonly property var avisoModelo: cc && cc.avisos && cc.avisos[entrada] ? cc.avisos[entrada] : null
+    onAvisoModeloChanged: if (t.avisoModelo) t.avisar(t.avisoModelo.texto)
 
     // La imagen en vivo se pide solo afuera del tablero y con la ventana a la vista
     // (renderizarla cuesta). Con el PTZ digital, también la toma entera (antes del
@@ -201,7 +205,7 @@ Item {
                     // Al aire, en gris con candado: tocarla pregunta (se vería el movimiento).
                     opacity: t.alAire ? 0.55 : 1
                     onClicked: {
-                        const ir = function() { const r = t.cc.irAPosicion(t.entrada, modelData.id, -1); t.avisar(r.ok ? (r.aviso || "") : r.error) }
+                        const ir = function() { t.cc.irAPosicionUi(t.entrada, modelData.id, -1) }
                         // La regla del interlock es del modelo (motivosInterlock): si pide confirmar, se pregunta.
                         const motivo = t.cc.motivosInterlock[t.entrada] || ""
                         if (motivo === "") { ir(); return }

@@ -32,6 +32,10 @@ class InformeEventoViewModel : public QObject {
     void avisarError(const std::string& e) { avisarError(QString::fromStdString(e)); }
     /// Lo que realmente pasó (ver `informe()`): cambia con la corrida y con la línea.
     Q_PROPERTY(QVariantMap informe READ informe NOTIFY informeCambio)
+    /// Lo que dio la última prueba de importar una escaleta desde una vista
+    /// (importarEscaletaUi con `probar`): {ruta, pasos (los que se suman), avisos, vez}. `vez`
+    /// cambia con cada prueba: la vista que la pidió pregunta si importar.
+    Q_PROPERTY(QVariantMap escaletaProbada READ escaletaProbada NOTIFY escaletaProbadaCambio)
    public:
     InformeEventoViewModel(EventoAbierto& abierto, CorridaViewModel& corrida, PadronViewModel& padron, QObject* parent = nullptr);
 
@@ -59,13 +63,20 @@ class InformeEventoViewModel : public QObject {
                                  const std::string& nombreBloque = {});
     /// Lo mismo desde la página (un archivo): El error va por la señal del modelo; el resultado de importar.
     Q_INVOKABLE void exportarEscaleta(const QString& formato, const QString& ruta);
-    Q_INVOKABLE QVariantMap importarEscaleta(const QString& ruta, bool probar);
+    QVariantMap importarEscaleta(const QString& ruta, bool probar);
+    /// Lo mismo para la vista: no devuelve nada. El error, por notify; lo que dio la prueba
+    /// (`probar`), en `escaletaProbada`.
+    Q_INVOKABLE void importarEscaletaUi(const QString& ruta, bool probar);
+    QVariantMap escaletaProbada() const { return escaletaProbada_; }
 
    signals:
     void notify(const QString& texto, const QString& tipo);
     void informeCambio();
+    void escaletaProbadaCambio();
 
    private:
+    QVariantMap escaletaProbada_;
+    int vecesProbada_ = 0;
     EventoAbierto& ab_;
     CorridaViewModel& corrida_;
     PadronViewModel& padron_;
