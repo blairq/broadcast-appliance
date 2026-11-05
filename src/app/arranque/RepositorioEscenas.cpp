@@ -11,6 +11,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include "Motor.hpp" // esperar la vuelta del motor al agregar una entrada de audio
 #include "arranque/AireDurable.hpp"
 #include "arranque/RuntimeMotor.hpp"
 #include "arranque/ArranqueAviso.hpp"
@@ -107,6 +108,14 @@ bool RepositorioEscenas::addAudioInput(const SourceSpec& pedida) {
         AppRuntime::errorDelHilo() = rt_.motorPropio().lastError();
         return false;
     }
+    // LA RESPUESTA LLEGA CON LA ENTRADA YA EN LA FOTO (el contrato de la ventanilla: lo que la
+    // orden cambió ya está en la foto cuando llega la respuesta). El motor arma la entrada en
+    // su vuelta (agregarEntrada se encola) y qué fuentes tienen audio sale de su foto
+    // (MezclaApp::audioSources): sin esperar esa vuelta, la foto publicada al terminar esta
+    // orden no tenía el canal y lo primero que se hacía con el micrófono recién agregado
+    // —ponerle efectos, el asistente con audio_input_add y enseguida audio_module_add— decía
+    // «no tiene audio». Acá es el dueño (no la interfaz): esperar es una vuelta (≤ 20 ms).
+    if (motor::Motor* m = rt_.motorPropio().motor()) m->esperarCola();
     const auto it = std::find_if(rt_.cfg_.audioInputs.begin(), rt_.cfg_.audioInputs.end(),
                                  [&](const SourceSpec& s) { return s.name == spec.name; });
     if (it == rt_.cfg_.audioInputs.end())

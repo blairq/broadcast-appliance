@@ -348,8 +348,10 @@ class Motor {
     /// Se llama desde el hilo del motor.
     void alFallar(std::function<void(const std::string& que, const std::string& error)> fn);
     /// Espera a que el hilo del motor corra todo lo que se encoló hasta ahora (y avise
-    /// lo que falló: alFallar ya se llamó). Para los tests y para hilos que no son la
-    /// interfaz: la interfaz NUNCA espera (si lo hace, queda en el registro).
+    /// lo que falló: alFallar ya se llamó). Al volver, la foto (instantanea) ya muestra lo
+    /// que hicieron: se publica en la misma vuelta, antes de soltar a los que esperan.
+    /// Para los tests y para hilos que no son la interfaz: la interfaz NUNCA espera (si lo
+    /// hace, queda en el registro).
     void esperarCola();
     /// Que la próxima vuelta del bucle (20 ms) publique la foto, sin esperar las
     /// 10 vueltas de siempre: lo pide quien acaba de cambiar algo.

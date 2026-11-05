@@ -52,6 +52,37 @@ if [ -z "${DOCKER:-}" ]; then
 fi
 d() { $DOCKER "$@"; }
 
+# DE A UNA CORRIDA POR MÁQUINA. Todas usan el mismo volumen (ba-trabajo: un solo clon en
+# /trabajo/ba, con `git checkout -f` del commit de cada una) y la misma colima: dos a la vez
+# (dos worktrees, o Linux y Windows por separado) se pisan el árbol en medio de la
+# compilación —sale un paquete mezclado de dos commits— y la que termina primero apaga
+# colima debajo de la otra. El candado es una carpeta con el pid de la corrida; la de un
+# proceso que ya no existe se saca sola. BA_DOCKER_CANDADO cambia dónde vive.
+CANDADO="${BA_DOCKER_CANDADO:-$HOME/.cache/broadcast-appliance/docker.lock}"
+mkdir -p "$(dirname "$CANDADO")"
+avisado=0
+while ! mkdir "$CANDADO" 2>/dev/null; do
+    otro="$(cat "$CANDADO/pid" 2>/dev/null || true)"
+    if [ -n "$otro" ] && ! kill -0 "$otro" 2>/dev/null; then
+        log "el candado de Docker era de una corrida que ya no está (pid $otro): lo saco"
+        rm -rf "$CANDADO"
+        continue
+    fi
+    if [ "$avisado" = 0 ]; then
+        log "otra corrida usa Docker (pid ${otro:-?}, $(cat "$CANDADO/quien" 2>/dev/null || echo '?')): espero a que termine"
+        avisado=1
+    fi
+    sleep 5
+done
+echo $$ >"$CANDADO/pid"
+echo "$ROOT $QUE" >"$CANDADO/quien"
+APAGAR_COLIMA=0
+al_salir() {
+    if [ "$APAGAR_COLIMA" = 1 ]; then log "apagando colima"; colima stop >/dev/null 2>&1 || true; fi
+    [ "$(cat "$CANDADO/pid" 2>/dev/null)" = "$$" ] && rm -rf "$CANDADO"
+}
+trap al_salir EXIT
+
 # Colima: si está instalada y apagada, se prende para compilar y se APAGA al terminar
 # (bien o mal). La VM reserva mucha memoria: dejarla prendida tras un armado ayudó a
 # agotar la memoria de la Mac en una prueba de carga (kernel panic del 2026-11-01).
@@ -59,9 +90,7 @@ d() { $DOCKER "$@"; }
 if command -v colima >/dev/null 2>&1 && ! colima status >/dev/null 2>&1; then
     log "prendiendo colima para compilar (se apaga al terminar)"
     colima start >/dev/null 2>&1 || morir "no se pudo prender colima"
-    if [ "${COLIMA_DEJAR:-0}" != 1 ]; then
-        trap 'log "apagando colima"; colima stop >/dev/null 2>&1 || true' EXIT
-    fi
+    [ "${COLIMA_DEJAR:-0}" = 1 ] || APAGAR_COLIMA=1
 fi
 
 cd "$ROOT"

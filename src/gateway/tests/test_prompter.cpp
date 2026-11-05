@@ -13,11 +13,10 @@
 //      vacio no pisa el que habia, y la tabla tiene tope.
 // ============================================================================
 
-#include <chrono>
 #include <cmath>
+#include <cstdint>
 #include <cstdio>
 #include <string>
-#include <thread>
 
 #include "Prompter.hpp"
 
@@ -36,7 +35,20 @@ int g_fallos = 0;
         }                                                                                                    \
     } while (0)
 
-const char* kDiscurso = "Buenas tardes a todos.\n"
+/// El reloj de la prueba: avanza solo cuando la prueba lo dice. Con el reloj real
+/// la prueba dependía de cuánto tardaba la máquina entre dos líneas (cargada, más
+/// de lo supuesto) y de cuánto dormía de verdad un sleep_for.
+struct RelojManual {
+    std::int64_t ms = 1'000'000;
+    Prompter::Reloj reloj() {
+        return [this]() { return ms; };
+    }
+};
+
+/// Iguales salvo el redondeo de la cuenta en double (no es un margen de tiempo).
+bool igual(double a, double b) { return std::fabs(a - b) < 1e-9; }
+
+const char* kDiscurso ="Buenas tardes a todos.\n"
                         "Gracias por acompanarnos en esta fecha.\n"
                         "\n"
                         "Hace doscientos anos, en esta misma plaza, un grupo de vecinos decidio\n"
@@ -70,49 +82,56 @@ void cargar_deja_parado() {
 }
 
 void cambiar_velocidad_no_mueve() {
-    Prompter p;
+    RelojManual r;
+    Prompter p(r.reloj());
     p.cargar("x", kDiscurso);
     p.comandar(json{{"posicion", 10.0}});
     p.comandar(json{{"corriendo", true}});
-    // Cambiar la velocidad sin haber corrido nada no debe mover el texto. El
-    // prompter corre con el reloj real: entre un comando y el otro pasan unos
-    // ms (muchos mas con los sanitizers) y el texto avanza lo que corresponde a
-    // ese tiempo. Lo que se prueba es que NO SALTE: una palabra de margen es
-    // unos 300 ms a 200 ppm, y un salto seria de decenas.
-    const auto cerca = [](double pos) { return std::fabs(pos - 10.0) < 1.0; };
+    // Cambiar la velocidad sin haber corrido nada no debe mover el texto.
     p.comandar(json{{"ppm", 200}});
-    CHECK(cerca(p.estado()["posicion"].get<double>()), "cambiar la velocidad deja el texto donde estaba");
+    CHECK(p.estado()["posicion"].get<double>() == 10.0, "cambiar la velocidad deja el texto donde estaba");
+    // Corriendo, cambiar la velocidad congela lo que avanzó a la velocidad de antes:
+    // 3 s a 200 ppm son 10 palabras, y lo que sigue cuenta a la nueva.
+    r.ms += 3000;
+    p.comandar(json{{"ppm", 100}});
+    CHECK(igual(p.estado()["posicion"].get<double>(), 20.0), "lo andado a la velocidad de antes queda");
     p.comandar(json{{"corriendo", false}});
     const double parado = p.estado()["posicion"].get<double>();
-    CHECK(cerca(parado), "parar tampoco lo mueve");
-    // Parado ya no corre el reloj: desde aca la posicion tiene que ser exacta.
+    CHECK(igual(parado, 20.0), "parar tampoco lo mueve");
+    r.ms += 5000;
+    CHECK(p.estado()["posicion"].get<double>() == parado, "parado no avanza");
     p.pararEnSeco();
     CHECK(p.estado()["posicion"].get<double>() == parado, "el boton de panico lo deja donde esta");
     CHECK(p.estado()["corriendo"].get<bool>() == false, "y parado");
 }
 
 void avanza_corriendo() {
-    Prompter p;
+    RelojManual r;
+    Prompter p(r.reloj());
     // Un texto largo para que no se termine durante la prueba.
     std::string largo;
     for (int i = 0; i < 2000; ++i)
         largo += "palabra ";
     p.cargar("largo", largo);
-    // 300 palabras por minuto es el tope: 5 por segundo. Con 400 ms la
-    // posicion tiene que haber avanzado unas 2 palabras, que alcanza para ver
-    // que corre sin que la prueba tarde.
+    // 300 palabras por minuto es el tope: 5 por segundo.
     p.comandar(json{{"ppm", 300}});
     p.comandar(json{{"corriendo", true}});
-    std::this_thread::sleep_for(std::chrono::milliseconds(400));
-    const double pos = p.estado()["posicion"].get<double>();
+    const auto desde = p.estado()["desdeMs"].get<std::int64_t>();
+    r.ms += 400;
+    const json e = p.estado();
     // El estado NO adelanta la posicion: la calcula la vista. El servidor
     // guarda desde donde y desde cuando.
-    CHECK(pos == 0.0, "el servidor no adelanta la posicion: manda desde donde y desde cuando");
-    // Al comandar algo, si la congela.
+    CHECK(e["posicion"].get<double>() == 0.0, "el servidor no adelanta la posicion: manda desde donde y desde cuando");
+    CHECK(e["desdeMs"].get<std::int64_t>() == desde && e["ahoraMs"].get<std::int64_t>() == desde + 400,
+          "desde cuándo corre y la hora del servidor, para que la vista calcule");
+    // Al comandar algo, si la congela: 400 ms a 5 palabras por segundo, 2 palabras.
     p.comandar(json{{"corriendo", false}});
-    const double fijada = p.estado()["posicion"].get<double>();
-    CHECK(fijada > 1.0, "al parar, la posicion quedo donde iba el texto");
-    CHECK(fijada < 5.0, "y no mas alla de lo que dio el tiempo");
+    CHECK(igual(p.estado()["posicion"].get<double>(), 2.0), "al parar, la posicion quedo donde iba el texto");
+    // Y no pasa del final por más tiempo que corra.
+    p.comandar(json{{"corriendo", true}});
+    r.ms += 3'600'000;
+    p.comandar(json{{"corriendo", false}});
+    CHECK(p.estado()["posicion"].get<double>() == 2000.0, "corriendo no se pasa del final");
 }
 
 void saltar_a_parrafo() {
@@ -149,7 +168,8 @@ void limites() {
 
 /// Quien esta conectado sale de quien pide el estado: no hay canal aparte.
 void conectados() {
-    Prompter p;
+    RelojManual r;
+    Prompter p(r.reloj());
     CHECK(p.clientes().empty(), "recien arrancado no hay nadie");
 
     p.visto("tablet-1", "orador", "Atril 1", 0x0100007f);
@@ -185,7 +205,9 @@ void conectados() {
 
     // Dejar de pedir = desaparecer. La pagina pide cada 500 ms, asi que
     // pasado kVivoMs() sin aparecer ya no esta.
-    std::this_thread::sleep_for(std::chrono::milliseconds(Prompter::kVivoMs() + 200));
+    r.ms += Prompter::kVivoMs();
+    CHECK(p.clientes().size() == antes, "justo kVivoMs() después todavía están");
+    r.ms += 1;
     CHECK(p.clientes().empty(), "el que deja de pedir se va solo");
     p.visto("tablet-1", "orador", "", 0x0100007f);
     CHECK(p.clientes().size() == 1, "y vuelve si vuelve a pedir");
