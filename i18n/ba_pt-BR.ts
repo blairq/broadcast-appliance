@@ -124,24 +124,24 @@
     </message>
     <message>
         <location line="+5"/>
-        <location line="+27"/>
-        <location line="+305"/>
+        <location line="+45"/>
+        <location line="+311"/>
         <source>no disponible</source>
         <translation>indisponível</translation>
     </message>
     <message>
-        <location line="-330"/>
-        <location line="+27"/>
+        <location line="-354"/>
+        <location line="+45"/>
         <source>Se está transmitiendo o grabando: el túnel no se toca hasta que termine (reinicia la conferencia).</source>
         <translation>Transmitindo ou gravando: o túnel não é alterado até terminar (reinicia a conferência).</translation>
     </message>
     <message>
-        <location line="-25"/>
+        <location line="-43"/>
         <source>No hay API key de pinggy guardada (Configuración → Pinggy).</source>
         <translation>Não há API key do pinggy salva (Configurações → Pinggy).</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>No hay token de pinggy guardado (Configuración → Pinggy).</source>
         <translation>Não há token do pinggy salvo (Configurações → Pinggy).</translation>
     </message>
@@ -156,7 +156,7 @@
         <translation>Forma de conexão desconhecida: “%1”.</translation>
     </message>
     <message>
-        <location line="+63"/>
+        <location line="+86"/>
         <source>La conferencia no está andando: el estado del túnel se ve cuando arranca.</source>
         <translation>A conferência não está rodando: o estado do túnel aparece quando ela iniciar.</translation>
     </message>
@@ -530,7 +530,7 @@
 <context>
     <name>AgentViewModel</name>
     <message>
-        <location filename="../src/app/agent/AgentViewModel.cpp" line="+458"/>
+        <location filename="../src/app/agent/AgentViewModel.cpp" line="+459"/>
         <source>Falta la dirección del servidor.</source>
         <translation>Falta o endereço do servidor.</translation>
     </message>
@@ -6231,7 +6231,7 @@ O PIN anterior deixa de servir para entrar.</translation>
 <context>
     <name>Configuraciones</name>
     <message>
-        <location filename="../src/app/arranque/Configuraciones.cpp" line="+465"/>
+        <location filename="../src/app/arranque/Configuraciones.cpp" line="+466"/>
         <source>ya hay un evento «%1»</source>
         <translation>já existe um evento “%1”</translation>
     </message>
@@ -6402,7 +6402,7 @@ O PIN anterior deixa de servir para entrar.</translation>
         <translation>Abra-o no navegador do dispositivo (na rede local; o código vale por alguns minutos e serve uma vez). Depois aprove-o aqui, em Serviços → Controle web.</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+42"/>
         <location line="+61"/>
         <source>Tablet emparejada.</source>
         <translation>Tablet pareado.</translation>
@@ -6480,7 +6480,7 @@ O PIN anterior deixa de servir para entrar.</translation>
 <context>
     <name>ControlWebGateway</name>
     <message>
-        <location filename="../src/app/control/ControlWebGateway.cpp" line="+179"/>
+        <location filename="../src/app/control/ControlWebGateway.cpp" line="+196"/>
         <source>El gateway no está andando: el navegador no tendría a quién conectarse.</source>
         <translation>O gateway não está rodando: o navegador não teria a quem se conectar.</translation>
     </message>
@@ -7498,7 +7498,7 @@ Ligue-a pelo Log.</translation>
 <context>
     <name>DireccionContent</name>
     <message>
-        <location filename="../src/app/qml/cards/DireccionContent.qml" line="+78"/>
+        <location filename="../src/app/qml/cards/DireccionContent.qml" line="+95"/>
         <source>Bloque: faltan %1 min · fin prevista %2</source>
         <translation>Bloco: faltam %1 min · fim previsto %2</translation>
     </message>
@@ -7661,7 +7661,7 @@ Ligue-a pelo Log.</translation>
         <translation>Iniciar o roteiro</translation>
     </message>
     <message numerus="yes">
-        <location line="+5"/>
+        <location line="-194"/>
         <source>La revisión encontró %n problema grave: miralos en Guion del evento (ahí se puede arrancar igual).</source>
         <translation>
             <numerusform>A revisão encontrou %n problema grave: veja em Roteiro do evento (lá dá para iniciar mesmo assim).</numerusform>
@@ -7669,7 +7669,7 @@ Ligue-a pelo Log.</translation>
         </translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+208"/>
         <source>Seguir (lo pausado no cuenta como atraso)</source>
         <translation>Continuar (o tempo pausado não conta como atraso)</translation>
     </message>
@@ -8252,7 +8252,7 @@ Ligue-a pelo Log.</translation>
 <context>
     <name>EditorCara</name>
     <message>
-        <location filename="../src/app/qml/controls/EditorCara.qml" line="+51"/>
+        <location filename="../src/app/qml/controls/EditorCara.qml" line="+52"/>
         <source>La cámara «%1» está al aire</source>
         <translation>A câmera “%1” está no ar</translation>
     </message>
@@ -12281,7 +12281,7 @@ Ligue-a pelo Log.</translation>
         <translation>Salvar</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Plantilla «Intérprete LSA»</source>
         <translation>Modelo “Intérprete de língua de sinais”</translation>
     </message>
@@ -12291,7 +12291,7 @@ Ligue-a pelo Log.</translation>
         <translation>A primeira fonte do conteúdo (a câmera do intérprete) em um quadro embaixo à direita, fixa</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>Cerrar</source>
         <translation>Fechar</translation>
     </message>
@@ -12690,12 +12690,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
 <context>
     <name>GuestsContent</name>
     <message>
-        <location filename="../src/app/qml/cards/GuestsContent.qml" line="+22"/>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="-589"/>
         <source>Conectando la conferencia a internet… (la conferencia se reinicia: los invitados se reconectan solos)</source>
         <translation>Conectando a conferência à internet… (a conferência reinicia: os convidados se reconectam sozinhos)</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location filename="../src/app/qml/cards/GuestsContent.qml" line="+32"/>
         <source>Conferencia lista</source>
         <translation>Conferência pronta</translation>
     </message>
@@ -12761,12 +12761,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+6"/>
         <source>La conferencia vuelve a ser solo de la red local (se reinicia)</source>
         <translation>A conferência volta a ser só da rede local (reinicia)</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location filename="../src/app/qml/cards/GuestsContent.qml" line="+8"/>
         <source>Corta el acceso desde internet (la conferencia se reinicia).</source>
         <translation>Corta o acesso pela internet (a conferência reinicia).</translation>
     </message>
@@ -12828,12 +12828,12 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Aprovar o cargo dele para o GC: “%1”</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location filename="../src/app/ui/SalaViewModel.cpp" line="+157"/>
         <source>Cargo aprobado para el zócalo</source>
         <translation>Cargo aprovado para o GC</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location filename="../src/app/qml/cards/GuestsContent.qml" line="-17"/>
         <source>Oye: programa sin su voz</source>
         <translation>Ouve: programa sem a própria voz</translation>
     </message>
@@ -14125,7 +14125,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
 <context>
     <name>LineaConduccion</name>
     <message>
-        <location filename="../src/app/qml/controls/LineaConduccion.qml" line="+31"/>
+        <location filename="../src/app/qml/controls/LineaConduccion.qml" line="+37"/>
         <source>¿Correr el guion igual?</source>
         <translation>Rodar o roteiro mesmo assim?</translation>
     </message>
@@ -14148,7 +14148,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Revisar</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+13"/>
         <source>La línea terminó</source>
         <translation>A linha terminou</translation>
     </message>
@@ -14448,7 +14448,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Todos (*)</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+17"/>
         <source>¿Importar la escaleta?</source>
         <translation>Importar o espelho?</translation>
     </message>
@@ -14463,7 +14463,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="+7"/>
         <source>Exportar la escaleta</source>
         <translation>Exportar o espelho</translation>
     </message>
@@ -14488,7 +14488,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Ver e controlar esta saída (Ctrl+%1)</translation>
     </message>
     <message numerus="yes">
-        <location line="-37"/>
+        <location line="-33"/>
         <source>Se suma %n paso al final de la línea.</source>
         <translation>
             <numerusform>%n passo é somado ao final da linha.</numerusform>
@@ -14496,7 +14496,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+45"/>
+        <location line="+41"/>
         <source>%n cambio sin confirmar</source>
         <translation>
             <numerusform>%n alteração não confirmada</numerusform>
@@ -14844,7 +14844,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
 <context>
     <name>LobbyContent</name>
     <message>
-        <location filename="../src/app/qml/cards/LobbyContent.qml" line="+56"/>
+        <location filename="../src/app/qml/cards/LobbyContent.qml" line="+59"/>
         <source>Conferencia %1</source>
         <translation>Conferência %1</translation>
     </message>
@@ -14872,7 +14872,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         </translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+29"/>
         <source>Admitir</source>
         <translation>Admitir</translation>
     </message>
@@ -15585,7 +15585,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
 <context>
     <name>Matriz</name>
     <message>
-        <location filename="../src/app/audio/Matriz.cpp" line="+115"/>
+        <location filename="../src/app/audio/Matriz.cpp" line="+116"/>
         <source>Programa</source>
         <translation>Programa</translation>
     </message>
@@ -15616,42 +15616,42 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>A fonte de áudio “%1” não existe.</translation>
     </message>
     <message>
-        <location line="+94"/>
-        <location line="+167"/>
+        <location line="+98"/>
+        <location line="+165"/>
         <source>No existe esa pista.</source>
         <translation>Essa pista não existe.</translation>
     </message>
     <message>
-        <location line="-166"/>
+        <location line="-164"/>
         <location line="+10"/>
         <source>No existe la fuente «%1».</source>
         <translation>A fonte “%1” não existe.</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+141"/>
+        <location line="+139"/>
         <location line="+12"/>
         <source>No existe el bus.</source>
         <translation>O bus não existe.</translation>
     </message>
     <message>
-        <location line="-150"/>
+        <location line="-148"/>
         <source>Eso arma un lazo: la entrada virtual volvería a su propio bus.</source>
         <translation>Isso cria um loop: a entrada virtual voltaria ao seu próprio bus.</translation>
     </message>
     <message>
         <location line="+47"/>
-        <location line="+24"/>
+        <location line="+23"/>
         <source>No entran más buses virtuales.</source>
         <translation>Não cabem mais buses virtuais.</translation>
     </message>
     <message>
-        <location line="-17"/>
+        <location line="-16"/>
         <source>Salida virtual %1</source>
         <translation>Saída virtual %1</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+17"/>
         <source>El motor de audio no está arriba.</source>
         <translation>O motor de áudio não está ativo.</translation>
     </message>
@@ -15662,22 +15662,22 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
     </message>
     <message>
         <location line="+1"/>
-        <location line="+74"/>
+        <location line="+73"/>
         <source>Ya hay una fuente con ese nombre.</source>
         <translation>Já existe uma fonte com esse nome.</translation>
     </message>
     <message>
-        <location line="-69"/>
+        <location line="-68"/>
         <source>No se pudo crear la fuente.</source>
         <translation>Não foi possível criar a fonte.</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+59"/>
         <source>Falta el nombre.</source>
         <translation>Falta o nome.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+31"/>
         <location line="+15"/>
         <source>No es una salida virtual.</source>
         <translation>Não é uma saída virtual.</translation>
@@ -15856,13 +15856,13 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
     </message>
     <message>
         <location line="+1"/>
-        <location line="+119"/>
+        <location line="+120"/>
         <location line="+52"/>
         <source>Cerrar</source>
         <translation>Fechar</translation>
     </message>
     <message>
-        <location line="-152"/>
+        <location line="-153"/>
         <source>Pista %1 de la grabación</source>
         <translation>Pista %1 da gravação</translation>
     </message>
@@ -15947,7 +15947,7 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
         <translation>Mute de</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+24"/>
         <source>Ocultar este dispositivo</source>
         <translation>Ocultar este dispositivo</translation>
     </message>
@@ -16276,12 +16276,12 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
         <translation>Áudio: “%1” foi pulado por lentidão (passa sem processar). Remonte-o em Áudio quando estiver bem.</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+52"/>
         <source>No existe la fuente «%1».</source>
         <translation>A fonte “%1” não existe.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+17"/>
         <source>ya se está midiendo</source>
         <translation>já está sendo medido</translation>
     </message>
@@ -16289,7 +16289,7 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
 <context>
     <name>Mezclador</name>
     <message>
-        <location filename="../src/app/audio/Mezclador.cpp" line="+223"/>
+        <location filename="../src/app/audio/Mezclador.cpp" line="+224"/>
         <source>el audio de los racks no está disponible</source>
         <translation>o áudio dos racks não está disponível</translation>
     </message>
@@ -16427,7 +16427,7 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
         <translation>M todos</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+8"/>
         <source>Silenciar todo el grupo (si ya están todas mudas, las vuelve a abrir)</source>
         <translation>Silenciar todo o grupo (se todos já estiverem mudos, abre-os de novo)</translation>
     </message>
@@ -16930,7 +16930,7 @@ A matriz não muda o que entra: decide para quais saídas vai (as colunas: o pro
 <context>
     <name>MultiviewViewModel</name>
     <message>
-        <location filename="../src/app/ui/MultiviewViewModel.cpp" line="+77"/>
+        <location filename="../src/app/ui/MultiviewViewModel.cpp" line="+78"/>
         <location line="+59"/>
         <source>Multiview %1</source>
         <translation>Multiview %1</translation>
@@ -26768,7 +26768,7 @@ Adicione imagens pela aba Arquivos.</translation>
 <context>
     <name>PdfContent</name>
     <message>
-        <location filename="../src/app/qml/cards/PdfContent.qml" line="+37"/>
+        <location filename="../src/app/qml/cards/PdfContent.qml" line="+43"/>
         <source>Un PDF para mostrar</source>
         <translation>Um PDF para mostrar</translation>
     </message>
@@ -28511,7 +28511,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>Não se vê nenhum rosto</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="+40"/>
         <source>Sin cámaras</source>
         <translation>Sem câmeras</translation>
     </message>
@@ -28541,7 +28541,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>“%1” não é mais uma entrada de vídeo.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+17"/>
         <source>+ Acercar</source>
         <translation>+ Aproximar</translation>
     </message>
@@ -28589,7 +28589,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
 <context>
     <name>PtzPage</name>
     <message>
-        <location filename="../src/app/qml/pages/PtzPage.qml" line="+20"/>
+        <location filename="../src/app/qml/pages/PtzPage.qml" line="+21"/>
         <source>La cámara «%1» está al aire</source>
         <translation>A câmera “%1” está no ar</translation>
     </message>
@@ -28605,12 +28605,12 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
     </message>
     <message>
         <location line="+0"/>
-        <location line="+460"/>
+        <location line="+456"/>
         <source>Cancelar</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location line="-384"/>
+        <location line="-380"/>
         <source>Cámaras (%1)</source>
         <translation>Câmeras (%1)</translation>
     </message>
@@ -28800,7 +28800,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>O recorte (digital)</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+17"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
@@ -28885,7 +28885,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>sem foto</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+11"/>
         <source>N.º %1</source>
         <translation>N.º %1</translation>
     </message>
@@ -28900,7 +28900,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>Ir</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Foto</source>
         <translation>Foto</translation>
     </message>
@@ -28915,7 +28915,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>Regravar</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+2"/>
         <source>Listo</source>
         <translation>Pronto</translation>
     </message>
@@ -29100,12 +29100,12 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
     </message>
     <message>
         <location line="+0"/>
-        <location line="+285"/>
+        <location line="+284"/>
         <source>Cancelar</source>
         <translation>Cancelar</translation>
     </message>
     <message>
-        <location line="-266"/>
+        <location line="-265"/>
         <source>DIGITAL</source>
         <translation>DIGITAL</translation>
     </message>
@@ -29200,7 +29200,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>moveu-se e não tem memória para voltar: tire outra</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+23"/>
         <source>+ Acercar</source>
         <translation>+ Aproximar</translation>
     </message>
@@ -29265,12 +29265,12 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>Apagar</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location filename="../src/app/ptz/ControlCamarasPosiciones.cpp" line="+454"/>
         <source>«%1» regrabado</source>
         <translation>“%1” regravado</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location filename="../src/app/qml/controls/PtzVentana.qml" line="+32"/>
         <source>Nuevo punto:</source>
         <translation>Novo ponto:</translation>
     </message>
@@ -29285,7 +29285,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
         <translation>Salvar onde está</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+11"/>
         <source>En cada punto: ⟳ lo regraba donde está ahora la cámara, 📷 le saca una foto nueva, ✕ lo borra.</source>
         <translation>Em cada ponto: ⟳ regrava onde a câmera está agora, 📷 tira uma foto nova, ✕ apaga.</translation>
     </message>
@@ -29432,7 +29432,7 @@ De frente, de lado, com óculos e sem: assim a pessoa é reconhecida no dia real
 <context>
     <name>QrControlEscenas</name>
     <message>
-        <location filename="../src/app/qml/controls/QrControlEscenas.qml" line="+35"/>
+        <location filename="../src/app/qml/controls/QrControlEscenas.qml" line="+26"/>
         <source>Tablet de escenas</source>
         <translation>Tablet de cenas</translation>
     </message>
@@ -30975,7 +30975,7 @@ Tente baixar o nível, tirar o módulo ou esvaziar a busca. Os arquivos estão e
 <context>
     <name>RetardoCanal</name>
     <message>
-        <location filename="../src/app/qml/controls/RetardoCanal.qml" line="+39"/>
+        <location filename="../src/app/qml/controls/RetardoCanal.qml" line="+58"/>
         <source>Sincronizar «%1» con el video</source>
         <translation>Sincronizar “%1” com o vídeo</translation>
     </message>
@@ -31000,12 +31000,12 @@ Tente baixar o nível, tirar o módulo ou esvaziar a busca. Os arquivos estão e
         <translation>Medir com palmas</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Con la cámara de este canal en el programa: 10 s para aplaudir 4 o 5 veces frente a ella, separadas.</source>
         <translation>Com a câmera deste canal no programa: 10 s para bater palmas 4 ou 5 vezes na frente dela, espaçadas.</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-55"/>
         <source>%1 ms (%2 aplausos, ±%3 ms)</source>
         <translation>%1 ms (%2 palmas, ±%3 ms)</translation>
     </message>
@@ -31025,7 +31025,7 @@ Tente baixar o nível, tirar o módulo ou esvaziar a busca. Os arquivos estão e
         <translation>não encontrei palmas</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+56"/>
         <source>Cancelar</source>
         <translation>Cancelar</translation>
     </message>
@@ -31457,12 +31457,12 @@ Adicione uma em Cenas e fontes: posicione-a onde quer que o GC apareça, e depoi
 <context>
     <name>SalaViewModel</name>
     <message>
-        <location filename="../src/app/ui/SalaViewModel.cpp" line="+99"/>
+        <location filename="../src/app/ui/SalaViewModel.cpp" line="-57"/>
         <source>esta versión no tiene %1</source>
         <translation>esta versão não tem %1</translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+61"/>
         <source>no hay un invitado «%1» en la conferencia</source>
         <translation>não há um convidado “%1” na conferência</translation>
     </message>
@@ -31873,7 +31873,7 @@ Adicione uma em Cenas e fontes: posicione-a onde quer que o GC apareça, e depoi
 <context>
     <name>ScenesContent</name>
     <message>
-        <location filename="../src/app/qml/cards/ScenesContent.qml" line="+125"/>
+        <location filename="../src/app/qml/cards/ScenesContent.qml" line="+131"/>
         <source>Está al aire</source>
         <translation>Está no ar</translation>
     </message>
@@ -34371,7 +34371,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
 <context>
     <name>SourcesModel</name>
     <message>
-        <location filename="../src/app/ui/ListModels.cpp" line="+378"/>
+        <location filename="../src/app/ui/ListModels.cpp" line="+379"/>
         <source>No existe la fuente &apos;%1&apos;.</source>
         <translation>A fonte &apos;%1&apos; não existe.</translation>
     </message>
@@ -34615,7 +34615,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>O disco dos eventos está em %1 % (restam %2 GB)</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+317"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+323"/>
         <source>La interfaz estuvo trabada %1 s; el aire siguió</source>
         <translation>A interface ficou travada %1 s; o ar continuou</translation>
     </message>
@@ -34630,7 +34630,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
         <translation>Não foi possível salvar: %1</translation>
     </message>
     <message>
-        <location line="-304"/>
+        <location line="-310"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Foi restaurado o que estava no ar antes da queda (cartela ou preto)</translation>
     </message>
@@ -36131,7 +36131,7 @@ e ele abre de novo sozinho. Configuração, credenciais, gravações e arquivos 
 <context>
     <name>Traductor</name>
     <message>
-        <location filename="../src/app/agent/Traductor.cpp" line="+119"/>
+        <location filename="../src/app/agent/Traductor.cpp" line="+120"/>
         <source>No hay paquetes para traducir desde el idioma del evento (%1).</source>
         <translation>Não há pacotes para traduzir do idioma do evento (%1).</translation>
     </message>
@@ -40087,7 +40087,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
 <context>
     <name>acceso</name>
     <message>
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="-698"/>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="-139"/>
         <source>Está vacío.</source>
         <translation>Está vazio.</translation>
     </message>
@@ -40107,7 +40107,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>É longo demais: colou outra coisa?</translation>
     </message>
     <message>
-        <location line="+560"/>
+        <location line="+584"/>
         <source>pinggy no aceptó la API key</source>
         <translation>o pinggy não aceitou a API key</translation>
     </message>
@@ -42303,7 +42303,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>Resposta mais longa</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/SettingsModel.cpp" line="+286"/>
+        <location filename="../src/app/ui/SettingsModel.cpp" line="+287"/>
         <location filename="../src/core/ajustes/Registro.cpp" line="+0"/>
         <source>tokens</source>
         <translation>tokens</translation>
@@ -45102,12 +45102,17 @@ Escolha outra coisa em Saídas → Telas.</translation>
 <context>
     <name>arranque</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+146"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+169"/>
         <source>arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms</source>
         <translation>inicialização: o áudio do sistema (Qt Multimedia, em sua própria thread), %1 ms</translation>
     </message>
     <message>
-        <location line="+83"/>
+        <location line="+4"/>
+        <source>arranque: COM del hilo del audio del sistema: %1</source>
+        <translation>inicialização: COM da thread do áudio do sistema: %1</translation>
+    </message>
+    <message>
+        <location line="+84"/>
         <source>arranque: el cartel de carga ya se ve</source>
         <translation>inicialização: a tela de carregamento já aparece</translation>
     </message>
@@ -45137,17 +45142,22 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>Software livre (GPL-3.0) · GStreamer, Qt e ONNX Runtime</translation>
     </message>
     <message>
-        <location line="+103"/>
+        <location line="+36"/>
+        <source>arranque: COM del hilo de la interfaz: %1 (antes de Qt: %2)</source>
+        <translation>inicialização: COM da thread da interface: %1 (antes do Qt: %2)</translation>
+    </message>
+    <message>
+        <location line="+91"/>
         <source>arranque: la configuración, %1 ms</source>
         <translation>inicialização: a configuração, %1 ms</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+74"/>
         <source>el motor no pudo arrancar: %1</source>
         <translation>o motor não conseguiu iniciar: %1</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+28"/>
         <source>Cargando la configuración del estudio…</source>
         <translation>Carregando a configuração do estúdio…</translation>
     </message>
@@ -45252,17 +45262,17 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>fps=%1 enc=%2 gravando=%3 transmitindo=%4 perdidos=%5/%6 enviado=%7KB</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/RepositorioEscenas.cpp" line="+97"/>
+        <location filename="../src/app/arranque/RepositorioEscenas.cpp" line="+107"/>
         <source>entrada de audio &apos;%1&apos; omitida: %2</source>
         <translation>entrada de áudio &apos;%1&apos; omitida: %2</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/Invitados.cpp" line="+31"/>
+        <location filename="../src/app/arranque/Invitados.cpp" line="+32"/>
         <source>invitado %1 (audio) omitido: %2</source>
         <translation>convidado %1 (áudio) omitido: %2</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+38"/>
         <source>«%1» omitido: %2</source>
         <translation>“%1” omitido: %2</translation>
     </message>
@@ -45272,7 +45282,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>o áudio de “%1” não entrou: %2</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+258"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+259"/>
         <location line="+24"/>
         <source>Contando los plugins de video…</source>
         <translation>Contando os plugins de vídeo…</translation>
@@ -45570,7 +45580,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>verificar os elementos do GStreamer</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/SaludProceso.cpp" line="+146"/>
+        <location filename="../src/app/arranque/SaludProceso.cpp" line="+159"/>
         <source>sin canal de control (%1)</source>
         <translation>sem canal de controle (%1)</translation>
     </message>
@@ -45600,7 +45610,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>encerramento ordenado</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/SaludProceso.cpp" line="-112"/>
+        <location filename="../src/app/arranque/SaludProceso.cpp" line="-125"/>
         <source>sin canal con el gateway: %1</source>
         <translation>sem canal com o gateway: %1</translation>
     </message>
@@ -45615,7 +45625,7 @@ Escolha outra coisa em Saídas → Telas.</translation>
         <translation>o gateway não respondeu ao pedido de reinício</translation>
     </message>
     <message>
-        <location line="+104"/>
+        <location line="+117"/>
         <source>ya se está reiniciando la conferencia</source>
         <translation>a conferência já está reiniciando</translation>
     </message>
@@ -49867,7 +49877,7 @@ Dados (de %2): %3</translation>
         <translation>%1: esquema %2 → %3</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+211"/>
+        <location filename="../src/core/persist/ArchivoConfig.cpp" line="+216"/>
         <source>%1: lo escribió una versión más nueva (esta escribe el esquema %2): no se pisa, el cambio queda sin guardar</source>
         <translation>%1: foi escrito por uma versão mais nova (esta escreve o esquema %2): não é sobrescrito, a mudança fica sem salvar</translation>
     </message>
@@ -49882,7 +49892,7 @@ Dados (de %2): %3</translation>
         <translation>modo seguro: a configuração NÃO é salva. O que você mudar agora vale só até fechar.</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AppSettings.cpp" line="+78"/>
+        <location filename="../src/app/arranque/AppSettings.cpp" line="+80"/>
         <source>%1 no es JSON válido; se cargó la generación anterior (%2)</source>
         <translation>%1 não é JSON válido; foi carregada a geração anterior (%2)</translation>
     </message>
@@ -50856,7 +50866,7 @@ Dados (de %2): %3</translation>
         <translation>o travamento da interface durou cerca de %1 ms (pilhas em %2)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="-396"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="-426"/>
         <source>--detectar-acoples solo anda con --test: no se enciende</source>
         <translation>--detectar-acoples só funciona com --test: não é ligado</translation>
     </message>
@@ -51763,7 +51773,7 @@ Dados (de %2): %3</translation>
 <context>
     <name>emision</name>
     <message>
-        <location filename="../src/app/emision/BroadcastEngine.cpp" line="+177"/>
+        <location filename="../src/app/emision/BroadcastEngine.cpp" line="+179"/>
         <source>GStreamer no arrancó: %1</source>
         <translation>O GStreamer não iniciou: %1</translation>
     </message>
@@ -51825,7 +51835,7 @@ Dados (de %2): %3</translation>
         <translation>carregar: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/VistasYMedicion.cpp" line="+79"/>
+        <location filename="../src/app/emision/VistasYMedicion.cpp" line="+82"/>
         <source>enablePreview sin startup o con tamaño inválido</source>
         <translation>enablePreview sem startup ou com tamanho inválido</translation>
     </message>
@@ -51877,7 +51887,7 @@ Dados (de %2): %3</translation>
         <translation>&apos;%1&apos; não deu imagem (sem sinal ou desligada)</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/EmisionSalidas.cpp" line="+469"/>
+        <location filename="../src/app/emision/EmisionSalidas.cpp" line="+470"/>
         <source>startStreaming sin startup</source>
         <translation>startStreaming sem startup</translation>
     </message>
@@ -53033,18 +53043,18 @@ Dados (de %2): %3</translation>
 <context>
     <name>escenas</name>
     <message>
-        <location filename="../src/app/arranque/RepositorioEscenas.cpp" line="+84"/>
-        <location line="+42"/>
+        <location filename="../src/app/arranque/RepositorioEscenas.cpp" line="+89"/>
+        <location line="+43"/>
         <source>no existe la escena &quot;%1&quot;</source>
         <translation>a cena &quot;%1&quot; não existe</translation>
     </message>
     <message>
-        <location line="-37"/>
+        <location line="-38"/>
         <source>ya hay una escena llamada &quot;%1&quot;</source>
         <translation>já há uma cena chamada &quot;%1&quot;</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+24"/>
         <source>la escena se copio, pero la fuente &quot;%1&quot; no se pudo recrear: %2</source>
         <translation>a cena foi copiada, mas a fonte &quot;%1&quot; não pôde ser recriada: %2</translation>
     </message>
@@ -53061,7 +53071,7 @@ Dados (de %2): %3</translation>
         <translation>a cena &apos;%1&apos; não existe</translation>
     </message>
     <message>
-        <location line="+77"/>
+        <location line="+79"/>
         <location line="+31"/>
         <source>no existe la fuente &apos;%1&apos; en &apos;%2&apos;</source>
         <translation>a fonte &apos;%1&apos; não existe em &apos;%2&apos;</translation>
@@ -53072,7 +53082,7 @@ Dados (de %2): %3</translation>
         <translation>não foi possível recortar &apos;%1&apos; em &apos;%2&apos; (recorte maior que a imagem?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+188"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+190"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>ainda não é possível criar cenas</translation>
     </message>
@@ -54060,7 +54070,7 @@ Dados (de %2): %3</translation>
         <translation>seis deixas automáticas seguidas: se algo der errado, o roteiro segue sozinho</translation>
     </message>
     <message>
-        <location filename="../src/app/evento/EventoStore.cpp" line="+151"/>
+        <location filename="../src/app/evento/EventoStore.cpp" line="+152"/>
         <source>falta «%1» en los medios del evento</source>
         <translation>falta “%1” nas mídias do evento</translation>
     </message>
@@ -54201,7 +54211,7 @@ Dados (de %2): %3</translation>
         <translation>%1 · ao vivo pela internet.</translation>
     </message>
     <message>
-        <location filename="../src/app/evento/FotosConfig.cpp" line="+176"/>
+        <location filename="../src/app/evento/FotosConfig.cpp" line="+178"/>
         <source>la foto está vacía</source>
         <translation>a foto está vazia</translation>
     </message>
@@ -54226,7 +54236,7 @@ Dados (de %2): %3</translation>
         <translation>não foi possível copiar %1: %2</translation>
     </message>
     <message>
-        <location filename="../src/app/evento/Padron.cpp" line="+133"/>
+        <location filename="../src/app/evento/Padron.cpp" line="+134"/>
         <source>orador</source>
         <translation>orador</translation>
     </message>
@@ -54615,7 +54625,7 @@ Dados (de %2): %3</translation>
         <translation>Passagem de som com cada microfone da sala</translation>
     </message>
     <message>
-        <location filename="../src/app/evento/TemaEvento.cpp" line="+164"/>
+        <location filename="../src/app/evento/TemaEvento.cpp" line="+165"/>
         <source>No existe el archivo.</source>
         <translation>O arquivo não existe.</translation>
     </message>
@@ -55519,7 +55529,7 @@ Dados (de %2): %3</translation>
         <translation>Não conheço o serviço “%1”.</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Grillas.cpp" line="+246"/>
+        <location filename="../src/gateway/Grillas.cpp" line="+235"/>
         <source>falta «rotulos» (una lista)</source>
         <translation>falta «rotulos» (uma lista)</translation>
     </message>
@@ -55599,7 +55609,7 @@ Dados (de %2): %3</translation>
         <translation>célula de “%1” sem tamanho</translation>
     </message>
     <message>
-        <location line="+694"/>
+        <location line="+671"/>
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>grades: BA.Grilla.%1 pronta (%2x%3)</translation>
     </message>
@@ -55614,7 +55624,7 @@ Dados (de %2): %3</translation>
         <translation>grades: BA.Grilla.%1 %2x%3, %4 pessoas (+%5), %6 ms por quadro</translation>
     </message>
     <message>
-        <location filename="../src/gateway/MediaPump.cpp" line="+315"/>
+        <location filename="../src/gateway/MediaPump.cpp" line="+283"/>
         <source>escena %1</source>
         <translation>cena %1</translation>
     </message>
@@ -57361,7 +57371,7 @@ Dados (de %2): %3</translation>
         <translation>“%1” não iniciou ao abrir: %2</translation>
     </message>
     <message>
-        <location filename="../src/grafico/Componentes.cpp" line="+67"/>
+        <location filename="../src/grafico/Componentes.cpp" line="+69"/>
         <source>no se puede leer «%1»: %2</source>
         <translation>não é possível ler “%1”: %2</translation>
     </message>
@@ -57386,7 +57396,7 @@ Dados (de %2): %3</translation>
         <translation>não foi possível ler a sequência de quadros brutos (%1)</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+20"/>
         <source>la carpeta «%1» no tiene cuadros (PNG)</source>
         <translation>a pasta “%1” não tem quadros (PNG)</translation>
     </message>
@@ -58547,7 +58557,7 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
 <context>
     <name>historico</name>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="-385"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="-386"/>
         <source>se volvió a la configuración de «%1»: %2 (lo de antes en Config/.restaurar/%3)</source>
         <translation>voltou-se à configuração de “%1”: %2 (o anterior em Config/.restaurar/%3)</translation>
     </message>
@@ -59681,12 +59691,12 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
 <context>
     <name>matriz</name>
     <message>
-        <location filename="../src/app/audio/Matriz.cpp" line="-417"/>
+        <location filename="../src/app/audio/Matriz.cpp" line="-423"/>
         <source>la salida del sistema</source>
         <translation>a saída do sistema</translation>
     </message>
     <message>
-        <location line="+344"/>
+        <location line="+346"/>
         <source>no se pudo crear la entrada virtual «%1»</source>
         <translation>não foi possível criar a entrada virtual “%1”</translation>
     </message>
@@ -59694,7 +59704,7 @@ O que fica vazio não deixa separadores sobrando: “{nombre} — {cargo}” sem
 <context>
     <name>mcp</name>
     <message>
-        <location filename="../src/app/arranque/GuiMode.cpp" line="+235"/>
+        <location filename="../src/app/arranque/GuiMode.cpp" line="+265"/>
         <source>MODO PRUEBA (--test): el MCP no pide aprobaciones, ni siquiera las de aire</source>
         <translation>MODO DE TESTE (--test): o MCP não pede aprovações, nem mesmo as de ar</translation>
     </message>
@@ -61389,7 +61399,7 @@ O QUE É PRECISO SABER AO LIGAR: a salvaguarda de aprovações (`mcp.approval`) 
         <translation>Uma cartela por cima de tudo o que sai (&quot;Cuarto intermedio&quot;, &quot;Volvemos enseguida&quot;, &quot;Minuto de silencio&quot;…), com `texto`, uma `imagen` opcional (caminho) e `ms` de fade (600). Não depende das cenas. Ativá-la no ar pede confirmação se algo automático pedir; tirá-la, não. Sobrevive a uma queda do app. Cada saída tem sua cartela (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpService.cpp" line="+1272"/>
+        <location filename="../src/app/mcp/McpService.cpp" line="+1273"/>
         <source>El supervisor relanza la app si deja de latir. El latido sale de la interfaz Y de un hilo que mira los cuadros del motor: si la interfaz se traba y el motor sigue, el aire NO se corta. Con la interfaz trabada más de `espera_ui_s` (10 a 3600, de fábrica 60) y `matar_si_ui_trabada_sin_aire` (de fábrica true), se relanza solo si no hay transmisión ni grabación. La interfaz trabada CON aire es una alarma que sale sin la interfaz, al control web y a los notificadores de `notificar` («todos», de fábrica, o una lista de ids de notificador_listar; [] = ninguno). Sin argumentos, la muestra (con el estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</source>
         <translation>O watchdog relança o app se ele parar de dar sinal de vida. O sinal sai da interface E de uma thread que observa os quadros do motor: se a interface travar e o motor continuar, o ar NÃO é cortado. Com a interface travada por mais de `espera_ui_s` (10 a 3600, padrão 60) e `matar_si_ui_trabada_sin_aire` (padrão true), relança só se não houver transmissão nem gravação. A interface travada COM ar é um alarme que sai sem a interface, para o controle web e para os notificadores de `notificar` (“todos”, padrão, ou uma lista de ids de notificador_listar; [] = nenhum). Sem argumentos, mostra a configuração (com o estado: motor_vivo, ui_viva, ui_trabada_ms, ultima_traba_ms).</translation>
     </message>
@@ -61629,7 +61639,7 @@ O QUE É PRECISO SABER AO LIGAR: a salvaguarda de aprovações (`mcp.approval`) 
         <translation>manda a saída para o preto</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+342"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="+344"/>
         <source>pone a un orador al aire (en directo corta la escena)</source>
         <translation>coloca um orador no ar (em modo direto corta a cena)</translation>
     </message>
@@ -61928,7 +61938,7 @@ O QUE É PRECISO SABER AO LIGAR: a salvaguarda de aprovações (`mcp.approval`) 
         <location filename="../src/app/mcp/McpEscenasTools.cpp" line="-113"/>
         <location filename="../src/app/mcp/McpLaminaTools.cpp" line="+371"/>
         <location filename="../src/app/mcp/McpMatrizTools.cpp" line="+148"/>
-        <location line="+87"/>
+        <location line="+89"/>
         <location filename="../src/app/mcp/McpMediaTools.cpp" line="+451"/>
         <location filename="../src/app/mcp/McpModeloTools.cpp" line="+436"/>
         <location line="+659"/>
@@ -63559,7 +63569,7 @@ O `id` QUE DEVOLVE É USADO TAL COMO ESTÁ em `audio_module_add`. Os seis do cat
     <message>
         <location line="+1"/>
         <location filename="../src/app/mcp/McpControlWebTools.cpp" line="+1"/>
-        <location filename="../src/app/mcp/McpMatrizTools.cpp" line="-43"/>
+        <location filename="../src/app/mcp/McpMatrizTools.cpp" line="-44"/>
         <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-114"/>
         <source>Quitado.</source>
         <translation>Removido.</translation>
@@ -69692,7 +69702,7 @@ O cartão de controle do operador acompanha a cena: quando esta cena está no ar
         <translation>Etiquetada.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpMatrizTools.cpp" line="-154"/>
+        <location filename="../src/app/mcp/McpMatrizTools.cpp" line="-155"/>
         <source>El Mezclador: niveles de cada entrada y salida, y adónde va cada una</source>
         <translation>O Mixer: níveis de cada entrada e saída, e para onde vai cada uma</translation>
     </message>
@@ -69772,7 +69782,7 @@ O cartão de controle do operador acompanha a cena: quando esta cena está no ar
         <translation>`tipo` &quot;salida&quot;: um bus que sai por um dispositivo (`dispositivo`: id de audio_dispositivos). `tipo` &quot;entrada&quot;: um bus cuja mixagem volta como uma fonte nova (aparece em Áudio com seu menu de filtros). `nombre` opcional.</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-16"/>
         <source>Agregado.</source>
         <translation>Adicionado.</translation>
@@ -69813,7 +69823,7 @@ O cartão de controle do operador acompanha a cena: quando esta cena está no ar
         <translation>Muda o dispositivo de uma saída virtual (`dispositivo`: id de audio_dispositivos).</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+18"/>
         <source>Dispositivos de salida del equipo</source>
         <translation>Dispositivos de saída do equipamento</translation>
     </message>
@@ -76584,7 +76594,7 @@ Como encontrar o número: colocar um valor, olhar com `foto_programa` alguém fa
         <translation>Transmissão parada.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-241"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-243"/>
         <source>Loudness de lo que sale</source>
         <translation>Loudness do que sai</translation>
     </message>
@@ -76624,7 +76634,7 @@ Como encontrar o número: colocar um valor, olhar com `foto_programa` alguém fa
         <translation>O que um convidado escreve sobre si ao entrar (`info`) NÃO sai no GC até que uma pessoa o aprove: com isto, `participant` (id ou nome) e um `texto` corrigido opcional. Se estiver no colegiado (cuerpo_listar), sai de lá e não é necessário. Confirme com o operador.</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+12"/>
         <source>Aprobado: el zocalo ya lo usa.</source>
         <translation>Aprovado: o GC já o usa.</translation>
     </message>
@@ -76815,12 +76825,12 @@ Como encontrar o número: colocar um valor, olhar com `foto_programa` alguém fa
         <translation>Olha o programa da saída (`salida`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-129"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-131"/>
         <source>Cada salida tiene el suyo (`salida`).</source>
         <translation>Cada saída tem o seu (`salida`).</translation>
     </message>
     <message>
-        <location line="+211"/>
+        <location line="+213"/>
         <source>Saca un `termino` del vocabulario de la transcripción, de cualquier grupo (voz_vocabulario los muestra).</source>
         <translation>Tira um `termino` do vocabulário da transcrição, de qualquer grupo (voz_vocabulario os mostra).</translation>
     </message>
@@ -77244,12 +77254,12 @@ ATENÇÃO: uma fonte SILENCIADA (`audio_set muted`) não soa nem pelo monitor �
 Se vai ser ouvido depende de o equipamento ter um monitor de áudio configurado; sem monitor isto não falha, mas também não soa. `audio_sources` diz qual está sendo ouvida.</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-420"/>
+        <location filename="../src/app/mcp/McpTransmisionTools.cpp" line="-422"/>
         <source>Aprobar el cargo que escribió un invitado</source>
         <translation>Aprovar o cargo que um convidado escreveu</translation>
     </message>
     <message>
-        <location line="+216"/>
+        <location line="+218"/>
         <source>Qué hacer si una entrada se cae al aire</source>
         <translation>O que fazer se uma entrada cair no ar</translation>
     </message>
@@ -88952,7 +88962,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>ba-web rodando (1) ou não (0)</translation>
     </message>
     <message>
-        <location filename="../src/app/arranque/AppRuntime.cpp" line="+250"/>
+        <location filename="../src/app/arranque/AppRuntime.cpp" line="+251"/>
         <source>Vueltas del reloj del motor que no tuvieron el turno (la interfaz lo tenía): se midió igual</source>
         <translation>Voltas do relógio do motor que não tiveram a vez (a interface a tinha): mediu-se mesmo assim</translation>
     </message>
@@ -89069,7 +89079,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
 <context>
     <name>modos</name>
     <message>
-        <location filename="../src/motor/ModosVideo.cpp" line="+92"/>
+        <location filename="../src/motor/ModosVideo.cpp" line="+94"/>
         <source> · %1 cps</source>
         <translation> · %1 qps</translation>
     </message>
@@ -89487,10 +89497,10 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     <message>
         <location line="+30"/>
         <location filename="../src/motor/Composicion.cpp" line="+1242"/>
-        <location filename="../src/motor/Entrada.cpp" line="+1716"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1729"/>
         <location line="+226"/>
         <location filename="../src/motor/Mezcla.cpp" line="+451"/>
-        <location filename="../src/motor/OrigenRed.cpp" line="+233"/>
+        <location filename="../src/motor/OrigenRed.cpp" line="+235"/>
         <location filename="../src/motor/Salidas.cpp" line="+388"/>
         <location line="+309"/>
         <location line="+83"/>
@@ -89661,7 +89671,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>composição %1 (%2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-966"/>
+        <location filename="../src/motor/Entrada.cpp" line="-979"/>
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1: a cartela não pôde ser montada (%2): sem cartela</translation>
     </message>
@@ -89686,21 +89696,21 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>%1: chegou alguém ao seu lugar: funcionando em %2 ms</translation>
     </message>
     <message>
-        <location line="+306"/>
+        <location line="+311"/>
         <source>no hay un análisis en curso en esta entrada</source>
         <translation>não há uma análise em andamento nesta entrada</translation>
     </message>
     <message>
         <location line="+70"/>
-        <location line="+195"/>
+        <location line="+203"/>
         <location line="+38"/>
         <location line="+110"/>
-        <location line="+1099"/>
+        <location line="+1105"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location line="-1435"/>
+        <location line="-1449"/>
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>o microfone %1: aguarda-se que se conecte</translation>
     </message>
@@ -89740,7 +89750,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>%1: a janela foi aberta, capturando</translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+126"/>
         <source>el rack de audio todavía no está (la app no registró barack): se agrega cuando esté</source>
         <translation>o rack de áudio ainda não existe (o app não registrou o barack): é adicionado quando existir</translation>
     </message>
@@ -89856,7 +89866,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>ação: play, pausa, reiniciar ou parar</translation>
     </message>
     <message>
-        <location line="+315"/>
+        <location line="+321"/>
         <source>la entrada no está andando</source>
         <translation>a entrada não está rodando</translation>
     </message>
@@ -89871,7 +89881,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>“%1” não tem a propriedade “%2”</translation>
     </message>
     <message>
-        <location filename="../src/motor/Escucha.cpp" line="+82"/>
+        <location filename="../src/motor/Escucha.cpp" line="+84"/>
         <source>no está «%1»: muda hasta que vuelva</source>
         <translation>“%1” não está: mudo até que volte</translation>
     </message>
@@ -89968,7 +89978,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>mixagem %1 (aviso de %2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Motor.cpp" line="+66"/>
+        <location filename="../src/motor/Motor.cpp" line="+92"/>
         <source>motor: %1 plugins de la composición cargados en %2 ms</source>
         <translation>motor: %1 plugins da composição carregados em %2 ms</translation>
     </message>
@@ -89978,7 +89988,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>motor: a sombra do D3D12, adiantada em %1 ms</translation>
     </message>
     <message>
-        <location line="+143"/>
+        <location line="+150"/>
         <source>el bus PROGRAMA no arrancó: %1</source>
         <translation>o bus PROGRAMA não iniciou: %1</translation>
     </message>
@@ -89993,22 +90003,22 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>o programa para o gateway: %1</translation>
     </message>
     <message>
-        <location line="-126"/>
+        <location line="-129"/>
         <source>al apagar quedaron %1 órdenes sin correr</source>
         <translation>ao desligar ficaram %1 ordens sem rodar</translation>
     </message>
     <message>
-        <location line="-114"/>
+        <location line="-118"/>
         <source>Principal</source>
         <translation>Principal</translation>
     </message>
     <message>
-        <location line="+180"/>
+        <location line="+184"/>
         <source>no hay una salida «%1»</source>
         <translation>não há uma saída «%1»</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+79"/>
         <source>la salida «%1» no tiene emisor aparte</source>
         <translation>a saída “%1” não tem emissor à parte</translation>
     </message>
@@ -90111,12 +90121,12 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <location line="+146"/>
         <location line="+2"/>
         <location line="+254"/>
-        <location line="+980"/>
+        <location line="+986"/>
         <source>no hay una escena «%1»</source>
         <translation>não há uma cena “%1”</translation>
     </message>
     <message>
-        <location line="-1430"/>
+        <location line="-1436"/>
         <source>transición: corte, mezcla, empuje o cortina</source>
         <translation>transição: corte, mezcla, empuje ou cortina</translation>
     </message>
@@ -90128,11 +90138,12 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     <message>
         <location line="+13"/>
         <location line="+63"/>
+        <location line="+1046"/>
         <source>el motor está sin video</source>
         <translation>o motor está sem vídeo</translation>
     </message>
     <message>
-        <location line="-35"/>
+        <location line="-1081"/>
         <source>el PROGRAMA no tiene DSK</source>
         <translation>o PROGRAMA não tem DSK</translation>
     </message>
@@ -90144,11 +90155,12 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     <message>
         <location line="+80"/>
         <location line="+631"/>
+        <location line="+327"/>
         <source>el motor no está andando</source>
         <translation>o motor não está rodando</translation>
     </message>
     <message>
-        <location line="-21"/>
+        <location line="-348"/>
         <source>invitado fuera de rango (1…%1)</source>
         <translation>convidado fora do intervalo (1…%1)</translation>
     </message>
@@ -90195,7 +90207,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>não há uma análise em andamento em “%1”</translation>
     </message>
     <message>
-        <location line="+231"/>
+        <location line="+237"/>
         <source>esperarCola desde el hilo de la interfaz: no tendría que esperar</source>
         <translation>esperarCola a partir da thread da interface: não deveria esperar</translation>
     </message>
@@ -90400,7 +90412,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>sem dados da topologia</translation>
     </message>
     <message>
-        <location filename="../src/motor/Prioridad.cpp" line="+132"/>
+        <location filename="../src/motor/Prioridad.cpp" line="+134"/>
         <source>procesador: los hilos del audio no pueden pasar a tiempo real (en Linux hace falta RLIMIT_RTPRIO o RLIMIT_NICE)</source>
         <translation>processador: as threads do áudio não conseguem passar para tempo real (no Linux é preciso RLIMIT_RTPRIO ou RLIMIT_NICE)</translation>
     </message>
@@ -90674,7 +90686,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>não há nada para ver em “%1”</translation>
     </message>
     <message>
-        <location filename="../src/motor/Fallas.cpp" line="+38"/>
+        <location filename="../src/motor/Fallas.cpp" line="+40"/>
         <source>falla inyectada: %1 de %2 no está en el pipeline</source>
         <translation>falha injetada: %1 de %2 não está no pipeline</translation>
     </message>
@@ -91487,7 +91499,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>ao fechar ficou algo sem salvar (o disco não responde)</translation>
     </message>
     <message>
-        <location filename="../src/core/persist/ColaEscritura.cpp" line="+259"/>
+        <location filename="../src/core/persist/ColaEscritura.cpp" line="+301"/>
         <source>no se pudo guardar %1 (se reintenta): %2</source>
         <translation>não foi possível salvar %1 (tenta-se de novo): %2</translation>
     </message>
@@ -91917,7 +91929,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>Conecte um nobreak com seu cabo USB de dados (o sistema o reconhece sozinho, sem instalar nada).</translation>
     </message>
     <message>
-        <location filename="../src/core/platform/Energia_linux.cpp" line="+91"/>
+        <location filename="../src/core/platform/Energia_linux.cpp" line="+92"/>
         <location filename="../src/core/platform/Energia_mac.mm" line="+82"/>
         <location filename="../src/core/platform/Energia_win.cpp" line="+94"/>
         <source>Encender sola al volver la luz</source>
@@ -92159,7 +92171,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../src/app/ptz/ControlCamarasPosiciones.cpp" line="+330"/>
+        <location filename="../src/app/ptz/ControlCamarasPosiciones.cpp" line="-124"/>
         <source>El número de preset va desde 1</source>
         <translation>O número de preset começa em 1</translation>
     </message>
@@ -95591,7 +95603,7 @@ PROPONHA, NÃO APLIQUE: mostre à pessoa o que muda e aplique só se ela confirm
         <translation>Limitador</translation>
     </message>
     <message>
-        <location line="+225"/>
+        <location line="+227"/>
         <source>Voz a texto</source>
         <translation>Fala para texto</translation>
     </message>

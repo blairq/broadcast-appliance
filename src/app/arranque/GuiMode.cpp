@@ -91,7 +91,7 @@
 #include <QScreen>
 
 #ifdef _WIN32
-#include <objbase.h> // CoInitializeEx (AudioDelSistema)
+#include <objbase.h> // CoGetApartmentType (el COM del hilo de la interfaz)
 #endif
 
 namespace ba::app {
@@ -119,6 +119,27 @@ class AplicacionInterfaz : public QGuiApplication {
     }
 };
 
+#ifdef _WIN32
+/// El apartamento COM del hilo que llama, para el registro. Qt (qwindows: OleInitialize, el
+/// portapapeles, arrastrar y soltar, los diálogos de archivo y UIAutomation) quiere el hilo de
+/// la interfaz en STA; si alguien lo pone antes en MTA, todo eso puede fallar.
+std::string apartamentoCom(bool* esSta = nullptr) {
+    APTTYPE tipo{};
+    APTTYPEQUALIFIER calificador{};
+    const HRESULT hr = CoGetApartmentType(&tipo, &calificador);
+    if (esSta != nullptr) *esSta = SUCCEEDED(hr) && (tipo == APTTYPE_STA || tipo == APTTYPE_MAINSTA);
+    if (hr == CO_E_NOTINITIALIZED) return "sin iniciar";
+    if (FAILED(hr)) return "?";
+    switch (tipo) {
+    case APTTYPE_MAINSTA: return "STA principal";
+    case APTTYPE_STA: return "STA";
+    case APTTYPE_MTA: return calificador == APTTYPEQUALIFIER_IMPLICIT_MTA ? "MTA implícito" : "MTA";
+    case APTTYPE_NA: return "NA";
+    default: return "?";
+    }
+}
+#endif
+
 /// EL AUDIO DEL SISTEMA (Qt Multimedia), listo en su hilo antes de que lo pida la interfaz.
 /// La primera vez que algo pregunta por los dispositivos (QMediaDevices) Qt carga su
 /// backend y prepara el audio del sistema: 0,3 a 2,3 s en una Mac, y en Windows una espera
@@ -134,10 +155,12 @@ class AudioDelSistema {
         hilo_.setObjectName(QStringLiteral("audio-sistema"));
         QObject::connect(&hilo_, &QThread::started, []() { // corre en el hilo nuevo
             ba::platform::nombrarHilo("audio-sistema");
-#ifdef _WIN32
-            // COM en este hilo (multihilo: lo que Qt arme acá se usa también desde la interfaz).
-            CoInitializeEx(nullptr, COINIT_MULTITHREADED);
-#endif
+            // Windows: el COM de este hilo lo inicia Qt Multimedia, NO nosotros. El backend
+            // (QWindowsAudioDevices) lo pide de un solo hilo (STA) en el hilo que lo crea
+            // (ensureComInitializedOnThisThread → QComHelper) y es lo que espera. Si acá se lo
+            // ponía antes en multihilo (MTA), Qt avisaba «Failed to initialize COM library»
+            // (RPC_E_CHANGED_MODE) en cada arranque desde que el audio se prepara en este hilo.
+            // Un STA necesita su bucle de mensajes: el de QThread (exec) lo atiende.
             QElapsedTimer reloj;
             reloj.start();
             (void)QMediaDevices::audioOutputs();
@@ -145,10 +168,11 @@ class AudioDelSistema {
             ba::diag::registro().info(ba::i18n::llenar(
                 ba::i18n::traducir("arranque", "arranque: el audio del sistema (Qt Multimedia, en su hilo), %1 ms"),
                 {std::to_string(reloj.elapsed())}));
-        });
 #ifdef _WIN32
-        QObject::connect(&hilo_, &QThread::finished, []() { CoUninitialize(); }); // en el mismo hilo
+            ba::diag::registro().info(ba::i18n::llenar(
+                ba::i18n::traducir("arranque", "arranque: COM del hilo del audio del sistema: %1"), {apartamentoCom()}));
 #endif
+        });
         hilo_.start();
     }
     ~AudioDelSistema() {
@@ -346,7 +370,21 @@ int runGui(int argc, char** argv) {
     std::signal(SIGPIPE, SIG_IGN);
 #endif
 
+#ifdef _WIN32
+    const std::string comAntesDeQt = apartamentoCom(); // nadie tendría que haberlo iniciado
+#endif
     AplicacionInterfaz app(argc, argv);
+#ifdef _WIN32
+    // El hilo de la interfaz tiene que quedar en STA (lo pone Qt). Si no, alguien lo inició
+    // antes en MTA (un inicializador estático, una DLL): se avisa con lo que había antes de Qt.
+    {
+        bool esSta = false;
+        const std::string comConQt = apartamentoCom(&esSta);
+        ba::diag::registro().linea(esSta ? ba::diag::Nivel::Info : ba::diag::Nivel::Aviso, "interfaz", 0,
+                                   ba::i18n::llenar(ba::i18n::traducir("arranque", "arranque: COM del hilo de la interfaz: %1 (antes de Qt: %2)"),
+                                                    {comConQt, comAntesDeQt}));
+    }
+#endif
     // Este hilo nunca tiene que esperar al motor: desde acá, el motor avisa en el
     // registro cada vez que lo hace esperar (ver motor/Candado.hpp).
     ba::motor::marcarHiloInterfaz();

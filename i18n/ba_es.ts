@@ -4,7 +4,7 @@
 <context>
     <name>AccesoRemoto</name>
     <message numerus="yes">
-        <location filename="../src/app/net/AccesoRemoto.cpp" line="+743"/>
+        <location filename="../src/app/net/AccesoRemoto.cpp" line="+767"/>
         <source>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</source>
         <translation>
             <numerusform>Pedí cortar %n túnel de la cuenta (el de este equipo vuelve a conectarse solo si está prendido).</numerusform>
@@ -320,7 +320,7 @@
 <context>
     <name>DireccionContent</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/cards/DireccionContent.qml" line="+205"/>
+        <location filename="../src/app/qml/cards/DireccionContent.qml" line="+222"/>
         <source>%n perdido</source>
         <translation>
             <numerusform>%n perdido</numerusform>
@@ -328,7 +328,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+34"/>
+        <location line="-165"/>
         <source>La revisión encontró %n problema grave: miralos en Guion del evento (ahí se puede arrancar igual).</source>
         <translation>
             <numerusform>La revisión encontró %n problema grave: miralo en Guion del evento (ahí se puede arrancar igual).</numerusform>
@@ -586,7 +586,7 @@
 <context>
     <name>LineaConduccion</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/LineaConduccion.qml" line="+32"/>
+        <location filename="../src/app/qml/controls/LineaConduccion.qml" line="+38"/>
         <source>La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.</source>
         <translation>
             <numerusform>La revisión encontró %n problema grave. Mirá «Revisión» antes de salir.</numerusform>
@@ -594,7 +594,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+490"/>
+        <location line="+494"/>
         <source>El ensayo grabó %n paso: de %1 a %2 en total</source>
         <translation>
             <numerusform>El ensayo grabó %n paso: de %1 a %2 en total</numerusform>
@@ -605,7 +605,7 @@
 <context>
     <name>LineaEscaleta</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/LineaEscaleta.qml" line="+85"/>
+        <location filename="../src/app/qml/controls/LineaEscaleta.qml" line="+95"/>
         <source>Se suma %n paso al final de la línea.</source>
         <translation>
             <numerusform>Se suma %n paso al final de la línea.</numerusform>
@@ -613,7 +613,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+45"/>
+        <location line="+41"/>
         <source>%n cambio sin confirmar</source>
         <translation>
             <numerusform>%n cambio sin confirmar</numerusform>
@@ -635,7 +635,7 @@
 <context>
     <name>LobbyContent</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/cards/LobbyContent.qml" line="+65"/>
+        <location filename="../src/app/qml/cards/LobbyContent.qml" line="+68"/>
         <source>%n persona espera</source>
         <translation>
             <numerusform>%n persona espera</numerusform>
@@ -643,7 +643,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+36"/>
+        <location line="+37"/>
         <source>📎 %n archivo compartido</source>
         <translation>
             <numerusform>📎 %n archivo compartido</numerusform>
@@ -665,7 +665,7 @@
 <context>
     <name>MatrizAudio</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/MatrizAudio.qml" line="+669"/>
+        <location filename="../src/app/qml/controls/MatrizAudio.qml" line="+670"/>
         <source>%n canal</source>
         <translation>
             <numerusform>%n canal</numerusform>
@@ -1510,7 +1510,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>Traductor</name>
     <message numerus="yes">
-        <location filename="../src/app/agent/Traductor.cpp" line="+237"/>
+        <location filename="../src/app/agent/Traductor.cpp" line="+238"/>
         <source>falta bajar %n paquete</source>
         <translation>
             <numerusform>falta bajar %n paquete</numerusform>
