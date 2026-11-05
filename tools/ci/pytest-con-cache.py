@@ -154,8 +154,7 @@ class Entradas:
     def cierre(self):
         if self._cierre is None:
             tcc = _tcc()
-            self._cierre = tcc.Cierre(self.memo, os.path.join(self.cache_dir, "binarios"),
-                                      objdump=None)
+            self._cierre = tcc.Cierre(self.memo, os.path.join(self.cache_dir, "binarios"))
             self._tcc = tcc
         return self._cierre
 
