@@ -243,6 +243,10 @@ if(BA_HAVE_CLAP)
         file(GLOB _ba_lsp_lic "${CMAKE_SOURCE_DIR}/extern/lsp/licencias/*")
         install(FILES ${_ba_lsp_lic} DESTINATION data/licencias/lsp-plugins)
     endif()
+    # Sin el .clap el rack de audio queda sin efectos: que frene, no que salga callado.
+    if(NOT EXISTS "${_ba_lsp_dir}/lsp-plugins.clap")
+        ba_falta("Efectos de audio (plugins LSP)" "no está ${_ba_lsp_dir}/lsp-plugins.clap ('make deps-lsp' / 'deps-lsp-macos' / 'deps-lsp-win')")
+    endif()
 endif()
 # ba-lspdsp: el DSP de LSP con API en C (tools/deps/lspdsp.sh), junto a los
 # ejecutables (bin/64bit). La app la carga en tiempo de ejecución (audio/LspDsp).
@@ -258,6 +262,8 @@ else()
 endif()
 if(BA_HAVE_CLAP AND EXISTS "${_ba_lspdsp_lib}")
     install(FILES "${_ba_lspdsp_lib}" DESTINATION bin/64bit)
+elseif(BA_HAVE_CLAP)
+    ba_falta("Mediciones del mezclador (ba-lspdsp)" "no está ${_ba_lspdsp_lib} ('make deps-lspdsp-…')")
 endif()
 # LSP para los tests (en el bundle: plugins/lsp/).
 if(WIN32)
