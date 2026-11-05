@@ -685,6 +685,7 @@ int main() {
     // la imagen va en su memoria), y smpte con sus dos entradas fijas.
     for (const char* modulo : {"compositor", "glvideomixer", "d3d12compositor"}) {
         if (!hayFabrica(modulo) || (std::string(modulo) != "compositor" && memoriaDeTrabajo(modulo) != memoriaDelMotor())) continue;
+        if (std::string(modulo).rfind("gl", 0) == 0 && ba::pruebas::sinGlPorWine((std::string("la mezcla con ") + modulo).c_str())) continue;
         const std::string mod = modulo;
         Composicion::Opciones op;
         op.mezclador = {{"elemento", mod}};
@@ -750,6 +751,7 @@ int main() {
     for (const auto& [modulo, p1, p2] : std::initializer_list<std::tuple<const char*, const char*, const char*>>{
              {"glmosaic", "sink_0", "sink_1"}, {"glstereomix", "sink_0", "sink_1"}, {"shapewipe", "video_sink", "mask_sink"}}) {
         if (!hayFabrica(modulo)) continue;
+        if (std::string(modulo).rfind("gl", 0) == 0 && ba::pruebas::sinGlPorWine((std::string("la mezcla con ") + modulo).c_str())) continue;
         Composicion::Opciones op;
         op.mezclador = {{"elemento", modulo}};
         Composicion otro(reloj, lz, std::string("otro_") + modulo, op);

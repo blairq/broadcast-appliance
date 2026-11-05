@@ -14,6 +14,7 @@
 #include "Motor.hpp"
 #include "Reloj.hpp"
 #include "Piezas.hpp"
+#include "tests/Puntualidad.hpp"
 
 #include <gst/gst.h>
 
@@ -90,8 +91,15 @@ int main() {
     std::printf("arranque del motor (GPU: %s): GStreamer %.0f ms, autoprueba de la GPU %.0f ms, motor %.0f ms, "
                 "escena → primer cuadro real %.0f ms; total %.0f ms\n",
                 nombreGpu(), ms(t0, tGst), ms(tGst, tGpu), ms(tGpu, tMotor), ms(tMotor, tCuadro), total);
-    CHECK(total < 3000, "del proceso nuevo al primer cuadro real, menos de 3 s");
+    // Es TIEMPO: con la máquina cargada o bajo un emulador (Wine sobre Rosetta: ahí la
+    // autoprueba de D3D12 se va a su tope de 5 s porque el dispositivo no entrega cuadros),
+    // SKIP con el motivo (tests/Puntualidad.hpp); con la máquina en hora, un fallo.
+    int fallosDeTiempo = 0;
+    if (total >= 3000) {
+        std::printf("FALLO: del proceso nuevo al primer cuadro real, menos de 3 s (%.0f ms)\n", total);
+        ++fallosDeTiempo;
+    }
     m.detener();
-    if (fallos == 0) std::printf("OK\n");
-    return fallos == 0 ? 0 : 1;
+    if (fallos == 0 && fallosDeTiempo == 0) std::printf("OK\n");
+    return ba::pruebas::resultadoConTiempos("test_motor_arranque", fallos, fallosDeTiempo);
 }

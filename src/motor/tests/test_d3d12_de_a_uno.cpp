@@ -12,6 +12,7 @@
 //   BA_SIN_CANDADO=1 control: gst_init directo, sin el candado (se tiene que caer
 //                    alguna vez con muchas vueltas)
 
+#include "Piezas.hpp"
 #include "Reloj.hpp"
 
 #include "platform/GstEntorno.hpp"
@@ -55,6 +56,13 @@ int main() {
         gst_object_unref(f);
     } else {
         std::printf("SKIP: sin d3d12convert (no es Windows)\n");
+        return 77;
+    }
+    // Con d3d12convert pero sin una placa que entregue cuadros (Wine en Docker: hay dispositivo
+    // y no sale nada), cada vuelta esperaba 20 s el fin y el test se colgaba hasta el tope. La
+    // misma autoprueba que decide la GPU del motor.
+    if (!sinCandado && gpu() != Gpu::D3D12) {
+        std::printf("SKIP: D3D12 no pasa la autoprueba en esta máquina (el motor compone en %s)\n", nombreGpu());
         return 77;
     }
     const int vueltas = entero("BA_VUELTAS", 30), ramas = entero("BA_RAMAS", 32);

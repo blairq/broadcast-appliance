@@ -174,6 +174,21 @@ inline bool bajoWine() {
 #endif
 }
 
+/// GStreamer GL bajo Wine: la ventana oculta de WGL que arma para cada contexto aborta el
+/// proceso («gstglwindow_win32.c: window_proc: assertion failed: (window_win32->internal_win_id
+/// == hWnd)»: la ventana recibe mensajes en un orden que en Windows no se da). Visto el
+/// 2026-11-05 en test_composicion (glvideomixer) y test_sondas (glupload). Es del emulador (en
+/// Windows, GL anda); lo que usa GL se saltea bajo Wine, con el motivo. Devuelve true si hay
+/// que saltearlo.
+inline bool sinGlPorWine(const char* que) {
+    if (!bajoWine()) return false;
+    std::printf("se saltea %s: bajo Wine, GStreamer GL aborta al crear su ventana de WGL (window_proc: "
+                "internal_win_id == hWnd; es del emulador, en Windows anda)\n",
+                que);
+    std::fflush(stdout);
+    return true;
+}
+
 /// Corre en un x86_64 emulado (el Linux de Docker en una Mac ARM: Rosetta, que se presenta como
 /// «VirtualApple» en /proc/cpuinfo). Ahí el tiempo real no se puede medir: todo pasa por el
 /// traductor.

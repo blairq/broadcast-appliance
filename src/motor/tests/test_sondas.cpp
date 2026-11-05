@@ -12,6 +12,7 @@
 #include "Piezas.hpp"
 #include "Reloj.hpp"
 #include "Sondas.hpp"
+#include "tests/Puntualidad.hpp"
 
 #include <gst/gst.h>
 
@@ -117,8 +118,8 @@ int main() {
         check(mx.value("agrega_ms", 999.0) < 150, "lo que agrega no cuenta la espera de la entrada lenta (midió " +
                                                      std::to_string(mx.value("agrega_ms", -1.0)) + ")");
     }
-    // 3) GL: los cruces de memoria (si hay GL en esta máquina).
-    if (GstElementFactory* f = gst_element_factory_find("glupload")) {
+    // 3) GL: los cruces de memoria (si hay GL en esta máquina; bajo Wine, GL aborta: sinGlPorWine).
+    if (GstElementFactory* f = ba::pruebas::sinGlPorWine("GL (los cruces de memoria)") ? nullptr : gst_element_factory_find("glupload")) {
         gst_object_unref(f);
         const json r = correr("videotestsrc is-live=true ! video/x-raw,width=320,height=180,framerate=25/1 ! "
                               // gldownload deja pasar la memoria GL si lo que sigue la acepta: se pide la del sistema.
