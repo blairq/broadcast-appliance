@@ -40,7 +40,13 @@ JOBS="${1:-$(nproc)}"
 RS_VER=0.15.3
 RS_COMMIT=e9229628528b19e9b42e52620be4e79a2e054363 # etiqueta gstreamer-1.28.7
 RUST_VER=1.92.0
-RUST_SHA256=d2ccef59dd9f7439f2c694948069f789a044dc1addcc0803613232af8f88ee0c
+# El instalador de la arquitectura de la máquina que compila (x86_64, o aarch64 en la validación
+# nativa arm64): cada uno con su sha256 (los .sha256 oficiales de static.rust-lang.org).
+case "$(uname -m)" in
+    x86_64) RUST_TRIPLE=x86_64-unknown-linux-gnu; RUST_SHA256=d2ccef59dd9f7439f2c694948069f789a044dc1addcc0803613232af8f88ee0c ;;
+    aarch64) RUST_TRIPLE=aarch64-unknown-linux-gnu; RUST_SHA256=3e383f8b4fca710d0600d0c1de97b78281672be2cda6575ecbe1c183a12e3822 ;;
+    *) printf '[gst-plugins-rs-linux] ERROR: arquitectura sin Rust fijado: %s\n' "$(uname -m)" >&2; exit 1 ;;
+esac
 # Subir RECETA al cambiar la lista o las opciones: si no, «ya está» y no recompila.
 RECETA=1
 PAQUETES=(gst-plugin-inter gst-plugin-audiofx gst-plugin-livesync gst-plugin-fallbackswitch
@@ -52,7 +58,8 @@ URL=https://gitlab.freedesktop.org/gstreamer/gst-plugins-rs.git
 PREFIX="$ROOT/extern/gstreamer-linux"
 DEPS="$ROOT/extern/terceros-linux"
 SRC="$ROOT/extern/.build-gst-plugins-rs"
-RUST="$ROOT/extern/.tools/rust-$RUST_VER"
+# Con la arquitectura en la carpeta: un Rust de x86_64 que quedó de antes no se toma por el de arm64.
+RUST="$ROOT/extern/.tools/rust-$RUST_VER-$RUST_TRIPLE"
 MARCA="$PREFIX/.version-rs"
 QUE="$RS_VER $RS_COMMIT rust$RUST_VER r$RECETA ${PAQUETES[*]} ${FUNCIONES[*]}"
 log() { printf '\033[1;36m[gst-plugins-rs-linux]\033[0m %s\n' "$*"; }
@@ -66,7 +73,7 @@ fi
 # --- Rust (el instalador oficial, con su sha256) -------------------------------
 if [ ! -x "$RUST/bin/cargo" ]; then
     mkdir -p "$ROOT/extern/.downloads"
-    T="rust-$RUST_VER-x86_64-unknown-linux-gnu"
+    T="rust-$RUST_VER-$RUST_TRIPLE"
     F="$ROOT/extern/.downloads/$T.tar.xz"
     if [ ! -f "$F" ] || [ "$(sha256sum "$F" | cut -d' ' -f1)" != "$RUST_SHA256" ]; then
         log "bajando Rust $RUST_VER"
@@ -78,7 +85,7 @@ if [ ! -x "$RUST/bin/cargo" ]; then
     rm -rf "$D" "$RUST" && mkdir -p "$D"
     tar -xJf "$F" -C "$D"
     # Solo el compilador, cargo y la biblioteca estándar (sin documentación: ~1 GB menos).
-    "$D/$T/install.sh" --prefix="$RUST" --components=rustc,cargo,rust-std-x86_64-unknown-linux-gnu \
+    "$D/$T/install.sh" --prefix="$RUST" --components=rustc,cargo,rust-std-$RUST_TRIPLE \
         --disable-ldconfig >/dev/null
     rm -rf "$D"
 fi
