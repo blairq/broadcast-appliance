@@ -158,7 +158,9 @@ class Motor {
     Motor(const Motor&) = delete;
     Motor& operator=(const Motor&) = delete;
 
-    /// Arranca el bus PROGRAMA, el puente al gateway y el hilo. "" o el error.
+    /// Arranca el bus PROGRAMA, el puente al gateway y el hilo. "" o el error. Una parte que no
+    /// se puede armar (el bus de una salida: falta un plugin) no frena el arranque: queda en el
+    /// registro, va a alFallar y estado() la muestra con "anda": false y su "error".
     std::string iniciar();
     void detener();
     bool andando() const { return hilo_.joinable(); }
@@ -407,6 +409,7 @@ class Motor {
     struct Salida {
         std::string id, nombre;
         std::unique_ptr<Mezcla> mezcla;                   ///< bus:programa[:<id>]
+        std::string errorMezcla;                          ///< por qué no está `mezcla` (no se pudo armar)
         std::unique_ptr<Composicion> programa, preview;   ///< video:programa[:<id>], video:preview[:<id>]
         std::string alAire, armada;
         /// EL AUDIO SIGUE A LA IMAGEN: mientras el programa arma fuera del aire la escena

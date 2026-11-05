@@ -84,7 +84,7 @@ int main() {
         std::printf("SKIP: sin GStreamer (%s)\n", err.c_str());
         return 77;
     }
-    for (const char* e : {"audiomixer", "baanillosink", "baanillocomun", "baentrega", "batoma", "balimitador"})
+    for (const char* e : {"audiomixer", "intersink", "intersrc", "baanillosink", "baanillocomun", "baentrega", "batoma", "balimitador"})
         if (!hayFabrica(e)) {
             std::printf("SKIP: falta %s\n", e);
             return 77;

@@ -105,6 +105,17 @@ if(BUILD_TESTING OR TRUE)
     add_test(NAME test_motor_reposo COMMAND test_motor_reposo)
     set_tests_properties(test_motor_reposo PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
 
+    # Una pieza de GStreamer que no está (intersink fuera del registro): el motor sigue y avisa,
+    # y su estado no trae partes en null.
+    add_executable(test_motor_falta_pieza tests/test_motor_falta_pieza.cpp)
+    target_link_libraries(test_motor_falta_pieza PRIVATE ba_motor)
+    ba_gst_rpath(test_motor_falta_pieza "")
+    target_compile_definitions(test_motor_falta_pieza PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
+        BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
+    add_dependencies(test_motor_falta_pieza gstbaaudio gstbaipc)
+    add_test(NAME test_motor_falta_pieza COMMAND test_motor_falta_pieza)
+    set_tests_properties(test_motor_falta_pieza PROPERTIES SKIP_RETURN_CODE 77 TIMEOUT 60)
+
     # Los trabajos de las entradas en pocos hilos compartidos (sin GStreamer).
     add_executable(test_trabajos tests/test_trabajos.cpp)
     target_link_libraries(test_trabajos PRIVATE ba_motor)

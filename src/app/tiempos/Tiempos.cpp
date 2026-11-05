@@ -192,8 +192,10 @@ json armar(const Fotos& f) {
     const double latEstudio = num(estudio, "latencia_ms", 0.0);
     const json entradas = m.value("entradas", json::object());
     const json video = m.value("video", json::object());
-    const json programaV = video.value("programa", json::object());
-    const json programaA = m.value("programa", json::object());
+    // La parte que no está viene como {"anda": false, "error": …} (Motor::estadoYa): sin nodo.
+    const auto siAnda = [](const json& p) { return p.is_object() && p.value("anda", true) ? p : json::object(); };
+    const json programaV = siAnda(video.value("programa", json::object()));
+    const json programaA = siAnda(m.value("programa", json::object()));
 
     // --- Entradas, con sus tarjetas (video) y sus módulos (audio) -------------------------
     std::set<std::string> conVideo, conAudio;

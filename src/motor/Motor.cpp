@@ -115,11 +115,15 @@ std::string Motor::iniciar() {
                                       {std::to_string((g_get_monotonic_time() - t0) / 1000)}));
     }
     escucha_ = std::make_unique<Escucha>(*reloj_, cfg_.sinkEscucha);
-    // Las salidas: la por omisión y las que se crearon antes de arrancar.
+    // Las salidas: la por omisión y las que se crearon antes de arrancar. Una cuyo bus no se
+    // pudo armar (falta un plugin: intersink, el mezclador) no frena el arranque: el motor
+    // sigue sin ese bus (todo lo que lo usa mira `s.mezcla`), el error va al registro y, por
+    // la cola, a alFallar (la app lo muestra), y estado() la muestra con «anda»: false. Antes
+    // la por omisión hacía volver a iniciar() con el error: no arrancaba nada (ni el video).
     for (auto& [sid, s] : salidas_)
         if (const std::string e = armarSalida(sid, s); !e.empty()) {
-            if (sid == porOmision_) return e;
             registrar(Nivel::Error, e);
+            encolar("iniciar", [e]() { return e; });
         }
     vistas_ = std::make_unique<Vistas>(*reloj_, [this](const std::string& clave, std::int64_t* lat) -> std::string {
         // Lo llaman pedir (verPedirYa, una orden) y tic (el bucle): con el candado tomado.
@@ -256,8 +260,10 @@ std::string Motor::armarSalida(const std::string& id, Salida& s) {
     if (!s.mezcla->anda()) {
         const std::string e = llenar(traducir("motor", "el bus PROGRAMA no arrancó: %1"), {s.mezcla->error()});
         s.mezcla.reset();
+        s.errorMezcla = e; // estado() la muestra sin bus, con el motivo
         return e;
     }
+    s.errorMezcla.clear();
     s.mezcla->ponerLimitador(true, s.techoDb); // el loudness que tenía (ponerLoudness)
     s.mezcla->ponerAgc(s.agc, s.objetivoLufs);
     if (cfg_.video) {
@@ -2125,7 +2131,13 @@ json Motor::estadoYa() const {
     json medios = json::object();
     for (const auto& [id, c] : canales_)
         if (c.entrada->esMedio()) medios[id] = medioYa(id);
-    // Cada salida con lo suyo; la por omisión, además, en los campos de siempre.
+    // Cada salida con lo suyo; la por omisión, además, en los campos de siempre. Una parte que
+    // no está (su bus no se pudo armar, el motor sin video o sin arrancar) va como objeto con
+    // «anda»: false y el motivo, no null: quien lee estado() hace .value() sobre ella (con null,
+    // nlohmann tira type_error.306 y el que leía se caía).
+    const auto sinParte = [](const std::string& motivo) { return json{{"anda", false}, {"error", motivo}}; };
+    const std::string sinArrancar = andando() ? std::string() : traducir("motor", "el motor no está andando");
+    const std::string sinVideo = cfg_.video ? sinArrancar : traducir("motor", "el motor está sin video");
     json salidas = json::object();
     for (const auto& [sid, s] : salidas_) {
         json enEscena = json::array(), mandos = json::object();
@@ -2143,10 +2155,10 @@ json Motor::estadoYa() const {
                         {"dsk", s.dskEscenas},
                         {"en_escena", enEscena},
                         {"mandos", mandos},
-                        {"programa", s.mezcla ? s.mezcla->estado() : json()},
+                        {"programa", s.mezcla ? s.mezcla->estado() : sinParte(s.errorMezcla.empty() ? sinArrancar : s.errorMezcla)},
                         {"pistas", pistasS},
-                        {"video", {{"programa", s.programa ? s.programa->estado() : json()},
-                                   {"preview", s.preview ? s.preview->estado() : json()}}}};
+                        {"video", {{"programa", s.programa ? s.programa->estado() : sinParte(sinVideo)},
+                                   {"preview", s.preview ? s.preview->estado() : sinParte(sinVideo)}}}};
     }
     const json& po = salidas[porOmision_];
     return {{"andando", andando()},
