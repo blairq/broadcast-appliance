@@ -1,14 +1,14 @@
 # mk/desarrollo.mk — Desarrollo: build genérico, idiomas, documentación, tests, lint y limpieza.
 # Lo incluye el Makefile de la raíz (las variables comunes están allá).
 
-.PHONY: build _enlaces _configurado _al-dia i18n-actualizar docs test test-rapido test-completo test-explicar pytest \
+.PHONY: build _enlaces _estaticas _configurado _al-dia i18n-actualizar docs test test-rapido test-completo test-explicar pytest \
         lint lint-includes clean clean-all
 
 # --- Build genérico ---------------------------------------------------------
 # Configura solo si hace falta (tools/ci/preparar-build.sh) y compila. Sin
 # CMAKE_BUILD_TYPE explícito: CMake usa su default (Release, fijado en el
 # CMakeLists raíz). En la Mac, con Ninja, arm64 y 13.3 (BA_CMAKE_PLATAFORMA).
-build:
+build: _enlaces _estaticas
 	@$(CONFIGURAR) $(BUILD_DIR) $(BA_CMAKE_PERFIL) $(BA_CMAKE_PLATAFORMA)
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 
@@ -16,9 +16,16 @@ build:
 # test`: no pasan un build de publicar a desarrollo ni al revés). Si no está
 # configurado: en un worktree, los enlaces al principal; en la Mac, ba-modelo
 # (el CMakeLists lo exige) y la configuración de `make compilar`.
-_configurado: _enlaces
+_configurado: _enlaces _estaticas
 	@[ "$(PLATAFORMA)" != mac ] || [ -f "$(BUILD_DIR)/CMakeCache.txt" ] || $(MAKE) modelo-mac
 	@$(CONFIGURAR) --si-falta $(BUILD_DIR) $(BA_CMAKE_PERFIL) $(BA_CMAKE_PLATAFORMA) -DCMAKE_BUILD_TYPE=Release
+
+# Las estáticas de terceros de esta plataforma (cmake/estaticas): si ya están con la misma
+# huella, nada (una cuenta, ~0,1 s); si no (otra configuración de mbedtls, una versión
+# nueva), se compilan una vez en extern/estaticas, compartidas con los worktrees. Sin las
+# fuentes en extern/ (make deps-src) frena con el aviso de CMake.
+_estaticas: _enlaces
+	@tools/deps/estaticas.sh $(if $(filter mac,$(PLATAFORMA)),macos,linux) $(JOBS)
 
 # En un worktree: extern/ y build/modelo-mac, enlaces a los del principal.
 _enlaces:

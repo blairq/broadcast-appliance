@@ -27,7 +27,7 @@ check-macos-tools:
 
 # deps-ndi-src: el fuente de libmicrodns (buscar televisores por mDNS); en
 # Linux viene compilada con las de terceros (deps-terceros-linux).
-deps-macos: check-macos-tools deps-qt-host deps-src deps-lwip deps-cacert deps-libvterm deps-fonts deps-chrome-headless \
+deps-macos: check-macos-tools deps-qt-host deps-src deps-estaticas-mac deps-lwip deps-cacert deps-libvterm deps-fonts deps-chrome-headless \
             deps-cloudflared-host deps-pinggy deps-clap deps-ndi-src deps-craft-mac deps-fuentes-texto deps-sherpa-onnx deps-gstreamer-macos deps-python deps-gst-python-mac deps-herramientas deps-hinchada
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=macos
 	@# LSP (modulos del rack de audio) es opcional en macOS mientras se valida:

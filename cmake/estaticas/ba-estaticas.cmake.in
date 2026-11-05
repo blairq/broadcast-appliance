@@ -1,0 +1,39 @@
+# Generado por cmake/estaticas (make deps-estaticas): no editar.
+# Las estáticas de terceros como objetivos IMPORTED, con los nombres que usa el proyecto.
+# Huella @BA_EST_HUELLA@ (cmake/estaticas/huella.cmake).
+set(_ba_est "${CMAKE_CURRENT_LIST_DIR}")
+if(NOT "@BA_EST_HILOS@" STREQUAL "" AND NOT TARGET Threads::Threads)
+    find_package(Threads REQUIRED)
+endif()
+
+function(_ba_est_importar nombre archivo)
+    add_library(${nombre} STATIC IMPORTED GLOBAL)
+    set_target_properties(${nombre} PROPERTIES
+        IMPORTED_LOCATION "${_ba_est}/lib/${archivo}"
+        INTERFACE_INCLUDE_DIRECTORIES "${_ba_est}/include")
+    if(NOT EXISTS "${_ba_est}/lib/${archivo}")
+        message(FATAL_ERROR "estáticas de terceros: falta ${_ba_est}/lib/${archivo} (make deps-estaticas)")
+    endif()
+endfunction()
+
+_ba_est_importar(everest "$<TARGET_FILE_NAME:everest>")
+_ba_est_importar(p256m "$<TARGET_FILE_NAME:p256m>")
+_ba_est_importar(mbedcrypto "$<TARGET_FILE_NAME:mbedcrypto>")
+# La configuración de mbedtls del proyecto (cmake/mbedtls_user_config.h), como la ponía
+# su CMake (PUBLIC): los headers de mbedtls se leen igual que como se compiló.
+set_target_properties(mbedcrypto PROPERTIES
+    INTERFACE_COMPILE_DEFINITIONS "MBEDTLS_USER_CONFIG_FILE=\"ba_mbedtls_user_config.h\""
+    INTERFACE_LINK_LIBRARIES "everest;p256m;@BA_EST_SISTEMA_MBEDCRYPTO@")
+_ba_est_importar(mbedx509 "$<TARGET_FILE_NAME:mbedx509>")
+set_target_properties(mbedx509 PROPERTIES INTERFACE_LINK_LIBRARIES "mbedcrypto")
+_ba_est_importar(mbedtls "$<TARGET_FILE_NAME:mbedtls>")
+set_target_properties(mbedtls PROPERTIES INTERFACE_LINK_LIBRARIES "mbedx509")
+
+_ba_est_importar(samplerate "$<TARGET_FILE_NAME:samplerate>")
+set_target_properties(samplerate PROPERTIES INTERFACE_LINK_LIBRARIES "@BA_EST_SISTEMA_SAMPLERATE@")
+_ba_est_importar(argon2 "$<TARGET_FILE_NAME:argon2>")
+set_target_properties(argon2 PROPERTIES INTERFACE_LINK_LIBRARIES "@BA_EST_HILOS@")
+_ba_est_importar(libdeflate_static "$<TARGET_FILE_NAME:libdeflate_static>")
+add_library(libdeflate::libdeflate_static ALIAS libdeflate_static)
+@BA_EST_ZXING_BLOQUE@
+set(BA_ESTATICAS_LICENCIAS "${_ba_est}/licencias")

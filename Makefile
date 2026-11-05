@@ -171,7 +171,7 @@ pasos:
 # --- Los comandos principales (ver la cabecera) -----------------------------------
 # Cada uno llama a los pasos de su plataforma; los pasos son los de siempre.
 compilar: compilar-$(PLATAFORMA)
-compilar-mac: modelo-mac
+compilar-mac: modelo-mac _estaticas
 	@$(CONFIGURAR) $(BUILD_DIR) $(BA_CMAKE_PERFIL) $(BA_CMAKE_PLATAFORMA) -DCMAKE_BUILD_TYPE=Release
 	cmake --build $(BUILD_DIR) -j$(JOBS)
 compilar-linux: build

@@ -58,7 +58,7 @@ add_library(gstbaaudio MODULE audio/plugin.cpp audio/automixer.cpp audio/limitad
     "${CMAKE_SOURCE_DIR}/src/core/dsp/Deriva.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/Resampler.cpp"
     "${CMAKE_SOURCE_DIR}/src/core/dsp/AgcLoudness.cpp" "${CMAKE_SOURCE_DIR}/src/core/dsp/PonderacionK.cpp")
 target_include_directories(gstbaaudio PRIVATE "${CMAKE_SOURCE_DIR}/src/core")
-set_target_properties(samplerate PROPERTIES POSITION_INDEPENDENT_CODE ON)
+# samplerate ya viene con -fPIC (cmake/estaticas): va adentro de un plugin.
 target_link_libraries(gstbaaudio PRIVATE samplerate)
 ba_plugin_gst(gstbaaudio)
 

@@ -25,6 +25,8 @@ set(_ba_mt_args
     -DBA_PERFILAR=${BA_PERFILAR}
     -DBA_DIAG_ACOPLES=${BA_DIAG_ACOPLES}
     -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreaded
+    # Las estáticas de terceros en /MT: extern/estaticas/win-mt-<huella> (cmake/BaEstaticas.cmake).
+    -DBA_ESTATICAS_DESDE_FUENTE=${BA_ESTATICAS_DESDE_FUENTE}
     -DBA_WEBRTC_ROOT=${BA_WEBRTC_ROOT})
 if(CMAKE_TOOLCHAIN_FILE)
     list(APPEND _ba_mt_args -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TOOLCHAIN_FILE})
