@@ -72,18 +72,29 @@ deps-mlx-swift-lm:
 	for p in src/modelo-mac/parches/*.patch; do git -C $$d apply "$(CURDIR)/$$p"; echo "[mlx-swift-lm] $$p"; done; \
 	touch "$$sello"
 
+# El xcodebuild de ba-modelo, sin la carpeta de DerivedData (va aparte: cada worktree la
+# nombra por su propia ruta, aunque por el enlace sea la misma).
+MODELO_XCODEBUILD = xcodebuild -scheme ba-modelo -destination "platform=macOS,arch=arm64" \
+  -configuration Release -skipPackagePluginValidation -skipMacroValidation -quiet
+
 # _enlaces primero: en un worktree, extern/ y build/modelo-mac son los del principal.
 modelo-mac: _enlaces deps-mlx-swift-lm
 	@xcrun metal --version >/dev/null 2>&1 || { echo "ERROR: falta el compilador de Metal: xcodebuild -downloadComponent MetalToolchain" >&2; exit 1; }
 	@# xcodebuild tarda ~4 s aunque no haya nada que hacer (arma el plan de Swift Package y
 	@# consulta los destinos): solo si cambió el código del modelo, sus parches o mlx-swift-lm.
+	@# build/modelo-mac (DerivedData) es UNO para todos los worktrees (enlace al del
+	@# principal: si no, cada worktree recompila MLX). Por eso, de a uno (--candado: dos
+	@# xcodebuild sobre la misma DerivedData chocan, «database is locked») y la clave AL LADO
+	@# de la salida: dice de qué entradas salió lo que hay, así un worktree con otro
+	@# src/modelo-mac no toma por bueno el ba-modelo que dejó otro.
+	@# El comando entra en la clave (no mk/mac.mk entero, que cambia por cualquier otra cosa
+	@# y con la clave compartida haría correr xcodebuild de nuevo en cada worktree).
 	@python3 tools/ci/huellas.py atajo --nombre "ba-modelo (xcodebuild)" \
-	  --clave-en build/atajos/modelo-mac.json --memo build/atajos/huellas.json \
-	  --entrada src/modelo-mac --entrada mk/mac.mk --texto "$$(ls -d extern/mlx-swift-lm/.parches-* 2>/dev/null)" \
+	  --candado build/modelo-mac/.candado --clave-en build/modelo-mac/.atajo.json --memo build/atajos/huellas.json \
+	  --entrada src/modelo-mac --texto "$$(ls -d extern/mlx-swift-lm/.parches-* 2>/dev/null)" \
+	  --texto '$(MODELO_XCODEBUILD)' \
 	  --salida build/modelo-mac/Build/Products/Release/ba-modelo -- sh -c '\
-	    cd src/modelo-mac && xcodebuild -scheme ba-modelo -destination "platform=macOS,arch=arm64" \
-	      -configuration Release -derivedDataPath $(CURDIR)/build/modelo-mac \
-	      -skipPackagePluginValidation -skipMacroValidation -quiet build'
+	    cd src/modelo-mac && $(MODELO_XCODEBUILD) -derivedDataPath $(CURDIR)/build/modelo-mac build'
 
 release-macos:
 	@# Compila primero: sin esto se empaquetaba el ultimo build que hubiera en

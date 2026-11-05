@@ -22,10 +22,14 @@
 #
 #   huellas.py atajo --nombre N --clave-en F [--memo M] [--entrada RUTA]...
 #                    [--excluir REL]... [--centinelas DIR] [--texto T]... [--salida RUTA]...
-#                    -- comando...
+#                    [--candado F] -- comando...
 #       Corre el comando solo si cambió alguna entrada (o falta alguna salida, o
 #       nunca corrió bien), y anota la clave cuando termina bien. Imprime qué
 #       saltea y por qué, o qué cambió. SIN_CACHE=1 lo corre siempre.
+#       --candado: de a uno por máquina (flock sobre F, de la mirada de la clave
+#       hasta que anota la nueva): para una salida COMPARTIDA entre worktrees, con
+#       la clave al lado de la salida (--clave-en en la misma carpeta), así la
+#       clave dice siempre de qué entradas salió lo que hay.
 #
 # Solo biblioteca estándar (corre con el Python de la Mac y en el Ubuntu de Docker).
 # ============================================================================
@@ -237,11 +241,22 @@ def atajo(args):
     ap.add_argument("--centinelas", action="append", default=[])
     ap.add_argument("--texto", action="append", default=[])
     ap.add_argument("--salida", action="append", default=[])
+    ap.add_argument("--candado")
     if "--" not in args:
         ap.error("falta «-- comando»")
     i = args.index("--")
     a = ap.parse_args(args[:i])
     comando = args[i + 1:]
+    candado = None
+    if a.candado:
+        import fcntl
+        os.makedirs(os.path.dirname(os.path.abspath(a.candado)), exist_ok=True)
+        candado = open(a.candado, "a")  # queda abierto (y tomado) hasta que sale el proceso
+        try:
+            fcntl.flock(candado, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except BlockingIOError:
+            print("[atajo] %s: otro lo está corriendo (%s): espero" % (a.nombre, a.candado), flush=True)
+            fcntl.flock(candado, fcntl.LOCK_EX)
     memo = Memo(a.memo)
 
     def partes():
