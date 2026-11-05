@@ -29,7 +29,7 @@ if(BUILD_TESTING OR TRUE)
     add_executable(test_emisor tests/test_emisor.cpp Emisor.cpp)
     target_link_libraries(test_emisor PRIVATE ba_emisor_pedido)
     ba_gst_rpath(test_emisor "")
-    target_compile_definitions(test_emisor PRIVATE BA_TEST_GST_RAIZ="${BA_GST_FW}/Versions/1.0"
+    target_compile_definitions(test_emisor PRIVATE BA_TEST_GST_RAIZ="${BA_GST_RAIZ}"
         BA_TEST_GST_PLUGINS="${CMAKE_BINARY_DIR}/src/gst-plugins")
     add_dependencies(test_emisor gstbaipc)
     add_test(NAME test_emisor COMMAND test_emisor)

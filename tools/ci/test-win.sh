@@ -130,7 +130,10 @@ entorno=()
 while read -r rc seg n log _; do
     case $rc in
         0) pass=$((pass + 1)) ;;
-        77) skip=$((skip + 1)) ;;
+        77) skip=$((skip + 1))
+            # Por qué: que un salteo se vea (los del motor se salteaban todos «sin GStreamer»
+            # por una ruta de la Mac y nadie lo notó).
+            echo "  saltado: $n — $(grep -m1 -E "SKIP|saltea" "$log" 2>/dev/null | tr -d '\r' | cut -c1-140)" ;;
         133) entorno+=("$n"); echo "---- $n: rc=133 dos veces (SIGTRAP del emulador: Wine sobre Rosetta; del entorno, no del test)" ;;
         *) if dijo_ok "$n" "$log"; then
                entorno+=("$n"); echo "---- $n: dijo OK y Wine devolvió rc=$rc dos veces (al cerrarse el proceso; confirmar en Windows)"

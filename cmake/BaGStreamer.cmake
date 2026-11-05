@@ -101,6 +101,16 @@ else()
     ba_falta("Motor de video (GStreamer)" "no está ('make deps-gstreamer-macos' / '-linux' / '-win')")
 endif()
 
+# La raíz de GStreamer de ESTA plataforma (la que tiene lib/gstreamer-1.0 y libexec/): la
+# que los tests le pasan al motor (BA_TEST_GST_RAIZ → BA_GST_RAIZ, platform/GstEntorno).
+# Antes los tests usaban "${BA_GST_FW}/Versions/1.0" en los tres sistemas: en Linux y en
+# Windows apuntaba a extern/gstreamer-macos, el motor no encontraba GStreamer y ~20 tests
+# del motor se salteaban «sin GStreamer» sin que nadie lo notara.
+set(BA_GST_RAIZ "")
+if(BA_HAVE_GST)
+    set(BA_GST_RAIZ "${_g}")
+endif()
+
 # Que un binario encuentre las bibliotecas de GStreamer: en el árbol de build
 # (extern/) y en el bundle (bin/64bit/GStreamer.framework/Versions/1.0/lib),
 # relativo a donde queda instalado (`rel`: de su carpeta a bin/64bit).
