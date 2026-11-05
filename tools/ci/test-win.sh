@@ -135,7 +135,10 @@ while read -r rc seg n log _; do
         77) skip=$((skip + 1))
             # Por qué: que un salteo se vea (los del motor se salteaban todos «sin GStreamer»
             # por una ruta de la Mac y nadie lo notó).
-            echo "  saltado: $n — $(grep -m1 -E "SKIP|saltea" "$log" 2>/dev/null | tr -d '\r' | cut -c1-140)" ;;
+            echo "  saltado: $n — $(grep -m1 -E "SKIP|saltea" "$log" 2>/dev/null | tr -d '\r' | cut -c1-140)"
+            # Un SKIP de tiempo real bajo el emulador tapa sus FALLO: que se vean (así se
+            # encontró el rótulo de texto que no negociaba en la CPU, 2026-11-05).
+            grep -m4 "^FALLO" "$log" 2>/dev/null | tr -d '\r' | cut -c1-160 | sed 's/^/      /' ;;
         133) entorno+=("$n"); echo "---- $n: rc=133 dos veces (SIGTRAP del emulador: Wine sobre Rosetta; del entorno, no del test)" ;;
         *) if dijo_ok "$n" "$log"; then
                entorno+=("$n"); echo "---- $n: dijo OK y Wine devolvió rc=$rc dos veces (al cerrarse el proceso; confirmar en Windows)"

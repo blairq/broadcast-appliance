@@ -206,6 +206,8 @@ int main() {
     }
 
     fs::remove_all(dir, ec);
-    if (g_fallos == 0) std::printf("test_registro: todo bien\n");
+    // «<test>: OK», como los demás: tools/ci/test-win.sh reconoce así al que terminó bien y
+    // Wine le devolvió otro código al cerrar el proceso (rc=1 con «todo bien», 2026-11-05).
+    if (g_fallos == 0) std::printf("test_registro: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

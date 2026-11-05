@@ -250,7 +250,13 @@ int main() {
     std::printf("en bucle, el peor nivel en 3 s: %.2f dBFS (%s)\n", peor, m->estadoMedio().c_str());
     CHECK(peor > -18, "en bucle no hay silencio entre vueltas");
     programa->quitar("bucle");
-    std::filesystem::remove(corto);
+    // Primero se suelta la entrada (tiene el archivo abierto): Windows no borra un archivo
+    // abierto, y remove sin error_code tiraba filesystem_error → terminate → rc=3 sin decir nada.
+    banco.entradas.pop_back();
+    m.reset();
+    std::error_code ecCorto;
+    std::filesystem::remove(corto, ecCorto);
+    CHECK(!ecCorto, "se borra el WAV corto (la entrada ya lo soltó)");
     // El limitador del máster: un tono a +6 dBFS sale a <= -1 dBTP (medido por el
     // ebur128level del bus, después del limitador).
     if (hayFabrica("balimitador")) {
@@ -345,7 +351,8 @@ int main() {
         CHECK(si["sale"].value("formato", "") == (gpuVideo() ? "RGBA" : "BGRA"), "con su alfa (BGRA, o RGBA en la GPU)");
         banco.entradas.pop_back();
         img.reset();
-        std::filesystem::remove(png);
+        std::error_code ecPng;
+        std::filesystem::remove(png, ecPng); // limpieza: sin excepción
     }
     programa->quitar("tono1");
     banco.entradas.clear();
@@ -353,7 +360,8 @@ int main() {
     e1.reset();
     e2.reset();
     programa.reset();
-    std::filesystem::remove(wav);
+    std::error_code ecWav;
+    std::filesystem::remove(wav, ecWav); // limpieza: sin excepción
     std::printf("== test_motor: %s ==\n", fallos == 0 ? "OK" : "FALLOS");
     return fallos == 0 ? 0 : 1;
 }
