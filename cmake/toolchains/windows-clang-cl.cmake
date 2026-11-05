@@ -4,7 +4,7 @@
 # clang-cl + lld-link de extern/toolchain/llvm y el CRT/SDK de Microsoft en
 # extern/msvc (layout /winsysroot). Lo arma tools/deps/win-toolchain.sh; lo usa
 # `make win`. El resultado es el mismo que compilar con Visual Studio: ABI y
-# STL de MSVC, compatible con libwebrtc (Shiguredo), OBS y Qt msvc2019_64.
+# STL de MSVC, compatible con libwebrtc (Shiguredo), OBS y Qt msvc2022_64.
 # ============================================================================
 set(CMAKE_SYSTEM_NAME Windows)
 set(CMAKE_SYSTEM_VERSION 10.0)

@@ -66,7 +66,7 @@ else()
         UNRESOLVED_DEPENDENCIES_VAR _unresolved
         CONFLICTING_DEPENDENCIES_PREFIX _conflict
         DIRECTORIES "${BA_QT_LIB_DIR}"
-        PRE_INCLUDE_REGEXES ".*Qt[A-Za-z0-9]*\\.framework.*"
+        PRE_INCLUDE_REGEXES ".*Qt[A-Za-z0-9]*\\.framework.*" ".*/lib(av|sw)[a-z]*\\.[0-9]+\\.dylib"
         PRE_EXCLUDE_REGEXES ".*")
     foreach(_name IN LISTS _conflict_FILENAMES)
         list(GET _conflict_${_name} 0 _first)
@@ -97,5 +97,16 @@ foreach(_fw IN LISTS _fws)
     endif()
 endforeach()
 
+# El FFmpeg que Qt trae para su motor de reproducción (desde 6.7 en bibliotecas aparte:
+# lib/libavcodec.61.dylib…; lo carga plugins/multimedia/libffmpegmediaplugin.dylib).
+set(_ffmpeg 0)
+foreach(_d IN LISTS _deps)
+    get_filename_component(_n "${_d}" NAME)
+    if(_n MATCHES "^lib(av|sw)[a-z]*\\.[0-9]+\\.dylib$" AND EXISTS "${BA_QT_LIB_DIR}/${_n}")
+        file(INSTALL "${BA_QT_LIB_DIR}/${_n}" DESTINATION "${_qtdst}/lib" FOLLOW_SYMLINK_CHAIN)
+        math(EXPR _ffmpeg "${_ffmpeg} + 1")
+    endif()
+endforeach()
+
 file(WRITE "${_bin}/qt.conf" "[Paths]\nPrefix=qt\nPlugins=plugins\nQmlImports=qml\n")
-message(STATUS "ba-bundle: Qt vendoreado copiado (${_count} frameworks + plugins + QML en bin/64bit/qt)")
+message(STATUS "ba-bundle: Qt vendoreado copiado (${_count} frameworks, ${_ffmpeg} de FFmpeg + plugins + QML en bin/64bit/qt)")

@@ -1,8 +1,8 @@
 # ============================================================================
-# src/tablero-web — el dashboard de la app en el navegador (Qt 6.6.3 para WebAssembly)
+# src/tablero-web — el dashboard de la app en el navegador (Qt para WebAssembly, la versión de versions.cmake)
 #
 # Proyecto APARTE del de la app: se configura con el qt-cmake de extern/qt6-wasm (Qt para
-# WebAssembly, estático) y el emscripten de extern/emsdk. Lo arma `make tablero-web`
+# WebAssembly, estático) y el emscripten de extern/emsdk-<versión>. Lo arma `make tablero-web`
 # (tools/deps/tablero-web.sh); nada de esto se instala en el sistema.
 #
 # La QML NO se copia: entran como recursos los mismos archivos de src/app/qml (las

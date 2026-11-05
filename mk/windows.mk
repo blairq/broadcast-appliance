@@ -17,7 +17,8 @@
 WIN_BUILD_DIR ?= build/win
 WIN_RELEASE   ?= release-win
 WIN_TOOLCHAIN := $(CURDIR)/cmake/toolchains/windows-clang-cl.cmake
-QT6_HOST_PATH = $(CURDIR)/$(EXTERNS_DIR)/qt6-host/$(QT6_VER)/gcc_64
+# El Qt del host de la máquina que compila (moc, rcc, qmlcachegen): x86_64 o arm64.
+QT6_HOST_PATH = $(CURDIR)/$(EXTERNS_DIR)/qt6-host/$(QT6_VER)/$(QT6_HOST_DIR)
 
 deps-win-toolchain:
 	tools/deps/win-toolchain.sh
@@ -25,7 +26,7 @@ deps-win-toolchain:
 deps-webrtc-win:
 	$(MAKE) deps-webrtc BA_WEBRTC_TARGET=windows
 
-# Todo lo que el build de Windows necesita. Qt de Windows (msvc2019_64: SDK y
+# Todo lo que el build de Windows necesita. Qt de Windows (msvc2022_64: SDK y
 # también las DLL que viajan) mas el Qt del host (moc, rcc, qmlcachegen corren
 # en Linux), GStreamer oficial de MSVC (trae su FFmpeg), libwebrtc de Windows y
 # las fuentes compartidas.
@@ -47,11 +48,11 @@ deps-lsp-win: deps-win-toolchain
 deps-lspdsp-win: deps-win-toolchain
 	tools/deps/lspdsp.sh windows-x86_64 $(JOBS)
 
-# Qt 6 (win64_msvc2019_64): SDK de BUILD (headers + import libs + CMake config).
+# Qt 6 (win64_msvc2022_64): SDK de BUILD (headers + import libs + CMake config).
 # Vía aqtinstall (en el .venv local): baja el componente exacto y lo deja en
-# extern/qt6/$(QT6_VER)/msvc2019_64/{include,lib,bin} (incl. lib/cmake/Qt6/
+# extern/qt6/$(QT6_VER)/msvc2022_64/{include,lib,bin} (incl. lib/cmake/Qt6/
 # Qt6Config.cmake y lib/libQt6Core.a). La vía aqt es la fiable aquí: la ruta
-# oficial de descarga única (qt-opensource-...-mingw_2022-6.6.3.7z) devuelve 404
+# oficial de descarga única (qt-opensource-...-mingw_2022-<ver>.7z) devuelve 404
 # en los mirrors actuales. IDEMPOTENTE: si el sentinel (Qt6Config.cmake) ya
 # está y su SHA coincide, se salta (ni pip ni aqt). El SDK es grande (~1 GB);
 # aqt lo baja por componentes, así que si falla a mitad se re-baja limpio.
@@ -67,9 +68,9 @@ deps-qt:
 	  test -x "$(PY)" || python3 -m venv .venv; \
 	  "$(PIP)" install -q aqtinstall \
 	    || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
-	  echo "[deps] Qt6 $(QT6_VER): instalando SDK win64_msvc2019_64 a $(QT6_PREFIX)"; \
+	  echo "[deps] Qt6 $(QT6_VER): instalando SDK win64_msvc2022_64 a $(QT6_PREFIX)"; \
 	  rm -rf "$(QT6_DEST)"; \
-	  "$(PY)" -m aqt install-qt windows desktop $(QT6_VER) win64_msvc2019_64 -m qtpdf qtmultimedia -O "$(QT6_DEST)" \
+	  "$(PY)" -m aqt install-qt windows desktop $(QT6_VER) win64_msvc2022_64 -m qtpdf qtmultimedia -O "$(QT6_DEST)" \
 	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
 	  if [ -f "$(QT6_SENTINEL)" ]; then \
 	    echo "[deps] Qt6 $(QT6_VER): SDK instalado ($(QT6_PREFIX))"; \

@@ -17,6 +17,7 @@ import json
 import os
 import pathlib
 import platform
+import re
 import subprocess
 import sys
 
@@ -27,12 +28,26 @@ TRABAJO = RAIZ / "build" / "i18n-actualizar"
 EXTENSIONES = {".cpp", ".hpp", ".h", ".mm", ".qml"}
 
 
+
+def _qt_version() -> str:
+    """La versión de Qt fijada en versions.cmake (la del build; puede haber otras en extern/)."""
+    m = re.search(r'QT6_VERSION "([^"]+)"', (RAIZ / "versions.cmake").read_text(encoding="utf-8"))
+    return m.group(1) if m else "*"
+
+
+def _qt_sub() -> str:
+    """La carpeta del Qt del host que deja aqt (mk/versiones.mk: QT6_HOST_DIR)."""
+    if platform.system() == "Darwin":
+        return "macos"
+    if platform.system() == "Linux":
+        return "gcc_arm64" if platform.machine() in ("aarch64", "arm64") else "gcc_64"
+    return "msvc2022_64"
+
 def lupdate() -> pathlib.Path:
     if os.environ.get("LUPDATE"):
         return pathlib.Path(os.environ["LUPDATE"])
-    sub = {"Darwin": "macos", "Linux": "gcc_64"}.get(platform.system(), "msvc2019_64")
     exe = "lupdate.exe" if platform.system() == "Windows" else "lupdate"
-    hay = sorted((RAIZ / "extern" / "qt6-host").glob(f"*/{sub}/bin/{exe}"))
+    hay = sorted((RAIZ / "extern" / "qt6-host").glob(f"{_qt_version()}/{_qt_sub()}/bin/{exe}"))
     if not hay:
         raise SystemExit("[i18n] no encuentro lupdate en extern/qt6-host ('make deps-qt-host'); o LUPDATE=<ruta>")
     return hay[-1]

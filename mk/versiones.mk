@@ -19,7 +19,7 @@ CLOUDFLARED_VER?= 2024.11.0
 LSP_VER        := $(shell awk -F'"' '/LSP_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
 LSP_VER        ?= 1.2.35
 QT6_VER        := $(shell awk -F'"' '/QT6_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
-QT6_VER        ?= 6.6.3
+QT6_VER        ?= 6.8.3
 
 # --- Identificadores de descarga exactos (metadatos, no pins) ---------------
 # libwebrtc: el tag de Shiguredo que corresponde a WEBRTC_MILESTONE=M123 /
@@ -28,21 +28,21 @@ QT6_VER        ?= 6.6.3
 WEBRTC_TAG := m123.6312.3.5
 
 # --- URLs + SHA-256 por asset -----------------------------------------------
-# Qt 6.6.3 (win64_msvc2019_64): SDK (headers + import libs + CMake config + moc)
+# Qt de Windows (win64_msvc2022_64, desde la 6.8): SDK (headers + import libs + CMake config + moc)
 # y también el runtime: cmake/BaQtDeployWin.cmake copia de su bin/ las DLL que
 # ba-app importa de verdad.
 # Se instala con `aqtinstall` (en el .venv local) en lugar de curl: aqt baja el
-# componente exacto y lo deja en extern/qt6/$(QT6_VER)/msvc2019_64/{include,lib,bin}
+# componente exacto y lo deja en extern/qt6/$(QT6_VER)/msvc2022_64/{include,lib,bin}
 # (incl. lib/cmake/Qt6/Qt6Config.cmake y lib/libQt6Core.a). La ruta oficial de
-# descarga única (qt-opensource-...-mingw_2022-6.6.3.7z) no está disponible en
+# descarga única (qt-opensource-...-mingw_2022-<ver>.7z) no está disponible en
 # los mirrors actuales (404), por eso aqt es la vía fiable. El SDK es grande
 # (~1 GB); es idempotente: si el sentinel (Qt6Config.cmake) ya está, se salta.
 # El hash que se pinnea es el del sentinel (aqt no baja un único archivo con
 # hash conocido): es la verificación de integridad del layout.
 QT6_DEST     := $(EXTERNS_DIR)/qt6
-QT6_PREFIX   := $(QT6_DEST)/$(QT6_VER)/msvc2019_64
+QT6_PREFIX   := $(QT6_DEST)/$(QT6_VER)/msvc2022_64
 QT6_SENTINEL := $(QT6_PREFIX)/lib/cmake/Qt6/Qt6Config.cmake
-QT6_SHA      := 381542ca9904f8595cccfa3a45a035e188924180f815e44afa77f296a9bee323
+QT6_SHA      := b619facf32ebdb756915ac7114d658ba3d251d6fb2deb0d1c281932310304e47
 
 # libwebrtc M123 (Shiguredo). El zip/tar trae un top-dir `webrtc/` con
 # include/ + lib/; se extrae sobre extern/ -> extern/webrtc/{include,lib}.
@@ -199,18 +199,29 @@ ARGON2_TAR  := $(DL_DIR)/argon2-20190702.tar.gz
 ARGON2_DEST := $(EXTERNS_DIR)/argon2
 ARGON2_SENT := $(ARGON2_DEST)/Makefile
 
-# Qt 6 para el SISTEMA DEL HOST (Linux gcc_64 / macOS clang_64), vendoreado en
+# Qt 6 para el SISTEMA DEL HOST (Linux x86_64 o arm64 / macOS), vendoreado en
 # extern/qt6-host: la interfaz grafica de ba-app compila SOLO contra esta copia
 # y el bundle se la lleva (portable: nunca el Qt del sistema). Se instala con
 # aqtinstall dentro del .venv local (nada global). ~1,2 GB en extern/.
+# Linux arm64 (host linux_arm64 de aqt) existe desde Qt 6.7: es el que usa la
+# validación nativa en Docker sobre Apple Silicon (tools/ci/compilar-en-docker.sh).
+# QT6_HOST_AQT: el «host» de aqt; QT6_HOST_ARCH: la arquitectura que pide;
+# QT6_HOST_DIR: la carpeta que deja (extern/qt6-host/<ver>/<dir>).
 QT6_HOST_DEST := $(EXTERNS_DIR)/qt6-host
 ifeq ($(shell uname -s),Darwin)
   QT6_HOST_OS   := mac
+  QT6_HOST_AQT  := mac
   QT6_HOST_ARCH := clang_64
   QT6_HOST_DIR  := macos
+else ifeq ($(shell uname -m),aarch64)
+  QT6_HOST_OS   := linux
+  QT6_HOST_AQT  := linux_arm64
+  QT6_HOST_ARCH := linux_gcc_arm64
+  QT6_HOST_DIR  := gcc_arm64
 else
   QT6_HOST_OS   := linux
-  QT6_HOST_ARCH := gcc_64
+  QT6_HOST_AQT  := linux
+  QT6_HOST_ARCH := linux_gcc_64
   QT6_HOST_DIR  := gcc_64
 endif
 QT6_HOST_SENTINEL := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6/Qt6Config.cmake
@@ -229,12 +240,17 @@ QT6_HOST_PDF := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6Pdf/Qt6
 # vendoreo de Qt que ya usamos, igual en Linux y en Windows.
 QT6_HOST_MM := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake
 
+# Qt para WebAssembly (sin hilos) y el emscripten con que se armó ese Qt (la tabla de
+# https://doc.qt.io/qt-6/wasm.html: 6.8 -> 3.1.56). Desde la 6.7, aqt lo publica como
+# host «all_os», objetivo «wasm». emsdk va en una carpeta POR VERSIÓN: `emsdk activate`
+# cambia la versión activa de toda la carpeta, y un worktree con otra versión de Qt
+# rompía el tablero de los demás.
 QT6_WASM_DEST     := $(EXTERNS_DIR)/qt6-wasm
 QT6_WASM_SENTINEL := $(QT6_WASM_DEST)/$(QT6_VER)/wasm_singlethread/bin/qt-cmake
-EMSDK_VER         := 3.1.37
-EMSDK_SHA         := c3c80dfe82fb448751d1c48200e5143aeca0f0db1d021db4b63655a9d9470cd8
+EMSDK_VER         := 3.1.56
+EMSDK_SHA         := 6df4b778f52e0e86c721cc6f97e7ad8fd6c842be2451e39f2bc528facb5d4cde
 EMSDK_URL         := https://github.com/emscripten-core/emsdk/archive/refs/tags/$(EMSDK_VER).tar.gz
-EMSDK_DEST        := $(EXTERNS_DIR)/emsdk
+EMSDK_DEST        := $(EXTERNS_DIR)/emsdk-$(EMSDK_VER)
 
 # lwIP 2.2.0 (BSD): pila IP en espacio de usuario para el tunel WireGuard del
 # gateway (src/gateway/net). El zip de Savannah es un archivo estatico: se fija

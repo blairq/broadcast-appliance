@@ -60,8 +60,8 @@ deps-qt-host:
 	else \
 	  test -x "$(PY)" || python3 -m venv .venv; \
 	  "$(PIP)" install -q aqtinstall || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
-	  echo "[deps] Qt6 $(QT6_VER): instalando $(QT6_HOST_OS)/$(QT6_HOST_ARCH) (+qtpdf +qtmultimedia) en $(QT6_HOST_DEST)"; \
-	  "$(PY)" -m aqt install-qt $(QT6_HOST_OS) desktop $(QT6_VER) $(QT6_HOST_ARCH) -m qtpdf qtmultimedia -O "$(QT6_HOST_DEST)" \
+	  echo "[deps] Qt6 $(QT6_VER): instalando $(QT6_HOST_AQT)/$(QT6_HOST_ARCH) (+qtpdf +qtmultimedia) en $(QT6_HOST_DEST)"; \
+	  "$(PY)" -m aqt install-qt $(QT6_HOST_AQT) desktop $(QT6_VER) $(QT6_HOST_ARCH) -m qtpdf qtmultimedia -O "$(QT6_HOST_DEST)" \
 	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
 	  test -f "$(QT6_HOST_SENTINEL)" || { echo "[deps] ERROR Qt6: falta $(QT6_HOST_SENTINEL)" >&2; exit 1; }; \
 	  test -f "$(QT6_HOST_PDF)" || { echo "[deps] ERROR Qt6: aqt no dejo el modulo qtpdf" >&2; exit 1; }; \
@@ -480,7 +480,7 @@ deps-zxing:
 # --- Estado / limpieza de dependencias --------------------------------------
 deps-status:
 	@echo "Assets de terceros en $(EXTERNS_DIR)/:"
-	@echo "  Qt6 $(QT6_VER) (win64_msvc2019_64): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
+	@echo "  Qt6 $(QT6_VER) (win64_msvc2022_64): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
 	@echo "  libwebrtc M123 ($(BA_WEBRTC_TARGET)): $$( [ -f '$(WEB_DEST)/lib/$(WEB_LIB)' ] && echo OK || echo ausente )"
 	@echo "  cloudflared $(CLOUDFLARED_VER)     : $$( [ -f '$(CFL_EXE)' ] && echo OK || echo ausente )"
 	@echo "  LSP $(LSP_VER)           : $$( [ -f '$(LSP_DEST)/linux-x86_64/lsp-plugins.clap' ] && echo OK || echo ausente )"

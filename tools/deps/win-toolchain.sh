@@ -4,7 +4,7 @@
 #
 # Todo el build de Windows usa el ABI de MSVC (clang-cl + lld-link): el
 # libwebrtc precompilado para Windows (Shiguredo) esta compilado con la STL de
-# MSVC y su CRT estatico (/MT), y OBS y el Qt msvc2019_64 tambien son MSVC.
+# MSVC y su CRT estatico (/MT), y OBS y el Qt msvc2022_64 tambien son MSVC.
 # Nada se instala en el sistema; todo queda en extern/:
 #
 #   extern/toolchain/llvm   llvm-mingw (clang, clang-cl, lld-link, llvm-rc,
