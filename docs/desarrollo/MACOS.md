@@ -43,7 +43,7 @@ Baja (con hash) y compila en `extern/` todo lo de terceros:
 | Qué | De dónde | Log si falla |
 |---|---|---|
 | libobs 31 + plugins (cámara, pantalla, audio, VideoToolbox, x264, RTMP...) | fuente del tag fijado + obs-deps oficiales de macOS arm64, con Xcode (`tools/deps/obs-macos.sh`) | `extern/.build-obs-macos.configure.log` / `.build.log` |
-| Qt 6.6.3 (macOS) | aqtinstall en `extern/qt6-host` | la salida de make |
+| Qt 6.8.3 (macOS) | aqtinstall en `extern/qt6-host` | la salida de make |
 | libwebrtc M123 (macOS arm64) | Shiguredo, mismo tag que Linux/Windows | la salida de make |
 | mbedTLS, nlohmann, libsamplerate, Argon2, lwIP, CLAP, cloudflared (darwin-arm64) | como en Linux | la salida de make |
 | libmicrodns (buscar televisores por mDNS) | fuente fijado por commit (`tools/deps/ndi-src.sh`) | la salida de make |

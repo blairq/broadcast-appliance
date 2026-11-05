@@ -3,7 +3,7 @@
 #
 # Se ejecuta como paso de `install` (install(SCRIPT)), DESPUES de instalar
 # ba-app. Variables que fija src/app/CMakeLists.txt antes de incluirlo:
-#   BA_QT_BIN_DIR      bin/ del Qt msvc2019_64 (sus DLLs)
+#   BA_QT_BIN_DIR      bin/ del Qt msvc2022_64 (sus DLLs)
 #   BA_QT_PLUGIN_DIR   plugins/
 #   BA_QT_PLUGINS      plugins que viajan (relativos a plugins/)
 #   BA_QT_QML_DIR      qml/
@@ -11,6 +11,7 @@
 #   BA_APP_BUILD_EXE   ba-app.exe del arbol de build
 #   BA_OBJDUMP         llvm-objdump (lee la tabla de importaciones de un PE)
 #   BA_CRT_REDIST_DIR  DLLs redistribuibles del CRT de MSVC (extern/msvc/redist)
+#   BA_GST_BIN_DIR     bin/ de GStreamer (su FFmpeg es el que viaja: ver abajo)
 #
 # Layout (Windows busca las DLLs junto al .exe):
 #   bin/64bit/*.dll          Qt6*.dll que hacen falta + CRT (vcruntime140...)
@@ -88,6 +89,12 @@ while(_scan)
             continue()
         endif()
         list(APPEND _seen "${_key}")
+        # El FFmpeg de Qt Multimedia (desde 6.7 en DLL aparte: avcodec-61.dll…) tiene los
+        # MISMOS nombres que el de GStreamer, y las dos van en bin/64bit: va el de GStreamer
+        # (el mismo FFmpeg 7.1, la misma ABI; el motor ya cargaba ese), no se pisan.
+        if(_dll MATCHES "^(av|sw)[A-Za-z]*-[0-9]+\\.[dD][lL][lL]$" AND BA_GST_BIN_DIR AND EXISTS "${BA_GST_BIN_DIR}/${_dll}")
+            continue()
+        endif()
         if(EXISTS "${BA_QT_BIN_DIR}/${_dll}")
             file(INSTALL "${BA_QT_BIN_DIR}/${_dll}" DESTINATION "${_bin}")
             list(APPEND _scan "${BA_QT_BIN_DIR}/${_dll}")

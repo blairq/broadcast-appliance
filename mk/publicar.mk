@@ -43,9 +43,29 @@ docker-base:
 	elif [ $$rc != 0 ]; then exit $$rc; fi
 docker-capas:
 	@tools/ci/capas-docker.sh listar
+	@BA_DOCKER_ARQ=arm64 tools/ci/capas-docker.sh listar
 DIAS ?= 7
 docker-capas-limpiar:
 	@tools/ci/capas-docker.sh limpiar $(DIAS)
+	@BA_DOCKER_ARQ=arm64 tools/ci/capas-docker.sh limpiar $(DIAS)
+
+# VALIDAR una rama nativo en arm64 (una Mac con Apple Silicon: sin Rosetta), Linux y Windows:
+# compilar + tests, sin paquetes (los paquetes salen de x86_64: paquete-linux/-windows). Los
+# tests de Windows corren bajo Wine en x86_64. Lo que no tiene par arm64 se saltea diciendo
+# por qué (ver tools/ci/compilar-en-docker.sh). VALIDAR_QUE=linux|win|todo (de fábrica, todo).
+# docker-base-arm64: la base de esas capas (master), como docker-base.
+.PHONY: validar-arm64 docker-base-arm64
+VALIDAR_QUE ?= todo
+validar-arm64:
+	@rc=0; BA_DOCKER_ARQ=arm64 tools/ci/compilar-en-docker.sh $(VALIDAR_QUE) || rc=$$?; \
+	if [ $$rc = 3 ]; then \
+	  echo "AVISO: fallaron tests de Windows bajo Wine (x86_64 sobre Rosetta): ver arriba." >&2; exit 3; \
+	elif [ $$rc != 0 ]; then exit $$rc; fi
+docker-base-arm64:
+	@rc=0; BA_DOCKER_ARQ=arm64 BA_DOCKER_BASE=1 tools/ci/compilar-en-docker.sh todo || rc=$$?; \
+	if [ $$rc = 3 ]; then \
+	  echo "AVISO: tests de Windows bajo Wine fallaron (Wine sobre Rosetta): la base quedó igual." >&2; \
+	elif [ $$rc != 0 ]; then exit $$rc; fi
 
 # Los tests de Windows corren bajo Wine. En una Mac, Wine va encima de Rosetta
 # y algunos fallan sin que el programa ande mal (en el runner del CI pasan):

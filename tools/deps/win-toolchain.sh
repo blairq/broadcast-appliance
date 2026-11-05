@@ -4,7 +4,7 @@
 #
 # Todo el build de Windows usa el ABI de MSVC (clang-cl + lld-link): el
 # libwebrtc precompilado para Windows (Shiguredo) esta compilado con la STL de
-# MSVC y su CRT estatico (/MT), y OBS y el Qt msvc2019_64 tambien son MSVC.
+# MSVC y su CRT estatico (/MT), y OBS y el Qt msvc2022_64 tambien son MSVC.
 # Nada se instala en el sistema; todo queda en extern/:
 #
 #   extern/toolchain/llvm   llvm-mingw (clang, clang-cl, lld-link, llvm-rc,
@@ -32,15 +32,25 @@ mkdir -p "$DL" "$TC"
 log() { echo "[win-toolchain] $*" >&2; }
 
 # --- Pins ---------------------------------------------------------------------
+# Las herramientas son de la máquina que compila: x86_64 (lo que arma los paquetes) o
+# aarch64 (la validación nativa en Docker sobre Apple Silicon). Lo que generan es lo mismo:
+# Windows x86_64.
+HOST_ARQ="$(uname -m)"
 LLVM_MINGW_VER=20260908
-LLVM_MINGW_NAME="llvm-mingw-${LLVM_MINGW_VER}-ucrt-ubuntu-22.04-x86_64"
-LLVM_MINGW_URL="https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VER}/${LLVM_MINGW_NAME}.tar.xz"
-LLVM_MINGW_SHA=2258c745e3155870c80793f3e8c80b28fbde11b9ff73c4c78783635b3440b092
-
 XWIN_VER=0.10.0
-XWIN_NAME="xwin-${XWIN_VER}-x86_64-unknown-linux-musl"
+case "$HOST_ARQ" in
+    x86_64)
+        LLVM_MINGW_SHA=2258c745e3155870c80793f3e8c80b28fbde11b9ff73c4c78783635b3440b092
+        XWIN_SHA=d870eb4b2f390878af6da1ccd3cf321d22fcb72720984853b4be732ae597fc88 ;;
+    aarch64)
+        LLVM_MINGW_SHA=c907dd2302a292b663add18752a55ce9d544ca0fd19cf33c086ca242d5994ea6
+        XWIN_SHA=6d56d28537a86f37aa3d041318898f25ee3100c6b6ec332ad873c28faf37be23 ;;
+    *) log "ERROR: no hay toolchain para compilar Windows desde $HOST_ARQ"; exit 1 ;;
+esac
+LLVM_MINGW_NAME="llvm-mingw-${LLVM_MINGW_VER}-ucrt-ubuntu-22.04-${HOST_ARQ}"
+LLVM_MINGW_URL="https://github.com/mstorsjo/llvm-mingw/releases/download/${LLVM_MINGW_VER}/${LLVM_MINGW_NAME}.tar.xz"
+XWIN_NAME="xwin-${XWIN_VER}-${HOST_ARQ}-unknown-linux-musl"
 XWIN_URL="https://github.com/Jake-Shadle/xwin/releases/download/${XWIN_VER}/${XWIN_NAME}.tar.gz"
-XWIN_SHA=d870eb4b2f390878af6da1ccd3cf321d22fcb72720984853b4be732ae597fc88
 
 # Versiones EXACTAS del CRT y del SDK (xwin toma las del manifiesto de VS 17).
 MSVC_CRT_VER=14.44.17.14
@@ -61,26 +71,29 @@ fetch() { # url destino sha
 }
 
 # --- LLVM (llvm-mingw) --------------------------------------------------------
-if [ "$(cat "$TC/llvm/.version" 2>/dev/null)" != "$LLVM_MINGW_VER" ]; then
+# El sello lleva la arquitectura del host salvo en x86_64 (así un extern/ ya armado no se rehace).
+LLVM_SELLO="$LLVM_MINGW_VER"; XWIN_SELLO="$XWIN_VER"
+if [ "$HOST_ARQ" != x86_64 ]; then LLVM_SELLO="$LLVM_MINGW_VER-$HOST_ARQ"; XWIN_SELLO="$XWIN_VER-$HOST_ARQ"; fi
+if [ "$(cat "$TC/llvm/.version" 2>/dev/null)" != "$LLVM_SELLO" ]; then
     fetch "$LLVM_MINGW_URL" "$DL/${LLVM_MINGW_NAME}.tar.xz" "$LLVM_MINGW_SHA"
     rm -rf "$TC/llvm"
     mkdir -p "$TC/llvm"
     tar xJf "$DL/${LLVM_MINGW_NAME}.tar.xz" -C "$TC/llvm" --strip-components=1 --no-same-owner
     # El driver de MSVC es el mismo clang llamado como clang-cl.
     ln -sf clang "$TC/llvm/bin/clang-cl"
-    echo "$LLVM_MINGW_VER" >"$TC/llvm/.version"
+    echo "$LLVM_SELLO" >"$TC/llvm/.version"
     log "LLVM listo ($("$TC/llvm/bin/clang" --version | head -1))"
 else
     log "LLVM: ya presente"
 fi
 
 # --- xwin ---------------------------------------------------------------------
-if [ "$(cat "$TC/xwin/.version" 2>/dev/null)" != "$XWIN_VER" ]; then
+if [ "$(cat "$TC/xwin/.version" 2>/dev/null)" != "$XWIN_SELLO" ]; then
     fetch "$XWIN_URL" "$DL/${XWIN_NAME}.tar.gz" "$XWIN_SHA"
     rm -rf "$TC/xwin"
     mkdir -p "$TC/xwin"
     tar xzf "$DL/${XWIN_NAME}.tar.gz" -C "$TC/xwin" --strip-components=1 --no-same-owner
-    echo "$XWIN_VER" >"$TC/xwin/.version"
+    echo "$XWIN_SELLO" >"$TC/xwin/.version"
 else
     log "xwin: ya presente"
 fi

@@ -56,7 +56,9 @@ export WINEPREFIX="$B/wineprefix" WINEDEBUG=-all WINEDLLOVERRIDES="mscoree,mshtm
 # Como ctest (cmake/BaTestsCache.cmake): los tests esperan los textos en el original, no en
 # el idioma de la máquina (sin esto, test_mcp leía «isn't open» en vez de «no esta abierto»).
 export BA_IDIOMA=es
-export WINEPATH="$ROOT/extern/qt6/6.6.3/msvc2019_64/bin;$ROOT/extern/gstreamer-win/bin;$ROOT/extern/onnxruntime-win/lib;$ROOT/extern/python-win;$ROOT/extern/msvc/redist"
+# El Qt de Windows de versions.cmake (mk/versiones.mk: extern/qt6/<ver>/msvc2022_64).
+QT_WIN_VER="$(awk -F'"' '/QT6_VERSION/{print $2; exit}' "$ROOT/versions.cmake")"
+export WINEPATH="$ROOT/extern/qt6/$QT_WIN_VER/msvc2022_64/bin;$ROOT/extern/gstreamer-win/bin;$ROOT/extern/onnxruntime-win/lib;$ROOT/extern/python-win;$ROOT/extern/msvc/redist"
 # Los tests de audio cargan el LSP de Windows (tools/deps/lsp-win.sh) por ruta Windows.
 if [ -f "$ROOT/extern/lsp/windows-x86_64/lsp-plugins.clap" ]; then
     export BA_LSP_CLAP="Z:${ROOT//\//\\}\\extern\\lsp\\windows-x86_64\\lsp-plugins.clap"

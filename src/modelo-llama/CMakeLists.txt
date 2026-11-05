@@ -61,7 +61,7 @@ else()
         execute_process(COMMAND ${CMAKE_CXX_COMPILER} -print-file-name=libgomp.so.1 OUTPUT_VARIABLE _ba_gomp
                         OUTPUT_STRIP_TRAILING_WHITESPACE)
         if(NOT IS_ABSOLUTE "${_ba_gomp}" OR NOT EXISTS "${_ba_gomp}")
-            find_file(_ba_gomp libgomp.so.1 PATHS /usr/lib/x86_64-linux-gnu /usr/lib64 /usr/lib NO_DEFAULT_PATH)
+            find_file(_ba_gomp libgomp.so.1 PATHS /usr/lib/x86_64-linux-gnu /usr/lib/aarch64-linux-gnu /usr/lib64 /usr/lib NO_DEFAULT_PATH)
         endif()
         if(_ba_gomp AND EXISTS "${_ba_gomp}")
             get_filename_component(_ba_gomp_real "${_ba_gomp}" REALPATH)

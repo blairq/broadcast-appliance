@@ -12,10 +12,25 @@
 # ============================================================================
 
 # --- Qt 6 ------------------------------------------------------------------
-# Qt 6 Widgets para la UI del Proceso A. Se usa la LTS 6.6.x (estable,
-# mantenida). El runtime se despliega con windeployqt (spec §5.2).
-set(QT6_VERSION "6.6.3" CACHE STRING "Versión de Qt 6")
+# Qt 6 (Quick/QML) para la interfaz, vendoreado en extern/ (aqt). La LTS 6.8: la más nueva
+# que aqt instala en las cinco variantes que usamos (macOS, Linux x86_64 y arm64, Windows
+# MSVC y WebAssembly). La 6.12 LTS existe, pero aqt (3.3.0) todavía no sabe bajar el Windows
+# desde la 6.11 (cambió cómo se publica). La 6.6 no tenía Linux arm64.
+# FORCE: un build ya configurado guardaba la versión vieja en el caché y la seguía usando.
+set(QT6_VERSION "6.8.3" CACHE STRING "Versión de Qt 6" FORCE)
 mark_as_advanced(QT6_VERSION)
+# Al cambiar de versión, lo que el caché recuerda del Qt anterior (Qt6*_DIR, qmllint,
+# macdeployqt…) apunta a extern/qt*/<la vieja>: find_package lo usaría igual. Se olvida.
+if(NOT "${BA_QT_VERSION_CONFIGURADA}" STREQUAL "${QT6_VERSION}")
+    get_cmake_property(_ba_qt_cache CACHE_VARIABLES)
+    foreach(_v IN LISTS _ba_qt_cache)
+        get_property(_val CACHE "${_v}" PROPERTY VALUE)
+        if(_val MATCHES "/extern/qt6(-host|-wasm)?/[0-9]" AND NOT _val MATCHES "/extern/qt6(-host|-wasm)?/${QT6_VERSION}/")
+            unset(${_v} CACHE)
+        endif()
+    endforeach()
+    set(BA_QT_VERSION_CONFIGURADA "${QT6_VERSION}" CACHE INTERNAL "La versión de Qt con que se configuró este build")
+endif()
 
 # --- Spout2 ----------------------------------------------------------------
 # SDK de Spout2 (API DX11, clase `spoutDX`). Se enlaza estático; no hace falta

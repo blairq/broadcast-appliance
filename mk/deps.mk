@@ -60,8 +60,8 @@ deps-qt-host:
 	else \
 	  test -x "$(PY)" || python3 -m venv .venv; \
 	  "$(PIP)" install -q aqtinstall || { echo "[deps] ERROR Qt6: no se pudo instalar aqtinstall" >&2; exit 1; }; \
-	  echo "[deps] Qt6 $(QT6_VER): instalando $(QT6_HOST_OS)/$(QT6_HOST_ARCH) (+qtpdf +qtmultimedia) en $(QT6_HOST_DEST)"; \
-	  "$(PY)" -m aqt install-qt $(QT6_HOST_OS) desktop $(QT6_VER) $(QT6_HOST_ARCH) -m qtpdf qtmultimedia -O "$(QT6_HOST_DEST)" \
+	  echo "[deps] Qt6 $(QT6_VER): instalando $(QT6_HOST_AQT)/$(QT6_HOST_ARCH) (+qtpdf +qtmultimedia) en $(QT6_HOST_DEST)"; \
+	  "$(PY)" -m aqt install-qt $(QT6_HOST_AQT) desktop $(QT6_VER) $(QT6_HOST_ARCH) -m qtpdf qtmultimedia -O "$(QT6_HOST_DEST)" \
 	    || { echo "[deps] ERROR Qt6: fallo de aqt" >&2; exit 1; }; \
 	  test -f "$(QT6_HOST_SENTINEL)" || { echo "[deps] ERROR Qt6: falta $(QT6_HOST_SENTINEL)" >&2; exit 1; }; \
 	  test -f "$(QT6_HOST_PDF)" || { echo "[deps] ERROR Qt6: aqt no dejo el modulo qtpdf" >&2; exit 1; }; \
@@ -230,6 +230,12 @@ deps-pinggy:
 # (`make -C ../hinchada paquete`) y quedan en extern/hinchada/<plataforma>; el bundle lo
 # lleva en bin/64bit/hinchada/. La Mac copia la carpeta del paquete; Linux y Windows, sus .tar.gz.
 HINCHADA_DIR ?= $(abspath $(CURDIR)/../hinchada)
+ifeq ($(shell uname -s)-$(shell uname -m),Linux-aarch64)
+# hinchada no arma paquete para Linux arm64 (sus paquetes: macos-arm64, linux-x86_64,
+# windows-x86_64): se dice y se sigue; CMake lo marca como faltante (ba_falta).
+deps-hinchada:
+	@echo "[deps] hinchada: SALTEADO en linux-aarch64: no hay paquete de hinchada para Linux arm64"
+else
 deps-hinchada:
 	@test -d "$(HINCHADA_DIR)/dist" || { echo "[deps] ERROR hinchada: no está $(HINCHADA_DIR)/dist ('make -C $(HINCHADA_DIR) paquete' o HINCHADA_DIR=…)" >&2; exit 1; }
 	@mkdir -p "$(EXTERNS_DIR)/hinchada"
@@ -247,6 +253,7 @@ deps-hinchada:
 	    tar -xzf "$$t" -C "$(EXTERNS_DIR)/hinchada" && mv "$(EXTERNS_DIR)/hinchada/hinchada-$$p" "$(EXTERNS_DIR)/hinchada/$$p" && \
 	    echo "[deps] hinchada $$p: $$(cat "$(EXTERNS_DIR)/hinchada/$$p/VERSION" 2>/dev/null)"; fi; \
 	done
+endif
 
 # cloudflared del host (Linux amd64/arm64 o macOS arm64), verificado por
 # SHA-256. En macOS el asset es un .tgz con el binario adentro.
@@ -480,7 +487,7 @@ deps-zxing:
 # --- Estado / limpieza de dependencias --------------------------------------
 deps-status:
 	@echo "Assets de terceros en $(EXTERNS_DIR)/:"
-	@echo "  Qt6 $(QT6_VER) (win64_msvc2019_64): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
+	@echo "  Qt6 $(QT6_VER) (win64_msvc2022_64): $$( [ -f '$(QT6_SENTINEL)' ] && echo OK || echo ausente )"
 	@echo "  libwebrtc M123 ($(BA_WEBRTC_TARGET)): $$( [ -f '$(WEB_DEST)/lib/$(WEB_LIB)' ] && echo OK || echo ausente )"
 	@echo "  cloudflared $(CLOUDFLARED_VER)     : $$( [ -f '$(CFL_EXE)' ] && echo OK || echo ausente )"
 	@echo "  LSP $(LSP_VER)           : $$( [ -f '$(LSP_DEST)/linux-x86_64/lsp-plugins.clap' ] && echo OK || echo ausente )"

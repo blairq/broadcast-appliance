@@ -11,7 +11,7 @@
 #   BA_QT_QML_MODULES  modulos QML que viajan (QtQml, QtQuick)
 #
 # Layout dentro del bundle (junto a ba-app, en bin/64bit/):
-#   qt/lib/        bibliotecas de Qt (+ ICU) que ba-app y los plugins usan
+#   qt/lib/        bibliotecas de Qt (+ ICU y el FFmpeg de Qt Multimedia) que ba-app y los plugins usan
 #   qt/plugins/    plugins de plataforma (Wayland, X11...) y afines
 #   qt/qml/        modulos QML de la interfaz
 #   qt.conf        le dice a Qt donde estan plugins y modulos QML
@@ -56,14 +56,27 @@ file(GET_RUNTIME_DEPENDENCIES
     UNRESOLVED_DEPENDENCIES_VAR _unresolved
     CONFLICTING_DEPENDENCIES_PREFIX _conflict
     DIRECTORIES "${BA_QT_LIB_DIR}"
-    PRE_INCLUDE_REGEXES "libQt6.*" "libicu.*"
+    # libav*/libsw*: el FFmpeg que Qt trae para su motor de reproducción (desde 6.7, en
+    # lib/ aparte; con él, los libQt6FFmpegStub-* que abren libssl/libva del sistema si están).
+    PRE_INCLUDE_REGEXES "libQt6.*" "libicu.*" "libav(codec|format|util|device|filter)\\.so.*" "libsw(resample|scale)\\.so.*"
     PRE_EXCLUDE_REGEXES ".*")
 
 # Cada plugin resuelve Qt por su RUNPATH, asi que la misma biblioteca aparece
 # con rutas distintas ("conflicto" para CMake): es el mismo archivo. Se
 # normaliza a la ruta absoluta y se deduplica.
+# Si una es la del Qt vendoreado y otra no (libavcodec.so.61: la de Qt y la de
+# extern/terceros-linux, que usa GStreamer), va la de Qt: es la que buscan sus plugins.
+get_filename_component(_qtlib_abs "${BA_QT_LIB_DIR}" ABSOLUTE)
 foreach(_name IN LISTS _conflict_FILENAMES)
     list(GET _conflict_${_name} 0 _first)
+    foreach(_c IN LISTS _conflict_${_name})
+        get_filename_component(_c_abs "${_c}" ABSOLUTE)
+        string(FIND "${_c_abs}" "${_qtlib_abs}/" _pos)
+        if(_pos EQUAL 0)
+            set(_first "${_c}")
+            break()
+        endif()
+    endforeach()
     list(APPEND _deps "${_first}")
 endforeach()
 set(_norm "")

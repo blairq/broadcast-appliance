@@ -19,7 +19,7 @@ CLOUDFLARED_VER?= 2024.11.0
 LSP_VER        := $(shell awk -F'"' '/LSP_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
 LSP_VER        ?= 1.2.35
 QT6_VER        := $(shell awk -F'"' '/QT6_VERSION/{print $$2; exit}' versions.cmake 2>/dev/null)
-QT6_VER        ?= 6.6.3
+QT6_VER        ?= 6.8.3
 
 # --- Identificadores de descarga exactos (metadatos, no pins) ---------------
 # libwebrtc: el tag de Shiguredo que corresponde a WEBRTC_MILESTONE=M123 /
@@ -28,25 +28,32 @@ QT6_VER        ?= 6.6.3
 WEBRTC_TAG := m123.6312.3.5
 
 # --- URLs + SHA-256 por asset -----------------------------------------------
-# Qt 6.6.3 (win64_msvc2019_64): SDK (headers + import libs + CMake config + moc)
+# Qt de Windows (win64_msvc2022_64, desde la 6.8): SDK (headers + import libs + CMake config + moc)
 # y también el runtime: cmake/BaQtDeployWin.cmake copia de su bin/ las DLL que
 # ba-app importa de verdad.
 # Se instala con `aqtinstall` (en el .venv local) en lugar de curl: aqt baja el
-# componente exacto y lo deja en extern/qt6/$(QT6_VER)/msvc2019_64/{include,lib,bin}
+# componente exacto y lo deja en extern/qt6/$(QT6_VER)/msvc2022_64/{include,lib,bin}
 # (incl. lib/cmake/Qt6/Qt6Config.cmake y lib/libQt6Core.a). La ruta oficial de
-# descarga única (qt-opensource-...-mingw_2022-6.6.3.7z) no está disponible en
+# descarga única (qt-opensource-...-mingw_2022-<ver>.7z) no está disponible en
 # los mirrors actuales (404), por eso aqt es la vía fiable. El SDK es grande
 # (~1 GB); es idempotente: si el sentinel (Qt6Config.cmake) ya está, se salta.
 # El hash que se pinnea es el del sentinel (aqt no baja un único archivo con
 # hash conocido): es la verificación de integridad del layout.
 QT6_DEST     := $(EXTERNS_DIR)/qt6
-QT6_PREFIX   := $(QT6_DEST)/$(QT6_VER)/msvc2019_64
+QT6_PREFIX   := $(QT6_DEST)/$(QT6_VER)/msvc2022_64
 QT6_SENTINEL := $(QT6_PREFIX)/lib/cmake/Qt6/Qt6Config.cmake
-QT6_SHA      := 381542ca9904f8595cccfa3a45a035e188924180f815e44afa77f296a9bee323
+QT6_SHA      := b619facf32ebdb756915ac7114d658ba3d251d6fb2deb0d1c281932310304e47
 
 # libwebrtc M123 (Shiguredo). El zip/tar trae un top-dir `webrtc/` con
 # include/ + lib/; se extrae sobre extern/ -> extern/webrtc/{include,lib}.
-ifeq ($(BA_WEBRTC_TARGET),linux)
+ifeq ($(BA_WEBRTC_TARGET)-$(shell uname -m),linux-aarch64)
+  # Linux arm64 (la validación nativa en Docker sobre Apple Silicon): el mismo M123, armv8.
+  WEBRTC_URL := https://github.com/shiguredo-webrtc-build/webrtc-build/releases/download/$(WEBRTC_TAG)/webrtc.ubuntu-22.04_armv8.tar.gz
+  WEBRTC_SHA := ab4fc1e6bd3c8698727475e0a6b02f090bdd8b4c0ecc7255b59e580a39afb83a
+  WEBARC     := $(DL_DIR)/webrtc.ubuntu-22.04_armv8.tar.gz
+  WEB_KIND   := tar
+  WEB_LIB    := libwebrtc.a
+else ifeq ($(BA_WEBRTC_TARGET),linux)
   WEBRTC_URL := https://github.com/shiguredo-webrtc-build/webrtc-build/releases/download/$(WEBRTC_TAG)/webrtc.ubuntu-22.04_x86_64.tar.gz
   WEBRTC_SHA := 5858e94f14d11da0612b24bd139664281db8e2278885587ef0d2ca614fb9d693
   WEBARC     := $(DL_DIR)/webrtc.ubuntu-22.04_x86_64.tar.gz
@@ -199,18 +206,29 @@ ARGON2_TAR  := $(DL_DIR)/argon2-20190702.tar.gz
 ARGON2_DEST := $(EXTERNS_DIR)/argon2
 ARGON2_SENT := $(ARGON2_DEST)/Makefile
 
-# Qt 6 para el SISTEMA DEL HOST (Linux gcc_64 / macOS clang_64), vendoreado en
+# Qt 6 para el SISTEMA DEL HOST (Linux x86_64 o arm64 / macOS), vendoreado en
 # extern/qt6-host: la interfaz grafica de ba-app compila SOLO contra esta copia
 # y el bundle se la lleva (portable: nunca el Qt del sistema). Se instala con
 # aqtinstall dentro del .venv local (nada global). ~1,2 GB en extern/.
+# Linux arm64 (host linux_arm64 de aqt) existe desde Qt 6.7: es el que usa la
+# validación nativa en Docker sobre Apple Silicon (tools/ci/compilar-en-docker.sh).
+# QT6_HOST_AQT: el «host» de aqt; QT6_HOST_ARCH: la arquitectura que pide;
+# QT6_HOST_DIR: la carpeta que deja (extern/qt6-host/<ver>/<dir>).
 QT6_HOST_DEST := $(EXTERNS_DIR)/qt6-host
 ifeq ($(shell uname -s),Darwin)
   QT6_HOST_OS   := mac
+  QT6_HOST_AQT  := mac
   QT6_HOST_ARCH := clang_64
   QT6_HOST_DIR  := macos
+else ifeq ($(shell uname -m),aarch64)
+  QT6_HOST_OS   := linux
+  QT6_HOST_AQT  := linux_arm64
+  QT6_HOST_ARCH := linux_gcc_arm64
+  QT6_HOST_DIR  := gcc_arm64
 else
   QT6_HOST_OS   := linux
-  QT6_HOST_ARCH := gcc_64
+  QT6_HOST_AQT  := linux
+  QT6_HOST_ARCH := linux_gcc_64
   QT6_HOST_DIR  := gcc_64
 endif
 QT6_HOST_SENTINEL := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6/Qt6Config.cmake
@@ -229,12 +247,17 @@ QT6_HOST_PDF := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6Pdf/Qt6
 # vendoreo de Qt que ya usamos, igual en Linux y en Windows.
 QT6_HOST_MM := $(QT6_HOST_DEST)/$(QT6_VER)/$(QT6_HOST_DIR)/lib/cmake/Qt6Multimedia/Qt6MultimediaConfig.cmake
 
+# Qt para WebAssembly (sin hilos) y el emscripten con que se armó ese Qt (la tabla de
+# https://doc.qt.io/qt-6/wasm.html: 6.8 -> 3.1.56). Desde la 6.7, aqt lo publica como
+# host «all_os», objetivo «wasm». emsdk va en una carpeta POR VERSIÓN: `emsdk activate`
+# cambia la versión activa de toda la carpeta, y un worktree con otra versión de Qt
+# rompía el tablero de los demás.
 QT6_WASM_DEST     := $(EXTERNS_DIR)/qt6-wasm
 QT6_WASM_SENTINEL := $(QT6_WASM_DEST)/$(QT6_VER)/wasm_singlethread/bin/qt-cmake
-EMSDK_VER         := 3.1.37
-EMSDK_SHA         := c3c80dfe82fb448751d1c48200e5143aeca0f0db1d021db4b63655a9d9470cd8
+EMSDK_VER         := 3.1.56
+EMSDK_SHA         := 6df4b778f52e0e86c721cc6f97e7ad8fd6c842be2451e39f2bc528facb5d4cde
 EMSDK_URL         := https://github.com/emscripten-core/emsdk/archive/refs/tags/$(EMSDK_VER).tar.gz
-EMSDK_DEST        := $(EXTERNS_DIR)/emsdk
+EMSDK_DEST        := $(EXTERNS_DIR)/emsdk-$(EMSDK_VER)
 
 # lwIP 2.2.0 (BSD): pila IP en espacio de usuario para el tunel WireGuard del
 # gateway (src/gateway/net). El zip de Savannah es un archivo estatico: se fija
@@ -261,6 +284,7 @@ ORT_VER := 1.20.1
 ORT_LINUX_SHA := 67db4dc1561f1e3fd42e619575c82c601ef89849afc7ea85a003abbac1a1a105
 ORT_WIN_SHA   := 78d447051e48bd2e1e778bba378bec4ece11191c9e538cf7b2c4a4565e8f5581
 ORT_MAC_SHA   := b678fc3c2354c771fea4fba420edeccfba205140088334df801e7fc40e83a57a
+ORT_LINUX_ARM64_SHA := ae4fedbdc8c18d688c01306b4b50c63de3445cdf2dbd720e01a2fa3810b8106a
 ZOO := https://github.com/opencv/opencv_zoo/raw/main/models
 YUNET_URL := $(ZOO)/face_detection_yunet/face_detection_yunet_2023mar.onnx
 YUNET_SHA := 8f2383e4dd3cfbb4553ea8718107fc0423210dc964f9f4280604804ed2552fa4
@@ -280,6 +304,9 @@ ifeq ($(BA_ORT_TARGET),windows)
 else ifeq ($(BA_ORT_TARGET),macos)
   ORT_PKG := onnxruntime-osx-arm64-$(ORT_VER).tgz
   ORT_SHA := $(ORT_MAC_SHA)
+else ifeq ($(shell uname -m),aarch64)
+  ORT_PKG := onnxruntime-linux-aarch64-$(ORT_VER).tgz
+  ORT_SHA := $(ORT_LINUX_ARM64_SHA)
 else
   ORT_PKG := onnxruntime-linux-x64-$(ORT_VER).tgz
   ORT_SHA := $(ORT_LINUX_SHA)
@@ -326,6 +353,8 @@ PY_TGZ_macos-arm64 := cpython-$(PY_VER)+$(PY_REL)-aarch64-apple-darwin-install_o
 PY_SHA_macos-arm64 := 10cab8f6ed6202fdd81637aa6eda4af8d5b7eaa8fc42f9df3c6bea4923de0d93
 PY_TGZ_linux-x64 := cpython-$(PY_VER)+$(PY_REL)-x86_64-unknown-linux-gnu-install_only_stripped.tar.gz
 PY_SHA_linux-x64 := 7bb1659e3235077b7f63d5b6eb6ce653c6fcd6c5041e9d5f73b42ce10421464d
+PY_TGZ_linux-arm64 := cpython-$(PY_VER)+$(PY_REL)-aarch64-unknown-linux-gnu-install_only_stripped.tar.gz
+PY_SHA_linux-arm64 := 0b35f4dc08d58534eb82e024989e2db9873885dccd4f2a316ff55c0cec146123
 PY_TGZ_win-x64 := cpython-$(PY_VER)+$(PY_REL)-x86_64-pc-windows-msvc-install_only_stripped.tar.gz
 PY_SHA_win-x64 := 52124cee54126f3f360eaa378288f6f64c402c983a3c14c95eff67f4af986aaa
 

@@ -116,7 +116,7 @@ con otra versión de Qt.
 
 ## Para quien lo arma
 
-- `make deps-wasm` baja Qt 6.6.3 para WebAssembly y emscripten 3.1.37 a `extern/` (nada se
+- `make deps-wasm` baja Qt 6.8.3 para WebAssembly y emscripten 3.1.56 a `extern/` (nada se
   instala en el sistema). `make tablero-web` lo compila y deja el resultado en
   `build-tablero-web/salida/`; el bundle lo lleva a `Web/control/app/` en las tres
   plataformas (es el mismo archivo para todas).

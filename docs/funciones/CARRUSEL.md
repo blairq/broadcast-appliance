@@ -52,7 +52,7 @@ que mide **24 µs**: escribir y ver la grilla filtrarse, sin esperar.
 
 Un orador manda un PDF o un PowerPoint y eso tiene que volverse un carrusel.
 
-- **PDF: lo resuelve Qt**, sin dependencia nueva. Qt 6.6.3 tiene el módulo
+- **PDF: lo resuelve Qt**, sin dependencia nueva. Qt 6 tiene el módulo
   `qtpdf` (`qt.qt6.663.addons.qtpdf`, verificado que existe) y se pide con el
   MISMO `aqtinstall` que ya baja Qt. Renderiza las páginas a imagen en el
   proceso, así que el progreso sale página por página sin inventar nada.

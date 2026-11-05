@@ -143,6 +143,15 @@ endif()
 # el build sea reproducible y auditable (spec §14 "Versiones fijadas").
 include("${CMAKE_CURRENT_SOURCE_DIR}/versions.cmake")
 
+# La carpeta de extern/ de lo que se baja por arquitectura en Linux (lsp, hinchada…):
+# linux-x86_64 (el paquete que se publica) o linux-aarch64 (la validación nativa en Docker
+# sobre Apple Silicon).
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64|ARM64)$")
+    set(BA_LINUX_PLAT linux-aarch64)
+else()
+    set(BA_LINUX_PLAT linux-x86_64)
+endif()
+
 # --- Dependencias de terceros -----------------------------------------------
 # mbedtls, libsamplerate, argon2, libdeflate y zxing-cpp: ya compiladas, de
 # extern/estaticas (make deps-estaticas; ver cmake/BaEstaticas.cmake). Antes de
@@ -400,7 +409,7 @@ elseif(WIN32)
     set(_ba_hinchada_plat windows-x86_64)
     set(_ba_hinchada_exe hinchada.exe)
 else()
-    set(_ba_hinchada_plat linux-x86_64)
+    set(_ba_hinchada_plat ${BA_LINUX_PLAT})
     set(_ba_hinchada_exe hinchada)
 endif()
 set(BA_HINCHADA_DIR "${CMAKE_SOURCE_DIR}/extern/hinchada/${_ba_hinchada_plat}" CACHE PATH "El paquete de hinchada (prueba de sala)")

@@ -137,13 +137,27 @@ def _ok(fuente: str, trad: str) -> str:
     return ""
 
 
+
+def _qt_version() -> str:
+    """La versión de Qt fijada en versions.cmake (la del build; puede haber otras en extern/)."""
+    m = re.search(r'QT6_VERSION "([^"]+)"', (RAIZ / "versions.cmake").read_text(encoding="utf-8"))
+    return m.group(1) if m else "*"
+
+
+def _qt_sub() -> str:
+    """La carpeta del Qt del host que deja aqt (mk/versiones.mk: QT6_HOST_DIR)."""
+    if platform.system() == "Darwin":
+        return "macos"
+    if platform.system() == "Linux":
+        return "gcc_arm64" if platform.machine() in ("aarch64", "arm64") else "gcc_64"
+    return "msvc2022_64"
+
 def lconvert() -> pathlib.Path | None:
     """El lconvert del Qt vendoreado (extern/qt6-host), o LCONVERT=<ruta>."""
     if os.environ.get("LCONVERT"):
         return pathlib.Path(os.environ["LCONVERT"])
-    sub = {"Darwin": "macos", "Linux": "gcc_64"}.get(platform.system(), "msvc2019_64")
     exe = "lconvert.exe" if platform.system() == "Windows" else "lconvert"
-    hay = sorted((RAIZ / "extern" / "qt6-host").glob(f"*/{sub}/bin/{exe}"))
+    hay = sorted((RAIZ / "extern" / "qt6-host").glob(f"{_qt_version()}/{_qt_sub()}/bin/{exe}"))
     return hay[-1] if hay else None
 
 

@@ -246,7 +246,7 @@ make paquete-windows                         # tests bajo Wine portable y dist/�
 
 Todo el build de Windows usa el **ABI de MSVC**: el libwebrtc precompilado para
 Windows (Shiguredo M123) está compilado con la STL de MSVC y su CRT estático, y
-GStreamer y Qt (`msvc2019_64`) también son MSVC. `make win` descarga (con hash) y deja
+GStreamer y Qt (`msvc2022_64`) también son MSVC. `make win` descarga (con hash) y deja
 en `extern/`, sin instalar nada en el sistema:
 
 - **LLVM** (llvm-mingw): `clang-cl`, `lld-link`, `llvm-rc`, `llvm-dlltool`;
@@ -255,7 +255,7 @@ en `extern/`, sin instalar nada en el sistema:
   redistribuibles del CRT que viajan junto a los `.exe`. **Bajarlos implica
   aceptar la licencia de Visual Studio Build Tools**: por eso hace falta
   `BA_ACCEPT_MSVC_LICENSE=1` la primera vez;
-- **Qt 6.6.3** `msvc2019_64` (más el Qt del host para `moc`/`rcc`; las DLL que
+- **Qt 6.8.3** `msvc2022_64` (más el Qt del host para `moc`/`rcc`; las DLL que
   viajan salen de ese mismo SDK), **GStreamer** oficial de MSVC (con su FFmpeg)
   y **libwebrtc** de Windows en `extern/webrtc-win`;
 - para **NDI**: libNoIDea y libmicrodns (por commit, `tools/deps/ndi-src.sh`;

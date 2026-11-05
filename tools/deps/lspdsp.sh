@@ -12,14 +12,14 @@
 # Ver docs/planes/PLAN-MEZCLADOR.md (L0).
 #
 # Uso: tools/deps/lspdsp.sh <plataforma> [jobs]
-#   plataforma: macos-arm64 (en la Mac) | linux-x86_64 | windows-x86_64 (en el
+#   plataforma: macos-arm64 (en la Mac) | linux-x86_64 | linux-aarch64 | windows-x86_64 (en el
 #   contenedor de build; Windows con el toolchain de tools/deps/win-toolchain.sh)
 # Resultado: extern/lsp/<plataforma>/dsp/{libba-lspdsp.dylib|libba-lspdsp.so|ba-lspdsp.dll, ba_lspdsp.h}
 # ============================================================================
 set -euo pipefail
 command -v sha256sum >/dev/null 2>&1 || sha256sum() { shasum -a 256 "$@"; }
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-PLAT="${1:?uso: $0 <macos-arm64|linux-x86_64|windows-x86_64> [jobs]}"
+PLAT="${1:?uso: $0 <macos-arm64|linux-x86_64|linux-aarch64|windows-x86_64> [jobs]}"
 JOBS="${2:-4}"
 log() { echo "[lspdsp] $*" >&2; }
 LSP_VER=1.2.35
@@ -33,7 +33,7 @@ MODS=(lsp-common-lib lsp-lltl-lib lsp-runtime-lib lsp-dsp-lib lsp-dsp-units)
 SELLO="$LSP_VER+$(cat "$ROOT/src/lspdsp/ba_lspdsp.cpp" "$ROOT/src/lspdsp/ba_lspdsp.h" "$0" | sha256sum | cut -c1-16)"
 case "$PLAT" in
     macos-arm64) LIB=libba-lspdsp.dylib ;;
-    linux-x86_64) LIB=libba-lspdsp.so ;;
+    linux-x86_64 | linux-aarch64) LIB=libba-lspdsp.so ;;
     windows-x86_64) LIB=ba-lspdsp.dll ;;
     *) log "plataforma desconocida: $PLAT"; exit 1 ;;
 esac
@@ -70,11 +70,11 @@ case "$PLAT" in
         FLAGS+=($ARCHF -fPIC)
         LINK=(-dynamiclib $ARCHF -install_name @rpath/$LIB -framework CoreFoundation -Wl,-dead_strip)
         ;;
-    linux-x86_64)
+    linux-x86_64 | linux-aarch64)
         MAKE=make
         CXX="${CXX:-g++}"
         "$MAKE" config FEATURES='clap' CC="${CC:-gcc}" CXX="$CXX" >"$SRC/config.log" 2>&1
-        FLAGS+=(-fPIC -march=x86-64)
+        if [ "$PLAT" = linux-x86_64 ]; then FLAGS+=(-fPIC -march=x86-64); else FLAGS+=(-fPIC -march=armv8-a); fi
         LINK=(-shared -Wl,-soname,$LIB -Wl,--gc-sections -lpthread -ldl)
         ;;
     windows-x86_64)
