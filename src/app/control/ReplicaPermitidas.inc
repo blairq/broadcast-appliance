@@ -70,7 +70,7 @@ R"json([
  },
  {
   "o": "Studio.camaras",
-  "n": "irAPosicion",
+  "n": "irAPosicionUi",
   "tipo": "llamar",
   "mcp": "ptz_ir_posicion"
  },
@@ -298,7 +298,7 @@ R"json([
  },
  {
   "o": "Studio.evento.corridaVm",
-  "n": "arrancarRevisando",
+  "n": "arrancarUi",
   "tipo": "llamar",
   "mcp": "linea_go"
  },
@@ -370,7 +370,7 @@ R"json([
  },
  {
   "o": "Studio.evento.informeVm",
-  "n": "importarEscaleta",
+  "n": "importarEscaletaUi",
   "tipo": "llamar",
   "mcp": "guion_bloque"
  },

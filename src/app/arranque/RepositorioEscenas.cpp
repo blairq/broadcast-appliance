@@ -11,7 +11,7 @@
 
 #include <nlohmann/json.hpp>
 
-#include "Motor.hpp" // esperar la vuelta del motor al agregar una entrada de audio
+#include "Motor.hpp" // esperar la vuelta del motor en las altas (AltasEnLaFoto)
 #include "arranque/AireDurable.hpp"
 #include "arranque/RuntimeMotor.hpp"
 #include "arranque/ArranqueAviso.hpp"
@@ -49,6 +49,15 @@ std::string conRutasDeAhora(const std::string& ajustes) {
 }
 
 } // namespace
+
+RepositorioEscenas::RepositorioEscenas(AppRuntime& rt)
+    : rt_(rt),
+      altas_(
+          [this]() {
+              if (motor::Motor* m = rt_.motorPropio().motor()) m->esperarCola();
+          },
+          // La interfaz nunca espera al motor: ahí la foto llega en la vuelta siguiente.
+          []() { return !motor::enHiloInterfaz(); }) {}
 
 void RepositorioEscenas::armarEnElMotor() {
     AppConfig& cfg = rt_.cfg_;
@@ -108,14 +117,11 @@ bool RepositorioEscenas::addAudioInput(const SourceSpec& pedida) {
         AppRuntime::errorDelHilo() = rt_.motorPropio().lastError();
         return false;
     }
-    // LA RESPUESTA LLEGA CON LA ENTRADA YA EN LA FOTO (el contrato de la ventanilla: lo que la
-    // orden cambió ya está en la foto cuando llega la respuesta). El motor arma la entrada en
-    // su vuelta (agregarEntrada se encola) y qué fuentes tienen audio sale de su foto
-    // (MezclaApp::audioSources): sin esperar esa vuelta, la foto publicada al terminar esta
-    // orden no tenía el canal y lo primero que se hacía con el micrófono recién agregado
-    // —ponerle efectos, el asistente con audio_input_add y enseguida audio_module_add— decía
-    // «no tiene audio». Acá es el dueño (no la interfaz): esperar es una vuelta (≤ 20 ms).
-    if (motor::Motor* m = rt_.motorPropio().motor()) m->esperarCola();
+    // LA RESPUESTA LLEGA CON LA ENTRADA YA EN LA FOTO (AltasEnLaFoto): qué fuentes tienen
+    // audio sale de la foto del motor (MezclaApp::audioSources); sin esperar su vuelta, lo
+    // primero que se hacía con el micrófono recién agregado —ponerle efectos, el asistente con
+    // audio_input_add y enseguida audio_module_add— decía «no tiene audio».
+    altas_.alta();
     const auto it = std::find_if(rt_.cfg_.audioInputs.begin(), rt_.cfg_.audioInputs.end(),
                                  [&](const SourceSpec& s) { return s.name == spec.name; });
     if (it == rt_.cfg_.audioInputs.end())
@@ -195,6 +201,7 @@ bool RepositorioEscenas::copyScene(const std::string& from, const std::string& t
     copia.id = rt_.motorPropio().sceneId(to); // otra escena: otro id
     copia.protegida = false; // la copia se puede tocar: para eso se copio
     rt_.cfg_.scenes.push_back(copia);
+    const AltasEnLaFoto::Lote lote(altas_); // todas las fuentes de la copia: una sola vuelta
     for (const SourceSpec& spec : copia.sources) {
         SourceSpec s = spec;
         if (!addSource(to, s)) {
@@ -369,6 +376,8 @@ bool RepositorioEscenas::addSource(const std::string& scene, const SourceSpec& p
         AppRuntime::errorDelHilo() = rt_.motorPropio().lastError();
         return false;
     }
+    // Con la entrada ya en la foto (su audio en la mezcla, lo que sale): AltasEnLaFoto.
+    altas_.alta();
     if (SceneConfig* sc = findScene(rt_.cfg_, scene)) {
         SourceSpec stored = spec;
         stored.settingsJson = rt_.motorPropio().sourceSettingsJson(spec.name);
@@ -444,6 +453,9 @@ bool RepositorioEscenas::renameSource(const std::string& from, const std::string
         AppRuntime::errorDelHilo() = rt_.motorPropio().lastError();
         return false;
     }
+    // En el motor el nombre es el id: renombrar es una entrada nueva (AltasEnLaFoto). Sin
+    // esperarla, la foto de la respuesta tenía la fuente con su nombre nuevo pero sin audio.
+    altas_.alta();
     // La misma fuente puede estar en varias escenas, y entre las entradas de audio.
     for (auto& sc : rt_.cfg_.scenes)
         for (auto& s : sc.sources)

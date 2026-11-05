@@ -289,8 +289,8 @@ class Voz : public QObject {
     ModelosLocales& modelos() const { return modelos_; }
     QString auriculares() const;
     QVariantList salidasAudio() const;
-    /// Elige los auriculares ("" = la salida del sistema). Devuelve el error o "".
-    Q_INVOKABLE QString setAuriculares(const QString& id);
+    /// Elige los auriculares ("" = la salida del sistema). El error va por la señal del modelo.
+    Q_INVOKABLE void setAuriculares(const QString& id);
     void setContestarConVoz(bool on);
     /// Hacer lo propuesto; con `noVolverAPreguntar`, la herramienta pasa a automática.
     Q_INVOKABLE void confirmar(bool noVolverAPreguntar);

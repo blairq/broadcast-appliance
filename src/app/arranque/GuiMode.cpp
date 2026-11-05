@@ -169,14 +169,16 @@ constexpr int kPreviewWidth = 1280; // vista previa/fondo: 720p alcanza y es bar
 // --- El cartel de carga -----------------------------------------------------------
 // Lo primero que se ve, a las décimas de segundo de abrir la app: antes del
 // motor, del modelo y del QML (que juntos son varios segundos). Por eso es una
-// ventana pintada a mano con QPainter y no QML: no espera a nada. El motor
-// arranca en este mismo hilo, así que el cartel se repinta solo cuando una
-// etapa avisa (ArranqueAviso.hpp); se va cuando la ventana principal dibujó.
+// ventana pintada a mano con QPainter y no QML: no espera a nada. Mientras el
+// motor arranca (en el hilo de control) este hilo está libre y el cartel se
+// dibuja con su bucle; el modelo y el QML se arman en este hilo, así que ahí el
+// cartel se repinta cuando una etapa avisa (ArranqueAviso.hpp). Se va cuando la
+// ventana principal dibujó.
 class CartelDeCarga : public QRasterWindow {
     static constexpr const char* kRepo = "github.com/blairq/broadcast-appliance";
     static constexpr int kMargen = 36;
-    /// El motor arranca en este hilo: mientras el cartel es la única ventana, sus clics se
-    /// atienden (el enlace); con la principal ya creándose, no (que no se meta en la carga).
+    /// El modelo y el QML se arman en este hilo: mientras el cartel es la única ventana, sus
+    /// clics se atienden (el enlace); con la principal ya creándose, no (que no se meta en la carga).
     static QEventLoop::ProcessEventsFlags sinUsuarioSiHayOtras() {
         return QGuiApplication::topLevelWindows().size() <= 1 ? QEventLoop::AllEvents : QEventLoop::ExcludeUserInputEvents;
     }
@@ -191,13 +193,15 @@ class CartelDeCarga : public QRasterWindow {
         logo_ = QImage(":/icons/broadcast-appliance-256.png");
     }
 
-    void ponerEstado(const QString& que, const QString& detalle = {}, double parte = -1) {
+    /// `pintarYa`: el aviso vino de este mismo hilo, ocupado armando algo (el modelo, el
+    /// QML): se pinta ya, sin esperar al bucle. Si vino del motor (otro hilo), el bucle de
+    /// este está libre y lo pinta solo.
+    void ponerEstado(const QString& que, const QString& detalle, double parte, bool pintarYa) {
         estado_ = que;
         detalle_ = detalle;
         parte_ = parte;
         update();
-        // El hilo está ocupado arrancando el motor: se pinta ya, sin esperar al lazo.
-        QCoreApplication::processEvents(sinUsuarioSiHayOtras());
+        if (pintarYa) QCoreApplication::processEvents(sinUsuarioSiHayOtras());
     }
 
     /// Lo muestra y espera (como mucho 300 ms) a que esté de verdad en pantalla.
@@ -408,11 +412,21 @@ int runGui(int argc, char** argv) {
     // El cartel de carga, ANTES que todo lo demás (ver CartelDeCarga).
     auto cartel = std::make_unique<CartelDeCarga>();
     cartel->mostrar();
-    arranque::oyente() = [c = QPointer<CartelDeCarga>(cartel.get())](const arranque::Aviso& a) {
-        if (!c) return; // un arranque que falló y salió antes: el cartel ya no está
-        if (a.paso) ++c->pasos_;
-        c->ponerEstado(QString::fromStdString(a.que), QString::fromStdString(a.detalle), a.parte);
-    };
+    // Los avisos del arranque llegan del hilo que arranca el motor (el de control): al del
+    // cartel, encolados (este hilo está libre y lo dibuja). Los de este mismo hilo (el modelo,
+    // el QML: ocupado armándolos), en el acto y pintando ya.
+    arranque::ponerOyente([c = QPointer<CartelDeCarga>(cartel.get())](const arranque::Aviso& a) {
+        const bool aca = QThread::currentThread() == QCoreApplication::instance()->thread();
+        const auto poner = [c, a, aca]() {
+            if (!c) return; // un arranque que falló y salió antes: el cartel ya no está
+            if (a.paso) ++c->pasos_;
+            c->ponerEstado(QString::fromStdString(a.que), QString::fromStdString(a.detalle), a.parte, aca);
+        };
+        if (aca)
+            poner();
+        else
+            QMetaObject::invokeMethod(QCoreApplication::instance(), poner, Qt::QueuedConnection);
+    });
 
     AppRuntime rt;
     {
@@ -425,20 +439,10 @@ int runGui(int argc, char** argv) {
     }
     // Los servidores (OpenCode, el modelo local) de una corrida que murió sin pararlos.
     ba::app::agent::hijos::barrerHuerfanos();
-    const int rc = rt.start();
-    if (rc != 0) {
-        std::printf("ba-app: %s\n",
-                    ba::i18n::llenar(ba::i18n::traducir("arranque", "el motor no pudo arrancar: %1"), {rt.lastError()})
-                        .c_str());
-        return rc;
-    }
-    // (Las entradas de audio que el sistema tardó en abrir se enganchan en el reloj del motor.)
-    const VideoConfig& v = rt.config().video;
-    rt.engine().enablePreview(kPreviewWidth,
-                              (kPreviewWidth * v.outputHeight / std::max(1, v.outputWidth)) & ~1);
     // EL PLANO DE CONTROL (F3-03): su hilo con el canal del launcher, el documento de aire,
-    // el MCP, las alarmas y EL MOTOR (es su dueño: el reloj del motor, las órdenes de la
-    // interfaz, la foto); y el latido de la interfaz, que sale de su reloj.
+    // el MCP, las alarmas y EL MOTOR (es su dueño desde que arranca: el arranque del motor,
+    // su reloj, las órdenes de la interfaz, la foto); y el latido de la interfaz, que sale de
+    // su reloj.
     PlanoControl plano({.control = [&rt]() { rt.ticControl(); },
                         .motor = [&rt]() { rt.ticMotor(); },
                         .interfaz = [&rt]() { rt.latirInterfaz(); }});
@@ -455,18 +459,62 @@ int runGui(int argc, char** argv) {
                                 .alTerminarOrden = [&rt]() { rt.publicarFoto(); },
                                 .adoptar = [&plano](QObject* o) { plano.adoptar(o); }});
     rt.setFoto([&ventanilla](std::shared_ptr<const FotoMotor> f, unsigned partes) { ventanilla.publicar(std::move(f), partes); });
-    // La primera foto, en este hilo (todavía es el dueño): las vistas arrancan con ella.
-    rt.publicarFoto();
+    // Al cerrar (o si el motor o la interfaz no arrancan), el motor vuelve a este hilo: el
+    // plano se para (lo adoptado vuelve), este hilo es el dueño de nuevo y el cierre ordenado
+    // es suyo. Lo que quedó en la agenda corre acá, ya como dueño (PlanoControl::detener).
+    const auto devolverElMotor = [&rt, &plano]() {
+        TurnoMotor::soltarVuelta();
+        fuentes::ponerDesdeLaInterfaz({});
+        plano.detener([&rt]() {
+            TurnoMotor::participar("dueño");
+            rt.cederDueno();
+            rt.setDuenoDelAire({});
+            rt.setEncolarEnDueno({});
+            rt.setFoto({});
+        });
+    };
+    // EL MOTOR ARRANCA EN SU DUEÑO, NO EN LA INTERFAZ. AppRuntime::start (GStreamer, cargar los
+    // plugins de la composición, armar las escenas, abrir los micrófonos, volver como estaba)
+    // son varios segundos en los que este hilo no tiene nada que hacer: antes corría acá y la
+    // interfaz quedaba trabada 2 a 3 s seguidos (volcados del 2026-11-03 15:55 y 2026-11-04
+    // 00:09: Motor::iniciar cargando plugins con dlopen, y esperando al latido del arranque)
+    // y el cartel se repintaba solo entre etapa y etapa. Ahora corre en el hilo de control
+    // (que es el dueño del motor: no hay mudanza después) y este sigue con su bucle: el
+    // cartel se dibuja, y lo que llegue a la interfaz se atiende. La interfaz no espera al
+    // motor: espera a que AVISE que terminó (encolado), atendiendo lo suyo.
+    plano.arrancarHilo();
+    int rc = -1;
+    std::string errorDelArranque; // lastError es del hilo que falló (el de control)
+    {
+        QEventLoop esperaMotor;
+        plano.encolar([&rt, &plano, &rc, &errorDelArranque, &esperaMotor]() {
+            rc = rt.start(); // este hilo es el dueño desde acá (start lo anota)
+            if (rc != 0) errorDelArranque = rt.lastError();
+            if (rc == 0) {
+                // (Las entradas de audio que el sistema tardó en abrir se enganchan en el reloj del motor.)
+                const VideoConfig& v = rt.config().video;
+                rt.engine().enablePreview(kPreviewWidth, (kPreviewWidth * v.outputHeight / std::max(1, v.outputWidth)) & ~1);
+                // Lo que se le encarga al dueño desde otro hilo va a la agenda del plano; la
+                // interfaz que todavía entra directo lo hace con el turno de cada evento (y se cuenta).
+                TurnoMotor::participar("control");
+                rt.setEncolarEnDueno([&plano](std::function<void()> fn) { plano.encolarConTurno(std::move(fn)); });
+                rt.cederDueno();
+                // La primera foto: las vistas arrancan con ella (la recibe la ventanilla abajo).
+                rt.publicarFoto();
+            }
+            QMetaObject::invokeMethod(&esperaMotor, [&esperaMotor]() { esperaMotor.quit(); }, Qt::QueuedConnection);
+        });
+        esperaMotor.exec();
+    }
+    if (rc != 0) {
+        std::printf("ba-app: %s\n",
+                    ba::i18n::llenar(ba::i18n::traducir("arranque", "el motor no pudo arrancar: %1"), {errorDelArranque})
+                        .c_str());
+        devolverElMotor();
+        return rc;
+    }
     ventanilla.recibirAhora();
     plano.arrancar();
-    // El motor pasa a ser del plano de control (una sola vez, esperando: el control no
-    // espera a nadie). Desde ahí, lo que se le encarga desde otro hilo va a su agenda; la
-    // interfaz que todavía entra directo lo hace con el turno de cada evento (y se cuenta).
-    plano.enControlYEsperar([&rt, &plano]() {
-        TurnoMotor::participar("control");
-        rt.setEncolarEnDueno([&plano](std::function<void()> fn) { plano.encolarConTurno(std::move(fn)); });
-        rt.cederDueno();
-    });
     TurnoMotor::participarPorVuelta("interfaz");
     // Las piezas que piden las fuentes sin el motor a mano (la matriz, los racks, el equipo
     // de audio): desde la interfaz, la foto y la ventanilla (emision/FuentesApp.hpp).
@@ -483,20 +531,6 @@ int runGui(int argc, char** argv) {
          },
          .encargar = [&ventanilla](const char* que, std::function<void()> orden) { ventanilla.pedir(que, std::move(orden)); }});
     QObject::connect(QAbstractEventDispatcher::instance(), &QAbstractEventDispatcher::aboutToBlock, []() { TurnoMotor::soltarVuelta(); });
-    // Al cerrar (o si la interfaz no carga), el motor vuelve a este hilo: el plano se para
-    // (lo adoptado vuelve), este hilo es el dueño de nuevo y el cierre ordenado es suyo. Lo
-    // que quedó en la agenda corre acá, ya como dueño (PlanoControl::detener).
-    const auto devolverElMotor = [&rt, &plano]() {
-        TurnoMotor::soltarVuelta();
-        fuentes::ponerDesdeLaInterfaz({});
-        plano.detener([&rt]() {
-            TurnoMotor::participar("dueño");
-            rt.cederDueno();
-            rt.setDuenoDelAire({});
-            rt.setEncolarEnDueno({});
-            rt.setFoto({});
-        });
-    };
 
     int result = 0;
     {
@@ -579,7 +613,7 @@ int runGui(int argc, char** argv) {
                     if (avisado) return;
                     avisado = true;
                     // La ventana de verdad ya se ve: el cartel se va.
-                    arranque::oyente() = nullptr;
+                    arranque::ponerOyente(nullptr);
                     cartel.reset();
                     ba::diag::diario().arranqueOk();
                     ba::diag::registro().info(ba::i18n::traducir("arranque", "arranque terminado: la interfaz dibujo"));

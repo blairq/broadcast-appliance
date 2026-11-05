@@ -76,21 +76,27 @@ Item {
         title: qsTr("Escaleta para importar (CSV o MOS)")
         nameFilters: [qsTr("Escaletas (*.csv *.xml *.mos)"), qsTr("Todos (*)")]
         onAccepted: {
-            // Primero se prueba: la persona ve cuánto entra y confirma.
-            const r = Studio.evento.informeVm.importarEscaleta(selectedFile, true)
-            if (!r.ok) { Studio.notify(r.error, "error"); return }
-            const pasos = (r.diff || []).filter(d => d.tipo === "paso" && d.que === "agregado").length
-            ApplicationWindow.window.confirm({
-                title: qsTr("¿Importar la escaleta?"),
-                text: qsTr("Se suma %n paso al final de la línea.", "", pasos)
-                      + ((r.avisos || []).length > 0 ? "\n\n" + r.avisos.join("\n") : ""),
-                accept: qsTr("Importar"), reject: qsTr("Cancelar"),
-                action: function() {
-                    const r2 = Studio.evento.informeVm.importarEscaleta(importarDlg.selectedFile, false)
-                    if (!r2.ok) Studio.notify(r2.error, "error")
-                }
-            })
+            // Primero se prueba: la persona ve cuánto entra y confirma (escaletaProbada, abajo;
+            // si no se pudo leer, lo avisa el modelo).
+            esc.esperaPrueba = true
+            Studio.evento.informeVm.importarEscaletaUi(selectedFile, true)
         }
+    }
+    // Lo que dio la prueba es del modelo (una propiedad: también le llega al tablero web).
+    // Pregunta solo la vista que la pidió.
+    property bool esperaPrueba: false
+    readonly property var probada: Studio.evento.informeVm ? Studio.evento.informeVm.escaletaProbada : null
+    onProbadaChanged: {
+        if (!esc.esperaPrueba || !esc.probada || esc.probada.vez === undefined) return
+        esc.esperaPrueba = false
+        const p = esc.probada
+        ApplicationWindow.window.confirm({
+            title: qsTr("¿Importar la escaleta?"),
+            text: qsTr("Se suma %n paso al final de la línea.", "", p.pasos)
+                  + ((p.avisos || []).length > 0 ? "\n\n" + p.avisos.join("\n") : ""),
+            accept: qsTr("Importar"), reject: qsTr("Cancelar"),
+            action: function() { Studio.evento.informeVm.importarEscaletaUi(p.ruta, false) }
+        })
     }
     FileDialog {
         id: exportarDlg

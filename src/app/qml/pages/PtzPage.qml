@@ -12,9 +12,10 @@ import "../controls"
 
 Rectangle {
     id: page
-    // Interlock: la regla es del modelo (chequearMovimiento); si pide confirmar, se pregunta.
+    // Interlock: la regla es del modelo (motivosInterlock, la de chequearMovimiento para un
+    // movimiento común); si pide confirmar, se pregunta.
     function siNoAlAire(accion) {
-        const motivo = page.cc ? page.cc.chequearMovimiento(page.sel, false, "") : ""
+        const motivo = page.cc ? (page.cc.motivosInterlock[page.sel] || "") : ""
         if (motivo === "") { accion(); return }
         ApplicationWindow.window.confirm({
             title: qsTr("La cámara «%1» está al aire").arg(page.sel),
@@ -332,7 +333,6 @@ Rectangle {
                                 implicitWidth: 170; implicitHeight: 170
                                 flechas: true
                                 entrada: page.sel; velocidad: page.velocidad
-                                onAviso: (e) => page.avisar(e)
                             }
                             ColumnLayout {
                                 spacing: 8
@@ -408,9 +408,9 @@ Rectangle {
                             GlassButton {
                                 text: qsTr("Guardar donde está ahora"); active: true; enabled: posNombre.text.trim() !== ""
                                 onClicked: {
-                                    const r = page.cc.crearPosicion(page.sel, posNombre.text, posComentario.text)
-                                    page.avisar(r.ok ? (r.aviso || "") : r.error)
-                                    if (r.ok) { posNombre.text = ""; posComentario.text = "" }
+                                    // Lo que contesta llega por la señal aviso (Connections de arriba).
+                                    page.cc.crearPosicionUi(page.sel, posNombre.text, posComentario.text)
+                                    posNombre.text = ""; posComentario.text = ""
                                 }
                             }
                         }
@@ -435,8 +435,7 @@ Rectangle {
                                     Text { anchors.centerIn: parent; visible: !filaPos.modelData.miniatura_url
                                            text: qsTr("sin foto"); color: Theme.textFaint; font.pixelSize: 11 }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                                onClicked: page.siNoAlAire(function() { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, -1)
-                                                             page.avisar(r.ok ? (r.aviso || "") : r.error) }) }
+                                                onClicked: page.siNoAlAire(function() { page.cc.irAPosicionUi(page.sel, filaPos.modelData.id, -1) }) }
                                 }
                                 ColumnLayout {
                                     id: filaCol
@@ -455,22 +454,20 @@ Rectangle {
                                         TextField { id: edNombre; visible: filaPos.editando; Layout.preferredWidth: 180; text: filaPos.modelData.nombre }
                                         TextField { id: edComentario; visible: filaPos.editando; Layout.fillWidth: true; text: filaPos.modelData.comentario || "" }
                                         GlassButton { compact: true; text: qsTr("Ir"); active: true; visible: !filaPos.editando
-                                                      onClicked: page.siNoAlAire(function() { const r = page.cc.irAPosicion(page.sel, filaPos.modelData.id, -1)
-                                                                   page.avisar(r.ok ? (r.aviso || "") : r.error) }) }
+                                                      onClicked: page.siNoAlAire(function() { page.cc.irAPosicionUi(page.sel, filaPos.modelData.id, -1) }) }
                                         GlassButton { compact: true; text: qsTr("Foto"); visible: !filaPos.editando
                                                       ToolTip.visible: hovered; ToolTip.delay: 400; ToolTip.text: qsTr("Vuelve a sacar la foto con lo que se ve ahora")
                                                       onClicked: page.cc.capturarMiniatura(page.sel, filaPos.modelData.id) }
                                         GlassButton { compact: true; text: qsTr("Regrabar"); visible: !filaPos.editando
-                                                      onClicked: { const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id, {regrabar: true})
-                                                                   page.avisar(r.ok ? (r.aviso || "") : r.error) } }
+                                                      onClicked: page.cc.editarPosicionUi(page.sel, filaPos.modelData.id, {regrabar: true}) }
                                         GlassButton { compact: true; text: filaPos.editando ? qsTr("Listo") : qsTr("Editar")
                                                       onClicked: {
                                                           if (filaPos.editando) {
-                                                              const r = page.cc.editarPosicion(page.sel, filaPos.modelData.id,
-                                                                                               {nombre: edNombre.text, comentario: edComentario.text, numero: edNumero.value,
-                                                                                                velocidad: edVelocidad.value, segundos: edSegundos.value / 10})
-                                                              page.avisar(r.ok ? "" : r.error)
-                                                              if (r.ok) filaPos.editando = false
+                                                              // El error (si no se pudo) llega por la señal aviso.
+                                                              page.cc.editarPosicionUi(page.sel, filaPos.modelData.id,
+                                                                                       {nombre: edNombre.text, comentario: edComentario.text, numero: edNumero.value,
+                                                                                        velocidad: edVelocidad.value, segundos: edSegundos.value / 10})
+                                                              filaPos.editando = false
                                                           } else filaPos.editando = true
                                                       } }
                                         GlassButton { compact: true; text: qsTr("Borrar"); visible: !filaPos.editando

@@ -59,6 +59,13 @@ CorridaViewModel::CorridaViewModel(EventoAbierto& abierto, GuionViewModel& guion
     connect(&segundero_, &QTimer::timeout, this, &CorridaViewModel::relojVivoCambio);
 }
 
+void CorridaViewModel::arrancarUi(bool forzar) {
+    const int graves = n_.arrancarRevisando(forzar);
+    if (graves == 0) return;
+    frenoArranque_ = {{"graves", graves}, {"vez", ++vecesFreno_}};
+    emit frenoArranqueCambio();
+}
+
 QVariantMap CorridaViewModel::relojVivo() const {
     // Al segundo (como Reloj.ahora): entre avisos, quien lo relee ve lo mismo.
     const qint64 ms = QDateTime::currentMSecsSinceEpoch();

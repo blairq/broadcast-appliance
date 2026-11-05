@@ -65,6 +65,11 @@ class PlanoControl : public QObject {
 
     /// Arranca el hilo y los relojes. Idempotente.
     void arrancar(int controlMs = 100, int interfazMs = 100);
+    /// Solo el hilo, sin los relojes: lo que se encola corre, pero ni el control ni el
+    /// motor ni el latido de la interfaz vuelven todavía. Para arrancar el motor en su
+    /// dueño antes de que haya un motor que mirar (GuiMode); `arrancar` pone los relojes
+    /// después. Idempotente.
+    void arrancarHilo();
     /// Para los relojes, devuelve los objetos adoptados al hilo que creó el plano y
     /// termina el hilo (espera a lo que esté corriendo). Ese hilo RECIBE EL MOTOR: corre
     /// `alRecibir` (hacerse dueño, UNA vez) y después, en orden, lo que quedó en la agenda

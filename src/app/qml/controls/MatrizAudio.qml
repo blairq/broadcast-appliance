@@ -429,12 +429,12 @@ Item {
                                             if (ev.button === Qt.RightButton) {
                                                 if (x0.modelData.tipo === "pista") { mx.msg = qsTr("Las pistas son nativas: prender o apagar, sin retardo."); return }
                                                 if (x0.modelData.tipo === "escucha") { mx.msg = qsTr("La escucha es prender o apagar: el volumen es el de la fuente."); return }
-                                                if (!x0.activo) mx.msg = mx.mz.setCruce(x0.f, x0.b, true)
+                                                mx.msg = ""; if (!x0.activo) mx.mz.setCruce(x0.f, x0.b, true)
                                                 ajustePop.fila = fila; ajustePop.f = x0.f; ajustePop.b = x0.b; ajustePop.col = x0.col
                                                 ajustePop.open()
                                                 return
                                             }
-                                            mx.msg = mx.mz.alternar(x0.f, x0.b)
+                                            mx.msg = ""; mx.mz.alternar(x0.f, x0.b)
                                         }
                                         ToolTip.visible: containsMouse
                                         ToolTip.delay: 450
@@ -549,7 +549,7 @@ Item {
                 GlassButton {
                     compact: true; text: qsTr("La del sistema")
                     active: !!Studio.voz && Studio.voz.auriculares === ""
-                    onClicked: { mx.msg = Studio.voz.setAuriculares(""); mx.mz.refrescar() }
+                    onClicked: { mx.msg = ""; Studio.voz.setAuriculares(""); mx.mz.refrescar() }
                 }
                 Repeater {
                     model: Studio.voz ? Studio.voz.salidasAudio : []
@@ -560,7 +560,7 @@ Item {
                             required property var modelData
                             compact: true; text: modelData.nombre
                             active: Studio.voz.auriculares === modelData.id
-                            onClicked: { mx.msg = Studio.voz.setAuriculares(modelData.id); mx.mz.refrescar() }
+                            onClicked: { mx.msg = ""; Studio.voz.setAuriculares(modelData.id); mx.mz.refrescar() }
                         }
                     }
                 }
@@ -568,7 +568,7 @@ Item {
             RowLayout {
                 visible: busPop.bus.tipo !== "escucha" && busPop.bus.tipo !== "fisica"
                 TextField { id: nombreBus; Layout.fillWidth: true; placeholderText: qsTr("nombre") }
-                GlassButton { compact: true; text: qsTr("Renombrar"); onClicked: mx.msg = mx.mz.renombrar(busPop.bus.id, nombreBus.text) }
+                GlassButton { compact: true; text: qsTr("Renombrar"); onClicked: { mx.msg = ""; mx.mz.renombrar(busPop.bus.id, nombreBus.text) } }
             }
             ComboBox {
                 id: dispBus
@@ -581,7 +581,7 @@ Item {
                     for (let i = 0; i < d.length; ++i) if (d[i].id === busPop.bus.dispositivo) return i
                     return -1
                 }
-                onActivated: (i) => { mx.msg = mx.mz.setDispositivo(busPop.bus.id, model[i].id) }
+                onActivated: (i) => { mx.msg = ""; mx.mz.setDispositivo(busPop.bus.id, model[i].id) }
             }
             // Con varias salidas: el mute de cada fuente acá es el de la salida que se elige.
             RowLayout {
@@ -604,7 +604,7 @@ Item {
                     onActivated: (i) => {
                         const f = Studio.salidas.filasLista[i]
                         if (!f) return
-                        mx.msg = mx.mz.setSalida(busPop.bus.id, f.porOmision ? "" : f.id)
+                        mx.msg = ""; mx.mz.setSalida(busPop.bus.id, f.porOmision ? "" : f.id)
                     }
                 }
             }
@@ -621,7 +621,7 @@ Item {
                 GlassButton {
                     visible: busPop.bus.tipo !== "pista" && busPop.bus.tipo !== "escucha" && busPop.bus.tipo !== "fisica"
                     compact: true; text: qsTr("Quitar"); activeColor: Theme.live
-                    onClicked: { mx.msg = mx.mz.quitarBus(busPop.bus.id); busPop.close() }
+                    onClicked: { mx.msg = ""; mx.mz.quitarBus(busPop.bus.id); busPop.close() }
                 }
                 Item { Layout.fillWidth: true }
                 GlassButton { compact: true; text: qsTr("Cerrar"); onClicked: busPop.close() }
@@ -700,7 +700,7 @@ Item {
                 GlassButton { compact: true; text: qsTr("Cancelar"); onClicked: entradaPop.close() }
                 GlassButton {
                     compact: true; text: qsTr("Agregar"); active: true; activeColor: "#14b8a6"
-                    onClicked: { mx.msg = mx.mz.agregarEntradaVirtual(nombreEntrada.text); nombreEntrada.text = ""; entradaPop.close() }
+                    onClicked: { mx.msg = ""; mx.mz.agregarEntradaVirtual(nombreEntrada.text); nombreEntrada.text = ""; entradaPop.close() }
                 }
             }
         }
@@ -728,7 +728,7 @@ Item {
                     compact: true; text: qsTr("Agregar"); active: true; activeColor: "#a78bfa"
                     onClicked: {
                         const d = dispSalida.currentIndex >= 0 ? dispSalida.model[dispSalida.currentIndex].id : ""
-                        mx.msg = mx.mz.agregarSalidaVirtual(nombreSalida.text, d)
+                        mx.msg = ""; mx.mz.agregarSalidaVirtual(nombreSalida.text, d)
                         nombreSalida.text = ""
                         salidaPop.close()
                     }

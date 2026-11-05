@@ -134,8 +134,8 @@ class AppRuntime {
     /// (PlanoControl::encolarConTurno: en orden, con el turno). Vacío (la consola, al
     /// cerrar): en el acto.
     void setEncolarEnDueno(std::function<void(std::function<void()>)> encolar);
-    /// El que llama pasa a ser el dueño: el plano de control al arrancar (después de start,
-    /// en su hilo) y el hilo principal al cerrar (después de parar el plano).
+    /// El que llama pasa a ser el dueño (start ya lo anota: el plano de control, que es el
+    /// que arranca el motor) y el hilo principal al cerrar (después de parar el plano).
     void cederDueno();
     /// ¿El que llama es el dueño? (Antes de start, nadie: lo que es del dueño corre en el acto.)
     bool esDueno() const;

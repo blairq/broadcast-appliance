@@ -22,6 +22,7 @@
 #include <utility>
 #include <vector>
 
+#include "arranque/AltasEnLaFoto.hpp"
 #include "arranque/AppSettings.hpp"
 
 namespace ba::app {
@@ -30,7 +31,11 @@ class AppRuntime;
 
 class RepositorioEscenas {
    public:
-    explicit RepositorioEscenas(AppRuntime& rt) : rt_(rt) {}
+    explicit RepositorioEscenas(AppRuntime& rt);
+
+    /// Las altas en el motor esperan su vuelta antes de responder (arranque/AltasEnLaFoto):
+    /// las de acá y las de otras piezas (Invitados), y el lote para varias seguidas.
+    const AltasEnLaFoto& altas() const { return altas_; }
 
     /// Al arrancar: los VCA, la transición, cada escena con sus fuentes (en modo seguro,
     /// vacías) y la escena al aire de la por omisión, en el motor.
@@ -84,6 +89,7 @@ class RepositorioEscenas {
     bool anotarAire(bool ok, const std::string& name, const std::string& salida);
 
     AppRuntime& rt_;
+    AltasEnLaFoto altas_;
 };
 
 } // namespace ba::app

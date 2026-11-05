@@ -112,18 +112,31 @@ void SaludProceso::empezarLatidoArranque() {
     // en pleno arranque (pasó). Late desde su hilo hasta que el latido de los cuadros toma la
     // posta, con un tope de 2 minutos: un arranque colgado de verdad se sigue viendo.
     if (!health_.valid() || latidoArranque_.joinable()) return;
-    latidoArranqueSigue_ = true;
+    {
+        const std::lock_guard<std::mutex> l(latidoArranqueMu_);
+        latidoArranqueSigue_ = true;
+    }
     latidoArranque_ = std::thread([this]() {
         ba::platform::nombrarHilo("latido-arranque");
-        for (int i = 0; i < 240 && latidoArranqueSigue_.load(); ++i) {
+        std::unique_lock<std::mutex> l(latidoArranqueMu_);
+        for (int i = 0; i < 240 && latidoArranqueSigue_; ++i) {
+            l.unlock();
             latir();
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+            l.lock();
+            // Medio segundo, o hasta que lo paren: pararlo no espera el resto de la siesta.
+            latidoArranqueCv_.wait_for(l, std::chrono::milliseconds(500), [this]() { return !latidoArranqueSigue_; });
         }
     });
 }
 
 void SaludProceso::pararLatidoArranque() {
-    latidoArranqueSigue_ = false;
+    // Antes el hilo dormía 500 ms de un saque y esto lo esperaba: el arranque perdía hasta
+    // medio segundo acá («arranque: loudness y latido tardó 464 ms», todas las veces).
+    {
+        const std::lock_guard<std::mutex> l(latidoArranqueMu_);
+        latidoArranqueSigue_ = false;
+    }
+    latidoArranqueCv_.notify_all();
     if (latidoArranque_.joinable()) latidoArranque_.join();
 }
 

@@ -52,6 +52,8 @@ class AccesoRemoto : public QObject {
         return e.isEmpty();
     }
     bool sinError(const std::string& e) { return sinError(QString::fromStdString(e)); }
+    void avisarConectando();
+    void avisarDesconectado();
     /// {disponible, sala, pinggy:{activo, estado, urls, urlPublica, error, turn:{...}}, texto}
     Q_PROPERTY(QVariantMap estado READ estado NOTIFY estadoChanged)
     /// [{nombre, url}]: la dirección de cada página (invitados, sesión remota, público…)
@@ -105,9 +107,10 @@ class AccesoRemoto : public QObject {
     /// la cuenta con su dirección), "pinggy-cuenta" (solo la API key: lo arma todo),
     /// "cloudflare" (el token de Cloudflare) o "pinggy-gratis" (sin cuenta, dirección
     /// al azar, se corta a los 60 min). Apaga la otra. "" si arrancó; si no, el motivo.
-    /// Reinicia la sala (en el fondo): los invitados conectados se reconectan.
+    /// Reinicia la sala (en el fondo): los invitados conectados se reconectan. El error y el
+    /// «conectando» van por `notify` (la vista no usa lo que devuelve).
     Q_INVOKABLE bool conectar(const QString& id);
-    /// Apaga pinggy y Cloudflare. "" si salió; si no, el motivo.
+    /// Apaga pinggy y Cloudflare. "" si salió; si no, el motivo. Lo mismo que conectar.
     Q_INVOKABLE bool desconectar();
     /// Guarda el token de túnel (cifrado). "" si salió bien, si no el motivo.
     Q_INVOKABLE QString guardarToken(const QString& token);

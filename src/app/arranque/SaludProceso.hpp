@@ -17,6 +17,7 @@
 #pragma once
 
 #include <atomic>
+#include <condition_variable>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
@@ -78,7 +79,11 @@ class SaludProceso {
     std::mutex healthMu_; ///< latidos desde la UI, desde LatidoAire y desde el arranque
     LatidoAire latido_;
     ba::ipc::ControlService control_;
-    std::atomic<bool> latidoArranqueSigue_{false};
+    /// El latido del arranque duerme entre latido y latido; pararlo lo despierta (no se
+    /// espera el resto de la siesta: el que lo para es el que arranca el motor).
+    std::mutex latidoArranqueMu_;
+    std::condition_variable latidoArranqueCv_;
+    bool latidoArranqueSigue_ = false; ///< con latidoArranqueMu_
     std::thread latidoArranque_;
     std::thread reinicioSala_; ///< reiniciarSalaEnElFondo
     std::atomic<bool> reiniciandoSala_{false};

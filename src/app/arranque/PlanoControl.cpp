@@ -49,19 +49,24 @@ PlanoControl::~PlanoControl() {
     delete contexto_;
 }
 
-void PlanoControl::arrancar(int controlMs, int interfazMs) {
+void PlanoControl::arrancarHilo() {
     if (hilo_.isRunning()) return;
     {
         const std::lock_guard<std::mutex> l(paradoMu_);
         parado_ = false;
     }
-    controlMs_ = std::max(10, controlMs);
     hilo_.start();
+    QMetaObject::invokeMethod(contexto_, []() { ba::platform::nombrarHilo("control"); }, Qt::QueuedConnection);
+}
+
+void PlanoControl::arrancar(int controlMs, int interfazMs) {
+    if (relojInterfaz_.isActive()) return;
+    controlMs_ = std::max(10, controlMs);
+    arrancarHilo();
     // El reloj del control se crea y arranca en SU hilo (un QTimer solo anda en el suyo).
     QMetaObject::invokeMethod(
         contexto_,
         [this]() {
-            ba::platform::nombrarHilo("control");
             relojControl_ = new QTimer(contexto_);
             connect(relojControl_, &QTimer::timeout, contexto_, [this]() { vueltaControl(); });
             relojControl_->start(controlMs_);

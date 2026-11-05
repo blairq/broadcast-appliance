@@ -68,6 +68,11 @@ class CorridaViewModel : public QObject {
     Q_PROPERTY(QVariantMap tiemposGrabados READ tiemposGrabadosUi NOTIFY correChanged)
     /// Lo último que se ejecutó o se intentó, para la vista de conducción.
     Q_PROPERTY(QVariantList bitacora READ bitacora NOTIFY bitacoraChanged)
+    /// La última vez que la revisión previa frenó un arranque pedido por una vista
+    /// (arrancarUi sin forzar): {graves, vez}. `vez` cambia con cada freno (aunque sean los
+    /// mismos graves): la vista que lo pidió lo ve como cambio de la propiedad, también en
+    /// el tablero web (donde no vuelve lo que devuelve una acción).
+    Q_PROPERTY(QVariantMap frenoArranque READ frenoArranque NOTIFY frenoArranqueCambio)
 
    public:
     /// Lo que la línea maneja además del guion (ver ui/ConduccionLinea).
@@ -112,6 +117,7 @@ class CorridaViewModel : public QObject {
     bool hold() const;
     QVariantMap retoma() const;
     QVariantList bitacora() const { return n_.bitacora(); }
+    QVariantMap frenoArranque() const { return frenoArranque_; }
     bool grabarTiempos() const { return n_.grabarTiempos(); }
     void setGrabarTiempos(bool on) { n_.setGrabarTiempos(on); }
     QVariantMap tiemposGrabadosUi() const;
@@ -127,7 +133,12 @@ class CorridaViewModel : public QObject {
     void limpiarBitacora() { n_.limpiarBitacora(); }
 
     // --- Correr: la página (el error, a `notify`); las órdenes son del núcleo ------------------
-    Q_INVOKABLE int arrancarRevisando(bool forzar) { return n_.arrancarRevisando(forzar); }
+    /// Arranca con la revisión previa: con problemas graves y sin `forzar`, no arranca y
+    /// devuelve cuántos (el MCP).
+    int arrancarRevisando(bool forzar) { return n_.arrancarRevisando(forzar); }
+    /// Lo mismo para las vistas: no devuelve nada; si la revisión lo frena, `frenoArranque`
+    /// cambia (la vista que lo pidió avisa o pregunta si arrancar igual).
+    Q_INVOKABLE void arrancarUi(bool forzar);
     /// GO (lineaGo): la pieza pendiente del paso al aire o el paso que sigue; parada, arranca
     /// con la revisión previa.
     Q_INVOKABLE void go(const QString& salida = {}) { avisarError(n_.lineaGo(salida.toStdString())); }
@@ -193,6 +204,7 @@ class CorridaViewModel : public QObject {
     void relojChanged();
     void relojVivoCambio();
     void bitacoraChanged();
+    void frenoArranqueCambio();
     void notify(const QString& texto, const QString& tipo);
 
    protected:
@@ -206,6 +218,8 @@ class CorridaViewModel : public QObject {
     void revisarSegundero();
 
     ConduccionLinea n_;
+    QVariantMap frenoArranque_;
+    int vecesFreno_ = 0;
     QTimer segundero_;
     int lectoresReloj_ = 0;
     bool alineando_ = false;

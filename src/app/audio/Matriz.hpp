@@ -163,9 +163,11 @@ class Matriz : public QObject {
     /// del Mezclador). Si la vista se destruye sin avisar, se la saca sola.
     Q_INVOKABLE void usar(QObject* vista, bool si, const QString& que = {});
     Q_INVOKABLE void refrescar();
-    /// Prender o apagar un cruce. Devuelve el error o "".
-    Q_INVOKABLE QString alternar(const QString& fuente, const QString& bus);
-    Q_INVOKABLE QString setCruce(const QString& fuente, const QString& bus, bool activo);
+    /// Prender o apagar un cruce. Las acciones de acá abajo (las void) avisan su error por
+    /// `aviso` (CapturaError: el MCP lo toma con errorDe); la vista no usa lo que devuelven
+    /// (en el tablero web no vuelve nada: tests/test_replica_permitidas.py).
+    Q_INVOKABLE void alternar(const QString& fuente, const QString& bus);
+    Q_INVOKABLE void setCruce(const QString& fuente, const QString& bus, bool activo);
     /// El solo: escuchar UN canal un rato, solo él ("" lo suelta). `modo` "pfl" (antes del
     /// fader) o "afl" (con el fader y el mute de `salida`). Reemplaza al anterior y NO toca
     /// la escucha fija (el cruce Escucha): espera y vuelve al soltarlo
@@ -180,14 +182,14 @@ class Matriz : public QObject {
     Q_INVOKABLE void setAjustes(const QString& fuente, const QString& bus, bool on);
     Q_INVOKABLE void ajustar(const QString& fuente, const QString& bus, double nivelDb, double pan,
                              bool mute);
-    Q_INVOKABLE QString agregarSalidaVirtual(const QString& nombre, const QString& dispositivo);
-    Q_INVOKABLE QString agregarEntradaVirtual(const QString& nombre);
-    Q_INVOKABLE QString quitarBus(const QString& id);
+    Q_INVOKABLE void agregarSalidaVirtual(const QString& nombre, const QString& dispositivo);
+    Q_INVOKABLE void agregarEntradaVirtual(const QString& nombre);
+    Q_INVOKABLE void quitarBus(const QString& id);
     Q_INVOKABLE void renombrar(const QString& id, const QString& nombre);
-    Q_INVOKABLE QString setDispositivo(const QString& id, const QString& dispositivo);
+    Q_INVOKABLE void setDispositivo(const QString& id, const QString& dispositivo);
     /// De qué salida del programa sigue el mute de cada fuente una salida virtual ("" = la
     /// por omisión): con varias salidas, la de cada una.
-    Q_INVOKABLE QString setSalida(const QString& id, const QString& salida);
+    Q_INVOKABLE void setSalida(const QString& id, const QString& salida);
 
     /// Para MCP: todo el estado en JSON.
     json estado() const;
@@ -205,6 +207,9 @@ class Matriz : public QObject {
     void aviso(const QString& texto);
 
    private:
+    /// setCruce y setDispositivo sin avisar: "" o el error (los usan alternar y agregar).
+    QString ponerCruce(const QString& fuente, const QString& bus, bool activo);
+    QString ponerDispositivo(const QString& id, const QString& dispositivo);
     struct Bus;
     struct Envio {
         float ganancia = 1.0f;

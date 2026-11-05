@@ -137,6 +137,12 @@ class ControlViewModel : public QObject {
     /// Empareja una tablet: código de un uso (2 min) y el QR. Contesta con
     /// emparejamientoListo({url, qr (data URL de un SVG), codigo, vence_ms, huella, aviso, error}).
     Q_INVOKABLE void emparejarTabletUi(const QString& perfil, const QString& nombre, int venceDias);
+    /// Lo mismo con el perfil de nombre `nombrePerfil`: si no está, lo arma con `plantilla`; si
+    /// está, le suma lo que la plantilla tenga de nuevo (completarGuion). Lo que no salga,
+    /// también por emparejamientoListo({error}). (El QR de escenas de la tarjeta Dirección: la
+    /// vista no busca ni arma el perfil ni usa lo que devuelve una acción.)
+    Q_INVOKABLE void emparejarConPerfilUi(const QString& nombrePerfil, const QString& plantilla, const QString& nombre,
+                                          int venceDias);
     /// Una persona aprueba (o no) la tablet que pidió emparejarse.
     Q_INVOKABLE void aprobarTabletUi(const QString& solicitud, bool aprobar, const QString& perfil = QString());
     /// La API remota HTTP de la botonera (T59): {activo, accesos, url, aviso?}.
