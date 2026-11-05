@@ -34,10 +34,11 @@
 //       B (retransmite lo que ya reenvio). Si igual se congela, la vista pide
 //       un keyframe (requestKeyFrame) y B lo pide aguas arriba (limitado).
 //
-// Backend:
-//   - BA_GATEWAY_HAVE_WEBRTC=1 (Windows + SDK libwebrtc presente): usa
+// Backend (este header es la interfaz; cuál implementación va lo decide qué biblioteca se
+// enlaza, src/gateway/CMakeLists.txt; el resto del gateway, ba_gateway_nucleo, es uno solo):
+//   - webrtc/Webrtc.cpp (ba_gateway_webrtc, donde hay SDK de libwebrtc): usa
 //     webrtc::PeerConnectionInterface real (AEC3, NetEq, control de congestión).
-//   - BA_GATEWAY_HAVE_WEBRTC=0 (Linux / build offline): backend NULL: la
+//   - nulo/WebrtcNulo.cpp (ba_gateway_nulo: los tests de lógica, un build sin el SDK): la
 //     sesion es una maquina de estados que completa la senalizacion
 //     (offer->answer) para que el flujo sea testeable sin el SDK. No hay RTP
 //     real, por lo que onRemoteAudio/onRemoteVideo no se disparan.
@@ -193,8 +194,8 @@ class AudioCompartido {
 
 /// Una PeerConnection por invitado (B es el answerer del offer del invitado).
 ///
-/// Move-only. El backend (real o NULL) se elige en compile-time por
-/// BA_GATEWAY_HAVE_WEBRTC. Ver Webrtc.hpp para el modelo de threading y la
+/// Move-only. El backend (real o NULL) es la biblioteca que se enlaza (arriba). Ver
+/// Webrtc.hpp para el modelo de threading y la
 /// estrategia de errores.
 class WebrtcSession {
    public:
@@ -305,6 +306,9 @@ class WebrtcSession {
     struct Impl;
     Impl* impl_;
 };
+
+/// El backend que se enlazó: "libwebrtc" o "NULL" (la línea de arranque del gateway).
+const char* nombreBackendRtc();
 
 /// Hub de sesiones en estrella (spec §8.2): un POOL de sesiones (1..N; 0
 /// reservado). El servidor asigna una sesion a cada participante que publica

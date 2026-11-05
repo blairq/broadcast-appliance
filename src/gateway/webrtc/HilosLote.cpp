@@ -3,7 +3,6 @@
 // ============================================================================
 #include "webrtc/HilosLote.hpp"
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <utility>
 
@@ -148,4 +147,3 @@ void HiloRed::BlockingCallImpl(rtc::FunctionView<void()> functor, const webrtc::
 
 } // namespace ba::gateway::rtcred
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

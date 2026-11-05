@@ -16,7 +16,6 @@
 // ============================================================================
 #pragma once
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <atomic>
 #include <cstdint>
@@ -130,4 +129,3 @@ std::string firma(const webrtc::SdpAudioFormat& f);
 
 } // namespace ba::gateway::audioret
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

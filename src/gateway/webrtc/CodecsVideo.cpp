@@ -21,7 +21,6 @@
 //     está en pausa (su capa no viaja: libwebrtc no lo suelta, pero no gasta la placa).
 // ============================================================================
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include "webrtc/CodecsVideo.hpp"
 
@@ -434,4 +433,3 @@ nlohmann::json estado() {
 
 } // namespace ba::gateway::codecs
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

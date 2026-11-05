@@ -86,6 +86,20 @@ BUILDTOOLS_URL    := https://chromium.googlesource.com/chromium/src/buildtools/+
 LIBCXX_CFG_SHA    := 6feb8f5430ffa14ca3c32638ac55f40b8f513f615ed650a6f4bb99f35d92ca8e
 LIBCXX_ASSERT_SHA := 84a4c12bc4870c0f5d23b940ce5f38248bc2d2abfdcd4462f81d3a2761e6f29a
 
+# libyuv para el núcleo del gateway donde no hay SDK de libwebrtc con la misma ABI (Linux:
+# cmake/BaLibyuv.cmake). El commit que trae el SDK M123 (DEPS de WebRTC en WEBRTC_COMMIT;
+# LIBYUV_VERSION 1886, el de extern/webrtc). Los tar de gitiles no son byte-estables: se
+# verifica el CONTENIDO (como la libc++). Su MJPEG, con libjpeg-turbo (release con SHA-256).
+LIBYUV_COMMIT        := 2f2c04c1576534a7df953c2dc7c7ccf30beacd89
+LIBYUV_URL           := https://chromium.googlesource.com/libyuv/libyuv/+archive/$(LIBYUV_COMMIT).tar.gz
+LIBYUV_TREE_SHA      := b15ec28821595d11566dcf479efeaebf2831aa2703edac6c4a84df2ffa31a369
+LIBYUV_DEST          := $(EXTERNS_DIR)/libyuv
+LIBJPEG_TURBO_VER    := 3.1.4.1
+LIBJPEG_TURBO_URL    := https://github.com/libjpeg-turbo/libjpeg-turbo/releases/download/$(LIBJPEG_TURBO_VER)/libjpeg-turbo-$(LIBJPEG_TURBO_VER).tar.gz
+LIBJPEG_TURBO_SHA    := ecae8008e2cc9ade2f2c1bb9d5e6d4fb73e7c433866a056bd82980741571a022
+LIBJPEG_TURBO_TAR    := $(DL_DIR)/libjpeg-turbo-$(LIBJPEG_TURBO_VER).tar.gz
+LIBJPEG_TURBO_DEST   := $(EXTERNS_DIR)/libjpeg-turbo
+
 # cloudflared 2024.11.0 (Windows, el que shippea el appliance en bin/64bit/).
 # Binario plano (sin extraer): se descarga directo a su destino final.
 CFL_URL  := https://github.com/cloudflare/cloudflared/releases/download/$(CLOUDFLARED_VER)/cloudflared-windows-amd64.exe

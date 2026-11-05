@@ -11,7 +11,6 @@
 // ============================================================================
 #pragma once
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <map>
 #include <memory>
@@ -53,4 +52,3 @@ class BucleRtc final : public turn::Bucle {
 
 } // namespace ba::gateway::rtcred
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

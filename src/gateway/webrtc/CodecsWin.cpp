@@ -33,7 +33,7 @@
 // VP8/VP9/AV1 y «auto» vuelve a VP8 (CodecsVideo.cpp).
 // ============================================================================
 
-#if BA_GATEWAY_HAVE_WEBRTC && defined(_WIN32)
+#if defined(_WIN32)
 
 #include "webrtc/CodecsWin.hpp"
 
@@ -2104,4 +2104,4 @@ nlohmann::json estado() {
 
 } // namespace ba::gateway::codecs::win
 
-#endif // BA_GATEWAY_HAVE_WEBRTC && _WIN32
+#endif // _WIN32

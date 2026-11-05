@@ -1,7 +1,7 @@
 // src/gateway/webrtc/CodecsWin.hpp — H.264 por Media Foundation en Windows (la placa si hay). Ver CodecsWin.cpp.
 #pragma once
 
-#if BA_GATEWAY_HAVE_WEBRTC && defined(_WIN32)
+#if defined(_WIN32)
 
 #include <memory>
 

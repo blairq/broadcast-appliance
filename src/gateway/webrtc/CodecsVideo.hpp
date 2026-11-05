@@ -1,7 +1,6 @@
 // src/gateway/webrtc/CodecsVideo.hpp — Las fábricas de video del gateway, por plataforma. Ver CodecsVideo.cpp.
 #pragma once
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <cstdint>
 #include <memory>
@@ -84,4 +83,3 @@ nlohmann::json estado();
 
 } // namespace ba::gateway::codecs
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

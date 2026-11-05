@@ -61,7 +61,6 @@ class EnlaceTunel {
 
 } // namespace ba::gateway::rtcred
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include "api/packet_socket_factory.h"
 #include "p2p/base/basic_packet_socket_factory.h"
@@ -93,4 +92,3 @@ class FabricaEnMemoria final : public rtc::PacketSocketFactory {
 
 } // namespace ba::gateway::rtcred
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

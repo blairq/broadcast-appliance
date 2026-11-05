@@ -1,7 +1,7 @@
 # mk/deps.mk — Dependencias de terceros comunes a las tres plataformas (descarga reproducible e idempotente).
 # Lo incluye el Makefile de la raíz (las variables comunes están allá).
 
-.PHONY: deps deps-ndi-src deps-qt-host deps-webrtc deps-lwip deps-sherpa-onnx \
+.PHONY: deps deps-ndi-src deps-qt-host deps-webrtc deps-libyuv deps-lwip deps-sherpa-onnx \
         deps-rostros _ba_baja deps-libvterm deps-fonts deps-cacert deps-pinggy deps-hinchada \
         deps-cloudflared-host deps-chrome-headless deps-fuentes-texto deps-clap deps-python \
         deps-herramientas deps-craft deps-src deps-mbedtls deps-nlohmann deps-samplerate deps-argon2 \
@@ -113,6 +113,39 @@ ifeq ($(BA_WEBRTC_TARGET),linux)
 	    || { echo "[deps] ERROR libc++: $$n no coincide con el hash fijado" >&2; rm -f "$$d.part"; exit 1; }; \
 	done
 endif
+
+# libyuv + libjpeg-turbo desde fuente (cmake/BaLibyuv.cmake): el núcleo del gateway escala y
+# convierte con libyuv; donde el build no enlaza el SDK de libwebrtc (Linux) la compila él.
+deps-libyuv:
+	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }
+	@mkdir -p "$(DL_DIR)" "$(EXTERNS_DIR)"
+	@if [ -f "$(LIBYUV_DEST)/include/libyuv.h" ] && [ "$$(cd $(LIBYUV_DEST) && find . -type f | LC_ALL=C sort | xargs $(SHA256) | $(SHA256) | cut -d' ' -f1)" = "$(LIBYUV_TREE_SHA)" ]; then \
+	  echo "[deps] libyuv: ya presente y verificado ($(LIBYUV_DEST))"; \
+	else \
+	  echo "[deps] libyuv: bajando $(LIBYUV_COMMIT)"; \
+	  rm -rf "$(LIBYUV_DEST)"; mkdir -p "$(LIBYUV_DEST)"; \
+	  curl -fsSL --retry 5 --retry-delay 3 "$(LIBYUV_URL)" | tar xz -C "$(LIBYUV_DEST)" \
+	    || { echo "[deps] ERROR libyuv: fallo de descarga" >&2; rm -rf "$(LIBYUV_DEST)"; exit 1; }; \
+	  test "$$(cd $(LIBYUV_DEST) && find . -type f | LC_ALL=C sort | xargs $(SHA256) | $(SHA256) | cut -d' ' -f1)" = "$(LIBYUV_TREE_SHA)" \
+	    || { echo "[deps] ERROR libyuv: el contenido no coincide con el hash fijado" >&2; rm -rf "$(LIBYUV_DEST)"; exit 1; }; \
+	fi
+	@if [ -f "$(LIBJPEG_TURBO_TAR)" ] && [ "$$($(SHA256) "$(LIBJPEG_TURBO_TAR)" | cut -d' ' -f1)" = "$(LIBJPEG_TURBO_SHA)" ]; then \
+	  echo "[deps] libjpeg-turbo: ya presente y verificado ($(LIBJPEG_TURBO_TAR))"; \
+	else \
+	  echo "[deps] libjpeg-turbo: descargando $(LIBJPEG_TURBO_URL)"; \
+	  curl -fL --retry 3 --connect-timeout 30 -o "$(LIBJPEG_TURBO_TAR).part" "$(LIBJPEG_TURBO_URL)" \
+	    && mv "$(LIBJPEG_TURBO_TAR).part" "$(LIBJPEG_TURBO_TAR)" \
+	    && printf '%s  %s\n' "$(LIBJPEG_TURBO_SHA)" "$(LIBJPEG_TURBO_TAR)" | $(SHA256_CHECK) \
+	    || { echo "[deps] ERROR libjpeg-turbo: fallo de descarga o hash" >&2; rm -f "$(LIBJPEG_TURBO_TAR).part"; exit 1; }; \
+	fi
+	@if [ -f "$(LIBJPEG_TURBO_DEST)/.version" ] && [ "$$(cat $(LIBJPEG_TURBO_DEST)/.version)" = "$(LIBJPEG_TURBO_VER)" ]; then \
+	  echo "[deps] libjpeg-turbo: ya extraído en $(LIBJPEG_TURBO_DEST)"; \
+	else \
+	  echo "[deps] libjpeg-turbo: extrayendo a $(LIBJPEG_TURBO_DEST)"; \
+	  rm -rf "$(LIBJPEG_TURBO_DEST)"; mkdir -p "$(LIBJPEG_TURBO_DEST)"; \
+	  tar xzf "$(LIBJPEG_TURBO_TAR)" -C "$(LIBJPEG_TURBO_DEST)" --strip-components=1 \
+	    && echo "$(LIBJPEG_TURBO_VER)" > "$(LIBJPEG_TURBO_DEST)/.version"; \
+	fi
 
 deps-lwip:
 	@command -v curl >/dev/null 2>&1 || { echo "[deps] ERROR: falta curl" >&2; exit 1; }

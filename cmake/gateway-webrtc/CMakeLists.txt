@@ -83,7 +83,7 @@ target_include_directories(ba_core_cr PUBLIC "${BA_SRC}/src/core"
                            "${BA_SRC}/third_party/qrcodegen" ${BA_C_INCLUDES})
 target_link_libraries(ba_core_cr PUBLIC ${BA_C_LIBS} Threads::Threads)
 
-# --- Gateway ------------------------------------------------------------------
+# --- Gateway: el núcleo y el backend webrtc/ (no nulo/: acá siempre hay libwebrtc) -----
 file(GLOB GW_SOURCES CONFIGURE_DEPENDS "${BA_SRC}/src/gateway/*.cpp" "${BA_SRC}/src/gateway/net/*.cpp"
      "${BA_SRC}/src/gateway/proxy/*.cpp" "${BA_SRC}/src/gateway/turn/*.cpp" "${BA_SRC}/src/gateway/rtc/*.cpp"
      "${BA_SRC}/src/gateway/webrtc/*.cpp")
@@ -121,7 +121,7 @@ target_include_directories(ba_gateway_rtc PUBLIC
     "${WRTC}/include"
     "${WRTC}/include/third_party/abseil-cpp"
     "${WRTC}/include/third_party/libyuv/include")
-target_compile_definitions(ba_gateway_rtc PUBLIC BA_GATEWAY_HAVE_WEBRTC=1 WEBRTC_POSIX)
+target_compile_definitions(ba_gateway_rtc PUBLIC WEBRTC_POSIX)
 if(APPLE)
     target_compile_definitions(ba_gateway_rtc PUBLIC WEBRTC_MAC)
 else()
@@ -129,8 +129,8 @@ else()
 endif()
 # libwebrtc esta compilado sin RTTI: las clases que heredan de sus interfaces
 # (observadores, fuentes, sinks) no pueden pedir typeinfo de sus bases.
-set_source_files_properties("${BA_SRC}/src/gateway/webrtc/Webrtc.cpp" "${BA_SRC}/src/gateway/RetornoCompartido.cpp"
-                            "${BA_SRC}/src/gateway/webrtc/CodecsVideo.cpp" "${BA_SRC}/src/gateway/rtc/ColasCompartidas.cpp"
+set_source_files_properties("${BA_SRC}/src/gateway/webrtc/Webrtc.cpp" "${BA_SRC}/src/gateway/webrtc/RetornoRtc.cpp"
+                            "${BA_SRC}/src/gateway/webrtc/CodecsVideo.cpp" "${BA_SRC}/src/gateway/webrtc/ColasRtc.cpp"
                             "${BA_SRC}/src/gateway/webrtc/BucleRtc.cpp" "${BA_SRC}/src/gateway/webrtc/SocketsEnMemoria.cpp"
                             "${BA_SRC}/src/gateway/webrtc/HilosLote.cpp"
                             PROPERTIES COMPILE_OPTIONS "-fno-rtti")

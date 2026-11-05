@@ -1,7 +1,7 @@
 // ============================================================================
 // src/gateway/DestinoCamara.hpp — adónde va el cuadro de la cámara de una sesión (F3, #6 y #8)
 //
-// El hilo que DECODIFICA el video de un invitado (el pozo «dec» de rtc/ColasCompartidas)
+// El hilo que DECODIFICA el video de un invitado (el pozo «dec» de webrtc/ColasRtc)
 // entrega el cuadro sin pasar a otro hilo (vertical, docs/planes/PLAN-GATEWAY-FRAGMENTOS.md):
 //
 //   - a la grilla, solo la CELDA ya achicada al lugar que ocupa (Grillas::pedirCelda): en

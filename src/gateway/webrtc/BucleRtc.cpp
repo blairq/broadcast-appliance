@@ -9,7 +9,6 @@
 // ============================================================================
 #include "webrtc/BucleRtc.hpp"
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <utility>
 
@@ -116,4 +115,3 @@ bool BucleRtc::enEsteHilo() const { return hilo_->IsCurrent(); }
 
 } // namespace ba::gateway::rtcred
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

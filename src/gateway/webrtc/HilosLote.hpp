@@ -29,7 +29,6 @@
 // ============================================================================
 #pragma once
 
-#if BA_GATEWAY_HAVE_WEBRTC
 
 #include <cstdint>
 #include <memory>
@@ -116,4 +115,3 @@ class HiloRed final : public rtc::Thread {
 
 } // namespace ba::gateway::rtcred
 
-#endif // BA_GATEWAY_HAVE_WEBRTC

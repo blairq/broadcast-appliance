@@ -19,7 +19,7 @@
 // AsignadorDeSesion es el BasicPortAllocator que la trae (y la suelta después de él).
 //
 // Todo corre en el hilo de red de libwebrtc (como el NetworkManager común), menos los
-// constructores. Solo con libwebrtc (BA_GATEWAY_HAVE_WEBRTC).
+// constructores. Solo con libwebrtc (backend webrtc/).
 // ============================================================================
 #pragma once
 

@@ -19,12 +19,10 @@
 #include "platform/Hilo.hpp"
 #include "platform/Nucleos.hpp"
 
-#if BA_GATEWAY_HAVE_WEBRTC
-#include "third_party/libyuv/include/libyuv/convert.h"
-#include "third_party/libyuv/include/libyuv/convert_argb.h"
-#include "third_party/libyuv/include/libyuv/scale.h"
-#include "third_party/libyuv/include/libyuv/scale_argb.h"
-#endif
+#include "libyuv/convert.h"
+#include "libyuv/convert_argb.h"
+#include "libyuv/scale.h"
+#include "libyuv/scale_argb.h"
 
 namespace ba::gateway {
 
@@ -41,19 +39,10 @@ std::int64_t ahoraMs() {
 
 /// Escala un rectángulo BGRA a otro, cada uno con su paso (así se escribe adentro
 /// del lienzo y se lee un recorte del retrato sin copias). Con libyuv, filtro de
-/// caja con SIMD (achicar promediando: una cara de 640 en 200 píxeles no titila);
-/// sin libwebrtc (el backend de las pruebas), el vecino más cercano.
+/// caja con SIMD (achicar promediando: una cara de 640 en 200 píxeles no titila).
 void escalar(const std::uint8_t* src, int sstride, int sw, int sh, std::uint8_t* dst, int dstride, int dw, int dh) {
     if (sw <= 0 || sh <= 0 || dw <= 0 || dh <= 0) return;
-#if BA_GATEWAY_HAVE_WEBRTC
     libyuv::ARGBScale(src, sstride, sw, sh, dst, dstride, dw, dh, libyuv::kFilterBox);
-#else
-    for (int y = 0; y < dh; ++y) {
-        const std::uint8_t* fila = src + static_cast<std::size_t>(y * sh / dh) * sstride;
-        auto* out = reinterpret_cast<std::uint32_t*>(dst + static_cast<std::size_t>(y) * dstride);
-        for (int x = 0; x < dw; ++x) std::memcpy(out + x, fila + static_cast<std::size_t>(x * sw / dw) * 4, 4);
-    }
-#endif
 }
 
 /// Un rectángulo en enteros, recortado al lienzo.
@@ -734,7 +723,6 @@ void Grillas::achicarYuv(const PlanosYuv& c, std::uint8_t* px, int tw, int th, s
             escalar(c.bgra, c.ancho * 4, c.ancho, c.alto, px, tw * 4, tw, th);
         return;
     }
-#if BA_GATEWAY_HAVE_WEBRTC
     if (tw == c.ancho && th == c.alto) {
         libyuv::I420ToARGB(c.y, c.strideY, c.u, c.strideU, c.v, c.strideV, px, tw * 4, tw, th);
         return;
@@ -746,24 +734,6 @@ void Grillas::achicarYuv(const PlanosYuv& c, std::uint8_t* px, int tw, int th, s
     libyuv::I420Scale(c.y, c.strideY, c.u, c.strideU, c.v, c.strideV, c.ancho, c.alto, y, tw, u, cw, v, cw, tw, th,
                       libyuv::kFilterBox);
     libyuv::I420ToARGB(y, tw, u, cw, v, cw, px, tw * 4, tw, th);
-#else
-    // Sin libyuv (las pruebas): el más cercano, BT.601 de rango limitado.
-    (void)cw;
-    (void)ch;
-    (void)planos;
-    for (int yy = 0; yy < th; ++yy)
-        for (int xx = 0; xx < tw; ++xx) {
-            const int sx = xx * c.ancho / tw, sy = yy * c.alto / th;
-            const double Y = 1.164 * (c.y[sy * c.strideY + sx] - 16);
-            const double U = c.u[(sy / 2) * c.strideU + sx / 2] - 128, V = c.v[(sy / 2) * c.strideV + sx / 2] - 128;
-            const auto b = [](double x) { return static_cast<std::uint8_t>(std::clamp(x, 0.0, 255.0)); };
-            std::uint8_t* p = px + (static_cast<std::size_t>(yy) * tw + xx) * 4;
-            p[0] = b(Y + 2.018 * U);
-            p[1] = b(Y - 0.391 * U - 0.813 * V);
-            p[2] = b(Y + 1.596 * V);
-            p[3] = 255;
-        }
-#endif
 }
 
 void Grillas::cuadro(const std::string& persona, const PlanosYuv& c, std::int64_t ahora) {
@@ -785,16 +755,12 @@ void Grillas::foto(const std::string& persona, const std::string& jpeg, std::int
         std::lock_guard<std::mutex> l(r->m);
         if (r->vivoMs != 0 && ahora - r->vivoMs < 3000) return; // tiene video en vivo: gana el video
     }
-#if BA_GATEWAY_HAVE_WEBRTC
     const auto* datos = reinterpret_cast<const std::uint8_t*>(jpeg.data());
     int w = 0, h = 0;
     if (libyuv::MJPGSize(datos, jpeg.size(), &w, &h) != 0 || w <= 0 || h <= 0 || w > 4096 || h > 4096) return;
     std::vector<std::uint8_t> px(static_cast<std::size_t>(w) * h * 4);
     if (libyuv::MJPGToARGB(datos, jpeg.size(), px.data(), w * 4, w, h, w, h) != 0) return;
     guardar(std::move(r), px.data(), w, h, ahora, false);
-#else
-    (void)ahora; // sin libwebrtc no hay con qué abrir el JPEG: queda la silueta
-#endif
 }
 
 void Grillas::audio(const std::string& persona, const float* s, std::size_t n, int canales, std::int64_t ahora) {
