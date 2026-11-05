@@ -134,6 +134,18 @@ int main() {
     CHECK(peorMs < 50.0, "ninguna llamada de la interfaz tarda (< 50 ms)");
     const auto foto = m.instantanea();
     CHECK(foto && foto->contains("entradas") && (*foto)["entradas"].contains("rojo"), "la foto tiene las entradas");
+    // Quien SÍ espera (el dueño de la app, al agregar un micrófono: RepositorioEscenas::
+    // addAudioInput) sale de esperarCola con la entrada ya en la foto, con su audio: de ahí
+    // saca la app qué fuentes tienen audio (el canal del mezclador, el rack de efectos).
+    std::thread([&m]() {
+        m.agregarEntrada("mic", json{{"pipeline_audio", "audiotestsrc is-live=true wave=silence"}}, {{"global", true}});
+        m.esperarCola();
+    }).join();
+    {
+        const auto f = m.instantanea();
+        CHECK(f && (*f)["entradas"].contains("mic") && (*f)["entradas"]["mic"].value("audio", false),
+              "después de esperarCola, la foto ya tiene la entrada nueva con audio");
+    }
     m.detener(); // apagar sí
     // F3-14: el candado es un mutex común; lo que corre con él tomado (los ...Ya) lo exige.
     CHECK(faltasDelCandado() == 0, "nada de lo que va con el candado corrió sin él");

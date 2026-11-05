@@ -410,6 +410,7 @@ class Entrada {
     std::atomic<bool> salidaArmada_{false};         ///< salidaV_ armada (se lee sin candado)
     std::atomic<bool> llevaPlaca_{false};           ///< conPlaca_ (se lee sin candado)
     std::atomic<bool> daVideoSinCandado_{false};    ///< daVideo() al leer los ajustes (sinVideo)
+    std::atomic<bool> daAudioSinCandado_{false};    ///< daAudio() al leer los ajustes (estado: «audio»)
     /// El freno del realineo (ver medirLatencia): cuándo se corrigió cada rama,
     /// para qué lado, y hasta cuándo no se la toca si va y viene.
     struct Realineo {

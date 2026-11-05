@@ -31,10 +31,12 @@
 #pragma once
 
 #include <cstdint>
+#include <functional>
 #include <map>
 #include <memory>
 #include <mutex>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -44,6 +46,15 @@ namespace ba::gateway {
 
 class Prompter {
    public:
+    /// La hora en ms (del reloj de pared: las vistas comparan `desdeMs` con la suya).
+    using Reloj = std::function<std::int64_t()>;
+
+    /// `reloj` vacío: el del sistema. Los tests le pasan uno que avanzan a mano: la
+    /// posición y quién está conectado dependen del tiempo, y con el reloj real una
+    /// máquina cargada los hacía fallar (entre dos comandos pasaba más de lo que la
+    /// prueba suponía).
+    explicit Prompter(Reloj reloj = {}) : reloj_(std::move(reloj)) {}
+
     /// Palabras por minuto de una lectura normal en castellano. Es el valor
     /// con el que se estima cuanto dura un discurso.
     static constexpr int kPpmPorDefecto = 140;
@@ -90,11 +101,13 @@ class Prompter {
     static int contarPalabras(const std::string& texto);
 
    private:
+    std::int64_t ahoraMs() const;
     nlohmann::json estadoLocked() const;
     /// Congela la posicion calculada hasta ahora (antes de cambiar velocidad,
     /// parar o saltar): si no, cambiar la velocidad moveria el texto.
     void fijarPosicion(int64_t ahora);
 
+    Reloj reloj_;
     mutable std::mutex m_;
     std::string titulo_;
     std::string texto_;
