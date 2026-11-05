@@ -82,6 +82,9 @@ bool hacerWav(const std::string& ruta, double seg) {
 } // namespace
 
 int main() {
+    // Sin búfer: a un archivo (los logs de los tests en Windows), si el proceso aborta se
+    // perdía lo último que dijo (2026-11-05: rc=3 bajo Wine y el log cortado a la mitad).
+    std::setvbuf(stdout, nullptr, _IONBF, 0);
 #if defined(BA_TEST_GST_RAIZ)
     g_setenv("BA_GST_RAIZ", BA_TEST_GST_RAIZ, FALSE);
 #endif

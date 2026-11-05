@@ -21,6 +21,7 @@
 
 #include <gst/gst.h>
 
+#include <cctype>
 #include <chrono>
 #include <cstdio>
 #include <map>
@@ -57,7 +58,51 @@ int fallos = 0;
 
 void esperar(int ms) { std::this_thread::sleep_for(std::chrono::milliseconds(ms)); }
 
-/// Los hilos de este proceso.
+#if defined(_WIN32)
+/// Los hilos del proceso que no son del programa (los del pool de Windows, los de Wine), por
+/// el módulo donde arrancan: lo que se dejó afuera en la última cuenta de hilos().
+std::map<std::string, int> gAjenos;
+
+/// ¿El hilo lo creó el programa? Los nuestros (std::thread, GLib, GStreamer) nacen por el CRT
+/// (_beginthreadex: arrancan en ucrtbase, o en el .exe con el CRT estático de win-mt). Los
+/// demás son del sistema y van y vienen solos: los del pool de ntdll (TppWorkerThread) quedan
+/// un rato después de un trabajo, y bajo Wine hay más (sus servicios). Contarlos medía al
+/// sistema, no a los lugares (2026-11-05: 17 → 37 hilos bajo Wine sin ningún lugar).
+bool hiloDelPrograma(DWORD id, std::string* modulo) {
+    using Consulta = LONG(WINAPI*)(HANDLE, int, PVOID, ULONG, PULONG);
+    static const auto consulta =
+        reinterpret_cast<Consulta>(GetProcAddress(GetModuleHandleW(L"ntdll.dll"), "NtQueryInformationThread"));
+    if (consulta == nullptr) return true;
+    HANDLE h = OpenThread(THREAD_QUERY_INFORMATION, FALSE, id);
+    if (h == nullptr) return true;
+    void* inicio = nullptr;
+    const LONG st = consulta(h, 9 /* ThreadQuerySetWin32StartAddress */, &inicio, sizeof(inicio), nullptr);
+    CloseHandle(h);
+    HMODULE m = nullptr;
+    if (st != 0 || inicio == nullptr ||
+        !GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                            static_cast<LPCWSTR>(inicio), &m))
+        return true; // sin saber dónde arranca: se cuenta (mejor de más que esconder uno)
+    if (m == GetModuleHandleW(nullptr)) return true;
+    char nombre[MAX_PATH] = {};
+    GetModuleFileNameA(m, nombre, MAX_PATH);
+    std::string base = nombre;
+    if (const auto barra = base.find_last_of("\\/"); barra != std::string::npos) base = base.substr(barra + 1);
+    for (auto& c : base) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+    if (base == "ucrtbase.dll" || base == "ucrtbased.dll" || base == "msvcrt.dll" || base.rfind("vcruntime140", 0) == 0)
+        return true;
+    *modulo = base;
+    return false;
+}
+
+std::string ajenos() {
+    std::string r;
+    for (const auto& [m, n] : gAjenos) r += (r.empty() ? "" : ", ") + m + " " + std::to_string(n);
+    return r.empty() ? "ninguno" : r;
+}
+#endif
+
+/// Los hilos de este proceso (en Windows, los del programa: hiloDelPrograma).
 int hilos() {
 #if defined(_WIN32)
     HANDLE s = CreateToolhelp32Snapshot(TH32CS_SNAPTHREAD, 0);
@@ -66,8 +111,13 @@ int hilos() {
     t.dwSize = sizeof(t);
     int n = 0;
     const DWORD yo = GetCurrentProcessId();
-    for (BOOL ok = Thread32First(s, &t); ok; ok = Thread32Next(s, &t))
-        if (t.th32OwnerProcessID == yo) ++n;
+    gAjenos.clear();
+    for (BOOL ok = Thread32First(s, &t); ok; ok = Thread32Next(s, &t)) {
+        if (t.th32OwnerProcessID != yo) continue;
+        std::string modulo;
+        if (hiloDelPrograma(t.th32ThreadID, &modulo)) ++n;
+        else ++gAjenos[modulo];
+    }
     CloseHandle(s);
     return n;
 #elif defined(__APPLE__)
@@ -151,6 +201,9 @@ int main() {
     Motor motor(cfg);
     CHECK(motor.iniciar().empty(), "el motor arranca");
     const int h0 = hilosEnCalma();
+#if defined(_WIN32)
+    std::printf("al principio: hilos del programa %d; del sistema (no se cuentan): %s\n", h0, ajenos().c_str());
+#endif
     const std::int64_t m0 = memoria::privada();
 
     // Los lugares vacíos ANTES de crear sus entradas (la app lo hace así al cambiar el cupo).
@@ -247,6 +300,9 @@ int main() {
     const int h5 = hilosEnCalma();
     rec = motor.estado()["recursos"];
     const memoria::Compactada c = memoria::compactar();
+#if defined(_WIN32)
+    std::printf("hilos del sistema (no se cuentan): %s\n", ajenos().c_str());
+#endif
     std::printf("sin lugares: hilos %d (al principio %d); privada %lld → %lld MB (compactada en %lld µs); %s\n", h5, h0,
                 static_cast<long long>(m0 / 1048576), static_cast<long long>(c.despues / 1048576), static_cast<long long>(c.us),
                 rec.dump().c_str());
