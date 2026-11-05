@@ -80,7 +80,7 @@ if(APPLE AND CMAKE_EXPORT_COMPILE_COMMANDS)
                              --build "${CMAKE_BINARY_DIR}" --componente "${BA_NIVELES_${_id}_NOMBRE}"
                              --parte ${_k} --partes ${BA_NIVELES_${_id}_PARTES} --jobs 1)
             set_tests_properties(${_t} PROPERTIES SKIP_RETURN_CODE 77)
-            ba_test_entradas(${_t} ${_ba_niv_comunes}
+            ba_test_entradas(${_t} ${_ba_niv_comunes} "${CMAKE_SOURCE_DIR}/tools/diag/banderas.py"
                              "${CMAKE_BINARY_DIR}/compile_commands.json"
                              ${BA_NIVELES_${_id}_P${_k}_HEADERS} ${BA_NIVELES_${_id}_P${_k}_CIERRE})
         endforeach()

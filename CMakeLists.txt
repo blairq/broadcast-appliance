@@ -88,11 +88,38 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 #   - sea puramente aditivo: no toca FetchContent, los flags de MSVC ni los add_subdirectory de los componentes.
 # Verificar que ccache está activo: `ccache -s` (hits/misses) o la línea STATUS
 # que se imprime en el configure.
+#
+# Lo que el build necesita de ccache va acá y no en la configuración de cada uno
+# (`ccache clave=valor… compilador`, desde ccache 4.8): sloppiness
+#   - pch_defines,time_macros: sin esto ccache no cachea nada que use un header
+#     precompilado (cmake/BaPch.cmake; «Could not use precompiled header» en
+#     `ccache -s -v`). Nadie usa __DATE__/__TIME__.
+#   - include_file_mtime,include_file_ctime: un header recién escrito (los que
+#     genera la configuración, el moc) no le apaga el modo directo a quien lo
+#     incluye (ccache vuelve a preprocesar todo en cada acierto que no es directo).
+# Se suma a la sloppiness que ya tenga la configuración de ccache (en la línea de
+# comandos, una clave reemplaza a la del archivo).
 find_program(CCACHE_LAUNCHER ccache)
 if(CCACHE_LAUNCHER AND NOT CMAKE_C_COMPILER_LAUNCHER AND NOT CMAKE_CXX_COMPILER_LAUNCHER)
-    set(CMAKE_C_COMPILER_LAUNCHER    "${CCACHE_LAUNCHER}")
-    set(CMAKE_CXX_COMPILER_LAUNCHER  "${CCACHE_LAUNCHER}")
-    message(STATUS "ccache activo: ${CCACHE_LAUNCHER} (launcher de C/CXX)")
+    set(_ba_ccache "${CCACHE_LAUNCHER}")
+    execute_process(COMMAND "${CCACHE_LAUNCHER}" --version OUTPUT_VARIABLE _ba_ccache_v ERROR_QUIET)
+    if(_ba_ccache_v MATCHES "ccache version ([0-9]+\\.[0-9]+)" AND NOT CMAKE_MATCH_1 VERSION_LESS 4.8)
+        execute_process(COMMAND "${CCACHE_LAUNCHER}" --get-config sloppiness
+                        OUTPUT_VARIABLE _ba_sl OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+        string(REPLACE "," ";" _ba_sl "${_ba_sl}")
+        string(REPLACE " " "" _ba_sl "${_ba_sl}")
+        list(APPEND _ba_sl pch_defines time_macros include_file_mtime include_file_ctime)
+        list(REMOVE_ITEM _ba_sl "")
+        list(REMOVE_DUPLICATES _ba_sl)
+        list(SORT _ba_sl)
+        list(JOIN _ba_sl "," _ba_sl)
+        list(APPEND _ba_ccache "sloppiness=${_ba_sl}")
+    else()
+        message(STATUS "ccache anterior a 4.8: sin sloppiness por línea de comandos (los headers precompilados no se cachean)")
+    endif()
+    set(CMAKE_C_COMPILER_LAUNCHER    "${_ba_ccache}")
+    set(CMAKE_CXX_COMPILER_LAUNCHER  "${_ba_ccache}")
+    message(STATUS "ccache activo: ${_ba_ccache} (launcher de C/CXX)")
 else()
     message(STATUS "ccache no activo (no encontrado o ya hay un launcher fijado)")
 endif()
@@ -301,6 +328,8 @@ include(CTest)
 include(${CMAKE_SOURCE_DIR}/cmake/BaRequisitos.cmake)
 # Lo que la caché de tests tiene que saber de cada uno (tools/ci/tests-con-cache.py).
 include(${CMAKE_SOURCE_DIR}/cmake/BaTestsCache.cmake)
+# Headers precompilados con lo de afuera (std, json, Qt, GStreamer): ver el archivo.
+include(${CMAKE_SOURCE_DIR}/cmake/BaPch.cmake)
 
 # --- Componentes ------------------------------------------------------------
 # Cada subdirectorio declara su target. `ba_core` es la base; el resto enlaza
@@ -310,6 +339,7 @@ if(BA_WIN_STATIC_PART)
     add_subdirectory(src/core)
     add_subdirectory(src/launcher)
     add_subdirectory(src/gateway)
+    ba_pch_aplicar()
     ba_tests_registrar()
     ba_revisar_requisitos()
     return()
@@ -549,6 +579,9 @@ include(${CMAKE_SOURCE_DIR}/cmake/BaNiveles.cmake)
 # JSON temporal (UB), el comparador de las corridas nocturnas del banco de caos (F4-03)... Los
 # que recorren src/, de a un área (cmake/BaTestsPy.cmake, tests/areas.py).
 include(${CMAKE_SOURCE_DIR}/cmake/BaTestsPy.cmake)
+
+# Con todos los objetivos ya declarados: a cada uno, el header precompilado que le toca.
+ba_pch_aplicar()
 
 # Con todos los tests ya declarados: etiquetas y entradas para la caché de tests.
 ba_tests_registrar()

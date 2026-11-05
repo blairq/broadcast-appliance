@@ -13,20 +13,29 @@ extern/clang-tidy/<plataforma>/bin/ o extern/toolchain/*/bin/. No se usa uno del
 (portable innegociable). Si no hay ninguno, sale con error y lo dice (nunca en verde sin
 haber revisado nada).
 
+clang-tidy lee una copia de compile_commands.json sin ccache ni el header precompilado
+(tools/diag/banderas.py): el .pch es del clang que compiló, no de este, y con él adentro un
+include que falta no se vería.
+
 Sale con 1 si clang-tidy encontró algo (los hallazgos son errores), 2 si no pudo correr.
 Corre UN clang-tidy por vez, con nice (es un linter: no pide turno, pero no compite).
 """
 from __future__ import annotations
 
+import json
 import os
 import pathlib
 import platform
 import re
+import shlex
 import shutil
 import subprocess
 import sys
+import tempfile
 
 RAIZ = pathlib.Path(__file__).resolve().parents[2]
+sys.path.insert(0, str(RAIZ / "tools" / "diag"))
+import banderas  # noqa: E402
 EXT_TU = (".cpp", ".cc", ".cxx", ".mm")
 EXT_H = (".hpp", ".h", ".hh", ".hxx", ".inl")
 
@@ -121,7 +130,9 @@ def main(argv: list[str]) -> int:
         print(f"[lint-includes] aviso: {p.relative_to(RAIZ)} no tiene .cpp al lado: no se revisa")
     if not tus:
         return 0
-    cmd = ["nice", "-n", "19", clang_tidy, "-p", str(build), "--quiet",
+    base_sin_pch = tempfile.TemporaryDirectory(prefix="lint-includes-")
+    _sin_pch(build, pathlib.Path(base_sin_pch.name))
+    cmd = ["nice", "-n", "19", clang_tidy, "-p", base_sin_pch.name, "--quiet",
            "--warnings-as-errors=misc-include-cleaner"]
     # Solo los headers cambiados (y no los que incluyen los .cpp por otro lado).
     filtro = "|".join(re.escape(str(h)) for h in headers) if headers else "^$"
@@ -134,6 +145,15 @@ def main(argv: list[str]) -> int:
     print(f"[lint-includes] {clang_tidy}: {len(tus)} TU, {len(headers)} headers")
     r = subprocess.run(cmd, cwd=RAIZ)
     return 0 if r.returncode == 0 else 1
+
+
+def _sin_pch(build: pathlib.Path, destino: pathlib.Path) -> None:
+    """destino/compile_commands.json: el de build sin lanzador ni PCH."""
+    datos = json.loads((build / "compile_commands.json").read_text(encoding="utf-8"))
+    for e in datos:
+        args = e.pop("arguments", None) or shlex.split(e.pop("command"))
+        e["arguments"] = banderas.sin_pch(banderas.sin_lanzador(args))
+    (destino / "compile_commands.json").write_text(json.dumps(datos), encoding="utf-8")
 
 
 if __name__ == "__main__":
