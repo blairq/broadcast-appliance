@@ -139,7 +139,10 @@ int main(int argc, char** argv) {
         std::ofstream s(motor.toStdString());
         s << "#!/bin/sh\n"
              "printf '%s' \"$1\" > \"$PWD/encargo.txt\"\n"
-             "[ -n \"$MOTOR_LENTO\" ] && { sleep 30 & echo $! > \"$PWD/sleep.pid\"; wait; }\n"
+             // sleep.pid aparece de una vez, ya escrito (mv): con `echo > sleep.pid` el
+             // archivo existe vacío un momento y la prueba, cargada, leía pid 0.
+             "[ -n \"$MOTOR_LENTO\" ] && { sleep 30 & echo $! > \"$PWD/sleep.pid.tmp\"; "
+             "mv \"$PWD/sleep.pid.tmp\" \"$PWD/sleep.pid\"; wait; }\n"
              "printf '%s\\n' "
              "'{\"type\":\"system\",\"subtype\":\"init\",\"model\":\"falso-1\",\"tools\":[\"a\",\"b\"]}'\n"
              "printf '%s\\n' "
