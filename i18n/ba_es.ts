@@ -206,7 +206,7 @@
 <context>
     <name>CapacidadViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="+181"/>
+        <location filename="../src/app/ui/CapacidadViewModel.cpp" line="+193"/>
         <source>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</source>
         <translation>
             <numerusform>Prueba de capacidad: entran invitados de prueba por escalones hasta %n (cada escalón, 2 minutos como mucho).</numerusform>
@@ -214,7 +214,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+83"/>
+        <location line="+97"/>
         <source>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</source>
         <translation>
             <numerusform>El otro equipo abrió lugar para %n: la prueba llega hasta ahí.</numerusform>
@@ -222,7 +222,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+294"/>
+        <location line="+319"/>
         <source>Entrando: %n invitados de prueba</source>
         <translation>
             <numerusform>Entrando: %n invitado de prueba</numerusform>
@@ -309,7 +309,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+225"/>
+        <location line="+238"/>
         <source>%n conexión</source>
         <translation>
             <numerusform>%n conexión</numerusform>
@@ -903,6 +903,25 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
     </message>
 </context>
 <context>
+    <name>PanelHistorialPruebas</name>
+    <message numerus="yes">
+        <location filename="../src/app/qml/controls/PanelHistorialPruebas.qml" line="+49"/>
+        <source>%n pruebas</source>
+        <translation>
+            <numerusform>%n prueba</numerusform>
+            <numerusform>%n pruebas</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+99"/>
+        <source>%n participantes</source>
+        <translation>
+            <numerusform>%n participante</numerusform>
+            <numerusform>%n participantes</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>PanelMezclador</name>
     <message numerus="yes">
         <location filename="../src/app/qml/controls/PanelMezclador.qml" line="+463"/>
@@ -973,7 +992,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PanelPruebaSala</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/controls/PanelPruebaSala.qml" line="+91"/>
+        <location filename="../src/app/qml/controls/PanelPruebaSala.qml" line="+125"/>
         <source>Enlace: alcanza para %n invitados (última medición).</source>
         <translation>
             <numerusform>Enlace: alcanza para %n invitado (última medición).</numerusform>
@@ -997,7 +1016,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+40"/>
+        <location line="+42"/>
         <source>%n cortes</source>
         <translation>
             <numerusform>%n corte</numerusform>
@@ -1206,7 +1225,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PruebaAsambleaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="+177"/>
+        <location filename="../src/app/ui/PruebaAsambleaViewModel.cpp" line="+184"/>
         <source>Prueba de asamblea: %n integrantes de prueba con su acceso, en el Recinto.</source>
         <translation>
             <numerusform>Prueba de asamblea: %n integrante de prueba con su acceso, en el Recinto.</numerusform>
@@ -1222,7 +1241,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+175"/>
+        <location line="+186"/>
         <source>Se borraron %n integrantes de prueba que habían quedado (y su acceso).</source>
         <translation>
             <numerusform>Se borró %n integrante de prueba que había quedado (y su acceso).</numerusform>
@@ -1241,7 +1260,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>PruebaSalaViewModel</name>
     <message numerus="yes">
-        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+183"/>
+        <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="+230"/>
         <source>Ojo: según la última medición, el enlace no alcanza para %n invitados por el túnel.</source>
         <translation>
             <numerusform>Ojo: según la última medición, el enlace no alcanza para %n invitado por el túnel.</numerusform>
@@ -1249,11 +1268,19 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+119"/>
+        <location line="+157"/>
         <source>Prueba de sala: entran %n participantes de prueba (la primera vez, el probador graba su video unos minutos).</source>
         <translation>
             <numerusform>Prueba de sala: entra %n participante de prueba (la primera vez, el probador graba su video unos minutos).</numerusform>
             <numerusform>Prueba de sala: entran %n participantes de prueba (la primera vez, el probador graba su video unos minutos).</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+52"/>
+        <source>Prueba de sala con varias máquinas: esperando %n generadoras. En cada una, pegá el código en su Pruebas → «Generar para otro equipo» (o corré la línea).</source>
+        <translation>
+            <numerusform>Prueba de sala con varias máquinas: esperando %n generadora. Pegá el código en su Pruebas → «Generar para otro equipo» (o corré la línea).</numerusform>
+            <numerusform>Prueba de sala con varias máquinas: esperando %n generadoras. En cada una, pegá el código en su Pruebas → «Generar para otro equipo» (o corré la línea).</numerusform>
         </translation>
     </message>
 </context>
@@ -1369,7 +1396,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>SettingsPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1047"/>
+        <location filename="../src/app/qml/pages/SettingsPage.qml" line="+1061"/>
         <source>Entrenado con %n herramienta</source>
         <translation>
             <numerusform>Entrenado con %n herramienta</numerusform>
