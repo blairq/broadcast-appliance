@@ -60,9 +60,20 @@ class AnuncioPlaca {
 /// en el hilo que lo decodificó. Pregunta antes de convertir nada: si ba-app no lo publica
 /// ahora y la grilla no lo usa, no se toca; la celda de la grilla se achica del cuadro en la
 /// placa, del NV12 o del I420 (lo que tenga menos vueltas) y a `grillas` solo le llega lo chico;
-/// el BGRA entero (en `bgra`, que se reusa) solo si ba-app lo publica. Lo llama
-/// RemoteVideoSink::OnFrame (Webrtc.cpp) con la capa que sale.
+/// el BGRA entero (en `bgra`, que se reusa) solo si ba-app lo publica, con la hora de su
+/// contenido (horaDeContenido). Lo llama RemoteVideoSink::OnFrame (Webrtc.cpp) con la capa que sale.
 void entregarCamara(const webrtc::VideoFrame& frame, DestinoCamara& destino, std::vector<std::uint8_t>& bgra);
+
+/// La hora del CONTENIDO de un cuadro recibido, en el reloj de los sellos entre procesos
+/// (HealthBlock::nowQpc, ns); 0 si libwebrtc no la dio. Es la que libwebrtc le pone al
+/// decodificarlo (VideoFrame::timestamp_us = su «render time»): la hora RTP del que manda
+/// llevada al reloj de acá (la estimación de su reloj, que no tiembla con la red) más la
+/// espera que eligió el jitter buffer, y sincronizada con su audio (StreamSynchronization).
+/// Un cuadro clave que llegó tarde y los que vienen detrás en ráfaga conservan su hora pareja.
+/// El reloj de libwebrtc (rtc::TimeMicros: mach_absolute_time en la Mac, CLOCK_MONOTONIC en
+/// Linux, timeGetTime en Windows) se pasa al de los sellos con un desfase que se mide cada 64
+/// cuadros y se suaviza; por cuadro cuesta una suma.
+std::uint64_t horaDeContenido(const webrtc::VideoFrame& frame);
 
 /// Codificadores: macOS VideoToolbox (H.264) + VP8/VP9/AV1; Windows Media Foundation
 /// (H.264, CodecsWin) + VP8/VP9/AV1; Linux VP8/VP9/AV1 por software.

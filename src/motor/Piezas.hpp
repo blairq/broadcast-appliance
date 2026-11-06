@@ -183,6 +183,10 @@ struct Derivacion {
     std::string antesDe;   ///< el nombre del filtro («ptz»)
     std::string productor; ///< el intersink de la rama
     std::string ramas;     ///< (salida) lo que hay que sumar a la descripción
+    /// Cuántos cuadros guardan las colas del tee (las dos ramas): 1 = el último (lo que tarda
+    /// de más se tira); más, los de la ventana de latencia (Entrada::colaDeVentana: un invitado,
+    /// cuyos cuadros pueden llegar de a varios juntos con sus horas parejas).
+    int cuadros = 1;
 };
 std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char* prefijo,
                      std::vector<std::string>& avisos, bool desdeGpu = false, Derivacion* derivar = nullptr);

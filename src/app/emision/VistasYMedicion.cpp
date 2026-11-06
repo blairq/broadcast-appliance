@@ -567,21 +567,30 @@ json VistasYMedicion::latenciaEstudio() const {
                                        {"entra_al_oido", e.value("entra_al_oido", true)},
                                        {"video", e.value("video", false)},
                                        {"marca", id == out["la_marca"].get<std::string>()}});
+            // Los cuadros que salieron de la entrada ya pasados de la hora del compositor (no se
+            // ven), desde que se creó; con las sondas, el ritmo de sus horas y de cuándo salen.
+            if (e.contains("video_tarde")) out["entradas"].back()["video_tarde"] = e["video_tarde"];
+            if (e.contains("video_ritmo")) out["entradas"].back()["video_ritmo"] = e["video_ritmo"];
         }
     // Los cuadros que llegaron tarde al compositor del programa en el último minuto (por entrada):
     // si aparecen, el colchón no alcanza.
     int tarde = 0;
     json porEntrada = json::object();
+    json mostrado = json::object(); // con las sondas (SONDAS=1): lo que el compositor muestra de cada capa
     if (foto)
         for (const auto& c : foto->value("video", json::object()).value("programa", json::object()).value("capas", json::array())) {
             const json el = c.value("edad_llega", json());
             const int t = el.is_object() ? el.value("tarde_60s", 0) : 0;
             tarde += t;
             if (t > 0) porEntrada[c.value("entrada", std::string())] = t;
+            if (const json m = c.value("mostrado", json()); m.is_object()) mostrado[c.value("entrada", std::string())] = m;
         }
     out["cuadros_tarde_60s"] = tarde;
     out["cuadros_tarde_por_entrada"] = porEntrada;
-    for (auto& e : out["entradas"]) e["cuadros_tarde_60s"] = porEntrada.value(e.value("entrada", std::string()), 0);
+    for (auto& e : out["entradas"]) {
+        e["cuadros_tarde_60s"] = porEntrada.value(e.value("entrada", std::string()), 0);
+        if (const auto i = mostrado.find(e.value("entrada", std::string())); i != mostrado.end()) e["mostrado"] = *i;
+    }
     return out;
 }
 

@@ -52,12 +52,17 @@ namespace ba::ipc {
 //     frame mas nuevo.
 //   Resultado: el escritor nunca espera, puede haber varios lectores y ninguno
 //   ve un frame a medio escribir.
+//   Con más buffers (SlotConfig::buffers, hasta kMaxBuffersCanal) es lo mismo con
+//   `% n`: cada buffer anota además la publicación que tiene (`pub`), y un lector en
+//   orden (receiveSiguiente) copia los que no leyó, del más viejo al más nuevo, mientras
+//   sigan ahí (los últimos n-1: el n-ésimo es el que el escritor puede estar pisando).
 //
 // `instanceId` identifica a ESTE productor: si el proceso se reinicia y vuelve
 // a publicar el nombre, el id cambia y los lectores lo detectan (stale()).
 
 inline constexpr std::uint32_t kVideoMagic = 0x31564142u; // "BAV1"
-inline constexpr std::uint32_t kVideoBuffers = 3;
+inline constexpr std::uint32_t kVideoBuffers = 3;          // los de la cabecera de siempre
+inline constexpr std::uint32_t kMaxBuffers = static_cast<std::uint32_t>(kMaxBuffersCanal);
 inline constexpr std::size_t kBufferAlign = 4096; // alineado a pagina: memcpy rapido
 
 struct alignas(kSpoutCacheLine) VideoBufferHeader {
@@ -67,6 +72,7 @@ struct alignas(kSpoutCacheLine) VideoBufferHeader {
     std::uint64_t contenidoQpc = 0; // la hora de lo que muestra (FrameMeta)
     std::uint32_t ancho = 0;        // el tamaño real del cuadro; 0 = el del slot
     std::uint32_t alto = 0;
+    std::uint64_t pub = 0;          // la publicación que tiene (pubCount al escribirlo; 0 = uno de antes)
 };
 
 // Versión 2: el período y la hora del último envío (en el hueco antes de pubCount: el
@@ -88,12 +94,16 @@ struct VideoSlotHeader {
     // Versión 3: el formato de los píxeles (FormatoCanal). Después de los buffers, dentro
     // de la página de la cabecera: uno de antes lo deja en cero, que es BGRA.
     std::uint32_t formato = 0;
+    // Cuántos buffers tiene el canal (SlotConfig::buffers); 0 = 3 (uno de antes). Las
+    // cabeceras de los que pasan de 3 van en `masBuffers` (abajo): las de siempre no se mueven.
+    std::uint32_t nBuffers = 0;
     // Quién lee (sin cambiar `version`: uno de antes no los toca, y el productor que mira
     // `demanda()` lo ve como «nadie»; A y el gateway van juntos en el paquete). Los escribe
     // cada LECTOR al mirar (hasData/receive) y los lee el productor para no preparar cuadros
     // que nadie va a leer. En su propia línea de caché: los lectores escriben, el productor lee.
     alignas(kSpoutCacheLine) std::uint64_t lecturaNs = 0; // el último lector que quiere todos los cuadros
     std::uint64_t vistazoNs = 0;                          // el último que mira de vez en cuando (pedirTodos(false))
+    VideoBufferHeader masBuffers[kMaxBuffers - kVideoBuffers]; // los buffers 3.. (nBuffers)
 };
 static_assert(offsetof(VideoSlotHeader, pubCount) == kSpoutCacheLine, "el período, el envío y el timbre caben antes de pubCount");
 static_assert(sizeof(VideoSlotHeader) <= kBufferAlign, "la cabecera entra en su página: los buffers no se corren");
@@ -114,6 +124,17 @@ std::size_t slotBytes(const SlotConfig& cfg) { return bytesDeCuadro(cfg.width, c
 
 std::uint8_t* bufferAt(VideoSlotHeader* h, std::uint32_t i) {
     return reinterpret_cast<std::uint8_t*>(h) + headerBytes() + i * alignedFrame(h->frameBytes);
+}
+
+/// Cuántos buffers tiene el canal (uno de antes: 3).
+std::uint32_t buffersDe(const VideoSlotHeader* h) {
+    const std::uint32_t n = h->nBuffers;
+    return n >= kVideoBuffers && n <= kMaxBuffers ? n : kVideoBuffers;
+}
+
+/// La cabecera del buffer `i` (las tres de siempre y, después, las de los que se agregan).
+VideoBufferHeader& cabeceraDe(VideoSlotHeader* h, std::uint32_t i) {
+    return i < kVideoBuffers ? h->buffers[i] : h->masBuffers[i - kVideoBuffers];
 }
 
 std::uint64_t monoNs() {
@@ -137,7 +158,7 @@ VideoSlotHeader* asSlot(SharedMemoryRegion& region) {
     if (h->magic != kVideoMagic || h->width == 0 || h->height == 0) {
         return nullptr;
     }
-    const std::size_t need = headerBytes() + kVideoBuffers * alignedFrame(h->frameBytes);
+    const std::size_t need = headerBytes() + buffersDe(h) * alignedFrame(h->frameBytes);
     return region.size() >= need ? h : nullptr;
 }
 
@@ -279,9 +300,13 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
     if (published_) {
         return false; // la resolucion es fija por slot: no se re-publica
     }
+    if (cfg.buffers < static_cast<int>(kVideoBuffers) || cfg.buffers > static_cast<int>(kMaxBuffers)) {
+        return false;
+    }
+    const std::uint32_t nBuffers = static_cast<std::uint32_t>(cfg.buffers);
     const std::size_t frame = slotBytes(cfg);
     SharedMemoryRegion region;
-    if (!SharedMemoryRegion::create(name, headerBytes() + kVideoBuffers * alignedFrame(frame), region).ok) {
+    if (!SharedMemoryRegion::create(name, headerBytes() + nBuffers * alignedFrame(frame), region).ok) {
         return false;
     }
     auto* h = static_cast<VideoSlotHeader*>(region.data());
@@ -302,8 +327,9 @@ bool SpoutSender::publish(const wchar_t* name, const SlotConfig& cfg) {
     // vuelve a publicar con un lector todavia enganchado es la misma memoria, y cero en
     // `durmientes` con ese lector durmiendo lo dejaba sin despertar (un cuadro por vigia).
     h->pubCount = 0;
-    for (auto& b : h->buffers) {
-        b = VideoBufferHeader{};
+    h->nBuffers = nBuffers;
+    for (std::uint32_t i = 0; i < kMaxBuffers; ++i) {
+        cabeceraDe(h, i) = VideoBufferHeader{};
     }
     AtomicRef<std::uint32_t>(h->magic).store(kVideoMagic, std::memory_order_release);
 
@@ -330,8 +356,8 @@ bool SpoutSender::send(const void* pixels, std::size_t bytes, const FrameMeta& m
     }
     AtomicRef<std::uint64_t> pub(header_->pubCount);
     const std::uint64_t next = pub.load(std::memory_order_relaxed) + 1;
-    const std::uint32_t idx = static_cast<std::uint32_t>(next % kVideoBuffers);
-    VideoBufferHeader& bh = header_->buffers[idx];
+    const std::uint32_t idx = static_cast<std::uint32_t>(next % buffersDe(header_));
+    VideoBufferHeader& bh = cabeceraDe(header_, idx);
     AtomicRef<std::uint64_t> seq(bh.seq);
 
     // Seqlock: impar mientras se escribe.
@@ -344,6 +370,7 @@ bool SpoutSender::send(const void* pixels, std::size_t bytes, const FrameMeta& m
     bh.contenidoQpc = meta.contenidoQpc;
     bh.ancho = real ? meta.ancho : 0;
     bh.alto = real ? meta.alto : 0;
+    bh.pub = next;
     seq.store(s0 + 2, std::memory_order_release);
 
     // Recien ahora se anuncia el frame.
@@ -440,40 +467,88 @@ bool SpoutReceiver::receive(void* dst, std::size_t cap, FrameMeta& metaOut) {
     anotarLectura();
     AtomicRef<std::uint64_t> pub(header_->pubCount);
     // Pocos reintentos: chocar con el escritor requiere que de la vuelta a los
-    // tres buffers durante una copia.
+    // buffers durante una copia.
     for (int attempt = 0; attempt < 4; ++attempt) {
         const std::uint64_t p = pub.load(std::memory_order_acquire);
         if (p <= lastSeenPub_) {
             return false; // no hay frame nuevo (no bloquea, no reentrega)
         }
-        const std::uint32_t idx = static_cast<std::uint32_t>(p % kVideoBuffers);
-        VideoBufferHeader& bh = header_->buffers[idx];
-        AtomicRef<std::uint64_t> seq(bh.seq);
-        const std::uint64_t s1 = seq.load(std::memory_order_acquire);
-        if ((s1 & 1u) != 0) {
-            continue; // se esta escribiendo: probar con el siguiente anuncio
+        if (!copiar(p, dst, metaOut)) {
+            continue; // se esta escribiendo o lo pisaron: probar con el siguiente anuncio
         }
-        // Un cuadro más chico que el slot (su tamaño real): solo sus bytes. Si el tamaño no
-        // es creíble (el escritor lo está cambiando), el seqlock lo descarta abajo.
-        FrameMeta m{bh.frameIndex, bh.qpc, bh.contenidoQpc, bh.ancho, bh.alto};
-        std::size_t usados = bytes;
-        if (m.ancho != 0 && m.alto != 0 && m.ancho <= header_->width && m.alto <= header_->height &&
-            header_->formato == static_cast<std::uint32_t>(FormatoCanal::BGRA))
-            usados = static_cast<std::size_t>(m.ancho) * m.alto * 4u;
-        else
-            m.ancho = m.alto = 0;
-        std::memcpy(dst, bufferAt(header_, idx), usados);
-        std::atomic_thread_fence(std::memory_order_acquire);
-        if (seq.load(std::memory_order_relaxed) != s1) {
-            continue; // el escritor piso el buffer durante la copia
-        }
-        metaOut = m;
         lastSeenPub_ = p;
         lastFrameNs_ = monoNs();
         temblor_.publicado(AtomicRef<std::uint64_t>(header_->envioNs).load(std::memory_order_relaxed), periodoNs());
         return true;
     }
     return false;
+}
+
+bool SpoutReceiver::receiveSiguiente(void* dst, std::size_t cap, FrameMeta& metaOut, std::uint64_t* perdidos) {
+    if (!subscribed_ || header_ == nullptr || dst == nullptr || header_->frameBytes > cap) {
+        return false;
+    }
+    anotarLectura();
+    AtomicRef<std::uint64_t> pub(header_->pubCount);
+    const std::uint32_t n = buffersDe(header_);
+    for (int attempt = 0; attempt < 8; ++attempt) {
+        const std::uint64_t p = pub.load(std::memory_order_acquire);
+        if (p <= lastSeenPub_) {
+            return false;
+        }
+        // Con el escritor en la publicación p+1 (el buffer de p+1-n), los intactos son los de
+        // p+2-n a p: n-1 cuadros. Lo de antes ya no está.
+        std::uint64_t q = lastSeenPub_ + 1;
+        const std::uint64_t primero = p + 2 > n ? p + 2 - n : 1;
+        if (q < primero) {
+            if (perdidos != nullptr) *perdidos += primero - q;
+            lastSeenPub_ = primero - 1;
+            q = primero;
+        }
+        if (!copiar(q, dst, metaOut)) {
+            // Lo pisó el escritor (dio la vuelta mientras tanto): se da por perdido y se sigue
+            // con el próximo, con el anuncio de ahora.
+            if (perdidos != nullptr) *perdidos += 1;
+            lastSeenPub_ = q;
+            continue;
+        }
+        lastSeenPub_ = q;
+        lastFrameNs_ = monoNs();
+        if (q == p) temblor_.publicado(AtomicRef<std::uint64_t>(header_->envioNs).load(std::memory_order_relaxed), periodoNs());
+        return true;
+    }
+    return false;
+}
+
+bool SpoutReceiver::copiar(std::uint64_t p, void* dst, FrameMeta& metaOut) {
+    const std::uint32_t idx = static_cast<std::uint32_t>(p % buffersDe(header_));
+    VideoBufferHeader& bh = cabeceraDe(header_, idx);
+    AtomicRef<std::uint64_t> seq(bh.seq);
+    const std::uint64_t s1 = seq.load(std::memory_order_acquire);
+    if ((s1 & 1u) != 0) {
+        return false; // se esta escribiendo
+    }
+    // El buffer tiene que tener ESA publicación (un escritor de antes deja 0: no se sabe).
+    const std::uint64_t tiene = bh.pub;
+    if (tiene != 0 && tiene != p) {
+        return false;
+    }
+    // Un cuadro más chico que el slot (su tamaño real): solo sus bytes. Si el tamaño no
+    // es creíble (el escritor lo está cambiando), el seqlock lo descarta abajo.
+    FrameMeta m{bh.frameIndex, bh.qpc, bh.contenidoQpc, bh.ancho, bh.alto};
+    std::size_t usados = header_->frameBytes;
+    if (m.ancho != 0 && m.alto != 0 && m.ancho <= header_->width && m.alto <= header_->height &&
+        header_->formato == static_cast<std::uint32_t>(FormatoCanal::BGRA))
+        usados = static_cast<std::size_t>(m.ancho) * m.alto * 4u;
+    else
+        m.ancho = m.alto = 0;
+    std::memcpy(dst, bufferAt(header_, idx), usados);
+    std::atomic_thread_fence(std::memory_order_acquire);
+    if (seq.load(std::memory_order_relaxed) != s1) {
+        return false; // el escritor piso el buffer durante la copia
+    }
+    metaOut = m;
+    return true;
 }
 
 bool SpoutReceiver::hasData() const {

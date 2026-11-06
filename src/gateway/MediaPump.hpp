@@ -219,7 +219,9 @@ class MediaPump {
 
     /// Subida desde la sesion `session` (se rutea segun su MediaRoute).
     void forwardAudio(int session, const float* samples, size_t n, int rate);
-    void forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h);
+    /// `contenidoQpc`: la hora del contenido del cuadro (codecs::horaDeContenido; 0 = no se
+    /// sabe): viaja en el canal (FrameMeta::contenidoQpc) y ba-app le pone esa hora.
+    void forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h, uint64_t contenidoQpc = 0);
     /// F3 (#8): ¿forwardVideo publicaría el cuadro de cámara de `session` que llega ahora?
     /// (su ruta tiene un canal abierto y no está topado de cps). Si no, el hilo que decodifica
     /// no lo convierte a BGRA (con 40 en la grilla, casi ninguno va a ba-app).
@@ -369,10 +371,13 @@ class MediaPump {
     bool cerrarVentana(ba::ipc::MedidaTransporte& m, std::chrono::steady_clock::time_point& desde, bool registrar,
                        ba::ipc::FotoTransporte* fuera = nullptr);
 
-    std::unique_ptr<VideoOut> crearVideo(const std::wstring& nombre, int w, int h);
+    /// `buffers`: los del canal (SlotConfig::buffers): los de los invitados que van a la mezcla,
+    /// kBuffersMezcla (el lector del motor los lee todos, en orden: ningún cuadro tirado).
+    std::unique_ptr<VideoOut> crearVideo(const std::wstring& nombre, int w, int h, int buffers = 3);
+    static constexpr int kBuffersMezcla = 6;
     std::unique_ptr<AudioOut> crearAudio(const std::wstring& nombre);
 
-    void publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real);
+    void publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real, uint64_t contenidoQpc = 0);
     void publishAudio(AudioOut& out, const float* samples, size_t n, int rate);
     /// Sesiones cuya ruta cumple `pred` (copia de la tabla bajo lock).
     template <typename Pred> std::vector<int> sessionsWhere(Pred pred) const;

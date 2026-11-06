@@ -251,7 +251,7 @@ void MediaPump::start() {
     remotoContenido_.emplace_back();
     const size_t remotos = cfg_.remotoVideoNames.empty() ? 0 : cfg_.remotoVideoNames.size() - 1;
     for (size_t k = 1; k <= remotos; ++k) {
-        remotoVideo_.push_back(makeVideo(name(cfg_.remotoVideoNames, k), cfg_.programW, cfg_.programH));
+        remotoVideo_.push_back(crearVideo(name(cfg_.remotoVideoNames, k), cfg_.programW, cfg_.programH, kBuffersMezcla));
         remotoContenido_.push_back(makeVideo(name(cfg_.remotoContenidoNames, k), cfg_.programW, cfg_.programH));
         remotoAudio_.push_back(makeAudio(name(cfg_.remotoAudioNames, k)));
     }
@@ -324,7 +324,7 @@ void MediaPump::stop() {
     log_.info(traducir("gateway", "MediaPump: detenido"));
 }
 
-std::unique_ptr<MediaPump::VideoOut> MediaPump::crearVideo(const std::wstring& n, int w, int h) {
+std::unique_ptr<MediaPump::VideoOut> MediaPump::crearVideo(const std::wstring& n, int w, int h, int buffers) {
     const auto narrow = [](const std::wstring& x) { return std::string(x.begin(), x.end()); };
     auto out = std::make_unique<VideoOut>();
     out->w = w;
@@ -334,7 +334,9 @@ std::unique_ptr<MediaPump::VideoOut> MediaPump::crearVideo(const std::wstring& n
     // (publishVideo): con el tope de invitados (512) y tres canales por lugar, reservarlo
     // acá eran ~4 GB de memoria en cero para lugares que quizás nunca tengan a nadie.
     if (!n.empty()) {
-        if (out->sender.publish(n.c_str(), SlotConfig{w, h})) {
+        SlotConfig cfg{w, h};
+        cfg.buffers = buffers;
+        if (out->sender.publish(n.c_str(), cfg)) {
             log_.info(llenar(traducir("gateway", "video out: %1 listo (%2x%3)"),
                              {narrow(n), std::to_string(w), std::to_string(h)}));
         } else {
@@ -367,7 +369,9 @@ void MediaPump::ampliar(int slots) {
     const bool segunDemanda = ba::ajustes::siNo("gateway.videoSegunDemanda", true);
     for (int s = lugares_ + 1; s <= hasta; ++s) {
         const size_t i = static_cast<size_t>(s);
-        videosInvitado_.push_back(crearVideo(name(cfg_.guestVideoNames, i), cfg_.programW, cfg_.programH));
+        // La entrada del motor lee todos los cuadros (una ráfaga tras un cuadro clave incluida):
+        // con más buffers no se pisan antes de que pase su lector (docs/local/hora-de-captura.md).
+        videosInvitado_.push_back(crearVideo(name(cfg_.guestVideoNames, i), cfg_.programW, cfg_.programH, kBuffersMezcla));
         videosInvitado_.back()->segunDemanda = segunDemanda; // la entrada de una escena, si hay
         guestVideo_[i].store(videosInvitado_.back().get(), std::memory_order_release);
         videosInvitado_.push_back(crearVideo(name(cfg_.shareVideoNames, i), cfg_.programW, cfg_.programH));
@@ -1463,17 +1467,17 @@ nlohmann::json MediaPump::demandaCamaras() const {
     return j;
 }
 
-void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h) {
+void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, int w, int h, uint64_t contenidoQpc) {
     if (pixels == nullptr || w <= 0 || h <= 0 || bytes < static_cast<size_t>(w) * h * 4u) return;
     const MediaRoute r = route(session);
     if (r.kind == MediaRoute::Kind::Program && r.index >= 1 &&
         r.index <= kMaxInvitados) {
         if (VideoOut* v = guestVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire)) {
             v->llegoNs.store(monoNs(), std::memory_order_relaxed);
-            publishVideo(*v, pixels, w, h, true);
+            publishVideo(*v, pixels, w, h, true, contenidoQpc);
         }
         if (VideoOut* u = guestUiVideo_[static_cast<size_t>(r.index)].load(std::memory_order_acquire))
-            publishVideo(*u, pixels, w, h, true);
+            publishVideo(*u, pixels, w, h, true, contenidoQpc);
     } else if (r.kind == MediaRoute::Kind::Lobby && r.index >= 1 &&
                r.index < static_cast<int>(lobbyVideo_.size())) {
         publishVideo(*lobbyVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
@@ -1481,7 +1485,7 @@ void MediaPump::forwardVideo(int session, const uint8_t* pixels, size_t bytes, i
                r.index < static_cast<int>(backstageVideo_.size())) {
         publishVideo(*backstageVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
     } else if (r.kind == MediaRoute::Kind::Remoto && r.index >= 1 && r.index < static_cast<int>(remotoVideo_.size())) {
-        publishVideo(*remotoVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
+        publishVideo(*remotoVideo_[static_cast<size_t>(r.index)], pixels, w, h, true, contenidoQpc);
     } else if (r.kind == MediaRoute::Kind::Registro && r.index >= 1 &&
                r.index < static_cast<int>(registroVideo_.size()) && registroVideo_[static_cast<size_t>(r.index)]) {
         publishVideo(*registroVideo_[static_cast<size_t>(r.index)], pixels, w, h, true);
@@ -1577,7 +1581,7 @@ void MediaPump::apagarRemoto(int canal) {
         negro(*remotoContenido_[static_cast<size_t>(canal)]);
 }
 
-void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real) {
+void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h, bool real, uint64_t contenidoQpc) {
     if (!out.sender.published()) return;
     if (real) {
         if (!pideCuadro(out, monoNs())) return;
@@ -1626,6 +1630,9 @@ void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h,
     }
     const uint64_t now = HealthBlock::nowQpc();
     FrameMeta meta{now, now};
+    // La hora de lo que muestra (la de libwebrtc: su captura, la espera de red y la sincronía
+    // con su audio): ba-app le pone esa hora y no la de publicación (videocomun.cpp).
+    meta.contenidoQpc = contenidoQpc;
     if (bw != out.w || bh != out.h) { // el tamaño real (si es el del canal, no hace falta decirlo)
         meta.ancho = static_cast<uint32_t>(bw);
         meta.alto = static_cast<uint32_t>(bh);

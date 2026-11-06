@@ -380,8 +380,10 @@ std::string cadenaDe(const std::vector<Filtro>& v, const char* conv, const char*
             // tee le pasaba arriba el pool de esta rama y la otra se quedaba con su último cuadro;
             // con una fuente de pocos cuadros (el canal de un invitado vacío: la placa a 5 cps) la
             // rama principal esperaba un búfer libre para siempre (pasaba UN cuadro por rearme).
-            r += "tee name=" + tee + " allow-not-linked=true ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
-            derivar->ramas = " " + tee + ". ! queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! intersink name=" + tee + "_sale producer-name=" +
+            const std::string cola = "queue leaky=downstream max-size-buffers=" + std::to_string(std::max(1, derivar->cuadros)) +
+                                     " max-size-time=0 max-size-bytes=0 ! ";
+            r += "tee name=" + tee + " allow-not-linked=true ! " + cola;
+            derivar->ramas = " " + tee + ". ! " + cola + "intersink name=" + tee + "_sale producer-name=" +
                              entreComillas(derivar->productor) + " sync=false event-types=\"<>\"";
         }
         if (desdeGpu) {

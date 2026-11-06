@@ -5,12 +5,15 @@
 #include "Fallas.hpp"
 #include "GpuPerdida.hpp"
 #include "Claves.hpp"
+#include "diag/RitmoCuadros.hpp"
+#include "diag/SondasCuadros.hpp"
 #include "diag/Utf8.hpp"
 #include "i18n/I18nTexto.hpp"
 
 #include "Mezcla.hpp" // margenMezclaNs
 #include "Reloj.hpp"
 
+#include <gst/base/gstaggregator.h>
 #include <gst/video/video.h>
 
 #include <algorithm>
@@ -20,12 +23,20 @@
 #include <cstdlib>
 #include <atomic>
 #include <cmath>
+#include <memory>
 
 namespace ba::motor {
 
 using json = nlohmann::json;
 using ba::i18n::llenar;
 using ba::i18n::traducir;
+
+namespace {
+// SONDA: lo que muestra el compositor de cada capa (ver «lo que MUESTRA», más abajo).
+void mostradoEnMezclador(GstElement* mx);
+void mostradoEnPad(GstPad* pad, std::int64_t periodoUs);
+json mostradoJson(GstPad* pad);
+} // namespace
 
 namespace {
 std::int64_t ahoraNs() { return g_get_monotonic_time() * 1000; }
@@ -308,6 +319,7 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
     if (libre_) ponerEnVivo(pipeline_, otro, "");
     mezclador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "mx");
     dskMx_ = gst_bin_get_by_name(GST_BIN(pipeline_), "dsk");
+    if (agregador_) mostradoEnMezclador(mezclador_); // SONDA: lo que muestra de cada capa
     // smpte numera sus cuadros desde 0 (no mira la hora de lo que entra): para los que lo
     // consumen, todo llegaba tarde (33 s después de arrancar el estudio). Lo que sale lleva
     // la hora de lo que entró (ver crearRamaLibre). Los agregadores ya la respetan.
@@ -410,6 +422,153 @@ void Composicion::aplicarLatencia() {
         if (dsk) g_object_set(dsk.get(), "min-upstream-latency", static_cast<guint64>(l), nullptr);
     });
 }
+
+// --- SONDA: lo que MUESTRA el compositor de cada capa ---------------------------------
+//
+// Solo con BA_SONDAS_CUADROS (diag/SondasCuadros.hpp). En cada cuadro que sale, el agregador
+// avisa qué muestra de cada pad eligió (samples-selected, con emit-signals): si es la misma
+// del cuadro anterior, la capa se repitió; si es otra, es un cuadro nuevo en pantalla y su
+// intervalo (en la hora de lo que sale) es lo que ve el público. Lo que llegó al pad y nunca se
+// mostró es lo que tiró el compositor (llegó tarde o lo pisó uno más nuevo en el mismo tic).
+namespace {
+
+struct Mostrado {
+    explicit Mostrado(std::int64_t p) : periodoUs(p) {}
+    const std::int64_t periodoUs;                              ///< el de los cuadros del lienzo
+    std::atomic<GstClockTime> ultimoPts{GST_CLOCK_TIME_NONE}; ///< la hora del cuadro que mostró por última vez
+    ba::diag::RitmoCuadros nuevos;                             ///< en µs de la hora de salida (los últimos 128)
+    std::atomic<std::uint64_t> nNuevos{0}, nRepetidos{0}, nLlegan{0};
+    /// Desde que se armó (para restar dos lecturas): huecos (> 1,5 cuadros sin uno nuevo),
+    /// congelados (≥ 100 ms) y el más largo.
+    std::atomic<std::int64_t> ultimoNuevoUs{0}, maxUs{0};
+    std::atomic<std::uint64_t> nHuecos{0}, nCongelados{0};
+};
+
+GQuark quarkMostrado() {
+    static const GQuark q = g_quark_from_static_string("ba-mostrado");
+    return q;
+}
+
+Mostrado* mostradoDe(GstPad* pad) {
+    auto* p = pad != nullptr ? static_cast<std::shared_ptr<Mostrado>*>(g_object_get_qdata(G_OBJECT(pad), quarkMostrado())) : nullptr;
+    return p != nullptr ? p->get() : nullptr;
+}
+
+GstPadProbeReturn contarLlegada(GstPad* pad, GstPadProbeInfo*, gpointer) {
+    if (Mostrado* m = mostradoDe(pad)) m->nLlegan.fetch_add(1, std::memory_order_relaxed);
+    return GST_PAD_PROBE_OK;
+}
+
+/// El pad del agregador al que lleva `pad`: él mismo, o (glvideomixer es un bin: su pad es un
+/// fantasma que pasa por la subida y la conversión de GL) el que se encuentra siguiendo la cadena.
+GstPad* padDelAgregador(GstPad* pad) {
+    if (pad == nullptr) return nullptr;
+    if (GST_IS_AGGREGATOR_PAD(pad)) return GST_PAD(gst_object_ref(pad));
+    if (!GST_IS_GHOST_PAD(pad)) return nullptr;
+    GstPad* p = gst_ghost_pad_get_target(GST_GHOST_PAD(pad));
+    for (int salto = 0; p != nullptr && salto < 8; ++salto) {
+        if (GST_IS_AGGREGATOR_PAD(p)) return p;
+        GstElement* el = gst_pad_get_parent_element(p);
+        gst_object_unref(p);
+        p = nullptr;
+        if (el == nullptr) break;
+        if (GstPad* sale = gst_element_get_static_pad(el, "src")) {
+            p = gst_pad_get_peer(sale);
+            gst_object_unref(sale);
+        }
+        gst_object_unref(el);
+    }
+    if (p != nullptr) gst_object_unref(p);
+    return nullptr;
+}
+
+void mostradoEnPad(GstPad* fuera, std::int64_t periodoUs) {
+    if constexpr (!ba::diag::kSondasCuadros) return;
+    GstPad* pad = padDelAgregador(fuera);
+    if (pad == nullptr) return;
+    // La misma medida en los dos pads (el del agregador, donde se mide, y el de afuera, donde
+    // la lee estado()): cada uno con su referencia, se va con el último.
+    const auto m = std::make_shared<Mostrado>(periodoUs);
+    const auto poner = [&m](GstPad* p) {
+        g_object_set_qdata_full(G_OBJECT(p), quarkMostrado(), new std::shared_ptr<Mostrado>(m),
+                                [](gpointer x) { delete static_cast<std::shared_ptr<Mostrado>*>(x); });
+    };
+    poner(pad);
+    if (fuera != pad) poner(fuera);
+    gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, &contarLlegada, nullptr, nullptr);
+    gst_object_unref(pad);
+}
+
+void muestrasElegidas(GstAggregator* agg, GstSegment*, GstClockTime pts, GstClockTime, GstClockTime, GstStructure*, gpointer) {
+    if (!GST_CLOCK_TIME_IS_VALID(pts)) return;
+    GstIterator* it = gst_element_iterate_sink_pads(GST_ELEMENT(agg));
+    GValue v = G_VALUE_INIT;
+    while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
+        auto* pad = GST_AGGREGATOR_PAD(g_value_get_object(&v));
+        if (Mostrado* m = mostradoDe(GST_PAD(pad)))
+            if (GstSample* s = gst_aggregator_peek_next_sample(agg, pad)) {
+                GstBuffer* b = gst_sample_get_buffer(s);
+                const GstClockTime t = b != nullptr ? GST_BUFFER_PTS(b) : GST_CLOCK_TIME_NONE;
+                if (GST_CLOCK_TIME_IS_VALID(t)) {
+                    if (m->ultimoPts.exchange(t, std::memory_order_relaxed) == t) {
+                        m->nRepetidos.fetch_add(1, std::memory_order_relaxed);
+                    } else {
+                        m->nNuevos.fetch_add(1, std::memory_order_relaxed);
+                        const std::int64_t us = static_cast<std::int64_t>(pts / 1000);
+                        m->nuevos.cuadro(us);
+                        const std::int64_t antes = m->ultimoNuevoUs.exchange(us, std::memory_order_relaxed);
+                        if (antes > 0 && us > antes) {
+                            const std::int64_t d = us - antes;
+                            if (d > m->periodoUs * 3 / 2) m->nHuecos.fetch_add(1, std::memory_order_relaxed);
+                            if (d >= 100'000) m->nCongelados.fetch_add(1, std::memory_order_relaxed);
+                            if (d < 5'000'000 && d > m->maxUs.load(std::memory_order_relaxed)) m->maxUs.store(d, std::memory_order_relaxed);
+                        }
+                    }
+                }
+                gst_sample_unref(s);
+            }
+        g_value_reset(&v);
+    }
+    g_value_unset(&v);
+    gst_iterator_free(it);
+}
+
+void mostradoEnMezclador(GstElement* mx) {
+    if constexpr (!ba::diag::kSondasCuadros) return;
+    if (mx == nullptr) return;
+    // glvideomixer es un bin: el agregador es su «mixer».
+    GstElement* agg = nullptr;
+    if (GST_IS_AGGREGATOR(mx))
+        agg = GST_ELEMENT(gst_object_ref(mx));
+    else if (g_object_class_find_property(G_OBJECT_GET_CLASS(mx), "mixer") != nullptr)
+        g_object_get(mx, "mixer", &agg, nullptr);
+    if (agg == nullptr) return;
+    if (GST_IS_AGGREGATOR(agg) && g_object_class_find_property(G_OBJECT_GET_CLASS(agg), "emit-signals") != nullptr) {
+        g_object_set(agg, "emit-signals", TRUE, nullptr);
+        g_signal_connect(agg, "samples-selected", G_CALLBACK(&muestrasElegidas), nullptr);
+    }
+    gst_object_unref(agg);
+}
+
+/// De los últimos 128: {cps, p50_ms, p95_ms, max_ms, huecos (> 1,5 cuadros del lienzo), n};
+/// desde que se armó: nuevos, repetidos, llegan, no_mostrados, huecos_total, congelados_total
+/// (≥ 100 ms sin un cuadro nuevo), max_total_ms. null sin la sonda.
+json mostradoJson(GstPad* pad) {
+    if constexpr (!ba::diag::kSondasCuadros) return json();
+    Mostrado* m = mostradoDe(pad);
+    if (m == nullptr) return json();
+    const auto z = m->nuevos.resumen(m->periodoUs);
+    const auto r1 = [](double x) { return std::round(x * 10) / 10; };
+    const std::uint64_t nuevos = m->nNuevos.load(), llegan = m->nLlegan.load();
+    return json{{"cps", r1(z.cps)},          {"p50_ms", r1(z.p50Ms)}, {"p95_ms", r1(z.p95Ms)},
+                {"max_ms", r1(z.maxMs)},     {"huecos", z.huecos},    {"n", z.n},
+                {"nuevos", nuevos},          {"repetidos", m->nRepetidos.load()}, {"llegan", llegan},
+                {"no_mostrados", llegan > nuevos ? llegan - nuevos : 0},
+                {"huecos_total", m->nHuecos.load()}, {"congelados_total", m->nCongelados.load()},
+                {"max_total_ms", r1(static_cast<double>(m->maxUs.load()) / 1000.0)}};
+}
+
+} // namespace
 
 GstPadProbeReturn Composicion::alPrimerCuadro(GstPad*, GstPadProbeInfo*, gpointer d) {
     auto* r = static_cast<Rama*>(d);
@@ -651,6 +810,8 @@ Composicion::Rama* Composicion::crearRama(const Capa& c, int gen, GstElement* mx
     const std::int64_t tEnlazados = g_get_monotonic_time();
     r->mx = mx;
     r->pad = gst_element_request_pad_simple(mx, "sink_%u");
+    mostradoEnPad(r->pad, static_cast<std::int64_t>(gst_util_uint64_scale(1'000'000, static_cast<guint64>(std::max(1, lienzo_.fpsD)),
+                                                                          static_cast<guint64>(std::max(1, lienzo_.fpsN)))));
     GstPad* sale = gst_element_get_static_pad(r->sombra != nullptr ? r->sombra : r->fijar != nullptr ? r->fijar : r->recorte, "src");
     gst_pad_link_full(sale, r->pad, GST_PAD_LINK_CHECK_NOTHING); // sin consultar caps (ver enlazarSinConsultar)
     gst_pad_add_probe(sale, GST_PAD_PROBE_TYPE_BUFFER, &Composicion::alPrimerCuadro, r, nullptr);
@@ -1270,7 +1431,8 @@ json Composicion::estado() const {
                                   g_object_get(r->pad, "alpha", &a, nullptr);
                               return a;
                           }()},
-                         {"edad_llega", r->llega.json()}});
+                         {"edad_llega", r->llega.json()},
+                         {"mostrado", mostradoJson(r->pad)}});
     return {{"bus", nombre_},
             {"anda", pipeline_ != nullptr},
             {"gpu", gpu_ ? (gl_ ? "gl" : "d3d12") : "cpu"},

@@ -37,6 +37,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <climits>
+#include <cstdlib>
 
 #include "CargaVideo.hpp"
 #include "DestinoCamara.hpp"
@@ -45,6 +47,8 @@
 #include "ajustes/Ajustes.hpp"
 #include "diag/Frontera.hpp"
 #include "diag/Registro.hpp"
+#include "diag/SondasCuadros.hpp"
+#include "ipc/HealthBlock.hpp"
 
 #include "api/video/i420_buffer.h"
 #include "rtc_base/time_utils.h"
@@ -220,6 +224,21 @@ CuentaEntrega& cuentaEntrega() {
     return c;
 }
 
+/// La hora del contenido (horaDeContenido): el desfase entre el reloj de libwebrtc y el de los
+/// sellos, y lo que se vio (estado() → `hora_contenido`).
+struct HoraContenido {
+    std::atomic<std::int64_t> desfaseNs{0};    ///< sellos − libwebrtc (ns)
+    std::atomic<bool> hay{false};
+    std::atomic<std::uint64_t> con{0}, sin{0}; ///< cuadros con y sin la hora de libwebrtc
+    /// SONDA: cuánto falta, al entregarlo, para la hora de su contenido (µs; negativo = ya pasó:
+    /// llegó tarde): el último, el mínimo y el máximo desde que arrancó.
+    std::atomic<std::int64_t> adelantoUs{0}, adelantoMinUs{INT64_MAX}, adelantoMaxUs{INT64_MIN};
+};
+HoraContenido& horaContenido() {
+    static HoraContenido h;
+    return h;
+}
+
 /// Un I420 (con el BGRA entero si ya está) achicado a la celda.
 void celdaDesdeI420(const webrtc::I420BufferInterface& i, const std::uint8_t* bgra, Grillas::PedidoCelda& p) {
     thread_local std::vector<std::uint8_t> tmp;
@@ -228,6 +247,42 @@ void celdaDesdeI420(const webrtc::I420BufferInterface& i, const std::uint8_t* bg
 }
 
 } // namespace
+
+std::uint64_t horaDeContenido(const webrtc::VideoFrame& frame) {
+    HoraContenido& h = horaContenido();
+    const std::int64_t renderUs = frame.timestamp_us(); // el «render time» que le puso libwebrtc (-1/0: no hay)
+    if (renderUs <= 0) {
+        h.sin.fetch_add(1, std::memory_order_relaxed);
+        return 0;
+    }
+    // El desfase entre los dos relojes, cada 64 cuadros (por hilo) y no por cuadro: los dos
+    // leídos juntos (el de los sellos antes y después, el de libwebrtc en el medio). Se suaviza
+    // (1/8 por medida): en Windows el de libwebrtc avanza de a 1 ms (timeGetTime) y cada medida
+    // cae en otro punto del escalón; un salto de más de 50 ms (un reloj que se corrigió) se toma entero.
+    thread_local std::uint32_t cuenta = 0;
+    if ((cuenta++ & 63u) == 0 || !h.hay.load(std::memory_order_relaxed)) {
+        const std::uint64_t q0 = ba::ipc::HealthBlock::nowQpc();
+        const std::int64_t rtcNs = rtc::TimeNanos();
+        const std::uint64_t q1 = ba::ipc::HealthBlock::nowQpc();
+        const std::int64_t muestra = static_cast<std::int64_t>(q0 + (q1 - q0) / 2) - rtcNs;
+        const std::int64_t antes = h.desfaseNs.load(std::memory_order_relaxed);
+        const bool salto = !h.hay.load(std::memory_order_relaxed) || std::llabs(muestra - antes) > 50'000'000;
+        h.desfaseNs.store(salto ? muestra : antes + (muestra - antes) / 8, std::memory_order_relaxed);
+        h.hay.store(true, std::memory_order_relaxed);
+    }
+    const std::int64_t q = renderUs * 1000 + h.desfaseNs.load(std::memory_order_relaxed);
+    if (q <= 0) {
+        h.sin.fetch_add(1, std::memory_order_relaxed);
+        return 0;
+    }
+    h.con.fetch_add(1, std::memory_order_relaxed);
+    // SONDA: lo que falta para su hora (o cuánto pasó), para ver que es la que se espera.
+    BA_SONDA(const std::int64_t adelanto = renderUs - rtc::TimeMicros();
+             h.adelantoUs.store(adelanto, std::memory_order_relaxed);
+             if (adelanto < h.adelantoMinUs.load(std::memory_order_relaxed)) h.adelantoMinUs.store(adelanto, std::memory_order_relaxed);
+             if (adelanto > h.adelantoMaxUs.load(std::memory_order_relaxed)) h.adelantoMaxUs.store(adelanto, std::memory_order_relaxed);)
+    return static_cast<std::uint64_t>(q);
+}
 
 AnuncioPlaca::AnuncioPlaca(CuadroEnPlaca* c) : anterior_(tlPlaca) { tlPlaca = c; }
 AnuncioPlaca::~AnuncioPlaca() { tlPlaca = anterior_; }
@@ -325,7 +380,7 @@ void entregarCamara(const webrtc::VideoFrame& frame, DestinoCamara& destino, std
             destino.guardarCelda(std::move(celda));
             cuenta.celdasCpu.fetch_add(1, std::memory_order_relaxed);
         }
-        destino.entero(bgra.data(), w, h);
+        destino.entero(bgra.data(), w, h, horaDeContenido(frame));
         cuenta.enteros.fetch_add(1, std::memory_order_relaxed);
         return;
     }
@@ -430,6 +485,14 @@ nlohmann::json estado() {
     j["decodificando"] = {{"trabajando", dec.trabajando}, {"en_pausa", dec.enPausa}};
     // F3: qué se hizo con cada cuadro de cámara (entregarCamara), desde que arrancó.
     const CuentaEntrega& e = cuentaEntrega();
+    // La hora del contenido de cada cuadro (horaDeContenido): cuántos la traían y el desfase de relojes.
+    const HoraContenido& hc = horaContenido();
+    j["hora_contenido"] = {{"con", hc.con.load()}, {"sin", hc.sin.load()}, {"desfase_ms", static_cast<double>(hc.desfaseNs.load()) / 1e6}};
+    if constexpr (ba::diag::kSondasCuadros)
+        if (hc.con.load() > 0)
+            j["hora_contenido"]["adelanto_ms"] = {{"ultimo", static_cast<double>(hc.adelantoUs.load()) / 1000},
+                                                  {"min", static_cast<double>(hc.adelantoMinUs.load()) / 1000},
+                                                  {"max", static_cast<double>(hc.adelantoMaxUs.load()) / 1000}};
     j["entrega"] = {{"salteados", e.salteados.load()},       {"enteros", e.enteros.load()},
                     {"enteros_placa", e.enterosPlaca.load()}, {"celdas_placa", e.celdasPlaca.load()},
                     {"celdas_cpu", e.celdasCpu.load()},       {"fallas", e.fallas.load()},

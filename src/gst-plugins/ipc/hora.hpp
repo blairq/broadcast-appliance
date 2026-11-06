@@ -50,4 +50,37 @@ inline GstClockTime horaDeQpc(GstElement* e, std::uint64_t qpc) {
     return captura >= base ? captura - base : 0;
 }
 
+/// Lo mismo para varios sellos de una misma vuelta: los dos relojes se leen UNA vez.
+/// `futuro`: cuánto del futuro se acepta (la hora del contenido de un invitado, la que le
+/// dio libwebrtc, puede ser unos ms adelante: la hora a la que lo mostraría).
+struct TraductorQpc {
+    GstClockTime reloj = GST_CLOCK_TIME_NONE, base = 0;
+    std::uint64_t qpc = 0;
+    explicit TraductorQpc(GstElement* e) {
+        GstClock* r = gst_element_get_clock(e);
+        if (r == nullptr) return;
+        reloj = gst_clock_get_time(r);
+        qpc = ahoraQpc();
+        gst_object_unref(r);
+        base = gst_element_get_base_time(e);
+    }
+    bool vale() const { return GST_CLOCK_TIME_IS_VALID(reloj); }
+    /// La hora de `sello` en el pipeline; sin sello creíble (0, de hace más de 5 s o más
+    /// adelante que `futuro`), GST_CLOCK_TIME_NONE.
+    GstClockTime hora(std::uint64_t sello, std::uint64_t futuro = 0) const {
+        if (!vale() || sello == 0) return GST_CLOCK_TIME_NONE;
+        GstClockTime h;
+        if (sello <= qpc) {
+            if (qpc - sello >= 5 * GST_SECOND) return GST_CLOCK_TIME_NONE;
+            h = reloj - (qpc - sello);
+        } else {
+            if (sello - qpc > futuro) return GST_CLOCK_TIME_NONE;
+            h = reloj + (sello - qpc);
+        }
+        return h >= base ? h - base : 0;
+    }
+    /// Ahora, en el pipeline.
+    GstClockTime ahora() const { return vale() && reloj >= base ? reloj - base : 0; }
+};
+
 } // namespace ba::ipc_gst
