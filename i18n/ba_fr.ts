@@ -4746,7 +4746,7 @@ Ceci l&apos;ouvre dans une autre fenêtre, pour avoir les deux à la fois.</tran
     <message>
         <location line="-3"/>
         <source>Prueba de sala contra el otro equipo (%1): %2 invitados de prueba salen de esta máquina.</source>
-        <translation type="unfinished"></translation>
+        <translation>Test de salle contre l&apos;autre appareil (%1)&#xa0;: %2 invités de test partent de cette machine.</translation>
     </message>
     <message>
         <location line="+344"/>
@@ -4836,7 +4836,7 @@ Ceci l&apos;ouvre dans une autre fenêtre, pour avoir les deux à la fois.</tran
     <message>
         <location line="+72"/>
         <source>Capacidad de esta máquina sin medir: Pruebas → Capacidad dice cuántos invitados aguanta.</source>
-        <translation type="unfinished"></translation>
+        <translation>Capacité de cette machine non mesurée&#xa0;: Tests → Capacité indique combien d&apos;invités elle supporte.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -5773,17 +5773,17 @@ Partagez le lien et le PIN (panneau Accès).</translation>
     <message>
         <location line="+16"/>
         <source>Hay una prueba de sala corriendo.</source>
-        <translation type="unfinished"></translation>
+        <translation>Un test de salle est en cours.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>La prueba de sala y la capacidad están en Pruebas.</source>
-        <translation type="unfinished"></translation>
+        <translation>Le test de salle et la capacité se trouvent dans Tests.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Pruebas</source>
-        <translation type="unfinished"></translation>
+        <translation>Tests</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -12483,75 +12483,75 @@ Réactivez-la depuis le Journal.</translation>
     <message>
         <location filename="../src/app/qml/controls/GraficasPrueba.qml" line="+20"/>
         <source>Máquina medida: CPU</source>
-        <translation type="unfinished"></translation>
+        <translation>Machine mesurée&#xa0;: CPU</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+20"/>
         <source>máquina</source>
-        <translation type="unfinished"></translation>
+        <translation>machine</translation>
     </message>
     <message>
         <location line="-19"/>
         <source>app</source>
-        <translation type="unfinished">app</translation>
+        <translation>app</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>gateway</source>
-        <translation type="unfinished">gateway</translation>
+        <translation>passerelle</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Máquina medida: red</source>
-        <translation type="unfinished"></translation>
+        <translation>Machine mesurée&#xa0;: réseau</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+31"/>
         <source>entra</source>
-        <translation type="unfinished">ça passe</translation>
+        <translation>entrant</translation>
     </message>
     <message>
         <location line="-30"/>
         <location line="+31"/>
         <source>sale</source>
-        <translation type="unfinished"></translation>
+        <translation>sortant</translation>
     </message>
     <message>
         <location line="-27"/>
         <source>La que genera: CPU</source>
-        <translation type="unfinished"></translation>
+        <translation>Machine génératrice&#xa0;: CPU</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>hinchada (acá)</source>
-        <translation type="unfinished"></translation>
+        <translation>hinchada (ici)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>otras máquinas</source>
-        <translation type="unfinished"></translation>
+        <translation>autres machines</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>hinchada</source>
-        <translation type="unfinished"></translation>
+        <translation>hinchada</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Máquina medida: cuadros perdidos / regularidad</source>
-        <translation type="unfinished"></translation>
+        <translation>Machine mesurée&#xa0;: images perdues / régularité</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>perdidos</source>
-        <translation type="unfinished"></translation>
+        <translation>perdues</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>La que genera: red</source>
-        <translation type="unfinished"></translation>
+        <translation>Machine génératrice&#xa0;: réseau</translation>
     </message>
 </context>
 <context>
@@ -17159,37 +17159,37 @@ La matrice ne change pas ce qui entre&#xa0;: elle décide vers quelles sorties c
     <message>
         <location filename="../src/app/qml/controls/OpcionDecodificar.qml" line="+22"/>
         <source>Decodificar lo que vuelve</source>
-        <translation type="unfinished"></translation>
+        <translation>Décoder ce qui revient</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Nada (solo envía)</source>
-        <translation type="unfinished"></translation>
+        <translation>Rien (envoi seulement)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Una muestra</source>
-        <translation type="unfinished"></translation>
+        <translation>Un échantillon</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Todo</source>
-        <translation type="unfinished">Tout</translation>
+        <translation>Tout</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Lo más liviano: el probador recibe el retorno y lo cuenta (cuadros, pérdida) pero no comprueba que se pueda ver.</source>
-        <translation type="unfinished"></translation>
+        <translation>Le plus léger&#xa0;: le testeur reçoit le retour et le compte (images, pertes) mais ne vérifie pas qu&apos;il est regardable.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Cada participante de prueba decodifica lo suyo: con muchos, la máquina que genera se satura y manda a destiempo (la medición se ensucia).</source>
-        <translation type="unfinished"></translation>
+        <translation>Chaque participant de test décode le sien&#xa0;: avec beaucoup de participants, la machine génératrice sature et envoie en retard (la mesure est faussée).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>De fábrica: decodifica el %1 % (al menos 3), lo justo para ver que el retorno llega entero y a su ritmo sin cargar la máquina que genera.</source>
-        <translation type="unfinished"></translation>
+        <translation>Par défaut&#xa0;: décode %1&#xa0;% (au moins 3), juste assez pour voir que le retour arrive complet et au bon rythme sans charger la machine génératrice.</translation>
     </message>
 </context>
 <context>
@@ -19017,27 +19017,27 @@ Ils ne sont pas effacés du disque&#xa0;: si l&apos;un d&apos;eux était dans un
     <message>
         <location line="-48"/>
         <source>Probar otro BroadcastAppliance desde acá (otra PC): en el otro, «Que otro equipo pruebe este» muestra un código; pegalo acá. Los invitados de prueba salen de esta máquina y el otro informa su CPU, su memoria y su red; esta le manda la suya (y su ficha) para su informe. Varias PC pueden generar contra la misma: cada una pega el mismo código.</source>
-        <translation type="unfinished"></translation>
+        <translation>Tester un autre BroadcastAppliance depuis ici (un autre PC)&#xa0;: sur l&apos;autre, «&#xa0;Laisser un autre appareil tester celui-ci&#xa0;» affiche un code&#xa0;; collez-le ici. Les invités de test partent de cette machine et l&apos;autre indique son CPU, sa mémoire et son réseau&#xa0;; celle-ci lui envoie les siens (et sa fiche) pour son rapport. Plusieurs PC peuvent générer contre le même&#xa0;: chacun colle le même code.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Rampa (cuántos aguanta)</source>
-        <translation type="unfinished"></translation>
+        <translation>Rampe (combien il en supporte)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Prueba de sala (N durante unos minutos)</source>
-        <translation type="unfinished"></translation>
+        <translation>Test de salle (N pendant quelques minutes)</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Invitados</source>
-        <translation type="unfinished">Invités</translation>
+        <translation>Invités</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Esta máquina va a generar %1 invitados de prueba contra el otro equipo durante %2 minutos. Que el otro no tenga un evento en curso.</source>
-        <translation type="unfinished"></translation>
+        <translation>Cette machine va générer %1 invités de test vers l&apos;autre appareil pendant %2 minutes. Assurez-vous que l&apos;autre n&apos;a pas d&apos;événement en cours.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -19107,7 +19107,7 @@ Ils ne sont pas effacés du disque&#xa0;: si l&apos;un d&apos;eux était dans un
     <message>
         <location line="+13"/>
         <source>Genera %1: CPU %2 % (hinchada %3 %), red sale %4 Mbps</source>
-        <translation type="unfinished"></translation>
+        <translation>Génère %1&#xa0;: CPU %2&#xa0;% (hinchada %3&#xa0;%), réseau sortant %4 Mbps</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -19217,7 +19217,7 @@ Ils ne sont pas effacés du disque&#xa0;: si l&apos;un d&apos;eux était dans un
     <message>
         <location line="+0"/>
         <source>recibida</source>
-        <translation type="unfinished"></translation>
+        <translation>reçu</translation>
     </message>
     <message>
         <location line="+13"/>
@@ -19516,12 +19516,12 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
     <message>
         <location line="+6"/>
         <source>La prueba de asamblea (integrantes simulados) está en Pruebas.</source>
-        <translation type="unfinished"></translation>
+        <translation>Le test d&apos;assemblée (membres simulés) se trouve dans Tests.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pruebas</source>
-        <translation type="unfinished"></translation>
+        <translation>Tests</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -22211,82 +22211,82 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
     <message>
         <location filename="../src/app/qml/controls/PanelGenerarParaOtro.qml" line="+17"/>
         <source>Generar para otro equipo</source>
-        <translation type="unfinished"></translation>
+        <translation>Générer pour un autre appareil</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Esta PC manda participantes de prueba a la prueba de sala de OTRA: en la otra, arrancá la prueba con «Repartir entre varias máquinas» y copiá su código. La otra mide; acá solo se genera.</source>
-        <translation type="unfinished"></translation>
+        <translation>Ce PC envoie des participants de test au test de salle d&apos;UN AUTRE&#xa0;: sur l&apos;autre, lancez le test avec «&#xa0;Répartir sur plusieurs machines&#xa0;» et copiez son code. L&apos;autre mesure&#xa0;; ici, on ne fait que générer.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Código del otro equipo (BAGEN1.…)</source>
-        <translation type="unfinished"></translation>
+        <translation>Code de l&apos;autre appareil (BAGEN1.…)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Empezar a generar…</source>
-        <translation type="unfinished"></translation>
+        <translation>Commencer à générer…</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>¿Generar para el otro equipo?</source>
-        <translation type="unfinished"></translation>
+        <translation>Générer pour l&apos;autre appareil&#xa0;?</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Esta máquina va a mandar participantes de prueba a la prueba del otro hasta que termine: se va a cargar unos minutos.</source>
-        <translation type="unfinished"></translation>
+        <translation>Cette machine va envoyer des participants de test au test de l&apos;autre jusqu&apos;à sa fin&#xa0;: elle sera chargée pendant quelques minutes.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Generar</source>
-        <translation type="unfinished">Générer</translation>
+        <translation>Générer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cancelar</source>
-        <translation type="unfinished">Annuler</translation>
+        <translation>Annuler</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>arrancando</source>
-        <translation type="unfinished"></translation>
+        <translation>démarrage</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>parando</source>
-        <translation type="unfinished"></translation>
+        <translation>arrêt</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>generando para %1</source>
-        <translation type="unfinished"></translation>
+        <translation>génère pour %1</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>hinchada %1 %</source>
-        <translation type="unfinished">hinchada %1&#xa0;%</translation>
+        <translation>hinchada %1&#xa0;%</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>%1 de %2 procesos</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 processus sur %2</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Dejar de generar</source>
-        <translation type="unfinished"></translation>
+        <translation>Arrêter de générer</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>La primera vez, hinchada graba su video de prueba (unos minutos) antes de mandar. Termina sola cuando termina la prueba del otro.</source>
-        <translation type="unfinished"></translation>
+        <translation>La première fois, hinchada enregistre sa vidéo de test (quelques minutes) avant d&apos;envoyer. Il s&apos;arrête tout seul quand le test de l&apos;autre se termine.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>El generador de prueba (hinchada) no viene en este programa.</source>
-        <translation type="unfinished"></translation>
+        <translation>Le générateur de test (hinchada) n&apos;est pas inclus dans ce programme.</translation>
     </message>
 </context>
 <context>
@@ -22294,154 +22294,154 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
     <message>
         <location filename="../src/app/qml/controls/PanelHistorialPruebas.qml" line="+22"/>
         <source>prueba de sala</source>
-        <translation type="unfinished"></translation>
+        <translation>test de salle</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>capacidad (esta)</source>
-        <translation type="unfinished"></translation>
+        <translation>capacité (celle-ci)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>capacidad (otra)</source>
-        <translation type="unfinished"></translation>
+        <translation>capacité (autre)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>recibida</source>
-        <translation type="unfinished"></translation>
+        <translation>reçu</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>conexión</source>
-        <translation type="unfinished">connexion</translation>
+        <translation>connexion</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>asamblea</source>
-        <translation type="unfinished"></translation>
+        <translation>assemblée</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Wi-Fi</source>
-        <translation type="unfinished"></translation>
+        <translation>Wi-Fi</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>cable</source>
-        <translation type="unfinished"></translation>
+        <translation>câble</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>%1 · %2 · %3, %4 núcleos · %5 GB · %6 · %7</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 · %2 · %3, %4 cœurs · %5 Go · %6 · %7</translation>
     </message>
     <message numerus="yes">
         <location line="+12"/>
         <source>%n pruebas</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n test</numerusform>
+            <numerusform>%n tests</numerusform>
         </translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Actualizar</source>
-        <translation type="unfinished"></translation>
+        <translation>Actualiser</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Comparar las dos elegidas</source>
-        <translation type="unfinished"></translation>
+        <translation>Comparer les deux sélectionnés</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Exportar (CSV)…</source>
-        <translation type="unfinished"></translation>
+        <translation>Exporter (CSV)…</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Exportar la abierta (JSON)…</source>
-        <translation type="unfinished"></translation>
+        <translation>Exporter celui ouvert (JSON)…</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Exportar (JSON)…</source>
-        <translation type="unfinished"></translation>
+        <translation>Exporter (JSON)…</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Comparación</source>
-        <translation type="unfinished"></translation>
+        <translation>Comparaison</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+26"/>
         <source>Cerrar</source>
-        <translation type="unfinished"></translation>
+        <translation>Fermer</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>%1 · %2</source>
-        <translation type="unfinished">%1 · %2</translation>
+        <translation>%1 · %2</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Esta máquina: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Cette machine&#xa0;: %1</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>La otra: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>L&apos;autre&#xa0;: %1</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Generadora: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>Génératrice&#xa0;: %1</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Parámetros: %1</source>
-        <translation type="unfinished">Paramètres&#xa0;: %1</translation>
+        <translation>Paramètres&#xa0;: %1</translation>
     </message>
     <message>
         <location line="+20"/>
         <source>Elegir para comparar</source>
-        <translation type="unfinished"></translation>
+        <translation>Sélectionner pour comparer</translation>
     </message>
     <message numerus="yes">
         <location line="+9"/>
         <source>%n participantes</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>%n participant</numerusform>
+            <numerusform>%n participants</numerusform>
         </translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Abrir</source>
-        <translation type="unfinished">Ouvrir</translation>
+        <translation>Ouvrir</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Todavía no hay pruebas guardadas en esta máquina.</source>
-        <translation type="unfinished"></translation>
+        <translation>Aucun test enregistré sur cette machine pour l&apos;instant.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>JSON (*.json)</source>
-        <translation type="unfinished">JSON (*.json)</translation>
+        <translation>JSON (*.json)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>CSV (*.csv)</source>
-        <translation type="unfinished">CSV (*.csv)</translation>
+        <translation>CSV (*.csv)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Exportado.</source>
-        <translation type="unfinished"></translation>
+        <translation>Exporté.</translation>
     </message>
 </context>
 <context>
@@ -24094,22 +24094,22 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
     <message>
         <location line="+16"/>
         <source>Repartir entre varias máquinas</source>
-        <translation type="unfinished"></translation>
+        <translation>Répartir sur plusieurs machines</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Otras máquinas</source>
-        <translation type="unfinished"></translation>
+        <translation>Autres machines</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Esta también genera</source>
-        <translation type="unfinished"></translation>
+        <translation>Celle-ci génère aussi</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Sin tildar, esta máquina solo coordina: la app medida no comparte la CPU con el generador.</source>
-        <translation type="unfinished"></translation>
+        <translation>Si elle est décochée, cette machine ne fait que coordonner&#xa0;: l&apos;app mesurée ne partage pas le CPU avec le générateur.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -24206,27 +24206,27 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
     <message>
         <location line="+2"/>
         <source>CPU del probador (acá)</source>
-        <translation type="unfinished"></translation>
+        <translation>CPU du testeur (ici)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>decodifica: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>décode&#xa0;: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>nada</source>
-        <translation type="unfinished"></translation>
+        <translation>rien</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>todo</source>
-        <translation type="unfinished"></translation>
+        <translation>tout</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>muestra %1 %</source>
-        <translation type="unfinished"></translation>
+        <translation>échantillon %1&#xa0;%</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -24251,37 +24251,37 @@ Ajoutez-y des images depuis l&apos;onglet Fichiers.</translation>
     <message>
         <location line="+19"/>
         <source>Preparando el coordinador (la primera vez graba su video unos minutos)…</source>
-        <translation type="unfinished"></translation>
+        <translation>Préparation du coordinateur (la première fois, il enregistre sa vidéo pendant quelques minutes)…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Se sumaron %1 de %2 máquinas · a cada una le tocan %3 participantes</source>
-        <translation type="unfinished"></translation>
+        <translation>%1 machines sur %2 ont rejoint · %3 participants pour chacune</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>En cada otra PC con BroadcastAppliance: Pruebas → «Generar para otro equipo», pegá este código. Sin el programa, corré la línea en la carpeta de hinchada (bin/64bit/hinchada)%1. Dejá pasar el puerto %2 en el firewall de esta máquina.</source>
-        <translation type="unfinished"></translation>
+        <translation>Sur chaque autre PC avec BroadcastAppliance&#xa0;: Tests → «&#xa0;Générer pour un autre appareil&#xa0;», collez ce code. Sans le programme, lancez la ligne dans le dossier de hinchada (bin/64bit/hinchada)%1. Autorisez le port %2 dans le pare-feu de cette machine.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>, %1 veces (una por terminal)</source>
-        <translation type="unfinished"></translation>
+        <translation>, %1 fois (une par terminal)</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Copiado ✓</source>
-        <translation type="unfinished">Copié ✓</translation>
+        <translation>Copié ✓</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Copiar el código</source>
-        <translation type="unfinished"></translation>
+        <translation>Copier le code</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Generadora %1: CPU %2 %</source>
-        <translation type="unfinished"></translation>
+        <translation>Génératrice %1&#xa0;: CPU %2&#xa0;%</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -28999,40 +28999,40 @@ De face, de profil, avec et sans lunettes&#xa0;: c&apos;est ainsi qu&apos;on la 
     <message numerus="yes">
         <location line="+52"/>
         <source>Prueba de sala con varias máquinas: esperando %n generadoras. En cada una, pegá el código en su Pruebas → «Generar para otro equipo» (o corré la línea).</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+        <translation>
+            <numerusform>Test de salle avec plusieurs machines&#xa0;: en attente de %n machine génératrice. Sur celle-ci, collez le code dans Tests → «&#xa0;Générer pour un autre appareil&#xa0;» (ou lancez la ligne).</numerusform>
+            <numerusform>Test de salle avec plusieurs machines&#xa0;: en attente de %n machines génératrices. Sur chacune, collez le code dans Tests → «&#xa0;Générer pour un autre appareil&#xa0;» (ou lancez la ligne).</numerusform>
         </translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Un generador de esta máquina terminó con error (código %1): ver trabajador-*.txt</source>
-        <translation type="unfinished"></translation>
+        <translation>Un générateur de cette machine s&apos;est terminé avec une erreur (code %1)&#xa0;: voir trabajador-*.txt</translation>
     </message>
     <message>
         <location line="+237"/>
         <source>Generando para %1: los invitados de prueba salen de esta máquina hasta que termine la prueba del otro.</source>
-        <translation type="unfinished"></translation>
+        <translation>Génère pour %1&#xa0;: les invités de test partent de cette machine jusqu&apos;à la fin du test de l&apos;autre.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>no se pudo conectar con el otro equipo (¿la dirección, el firewall o la prueba ya terminó?)</source>
-        <translation type="unfinished"></translation>
+        <translation>impossible de se connecter à l&apos;autre appareil (l&apos;adresse, le pare-feu, ou le test est-il déjà terminé&#xa0;?)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>hinchada terminó con error (código %1): ver trabajador-*.txt</source>
-        <translation type="unfinished"></translation>
+        <translation>hinchada s&apos;est terminé avec une erreur (code %1)&#xa0;: voir trabajador-*.txt</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Terminó la generación para %1.</source>
-        <translation type="unfinished"></translation>
+        <translation>La génération pour %1 est terminée.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Generación para %1: %2</source>
-        <translation type="unfinished"></translation>
+        <translation>Génération pour %1&#xa0;: %2</translation>
     </message>
     <message>
         <location line="+153"/>
@@ -29065,47 +29065,47 @@ De face, de profil, avec et sans lunettes&#xa0;: c&apos;est ainsi qu&apos;on la 
     <message>
         <location filename="../src/app/qml/pages/PruebasPage.qml" line="+43"/>
         <source>Pruebas</source>
-        <translation type="unfinished"></translation>
+        <translation>Tests</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Prueba de sala</source>
-        <translation type="unfinished">Test de salle</translation>
+        <translation>Test de salle</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Capacidad</source>
-        <translation type="unfinished">Capacité</translation>
+        <translation>Capacité</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Prueba de asamblea</source>
-        <translation type="unfinished">Test d&apos;assemblée</translation>
+        <translation>Test d&apos;assemblée</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Enlace</source>
-        <translation type="unfinished">Lien</translation>
+        <translation>Liaison</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Historial</source>
-        <translation type="unfinished">Historique</translation>
+        <translation>Historique</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>prueba de sala corriendo</source>
-        <translation type="unfinished"></translation>
+        <translation>test de salle en cours</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>generando para otro equipo</source>
-        <translation type="unfinished"></translation>
+        <translation>génère pour un autre appareil</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>capacidad: %1</source>
-        <translation type="unfinished"></translation>
+        <translation>capacité&#xa0;: %1</translation>
     </message>
 </context>
 <context>
@@ -33539,12 +33539,12 @@ Pour la scène de base dont dérivent les autres.</translation>
     <message>
         <location line="+49"/>
         <source>¿Cuántos invitados aguanta esta máquina, otra o la conexión? La prueba de capacidad está en la página Pruebas, con la prueba de sala y la de asamblea.</source>
-        <translation type="unfinished"></translation>
+        <translation>Combien d&apos;invités supportent cette machine, une autre ou la connexion&#xa0;? Le test de capacité se trouve dans la page Tests, avec le test de salle et le test d&apos;assemblée.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Ir a Pruebas</source>
-        <translation type="unfinished"></translation>
+        <translation>Aller à Tests</translation>
     </message>
     <message>
         <location line="+80"/>
@@ -50022,7 +50022,7 @@ Données (de %2)&#xa0;: %3</translation>
     <message>
         <location line="+4"/>
         <source>la prueba de sala contra otro equipo dura de 1 a %1 minutos</source>
-        <translation type="unfinished"></translation>
+        <translation>le test de salle contre un autre appareil dure de 1 à %1 minutes</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -50097,7 +50097,7 @@ Données (de %2)&#xa0;: %3</translation>
     <message>
         <location line="+25"/>
         <source>Recibió una prueba: llegaron a estar %1 invitados de prueba (cupo %2).</source>
-        <translation type="unfinished"></translation>
+        <translation>Test reçu&#xa0;: jusqu&apos;à %1 invités de test présents (limite %2).</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -50184,7 +50184,7 @@ Données (de %2)&#xa0;: %3</translation>
     <message>
         <location line="+2"/>
         <source>esta máquina está generando para otro equipo</source>
-        <translation type="unfinished"></translation>
+        <translation>cette machine génère pour un autre appareil</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -80041,7 +80041,7 @@ LE VERSO&#xa0;: les types avec `dorso: true` (le DNI et `mrz-td1`) se lisent aus
     <message>
         <location line="+12"/>
         <source>Con page=configuracion: a que seccion ir (el nombre tal cual lo muestra la lista, p. ej. &quot;Video&quot;, &quot;Red de la conferencia&quot;, &quot;Apariencia&quot;). Con page=camaras: &quot;recinto&quot; (la grilla de bancas) o el nombre de una entrada. Con page=audio: &quot;estudio&quot; (todo el audio, cada fuente con su cadena), &quot;racks&quot;, &quot;matriz&quot;, &quot;mesa&quot; (automixer) o el nombre de una fuente (abre su rack). Con page=video: &quot;&lt;entrada&gt;[/&lt;tarjeta&gt;]&quot;. Con page=historico: &quot;&lt;evento&gt;[/&lt;pestaña&gt;]&quot; (resumen, tiempo, grabaciones, config, archivos). Con page=asamblea: conferencia[/sala|unidades|votacion|conexion|avanzado], recinto, orden, informes, votacion, conexiones o debate. Con page=personas: &quot;libreta&quot; o &quot;registro&quot; (los tótems de registro). Con page=latencias: &quot;mapa&quot; (los tiempos de cada entrada a cada salida) o &quot;sincronia&quot; (la latencia del estudio, quién la marca, la clase de cada entrada, reloj y red: la vista única de sincronización). Con page=pruebas: &quot;sala&quot;, &quot;capacidad&quot;, &quot;asamblea&quot;, &quot;enlace&quot; o &quot;historial&quot;. Sin esto queda la que estaba.</source>
-        <translation type="unfinished"></translation>
+        <translation>Avec page=configuracion&#xa0;: à quelle section aller (le nom tel que l&apos;affiche la liste, p. ex. &quot;Video&quot;, &quot;Red de la conferencia&quot;, &quot;Apariencia&quot;). Avec page=camaras&#xa0;: &quot;recinto&quot; (la grille des sièges) ou le nom d&apos;une entrée. Avec page=audio&#xa0;: &quot;estudio&quot; (tout l&apos;audio, chaque source avec sa chaîne), &quot;racks&quot;, &quot;matriz&quot;, &quot;mesa&quot; (automixer) ou le nom d&apos;une source (ouvre son rack). Avec page=video&#xa0;: &quot;&lt;entrada&gt;[/&lt;tarjeta&gt;]&quot;. Avec page=historico&#xa0;: &quot;&lt;evento&gt;[/&lt;pestaña&gt;]&quot; (resumen, tiempo, grabaciones, config, archivos). Avec page=asamblea&#xa0;: conferencia[/sala|unidades|votacion|conexion|avanzado], recinto, orden, informes, votacion, conexiones ou debate. Avec page=personas&#xa0;: &quot;libreta&quot; ou &quot;registro&quot; (les bornes d&apos;accueil). Avec page=latencias&#xa0;: &quot;mapa&quot; (les temps de chaque entrée à chaque sortie) ou &quot;sincronia&quot; (la latence du studio, qui la fixe, la classe de chaque entrée, horloge et réseau&#xa0;: la vue unique de synchronisation). Avec page=pruebas&#xa0;: &quot;sala&quot;, &quot;capacidad&quot;, &quot;asamblea&quot;, &quot;enlace&quot; ou &quot;historial&quot;. Sans cela, reste sur celle en cours.</translation>
     </message>
     <message>
         <location line="+44"/>
@@ -82949,7 +82949,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="-22"/>
         <source>Simulacro antes del evento: entran `participantes` de prueba por el camino real de los invitados (video con su número y voz sintética) durante `minutos`, para ver si la máquina y la red aguantan. Con `hinchada` (de fábrica, si viene en el programa) los genera esta máquina; si no, devuelve la URL y la credencial de prueba para un generador externo. `decodificar`: cuánto del video que vuelve decodifica el probador («muestra», de fábrica: unos pocos, lo justo para ver que el retorno llega bien sin cargar la máquina que genera; «nada»: solo envía; «todo»: cada uno decodifica lo suyo). `otras_maquinas` &gt; 0 reparte los N entre esta y otras PC: devuelve en `reparto` el código (BAGEN1.…) que se pega en la otra app (prueba_sala_generar) o la línea de hinchada para correr allá.</source>
-        <translation type="unfinished"></translation>
+        <translation>Simulation avant l&apos;événement&#xa0;: `participantes` participants de test entrent par le vrai chemin des invités (vidéo avec leur numéro et voix synthétique) pendant `minutos`, pour voir si la machine et le réseau tiennent. Avec `hinchada` (par défaut, s&apos;il est fourni avec le programme), cette machine les génère&#xa0;; sinon, renvoie l&apos;URL et l&apos;identifiant de test pour un générateur externe. `decodificar`&#xa0;: quelle part de la vidéo qui revient le testeur décode («&#xa0;muestra&#xa0;», par défaut&#xa0;: quelques-uns, juste assez pour voir que le retour arrive bien sans charger la machine génératrice&#xa0;; «&#xa0;nada&#xa0;»&#xa0;: envoi seulement&#xa0;; «&#xa0;todo&#xa0;»&#xa0;: chacun décode le sien). `otras_maquinas` &gt; 0 répartit les N entre celle-ci et d&apos;autres PC&#xa0;: renvoie dans `reparto` le code (BAGEN1.…) à coller dans l&apos;autre app (prueba_sala_generar) ou la ligne de hinchada à lancer là-bas.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -82959,17 +82959,17 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="+5"/>
         <source>con «muestra»: el % que se decodifica (al menos 3 participantes)</source>
-        <translation type="unfinished"></translation>
+        <translation>avec «&#xa0;muestra&#xa0;»&#xa0;: le % décodé (au moins 3 participants)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>otras PC que generan parte de los N (se suman con el código de `reparto`)</source>
-        <translation type="unfinished"></translation>
+        <translation>autres PC qui génèrent une partie des N (ils rejoignent avec le code de `reparto`)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>con otras máquinas: esta también genera (false: solo coordina, así la app medida no comparte la CPU)</source>
-        <translation type="unfinished"></translation>
+        <translation>avec d&apos;autres machines&#xa0;: celle-ci génère aussi (false&#xa0;: elle ne fait que coordonner, ainsi l&apos;app mesurée ne partage pas le CPU)</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -83024,38 +83024,38 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="+3"/>
         <source>El estado de la prueba de sala: si corre, el generador, la entrada directa, la URL y la credencial (para un generador externo), el informe en vivo (cuántos entraron, con video, fallidos, cortes, la HD, el ancho de banda, la CPU de la app, del gateway y del probador, la memoria), cuánto decodifica el probador, el reparto entre máquinas (cuántas se sumaron, su CPU y el código para sumar otra), si esta máquina está generando para otra (`generando`) y el resumen de la última.</source>
-        <translation type="unfinished"></translation>
+        <translation>L&apos;état du test de salle&#xa0;: s&apos;il tourne, le générateur, l&apos;entrée directe, l&apos;URL et l&apos;identifiant (pour un générateur externe), le rapport en direct (combien sont entrés, avec vidéo, échoués, coupures, HD, bande passante, CPU de l&apos;app, de la passerelle et du testeur, mémoire), ce que décode le testeur, la répartition entre machines (combien ont rejoint, leur CPU et le code pour en ajouter une), si cette machine génère pour une autre (`generando`) et le résumé du dernier.</translation>
     </message>
     <message>
         <location line="+79"/>
         <source>El historial de pruebas de esta máquina</source>
-        <translation type="unfinished"></translation>
+        <translation>L&apos;historique des tests de cette machine</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Todas las pruebas de esta máquina, lo más nuevo primero: prueba de sala, capacidad (este equipo, otro equipo, la recibida desde otro, la conexión) y prueba de asamblea. Cada una con la fecha, el tipo, la máquina y la remota o las generadoras, cuántos participantes, la capacidad con margen y la máxima, lo que limitó, qué se decodificó y la versión del programa. Para una entera: pruebas_ver; para dos lado a lado: `comparar` con dos archivos. `csv`: la lista en CSV.</source>
-        <translation type="unfinished"></translation>
+        <translation>Tous les tests de cette machine, du plus récent au plus ancien&#xa0;: test de salle, capacité (cet appareil, un autre appareil, celle reçue d&apos;un autre, la connexion) et test d&apos;assemblée. Chacun avec la date, le type, la machine et la distante ou les génératrices, le nombre de participants, la capacité avec marge et la maximale, ce qui a limité, ce qui a été décodé et la version du programme. Pour un test complet&#xa0;: pruebas_ver&#xa0;; pour deux côte à côte&#xa0;: `comparar` avec deux fichiers. `csv`&#xa0;: la liste en CSV.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>dos `archivo` de la lista: sus números lado a lado</source>
-        <translation type="unfinished"></translation>
+        <translation>deux `archivo` de la liste&#xa0;: leurs chiffres côte à côte</translation>
     </message>
     <message>
         <location line="+7"/>
         <location line="+28"/>
         <source>No está esa prueba en el historial (pruebas_historial).</source>
-        <translation type="unfinished"></translation>
+        <translation>Ce test n&apos;est pas dans l&apos;historique (pruebas_historial).</translation>
     </message>
     <message>
         <location line="-12"/>
         <source>Una prueba del historial, entera</source>
-        <translation type="unfinished"></translation>
+        <translation>Un test de l&apos;historique, complet</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Una prueba del historial de esta máquina, entera: los parámetros, la ficha de cada máquina (la local y la remota o las generadoras: sistema, CPU, núcleos, memoria, GPU, la red y si es Wi-Fi o cable), los resultados, las estadísticas y las series (CPU, memoria, red, grilla, audio, de los dos lados). Sin credenciales ni códigos. `archivo` sale de pruebas_historial.</source>
-        <translation type="unfinished"></translation>
+        <translation>Un test de l&apos;historique de cette machine, complet&#xa0;: les paramètres, la fiche de chaque machine (la locale et la distante ou les génératrices&#xa0;: système, CPU, cœurs, mémoire, GPU, le réseau et s&apos;il est en Wi-Fi ou en câble), les résultats, les statistiques et les séries (CPU, mémoire, réseau, grille, audio, des deux côtés). Sans identifiants ni codes. `archivo` vient de pruebas_historial.</translation>
     </message>
     <message>
         <location line="-106"/>
@@ -83070,27 +83070,27 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="+19"/>
         <source>Generar para la prueba de sala de otro equipo</source>
-        <translation type="unfinished"></translation>
+        <translation>Générer pour le test de salle d&apos;un autre appareil</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Esta máquina se suma como GENERADORA a la prueba de sala de OTRO BroadcastAppliance: con `on` y el `codigo` que muestra el otro en su prueba de sala con varias máquinas (BAGEN1.…), lanza hinchada acá y le manda parte de los participantes de prueba; termina sola cuando termina la prueba del otro. `on: false` deja de generar. Carga esta máquina: confirmalo con el operador.</source>
-        <translation type="unfinished"></translation>
+        <translation>Cette machine rejoint comme GÉNÉRATRICE le test de salle d&apos;UN AUTRE BroadcastAppliance&#xa0;: avec `on` et le `codigo` qu&apos;affiche l&apos;autre dans son test de salle avec plusieurs machines (BAGEN1.…), lance hinchada ici et lui envoie une partie des participants de test&#xa0;; s&apos;arrête tout seul quand le test de l&apos;autre se termine. `on: false` arrête de générer. Charge cette machine&#xa0;: confirmez-le avec l&apos;opérateur.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>el código del otro equipo (BAGEN1.…)</source>
-        <translation type="unfinished"></translation>
+        <translation>le code de l&apos;autre appareil (BAGEN1.…)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Dejando de generar.</source>
-        <translation type="unfinished"></translation>
+        <translation>Arrêt de la génération.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Generando para el otro equipo. Seguilo con prueba_sala_estado (`generando`).</source>
-        <translation type="unfinished"></translation>
+        <translation>Génère pour l&apos;autre appareil. Suivez-le avec prueba_sala_estado (`generando`).</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -83180,7 +83180,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="+3"/>
         <source>Prueba cuántos invitados aguanta un sistema. `prueba`: «este_equipo» (invitados de prueba generados acá contra esta misma conferencia, por escalones 10, 20, 40, 60, 80… hasta `tope` o hasta que se degrade), «remoto» (lo mismo contra OTRO BroadcastAppliance que está recibiendo: `codigo` es el que muestra el otro, empieza con BACAP1.) o «internet» (la conexión: el túnel WireGuard si está y el camino de los invitados por pinggy; con `prender_pinggy` lo prende si está apagado y lo apaga al terminar). `decodificar` (este_equipo y remoto): cuánto del video que vuelve decodifica hinchada («muestra», de fábrica: unos pocos, para ver que el retorno llega bien sin cargar la máquina que genera; «nada»: solo envía; «todo»). Remoto con `minutos`: una prueba de sala contra la otra PC (N de una vez); varias PC pueden generar contra la misma pegando el mismo código. Lo de esta máquina (CPU, red, ficha) viaja al otro con cada pedido de su medida y queda en su informe. Seguila con capacidad_estado (con `serie`: los gráficos de CPU y red de los dos lados).</source>
-        <translation type="unfinished"></translation>
+        <translation>Teste combien d&apos;invités un système supporte. `prueba`&#xa0;: «&#xa0;este_equipo&#xa0;» (invités de test générés ici contre cette même Conférence, par paliers de 10, 20, 40, 60, 80… jusqu&apos;à `tope` ou jusqu&apos;à dégradation), «&#xa0;remoto&#xa0;» (la même chose contre UN AUTRE BroadcastAppliance qui reçoit&#xa0;: `codigo` est celui qu&apos;affiche l&apos;autre, il commence par BACAP1.) ou «&#xa0;internet&#xa0;» (la connexion&#xa0;: le tunnel WireGuard s&apos;il existe et le chemin des invités via pinggy&#xa0;; avec `prender_pinggy`, il l&apos;active s&apos;il est désactivé et le désactive à la fin). `decodificar` (este_equipo et remoto)&#xa0;: quelle part de la vidéo qui revient hinchada décode («&#xa0;muestra&#xa0;», par défaut&#xa0;: quelques-uns, pour voir que le retour arrive bien sans charger la machine génératrice&#xa0;; «&#xa0;nada&#xa0;»&#xa0;: envoi seulement&#xa0;; «&#xa0;todo&#xa0;»). Remoto avec `minutos`&#xa0;: un test de salle contre l&apos;autre PC (N d&apos;un coup)&#xa0;; plusieurs PC peuvent générer contre le même en collant le même code. Les données de cette machine (CPU, réseau, fiche) partent vers l&apos;autre avec chaque demande de sa mesure et restent dans son rapport. Suivez-le avec capacidad_estado (avec `serie`&#xa0;: les graphiques de CPU et de réseau des deux côtés).</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -83206,17 +83206,17 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <location line="+2"/>
         <location filename="../src/app/mcp/McpPruebaSalaTools.cpp" line="-134"/>
         <source>cuánto video que vuelve decodifica el probador</source>
-        <translation type="unfinished"></translation>
+        <translation>quelle part de la vidéo qui revient le testeur décode</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>remoto: &gt; 0 es una PRUEBA DE SALA contra el otro equipo (`tope` invitados de una vez, esos minutos) en vez de la rampa</source>
-        <translation type="unfinished"></translation>
+        <translation>remoto&#xa0;: &gt; 0 est un TEST DE SALLE contre l&apos;autre appareil (`tope` invités d&apos;un coup, pendant ces minutes) au lieu de la rampe</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>con «muestra»: el % que se decodifica (al menos 3 por escalón)</source>
-        <translation type="unfinished"></translation>
+        <translation>avec «&#xa0;muestra&#xa0;»&#xa0;: le % décodé (au moins 3 par palier)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -85953,19 +85953,19 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
         <location line="+2"/>
         <source>historial de pruebas pruebas anteriores capacidad medida comparar exportar csv cuando se probo</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>historique des tests tests précédents capacité mesurée comparer exporter csv quand a-t-on testé</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>ver una prueba informe completo ficha de la maquina series estadisticas</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>voir un test rapport complet fiche de la machine séries statistiques</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>generar carga para otro equipo otra pc otra maquina generadora sumarse codigo hinchada trabajador varias maquinas</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
-        <translation type="unfinished"></translation>
+        <translation>générer charge pour un autre appareil autre pc autre machine génératrice rejoindre code hinchada travailleur plusieurs machines</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -92903,7 +92903,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location filename="../src/app/ui/HistorialPruebasViewModel.cpp" line="+110"/>
         <source>falta el archivo</source>
-        <translation type="unfinished"></translation>
+        <translation>le fichier manque</translation>
     </message>
 </context>
 <context>
@@ -95128,7 +95128,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="+3"/>
         <source>Pruebas: la prueba de sala, la capacidad (cuántos invitados aguanta esta máquina u otra), la prueba de asamblea y el enlace; probar entre dos o más PC</source>
-        <translation type="unfinished"></translation>
+        <translation>Tests&#xa0;: le test de salle, la capacité (combien d&apos;invités supporte cette machine ou une autre), le test d&apos;assemblée et la liaison&#xa0;; tester entre deux PC ou plus</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -95570,27 +95570,27 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="+8"/>
         <source>decodificar es «nada», «muestra» o «todo»</source>
-        <translation type="unfinished"></translation>
+        <translation>decodificar vaut «&#xa0;nada&#xa0;», «&#xa0;muestra&#xa0;» ou «&#xa0;todo&#xa0;»</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>la muestra va del %1 al %2 % de lo que vuelve</source>
-        <translation type="unfinished"></translation>
+        <translation>l&apos;échantillon va de %1 à %2&#xa0;% de ce qui revient</translation>
     </message>
     <message>
         <location line="+29"/>
         <source>se puede repartir con hasta %1 máquinas más</source>
-        <translation type="unfinished"></translation>
+        <translation>on peut répartir avec jusqu&apos;à %1 machines de plus</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>si esta máquina no genera, hace falta al menos otra que genere</source>
-        <translation type="unfinished"></translation>
+        <translation>si cette machine ne génère pas, il en faut au moins une autre qui génère</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>hay más máquinas que participantes</source>
-        <translation type="unfinished"></translation>
+        <translation>il y a plus de machines que de participants</translation>
     </message>
     <message>
         <location line="+123"/>
@@ -95605,42 +95605,42 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="+11"/>
         <source>nada (solo envía)</source>
-        <translation type="unfinished"></translation>
+        <translation>rien (envoi seulement)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>todo</source>
-        <translation type="unfinished"></translation>
+        <translation>tout</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>una muestra (%1 %)</source>
-        <translation type="unfinished"></translation>
+        <translation>un échantillon (%1&#xa0;%)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>; el probador decodificó %1</source>
-        <translation type="unfinished"></translation>
+        <translation>&#xa0;; le testeur a décodé %1</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>; CPU del probador en esta máquina %1 % (pico %2 %)</source>
-        <translation type="unfinished"></translation>
+        <translation>&#xa0;; CPU du testeur sur cette machine %1&#xa0;% (pic %2&#xa0;%)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>; CPU de la generadora %1: %2 % (pico %3 %)</source>
-        <translation type="unfinished"></translation>
+        <translation>&#xa0;; CPU de la génératrice %1&#xa0;: %2&#xa0;% (pic %3&#xa0;%)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>; generaron esta máquina y %1 de %2 más</source>
-        <translation type="unfinished"></translation>
+        <translation>&#xa0;; ont généré&#xa0;: cette machine et %1 sur %2 de plus</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>; generaron %1 de %2 máquinas más (esta solo coordinó)</source>
-        <translation type="unfinished"></translation>
+        <translation>&#xa0;; ont généré&#xa0;: %1 sur %2 machines de plus (celle-ci n&apos;a fait que coordonner)</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -95686,7 +95686,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location filename="../src/app/ui/PruebaSalaViewModel.cpp" line="-4"/>
         <source>esta máquina está generando para otro equipo: pará eso primero</source>
-        <translation type="unfinished"></translation>
+        <translation>cette machine génère pour un autre appareil&#xa0;: arrêtez cela d&apos;abord</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -95706,7 +95706,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="+5"/>
         <source>para repartir entre varias máquinas, la prueba tiene que usar hinchada</source>
-        <translation type="unfinished"></translation>
+        <translation>pour répartir sur plusieurs machines, le test doit utiliser hinchada</translation>
     </message>
     <message>
         <location line="+55"/>
@@ -95721,7 +95721,7 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="+5"/>
         <source>la conferencia no tiene una dirección HTTPS en la red: las otras máquinas no pueden entrar (Configuración → Red de la conferencia → Acceso: «Red local»)</source>
-        <translation type="unfinished"></translation>
+        <translation>la conférence n&apos;a pas d&apos;adresse HTTPS sur le réseau&#xa0;: les autres machines ne peuvent pas entrer (Paramètres → Réseau de la conférence → Accès&#xa0;: «&#xa0;Réseau local&#xa0;»)</translation>
     </message>
     <message>
         <location line="+67"/>
@@ -95743,32 +95743,32 @@ PROPOSEZ, N&apos;APPLIQUEZ PAS&#xa0;: montrez à la personne ce qui change et ap
     <message>
         <location line="-13"/>
         <source>el coordinador de hinchada no pudo escuchar en el puerto %1 (código %2): ver consola.txt</source>
-        <translation type="unfinished"></translation>
+        <translation>le coordinateur de hinchada n&apos;a pas pu écouter sur le port %1 (code %2)&#xa0;: voir consola.txt</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>el coordinador terminó con error (código %1; ¿no llegaron las otras máquinas?): ver consola.txt</source>
-        <translation type="unfinished"></translation>
+        <translation>le coordinateur s&apos;est terminé avec une erreur (code %1&#xa0;; les autres machines ne sont-elles pas arrivées&#xa0;?)&#xa0;: voir consola.txt</translation>
     </message>
     <message>
         <location line="+204"/>
         <source>esta máquina ya está generando para otro equipo</source>
-        <translation type="unfinished"></translation>
+        <translation>cette machine génère déjà pour un autre appareil</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>hay una prueba de sala corriendo en esta máquina</source>
-        <translation type="unfinished"></translation>
+        <translation>un test de salle est en cours sur cette machine</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>el probador (hinchada) no viene en este programa</source>
-        <translation type="unfinished">le testeur de charge (hinchada) n&apos;est pas inclus dans ce programme</translation>
+        <translation>le testeur de charge (hinchada) n&apos;est pas inclus dans ce programme</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>ese no es un código de generador: copialo entero de la Prueba de sala del otro equipo (empieza con BAGEN1.)</source>
-        <translation type="unfinished"></translation>
+        <translation>ce n&apos;est pas un code de générateur&#xa0;: copiez-le en entier depuis le Test de salle de l&apos;autre appareil (il commence par BAGEN1.)</translation>
     </message>
     <message>
         <location line="+179"/>
