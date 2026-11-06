@@ -573,6 +573,10 @@ json Grillas::estado() const {
                 ritmo["repetidos"] = pin->second->repetidos;
             }
             x["ritmo"] = std::move(ritmo);
+            if (auto r = retrato(c.persona)) {
+                std::lock_guard<std::mutex> lm(r->m);
+                if (r->atrasoQpc != 0) x["atraso_ms"] = std::round(r->atrasoNs / 1e5) / 10; // de su instante a la cola
+            }
             if (!c.rotulo.empty()) {
                 x["rotulo"] = c.rotulo;
                 x["rotulo_listo"] = rotulos_.count(c.rotulo) > 0;
@@ -585,6 +589,8 @@ json Grillas::estado() const {
                        {"celdas", celdas},
                        {"mas", g.mas},
                        {"ms_por_cuadro", std::round(g.msPintar * 100) / 100},
+                       // El mosaico muestra el instante tic − espera en todas las celdas (null: por orden de llegada).
+                       {"espera_ms", g.esperaNs >= 0 ? json(std::round(g.esperaNs / 1e5) / 10) : json(nullptr)},
                        {"ritmo_publicado", [&] {
                             json j = json::object();
                             BA_SONDA(const auto z = g.ritmoPublicado->resumen(static_cast<std::int64_t>(periodoPintarNs_.load() / 1000));
@@ -717,7 +723,40 @@ void Grillas::guardarCelda(PedidoCelda&& p) {
     nueva.h = p.alto;
     nueva.ms = ahora;
     nueva.seq = r.seq;
+    // El instante que muestra: el de su captura (sin hora RTP de red, la hora de su contenido).
+    std::uint64_t instante = r.instanteDe(p.rtp, p.llegadaRedQpc);
+    if (instante == 0) instante = p.contenidoQpc;
+    nueva.instante = instante;
+    if (instante != 0) {
+        // Lo que tardó en llegar acá desde su instante: sube 1/8 y baja 1/128 de lo que se
+        // aparta (un percentil alto: el pintor espera eso para que esté en la cola a su hora).
+        const std::uint64_t llego = ba::ipc::HealthBlock::nowQpc();
+        const double d = static_cast<double>(static_cast<std::int64_t>(llego - instante));
+        if (r.atrasoQpc == 0 || llego > r.atrasoQpc + 2'000'000'000ULL) r.atrasoNs = d; // el primero (o tras una pausa)
+        else r.atrasoNs += (d - r.atrasoNs) / (d > r.atrasoNs ? 8 : 128);
+        r.atrasoQpc = llego;
+    }
     if (p.vivo_) r.vivoMs = ahora;
+}
+
+std::uint64_t Grillas::Retrato::instanteDe(std::uint32_t rtp, std::uint64_t llegadaRedQpc) {
+    if (llegadaRedQpc == 0) return 0;
+    // La hora RTP, desenvuelta (32 bits a 90 kHz dan la vuelta cada 13 h). Un salto de más de
+    // 5 s (otra fuente RTP: el que manda se reconectó o cambió de capa) empieza de nuevo.
+    const std::int32_t paso = static_cast<std::int32_t>(rtp - rtpUltimo);
+    bool nuevo = !conRtp || paso > 5 * 90000 || paso < -5 * 90000;
+    rtpExt = nuevo ? static_cast<std::int64_t>(rtp) : rtpExt + paso;
+    rtpUltimo = rtp;
+    const std::int64_t rtpNs = rtpExt * 1'000'000'000LL / 90000;
+    const std::int64_t d = static_cast<std::int64_t>(llegadaRedQpc) - rtpNs;
+    // El desfase: lo más corto que tardó en llegar (el mínimo; sube de a 20 µs por cuadro para
+    // seguir la deriva entre los dos relojes). Uno que llega 300 ms más tarde que el mínimo no
+    // es la red: el reloj RTP cambió sin saltar (se toma de nuevo).
+    if (!nuevo && d > desfaseRtpNs + 300'000'000LL) nuevo = true;
+    desfaseRtpNs = nuevo ? d : std::min(desfaseRtpNs + 20'000, d);
+    conRtp = true;
+    const std::int64_t q = rtpNs + desfaseRtpNs;
+    return q > 0 ? static_cast<std::uint64_t>(q) : 0;
 }
 
 std::shared_ptr<Grillas::Retrato> Grillas::retratoParaCuadro(const std::string& persona, std::int64_t ahora, std::int64_t redUs,
@@ -730,12 +769,12 @@ std::shared_ptr<Grillas::Retrato> Grillas::retratoParaCuadro(const std::string& 
     {
         // Lo que llega mucho más rápido que el ritmo de las grillas (60 cps contra 30) se
         // achicaría para no pintarse. Un balde: entra a 1,5 veces el ritmo del pintor en
-        // promedio, con ráfagas de hasta kCola + 1. El decodificador entrega a ráfagas (con 10
+        // promedio, con ráfagas de hasta 5. El decodificador entrega a ráfagas (con 10
         // invitados, de a 3 o 4 después de un hueco): con ráfagas de 2 se tiraba el 3-5 % de
         // una cámara a 30; antes, el que llegaba a menos de medio período del anterior se tiraba.
         std::lock_guard<std::mutex> l(r->m);
         const double periodoMs = static_cast<double>(periodoPintarNs_.load(std::memory_order_relaxed)) / 1e6;
-        constexpr double kRafaga = kCola + 1;
+        constexpr double kRafaga = 5; // fijo: no crece con la cola (que guarda más para la espera común)
         if (r->creditoMs == 0 || ahora < r->creditoMs) r->credito = kRafaga;
         else r->credito = std::min(kRafaga, r->credito + 1.5 * static_cast<double>(ahora - r->creditoMs) / periodoMs);
         r->creditoMs = ahora;
@@ -909,7 +948,7 @@ void Grillas::pintarRotulo(std::uint8_t* lienzo, int W, int H, const Rect& celda
     }
 }
 
-void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
+void Grillas::pintarLocked(Grilla& g, std::int64_t ahora, std::uint64_t ticQpc) {
     const auto t1 = std::chrono::steady_clock::now();
     const int W = g.ancho, H = g.alto;
     g.lienzo.resize(static_cast<std::size_t>(W) * H * 4);
@@ -926,7 +965,35 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
     // que llegan juntos): con la cámara y el pintor al mismo ritmo, el atraso no baja solo.
     // Medido con 10 invitados: con dos vueltas, ~41 ms de espera y 29 cps por cara; con tres,
     // 29,4 cps pero ~74 ms.
-    const auto atrasoMs = static_cast<std::int64_t>(2 * periodoPintarNs_.load(std::memory_order_relaxed) / 1'000'000ULL);
+    const std::uint64_t periodoNs = periodoPintarNs_.load(std::memory_order_relaxed);
+    const auto atrasoMs = static_cast<std::int64_t>(2 * periodoNs / 1'000'000ULL);
+
+    // EL MISMO INSTANTE EN TODAS LAS CELDAS. Elegir en cada celda el último que llegó (o el
+    // siguiente al que mostró) deja la sincronía en manos de cuánto tarda cada invitado en
+    // llegar y decodificarse: parejo en la Mac, no con las colas de Media Foundation. Con la
+    // instante de captura de cada cuadro (Retrato::instanteDe), cada tic muestra en todas el instante tic − espera, con la
+    // espera del más lento (su Retrato::atrasoNs, + 3 ms de margen), suavizada (sube rápido, baja
+    // despacio: cada cambio corre el instante de todas) y con tope en lo que guarda la cola.
+    std::uint64_t objetivo = 0;
+    std::int64_t esperaMaxMs = 0;
+    if (ticQpc != 0) {
+        double peor = -1;
+        for (const Celda& c : g.celdas)
+            if (const auto r = retrato(c.persona)) {
+                std::lock_guard<std::mutex> l(r->m);
+                if (r->atrasoQpc != 0 && ticQpc < r->atrasoQpc + 2'000'000'000ULL) peor = std::max(peor, r->atrasoNs);
+            }
+        if (peor < 0) {
+            g.esperaNs = -1;
+        } else {
+            const double tope = static_cast<double>((kCola - 2) * periodoNs);
+            const double quiere = std::clamp(peor + 3e6, 0.0, tope);
+            g.esperaNs = g.esperaNs < 0 ? quiere : g.esperaNs + (quiere - g.esperaNs) / (quiere > g.esperaNs ? 4 : 64);
+            objetivo = ticQpc - static_cast<std::uint64_t>(g.esperaNs);
+            // Un siguiente que espera más que la espera común y dos cuadros: su hora no es creíble.
+            esperaMaxMs = static_cast<std::int64_t>((g.esperaNs + 2.0 * static_cast<double>(periodoNs)) / 1e6);
+        }
+    }
 
     const auto dibujar = [&](const std::string& persona, const Anim& a) {
         const Rect r = animado(a, g.transicionMs, ahora);
@@ -937,7 +1004,7 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
         if (const auto ret = retrato(persona)) {
             std::lock_guard<std::mutex> l(ret->m);
             const auto v = g.visto.find(persona);
-            const Foto* f = ret->elegir(v != g.visto.end() ? v->second : 0, ahora, atrasoMs);
+            const Foto* f = ret->elegir(v != g.visto.end() ? v->second : 0, ahora, atrasoMs, objetivo, esperaMaxMs);
             if (f != nullptr && !f->px.empty()) {
                 // El ritmo de lo que se ve: un cuadro suyo nuevo en el mosaico (y los que se saltearon).
                 if (!a.sale) {
@@ -1066,6 +1133,9 @@ void Grillas::bucle() {
     static ba::diag::Frontera& fMosaico = ba::diag::frontera("grilla.mosaico", 7, "retratos → mosaico → BA.Grilla (hilo grillas)");
     while (!parar_.load()) {
         const std::int64_t ahora = ahoraMs();
+        // El tic para el que se pinta (al que se durmió), en el reloj de los sellos: el instante
+        // que muestran las celdas sale de él y es la hora del contenido del mosaico.
+        const std::uint64_t ticQpc = proximo + (ba::ipc::HealthBlock::nowQpc() - ns(Reloj::now()));
         fMosaico.despertada();
         {
             std::lock_guard<std::mutex> l(mu_);
@@ -1088,14 +1158,18 @@ void Grillas::bucle() {
                         }
                 if (!hace) continue;
                 ba::diag::MedirPase medir(fMosaico, g.lienzo.size());
-                pintarLocked(g, ahora);
+                pintarLocked(g, ahora, ticQpc);
                 if (!g.sender || g.senderW != g.ancho || g.senderH != g.alto) {
                     // El canal tiene tamaño fijo: otro tamaño = canal nuevo (bavideoanillo
                     // lo vuelve a tomar y renegocia).
                     g.sender.reset();
                     auto s = std::make_unique<ba::ipc::SpoutSender>();
                     const std::wstring nombre = L"BA.Grilla." + std::to_wstring(k);
-                    if (s->publish(nombre.c_str(), ba::ipc::SlotConfig{g.ancho, g.alto})) {
+                    // 6 buffers, como los invitados: la entrada del motor los lee todos, en orden
+                    // (receiveSiguiente), y ninguno se pisa antes de que pase su lector.
+                    ba::ipc::SlotConfig cfg{g.ancho, g.alto};
+                    cfg.buffers = kBuffersCanal;
+                    if (s->publish(nombre.c_str(), cfg)) {
                         log_.info(llenar(traducir("gateway", "grillas: BA.Grilla.%1 listo (%2x%3)"),
                                          {std::to_string(k), std::to_string(g.ancho), std::to_string(g.alto)}));
                         g.sender = std::move(s);
@@ -1107,7 +1181,11 @@ void Grillas::bucle() {
                 }
                 if (g.sender) {
                     const std::uint64_t t = ba::ipc::HealthBlock::nowQpc();
-                    g.sender->send(g.lienzo.data(), g.lienzo.size(), ba::ipc::FrameMeta{t, t});
+                    ba::ipc::FrameMeta meta{t, t};
+                    // La hora de su contenido: la del tic para el que se pintó (parejo, aunque
+                    // publicarlo tarde más o menos), no la de ahora (videocomun.cpp).
+                    meta.contenidoQpc = ticQpc <= t ? ticQpc : t;
+                    g.sender->send(g.lienzo.data(), g.lienzo.size(), meta);
                     BA_SONDA(g.ritmoPublicado->cuadro(relojUs());)
                 }
                 g.enviadoMs = ahora;

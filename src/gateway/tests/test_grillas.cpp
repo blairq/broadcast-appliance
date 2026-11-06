@@ -544,7 +544,7 @@ int main() {
         Grillas::PedidoCelda c = g.pedirCelda("sala:a", 80, 45, 1080);
         CHECK(c.vale() && c.ancho == 80 && c.alto == 45, "nunca se agranda");
         g.soltarCelda(std::move(c));
-        // El balde: una ráfaga mucho más rápida que el pintor se corta (kCola + 1 seguidos, después no).
+        // El balde: una ráfaga mucho más rápida que el pintor se corta (5 seguidos, después no).
         int pedidos = 0;
         for (int i = 0; i < 20; ++i) {
             Grillas::PedidoCelda r = g.pedirCelda("sala:a", 320, 180, 5000);
