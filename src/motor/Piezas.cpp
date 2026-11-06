@@ -1058,11 +1058,11 @@ json derivaDePlacas() {
     return out;
 }
 
-void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes) {
+void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes, std::function<void()> despues) {
     if (pipeline == nullptr) return;
     struct Pedido {
         bool otraVez = false;
-        std::function<void()> antes;
+        std::function<void()> antes, despues;
     };
     // Nunca se destruyen (un estático que se destruye al salir con un hilo usándolo mata el proceso).
     static auto* mu = new std::mutex;
@@ -1073,23 +1073,27 @@ void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes)
         if (it != pedidos->end()) {
             it->second.otraVez = true;
             if (antes) it->second.antes = std::move(antes);
+            if (despues) it->second.despues = std::move(despues);
             return;
         }
-        (*pedidos)[pipeline] = Pedido{false, {}};
+        (*pedidos)[pipeline] = Pedido{false, {}, {}};
     }
     // La referencia mientras está en el mapa: el puntero no se puede reusar.
     gst_object_ref(pipeline);
-    std::thread([pipeline, antes = std::move(antes)]() mutable {
+    std::thread([pipeline, antes = std::move(antes), despues = std::move(despues)]() mutable {
         ba::platform::nombrarHilo("latencia-recalc");
         for (;;) {
             if (antes) antes();
             gst_bin_recalculate_latency(GST_BIN(pipeline));
+            if (despues) despues();
             std::lock_guard<std::mutex> l(*mu);
             auto it = pedidos->find(pipeline);
             if (it->second.otraVez) {
                 it->second.otraVez = false;
                 antes = std::move(it->second.antes);
                 it->second.antes = {};
+                if (it->second.despues) despues = std::move(it->second.despues);
+                it->second.despues = {};
                 continue;
             }
             pedidos->erase(it);

@@ -12,8 +12,10 @@
 
 #include "Mezcla.hpp" // margenMezclaNs
 #include "Reloj.hpp"
+#include "TrazaPad.hpp"
 
 #include <gst/base/gstaggregator.h>
+#include <gst/base/gstbasesink.h>
 #include <gst/video/video.h>
 
 #include <algorithm>
@@ -221,6 +223,68 @@ Capa capaEn(const Capa& c, double ms) {
 
 // --- Composición ---------------------------------------------------------------------
 
+namespace {
+// Lo que sale de una composición se entrega A SU HORA (sync=true en el intersink), no cuando el
+// mezclador termina de armarlo. Un agregador en vivo espera al plazo de cada cuadro (su hora +
+// la latencia del estudio) solo mientras le falta algo de alguna capa; apenas todas tienen
+// datos, saca lo que pueda de una. Con una capa lenta (una imagen, un título o la grilla que
+// publica 1-2 cuadros por segundo) eso pasaba una vez por segundo: al llegar su cuadro nuevo,
+// salían 6 cuadros del programa juntos (los ~175 ms que las demás capas ya tenían) y después
+// nada por 200 ms. Medido el 2026-11-06 (docs/local/vista-programa.md, agente VP): las vistas
+// de la interfaz y el retorno al gateway (sync=false: muestran lo que llega cuando llega)
+// saltaban así cada segundo. Con la espera en el intersink cada cuadro sale a su plazo, el
+// mismo al que ya salía cuando el mezclador esperaba: no suma latencia.
+// La espera es al PLAZO DEL MEZCLADOR que lo alimenta, no a la latencia del pipeline: esa suma
+// lo que reserva el sink para sí (processing-deadline, 20 ms) y el cuadro de salida que un
+// videoaggregator en vivo declara de más (su sub-latencia: informa su plazo + 1 cuadro). Medido:
+// el mezclador saca cada cuadro a su hora + (latencia informada − 1 cuadro); con la del pipeline
+// todo salía ~53 ms más tarde. Se corre el sink (ts-offset, negativo) para que espere justo
+// hasta ahí; se rehace con cada recálculo de la latencia.
+constexpr const char* kSaleASuHora = " sync=true";
+
+/// El agregador de `mx` (él mismo, o el «mixer» de un bin como glvideomixer), con referencia.
+GstElement* agregadorDe(GstElement* mx) {
+    if (mx == nullptr) return nullptr;
+    if (GST_IS_AGGREGATOR(mx)) return GST_ELEMENT(gst_object_ref(mx));
+    GstElement* agg = nullptr;
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(mx), "mixer") != nullptr) g_object_get(mx, "mixer", &agg, nullptr);
+    if (agg != nullptr && !GST_IS_AGGREGATOR(agg)) {
+        gst_object_unref(agg);
+        agg = nullptr;
+    }
+    return agg;
+}
+
+/// Los sinks de `sale` (el intersink: un bin con su appsink) esperan hasta el plazo de `mx`
+/// (`cuadroNs`: la duración de un cuadro del lienzo). Devuelve {plazo, latencia del sink} en
+/// ns (-1 si no se supo).
+std::pair<std::int64_t, std::int64_t> alinearASuHora(GstElement* sale, GstElement* mx, std::int64_t cuadroNs) {
+    std::pair<std::int64_t, std::int64_t> out{-1, -1};
+    if (sale == nullptr || !GST_IS_BIN(sale)) return out;
+    GstElement* agg = agregadorDe(mx);
+    if (agg == nullptr) return out;
+    const GstClockTime plazo = gst_aggregator_get_latency(GST_AGGREGATOR(agg));
+    gst_object_unref(agg);
+    if (!GST_CLOCK_TIME_IS_VALID(plazo)) return out;
+    out.first = std::max<std::int64_t>(0, static_cast<std::int64_t>(plazo) - cuadroNs);
+    GstIterator* it = gst_bin_iterate_sinks(GST_BIN(sale));
+    GValue v = G_VALUE_INIT;
+    while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
+        if (auto* el = GST_ELEMENT(g_value_get_object(&v)); GST_IS_BASE_SINK(el)) {
+            const GstClockTime lat = gst_base_sink_get_latency(GST_BASE_SINK(el));
+            if (GST_CLOCK_TIME_IS_VALID(lat)) {
+                out.second = static_cast<std::int64_t>(lat);
+                gst_base_sink_set_ts_offset(GST_BASE_SINK(el), std::min<std::int64_t>(0, out.first - out.second));
+            }
+        }
+        g_value_reset(&v);
+    }
+    g_value_unset(&v);
+    gst_iterator_free(it);
+    return out;
+}
+} // namespace
+
 Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre, Opciones op)
     : reloj_(reloj), lienzo_(lienzo), nombre_(std::move(nombre)), gpu_((op.gpu && hayFabrica("glvideomixer")) || gpuVideo()),
       gl_(gpu_ && gpu() != Gpu::D3D12), esperarEntrada_(std::move(op.esperarEntrada)) {
@@ -287,21 +351,21 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
                                                                                "/" + std::to_string(lienzo_.fpsD)) + " ! "
                                              : std::string();
         completo = el + " name=mx" + props + " ! " + ritmo + vuelta + " ! " + cadena + "intersink name=sale producer-name=" +
-                   entreComillas(productor()) + " sync=false";
+                   entreComillas(productor()) + (agregador_ ? kSaleASuHora : " sync=false");
         registrar(Nivel::Info, llenar(traducir("motor", "composición %1: con el módulo «%2»: %3"), {nombre_, el, completo}));
     } else if (op.dsk) {
         // Dos etapas: la escena (limpia) por un tee, y el DSK encima en otro mezclador.
         completo = desc + " ! tee name=t t. ! queue ! intersink name=limpio producer-name=" + entreComillas(productorLimpio()) +
-                   " sync=false t. ! queue ! dsk.sink_0 " + mezclador + " name=dsk " + comun + "! " +
+                   kSaleASuHora + " t. ! queue ! dsk.sink_0 " + mezclador + " name=dsk " + comun + "! " +
                    (gpu_ ? salida : "video/x-raw," + tam + " ! videoconvert ! " + salida) +
-                   " ! intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false";
+                   " ! intersink name=sale producer-name=" + entreComillas(productor()) + kSaleASuHora;
     } else {
         // Los filtros de después del mezclador (la Vista 360 de la Cámara 360): en la
         // GPU, su par (ba360gl, ba360d3d12) sobre lo que sale del mezclador, sin bajarlo.
         firmaFiltros_ = firmaDe(filtros, {}, false);
         const std::string cadena = cadenaDe(filtros, "videoconvert", "ba_c_", avisosFiltros_, gpu_);
         for (const auto& a : avisosFiltros_) registrar(Nivel::Aviso, llenar(traducir("motor", "composición %1: %2"), {nombre_, a}));
-        completo = desc + " ! " + cadena + "intersink name=sale producer-name=" + entreComillas(productor()) + " sync=false";
+        completo = desc + " ! " + cadena + "intersink name=sale producer-name=" + entreComillas(productor()) + kSaleASuHora;
     }
     GError* e = nullptr;
     pipeline_ = gst_parse_launch(completo.c_str(), &e);
@@ -320,6 +384,17 @@ Composicion::Composicion(Reloj& reloj, const Lienzo& lienzo, std::string nombre,
     mezclador_ = gst_bin_get_by_name(GST_BIN(pipeline_), "mx");
     dskMx_ = gst_bin_get_by_name(GST_BIN(pipeline_), "dsk");
     if (agregador_) mostradoEnMezclador(mezclador_); // SONDA: lo que muestra de cada capa
+    // SONDA: cuándo sale cada cuadro del mezclador y cuándo llega al intersink (tramos con su hora).
+    BA_SONDA(if (mezclador_ != nullptr) if (GstPad* p = gst_element_get_static_pad(mezclador_, "src")) {
+        trazarPad(p, "comp:" + nombre_ + ":mx");
+        gst_object_unref(p);
+    } if (GstElement* sale = gst_bin_get_by_name(GST_BIN(pipeline_), "sale")) {
+        if (GstPad* p = gst_element_get_static_pad(sale, "sink")) {
+            trazarPad(p, "comp:" + nombre_ + ":sale");
+            gst_object_unref(p);
+        }
+        gst_object_unref(sale);
+    })
     // smpte numera sus cuadros desde 0 (no mira la hora de lo que entra): para los que lo
     // consumen, todo llegaba tarde (33 s después de arrancar el estudio). Lo que sale lleva
     // la hora de lo que entró (ver crearRamaLibre). Los agregadores ya la respetan.
@@ -417,10 +492,34 @@ void Composicion::aplicarLatencia() {
     for (auto& [k, r] : ramas_) r->llega.ponerPlazo(plazo);
     // Todo en otro hilo (ver recalcularLatenciaAparte): esto corre en el bucle del motor.
     // (Otro mezclador que no es un agregador, como smpte, no tiene dónde ponerla.)
-    recalcularLatenciaAparte(pipeline_, [mx = refCompartida(mezclador_), dsk = refCompartida(dskMx_), l, prop = propLatencia_]() {
-        if (!prop.empty()) g_object_set(mx.get(), prop.c_str(), static_cast<guint64>(l), nullptr);
-        if (dsk) g_object_set(dsk.get(), "min-upstream-latency", static_cast<guint64>(l), nullptr);
-    });
+    recalcularLatenciaAparte(
+        pipeline_,
+        [mx = refCompartida(mezclador_), dsk = refCompartida(dskMx_), l, prop = propLatencia_]() {
+            if (!prop.empty()) g_object_set(mx.get(), prop.c_str(), static_cast<guint64>(l), nullptr);
+            if (dsk) g_object_set(dsk.get(), "min-upstream-latency", static_cast<guint64>(l), nullptr);
+        },
+        alinearSalidas());
+}
+
+std::function<void()> Composicion::alinearSalidas() const {
+    GstElement* sale = pipeline_ != nullptr ? gst_bin_get_by_name(GST_BIN(pipeline_), "sale") : nullptr;
+    GstElement* limpio = pipeline_ != nullptr ? gst_bin_get_by_name(GST_BIN(pipeline_), "limpio") : nullptr;
+    auto r = [sale = refCompartida(sale), limpio = refCompartida(limpio), mx = refCompartida(mezclador_), dsk = refCompartida(dskMx_),
+              nombre = nombre_, antes = std::make_shared<std::int64_t>(-1),
+              cuadro = static_cast<std::int64_t>(gst_util_uint64_scale(GST_SECOND, static_cast<guint64>(std::max(1, lienzo_.fpsD)),
+                                                                       static_cast<guint64>(std::max(1, lienzo_.fpsN))))]() {
+        // Con DSK, lo de afuera sale del segundo mezclador y lo limpio del primero.
+        const auto [plazo, lat] = alinearASuHora(GST_ELEMENT(sale.get()), GST_ELEMENT(dsk ? dsk.get() : mx.get()), cuadro);
+        if (limpio) alinearASuHora(GST_ELEMENT(limpio.get()), GST_ELEMENT(mx.get()), cuadro);
+        if (plazo >= 0 && lat >= 0 && plazo != *antes) {
+            *antes = plazo;
+            registrar(Nivel::Info, llenar(traducir("motor", "composición %1: sale a su hora (plazo del mezclador %2 ms, latencia del pipeline %3 ms)"),
+                                          {nombre, std::to_string(plazo / 1'000'000), std::to_string(lat / 1'000'000)}));
+        }
+    };
+    if (sale != nullptr) gst_object_unref(sale);
+    if (limpio != nullptr) gst_object_unref(limpio);
+    return r;
 }
 
 // --- SONDA: lo que MUESTRA el compositor de cada capa ---------------------------------
@@ -537,13 +636,9 @@ void mostradoEnMezclador(GstElement* mx) {
     if constexpr (!ba::diag::kSondasCuadros) return;
     if (mx == nullptr) return;
     // glvideomixer es un bin: el agregador es su «mixer».
-    GstElement* agg = nullptr;
-    if (GST_IS_AGGREGATOR(mx))
-        agg = GST_ELEMENT(gst_object_ref(mx));
-    else if (g_object_class_find_property(G_OBJECT_GET_CLASS(mx), "mixer") != nullptr)
-        g_object_get(mx, "mixer", &agg, nullptr);
+    GstElement* agg = agregadorDe(mx);
     if (agg == nullptr) return;
-    if (GST_IS_AGGREGATOR(agg) && g_object_class_find_property(G_OBJECT_GET_CLASS(agg), "emit-signals") != nullptr) {
+    if (g_object_class_find_property(G_OBJECT_GET_CLASS(agg), "emit-signals") != nullptr) {
         g_object_set(agg, "emit-signals", TRUE, nullptr);
         g_signal_connect(agg, "samples-selected", G_CALLBACK(&muestrasElegidas), nullptr);
     }
@@ -1405,7 +1500,7 @@ void Composicion::tic() {
                                            {nombre_, GST_OBJECT_NAME(GST_MESSAGE_SRC(m)), error_}));
             if (e != nullptr) g_error_free(e);
         } else if (GST_MESSAGE_TYPE(m) == GST_MESSAGE_LATENCY) {
-            recalcularLatenciaAparte(pipeline_);
+            recalcularLatenciaAparte(pipeline_, {}, alinearSalidas());
         }
         gst_message_unref(m);
     }
