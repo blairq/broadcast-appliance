@@ -33,6 +33,7 @@
 
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <memory>
 #include <string>
 
@@ -59,6 +60,46 @@ class LecturaVideo : public ba::ipc_gst::Lectura {
     ba::ipc::FormatoCanal formato = ba::ipc::FormatoCanal::BGRA;
     std::chrono::steady_clock::time_point reintento{}, ultimo{};
     GstClockTime ultimoPts = GST_CLOCK_TIME_NONE; ///< la hora del último empujado (siempre hacia adelante)
+
+    /// La hora del contenido, PAREJA. La de libwebrtc trae el temblor con que el invitado
+    /// capturó (su temporizador: ±3-6 ms) y el compositor toma un cuadro por tic: con las horas
+    /// cerca del borde de un tic, ese temblor hace que dos caigan en el mismo (uno no se ve y el
+    /// siguiente tic repite: un salto de 67 ms, ~1 por segundo medido). Acá cada hora se predice
+    /// con la anterior más el período (medido) y se corrige 1/16 de lo que se aparta: el
+    /// temblor baja a una fracción y lo que queda es la deriva lenta entre los dos relojes (un
+    /// salto cada mucho). Un apartamiento grande (un hueco de verdad, otra capa, otro ritmo)
+    /// vuelve a tomar la hora tal cual. Es aritmética: nada espera ni se retiene.
+    struct Parejo {
+        GstClockTime hora = GST_CLOCK_TIME_NONE; ///< la última suavizada
+        GstClockTime cruda = GST_CLOCK_TIME_NONE; ///< la última sin suavizar
+        double periodo = 0;                      ///< ns (0 = todavía no)
+        void olvidar() { hora = cruda = GST_CLOCK_TIME_NONE, periodo = 0; }
+        GstClockTime suavizar(GstClockTime h) {
+            if (!GST_CLOCK_TIME_IS_VALID(hora) || !GST_CLOCK_TIME_IS_VALID(cruda) || h <= cruda) {
+                const bool reinicio = !GST_CLOCK_TIME_IS_VALID(cruda) || h <= cruda;
+                if (reinicio) periodo = 0;
+                cruda = hora = h;
+                return h;
+            }
+            const double d = static_cast<double>(h - cruda);
+            cruda = h;
+            // El período: lo que se mueve entre cuadros (de 8 a 200 ms: 5 a 120 cps).
+            if (d >= 8e6 && d <= 200e6) periodo = periodo == 0 ? d : periodo + (d - periodo) / 32;
+            if (periodo == 0) return hora = h;
+            double prevista = static_cast<double>(hora) + periodo;
+            double aparta = static_cast<double>(h) - prevista;
+            // Uno o más cuadros que no vinieron (el invitado los salteó): la predicción salta
+            // esos períodos. Más de 3, o para atrás más de medio: otra cosa (un salto de hora,
+            // otro ritmo): se toma tal cual.
+            const double k = std::round(aparta / periodo);
+            if (k < 0 || k > 3) return hora = h;
+            prevista += k * periodo;
+            aparta -= k * periodo;
+            const double nueva = prevista + aparta / 16;
+            hora = static_cast<GstClockTime>(nueva);
+            return hora;
+        }
+    } parejo;
     std::atomic<std::uint64_t> perdidos{0};       ///< publicados que ya no estaban al leer (la propiedad)
 
     ~LecturaVideo() override {
@@ -72,6 +113,7 @@ class LecturaVideo : public ba::ipc_gst::Lectura {
         ancho = alto = 0;
         formato = ba::ipc::FormatoCanal::BGRA;
         ultimoPts = GST_CLOCK_TIME_NONE;
+        parejo.olvidar();
     }
 
     void leer() override {
@@ -143,6 +185,10 @@ class LecturaVideo : public ba::ipc_gst::Lectura {
         // con su audio; puede ser unos ms del futuro), si no la de publicación. Así una ráfaga
         // que llegó junta sale con sus horas parejas y la latencia del compositor la absorbe.
         GstClockTime pts = t.hora(meta.contenidoQpc, GST_SECOND);
+        if (GST_CLOCK_TIME_IS_VALID(pts))
+            pts = parejo.suavizar(pts);
+        else
+            parejo.olvidar();
         if (!GST_CLOCK_TIME_IS_VALID(pts)) pts = t.hora(meta.qpc);
         if (!GST_CLOCK_TIME_IS_VALID(pts)) pts = t.ahora(); // sin sello creíble: la de ahora (como horaDeQpc)
         // Siempre hacia adelante (si la hora de libwebrtc vuelve atrás, p. ej. al rehacer su
@@ -194,6 +240,7 @@ static GstStateChangeReturn cambiar(GstElement* e, GstStateChange t) {
             std::lock_guard<std::mutex> g(l->mu);
             l->salida.reiniciar();
             l->ultimoPts = GST_CLOCK_TIME_NONE; // un segmento nuevo
+            l->parejo.olvidar();
             r = GST_STATE_CHANGE_NO_PREROLL; // en vivo
             break;
         }
