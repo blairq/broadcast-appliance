@@ -93,7 +93,12 @@ json aJson(const Muestra& m) {
                 {"entraron", m.entraron},
                 {"conVideo", m.conVideo},
                 {"kbpsSubida", std::lround(m.kbpsSubida)},
-                {"kbpsBajada", std::lround(m.kbpsBajada)}};
+                {"kbpsBajada", std::lround(m.kbpsBajada)},
+                {"redEntraMbps", r1(m.redEntraMbps)},
+                {"redSaleMbps", r1(m.redSaleMbps)},
+                {"cpuProbador", r1(m.cpuProbador)},
+                {"redEntraEquipoMbps", r1(m.redEntraEquipoMbps)},
+                {"redSaleEquipoMbps", r1(m.redSaleEquipoMbps)}};
 }
 
 Muestra muestraDe(const json& j) {
@@ -118,6 +123,11 @@ Muestra muestraDe(const json& j) {
     m.cps = d("cps");
     m.audioMs = d("audioMs");
     m.uiMs = d("uiMs");
+    m.redEntraMbps = d("redEntraMbps");
+    m.redSaleMbps = d("redSaleMbps");
+    m.cpuProbador = d("cpuProbador");
+    m.redEntraEquipoMbps = d("redEntraEquipoMbps");
+    m.redSaleEquipoMbps = d("redSaleEquipoMbps");
     m.entraron = e("entraron");
     m.conVideo = e("conVideo");
     m.kbpsSubida = d("kbpsSubida");
@@ -411,6 +421,7 @@ GenteSala genteDe(const json& participantes) {
 namespace {
 constexpr const char* kPrefijoCodigo = "BACAP1.";
 constexpr const char* kB64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";
+} // namespace
 
 std::string base64url(const std::string& in) {
     std::string out;
@@ -454,7 +465,6 @@ bool desdeBase64url(const std::string& in, std::string& out) {
     }
     return true;
 }
-} // namespace
 
 std::string armarCodigo(const Codigo& c) {
     const json j{{"u", c.url}, {"c", c.credencial}, {"h", c.huella}, {"m", c.maquina}};

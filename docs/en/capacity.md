@@ -12,9 +12,24 @@ hardware, and what runs out first. The full measurements (in Spanish) are in
 | Apple MacBook Pro, M1 Pro (8 cores: 6 performance + 2 efficiency, 14-core GPU), 32 GB unified memory | macOS 26 | **40 with headroom** — the highest step measured; the ceiling was not measured | not reached (see below) |
 
 The guest limit in the program is **512** (it was 64 until November 2026); below that, the
-machine decides. To measure your own machine, use **Configuration → System → Capacity**: it
+machine decides. To measure your own machine, use the **Tests** page (**Pruebas → Capacidad**): it
 ramps up test guests step by step and tells you how many it holds with headroom and what
 limits it ([CAPACIDAD.md](../funciones/CAPACIDAD.md), in Spanish).
+
+The **Tests** page (Pruebas) gathers everything: the room test, capacity, the assembly test, the
+link and a **history** of every test on the machine (when, parameters, a hardware profile of
+each machine —CPU model, cores, memory, GPU, network card and whether it is Wi-Fi or cable—,
+results and time series), with compare and CSV/JSON export ([PRUEBAS.md](../funciones/PRUEBAS.md),
+in Spanish). Two options matter for honest numbers:
+
+- **What the load generator decodes** of the return video: a **sample** (default: 5 %, at least
+  3 per process) checks that the return arrives whole and on time without loading the
+  generating machine; **nothing** only sends; **everything** made a 200-guest generator hit
+  100 % CPU and send frames late, which pollutes the measurement.
+- **Two or more PCs**: run the program on both and let one generate against the other (Capacity
+  → «Remote system», now also as a fixed-size room test), or split a room test across several
+  generating PCs (hinchada coordinator, «Generate for another machine»). Both sides show live
+  CPU and network charts, so you can see whether the generator keeps up.
 
 ## Where the cost is
 

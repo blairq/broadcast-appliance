@@ -829,8 +829,21 @@ Rectangle {
                 // El enlace por el túnel: cuánto anda y cuánto necesita el evento.
                 PanelEnlace { Layout.fillWidth: true }
 
-                // La prueba de sala: el simulacro con participantes de prueba antes del evento.
-                PanelPruebaSala { Layout.fillWidth: true }
+                // Las pruebas (prueba de sala, capacidad, asamblea) tienen su página: acá, el acceso.
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    Text {
+                        Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textFaint; font.pixelSize: 11
+                        text: Studio.pruebaSala.corriendo ? qsTr("Hay una prueba de sala corriendo.")
+                                                          : qsTr("La prueba de sala y la capacidad están en Pruebas.")
+                    }
+                    GlassButton {
+                        compact: true
+                        text: qsTr("Pruebas")
+                        onClicked: ApplicationWindow.window.showPage((Studio.riel.paginaPorId["pruebas"] ?? -1))
+                    }
+                }
 
                 // Quién de la sala se ve en cada grilla de personas (resumen; tocando una cara
                 // se la fija, saca o mueve). Solo si hay alguna grilla.

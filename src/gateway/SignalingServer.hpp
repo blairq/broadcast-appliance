@@ -385,7 +385,8 @@ class SignalingServer {
     /// El tic (main, ~1 s): si venció, la cierra sola.
     void tickPruebaSala(int64_t nowMs);
     /// La medida de esta máquina para el probador de capacidad remoto (la pone la app).
-    void medidaPruebaSala(const nlohmann::json& medida);
+    /// Devuelve lo que mandan las máquinas que generan contra esta (PruebaSala::generadores).
+    nlohmann::json medidaPruebaSala(const nlohmann::json& medida);
 
     // --- La prueba de capacidad: la conexión a internet (docs/funciones/CAPACIDAD.md) ---
     /// Un secreto para medir «ida y vuelta» por el túnel (pinggy): la app le pide relleno a

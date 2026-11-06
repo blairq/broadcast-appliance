@@ -83,6 +83,12 @@ struct Muestra {
     int entraron = -1;           ///< invitados de prueba en la sala
     int conVideo = -1;           ///< …con medios arriba
     double kbpsSubida = -1, kbpsBajada = -1;
+    /// La red de la máquina MEDIDA (sus placas: lo que entra y lo que sale, Mbps).
+    double redEntraMbps = -1, redSaleMbps = -1;
+    /// La máquina que GENERA: la CPU de hinchada (% de esa máquina) y su red. Local: la misma
+    /// máquina (cpuProbador = cpuGenerador); remoto: esta, que genera contra el otro.
+    double cpuProbador = -1;
+    double redEntraEquipoMbps = -1, redSaleEquipoMbps = -1;
 };
 nlohmann::json aJson(const Muestra& m);
 Muestra muestraDe(const nlohmann::json& j);
@@ -158,6 +164,9 @@ struct Codigo {
     std::string maquina;    ///< su nombre, para mostrar
 };
 std::string armarCodigo(const Codigo& c);
+/// base64url sin relleno (los códigos para copiar: este y el del generador de la prueba de sala).
+std::string base64url(const std::string& in);
+bool desdeBase64url(const std::string& in, std::string& out);
 /// false si no es un código de capacidad (o le falta la URL o la credencial).
 bool leerCodigo(const std::string& texto, Codigo& c);
 

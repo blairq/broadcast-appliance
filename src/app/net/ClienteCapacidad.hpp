@@ -27,8 +27,10 @@
 namespace ba::app::net {
 
 /// {ok, status, medida?, participantes?, error?}
+/// `generador`: lo de esta máquina que genera (CPU, red, ficha), que el otro guarda para su
+/// informe; viaja en la cabecera X-BA-Generador (JSON en ASCII), con la credencial.
 void pedirMedidaRemota(QObject* quien, const QString& url, const QString& credencial, const QString& huella,
-                       std::function<void(const nlohmann::json&)> listo);
+                       std::function<void(const nlohmann::json&)> listo, const nlohmann::json& generador = nlohmann::json());
 
 /// Cuánto dura cada parte de la medición ida y vuelta.
 struct IdaYVuelta {

@@ -50,6 +50,91 @@ struct Umbrales {
 /// "" si se puede arrancar con `n` participantes; si no, por qué (para el operador).
 /// `generadorLocal`: el probador corre en esta máquina (suma su memoria).
 std::string puedeArrancar(const Medida& m, const Umbrales& u, int n, bool generadorLocal);
+/// Lo mismo cuando el probador genera `nLocal` de los `n` en esta máquina (el resto, en
+/// otras): cada uno pesa la mitad (app + gateway) y los locales, la otra mitad.
+std::string puedeArrancarRepartido(const Medida& m, const Umbrales& u, int n, int nLocal);
+
+// --- El probador (hinchada): cuánto decodifica y entre cuántas máquinas ---------------------
+
+/// Cuánto video que VUELVE (el retorno que la sala le manda a cada uno) decodifica el
+/// probador (`hinchada --decodificar`). Decodificar es lo que más le cuesta: con «todo» y
+/// 200 participantes la máquina que genera llega al 100 % de CPU y manda sus cuadros a
+/// destiempo, y eso ensucia la medición de la sala. Con «muestra», unos pocos
+/// decodifican de verdad (se ve que el retorno llega entero y a su ritmo: cuadros
+/// decodificados, congelamientos) y el resto lo recibe y lo cuenta sin decodificar (bytes,
+/// cuadros, pérdida, jitter). «nada» es lo más liviano pero no comprueba que el retorno
+/// se pueda ver.
+struct Decodificar {
+    std::string modo = "muestra"; ///< "nada" | "muestra" | "todo"
+    int pct = 5;                  ///< el de la muestra (kMuestraMinPct..kMuestraMaxPct)
+};
+constexpr int kMuestraMinPct = 1;
+constexpr int kMuestraMaxPct = 50;
+/// Con la muestra, decodifican al menos estos (con 10, el 5 % no sería ninguno).
+constexpr int kMuestraMinima = 3;
+/// "" si `modo` y `pct` valen (y los deja en `d`); si no, por qué.
+std::string leerDecodificar(const std::string& modo, int pct, Decodificar& d);
+/// El % que se le pide a hinchada para `n` participantes del mismo proceso: 0 (nada),
+/// 100 (todo) o la muestra, subida para que decodifiquen al menos kMuestraMinima.
+double pctEfectivo(const Decodificar& d, int n);
+/// El argumento de `--decodificar`: "nada", "todo" o el % ("30", "12.5").
+std::string argDecodificar(const Decodificar& d, int n);
+/// Para el informe: {modo, pct, pctEfectivo}.
+nlohmann::json aJson(const Decodificar& d, int n);
+
+/// Repartir los N entre esta máquina y otras (hinchada `coordinar` / `trabajar`).
+/// hinchada reparte entre los trabajadores conectados según lo que aguanta cada uno
+/// (`--por-proceso`); en macOS un proceso no pasa de 150 (libwebrtc espera los sockets con
+/// select()), así que a una máquina que le tocan más se le pide la línea más de una vez.
+constexpr int kMaxOtrasMaquinas = 16;
+constexpr int kPorProcesoMax = 150;
+struct Reparto {
+    int n = 0;
+    int otras = 0;            ///< otras máquinas que generan
+    bool estaGenera = true;   ///< esta máquina también genera (si no, solo coordina)
+    int maquinas = 1;         ///< las que generan
+    int porMaquina = 0;       ///< los que le tocan a cada una (el último puede tener menos)
+    int local = 0;            ///< los que genera esta máquina
+    int procesosLocales = 0;  ///< los `hinchada trabajar` que lanza la app acá
+    int porProcesoLocal = 0;
+    int procesosPorOtra = 0;  ///< cuántas veces se corre la línea en cada otra máquina
+    int porProcesoOtra = 0;
+    int trabajadores = 0;     ///< los que espera el coordinador (todos los procesos)
+    bool varias() const { return otras > 0; }
+};
+/// "" si se puede repartir así; si no, por qué.
+std::string puedeRepartir(int n, int otras, bool estaGenera);
+Reparto repartir(int n, int otras, bool estaGenera);
+/// La línea para cada otra máquina: `HINCHADA_CLAVE=… ./hinchada trabajar --coordinador
+/// host:puerto --por-proceso K` (en Windows, con PowerShell: `$env:HINCHADA_CLAVE=…;
+/// .\hinchada.exe …`). La clave de coordinación es de esta prueba sola (el coordinador
+/// rechaza a quien no la trae).
+std::string comandoTrabajador(const Reparto& r, const std::string& host, int puerto, const std::string& clave, bool windows);
+/// Los trabajadores que se sumaron, según la consola del coordinador («se sumó el
+/// trabajador «nombre» (…)» / «se cortó el trabajador «nombre»»). `otras`: los que no son
+/// de esta máquina (los de acá se llaman `kPrefijoLocal`N).
+constexpr const char* kPrefijoLocal = "esta-maquina-";
+int trabajadoresSumados(const std::string& consola, int* otras = nullptr);
+
+/// El CÓDIGO para sumar otra PC como generadora desde SU app (Sala → Prueba de sala →
+/// «Generar para otro equipo»): «BAGEN1.» + base64url de la dirección del coordinador, su
+/// clave, cuántos procesos corre y de cuántos cada uno, y el nombre de la máquina medida.
+/// La otra app lanza esos `hinchada trabajar` (sin línea de comandos).
+struct CodigoGenerador {
+    std::string coordinador; ///< host:puerto
+    std::string clave;       ///< la clave de coordinación (de esta prueba sola)
+    int procesos = 1;
+    int porProceso = kPorProcesoMax;
+    std::string maquina;     ///< la que se mide (para mostrar)
+};
+std::string armarCodigoGenerador(const CodigoGenerador& c);
+/// false si no es un código de generador (o le falta algo, o los números no valen).
+bool leerCodigoGenerador(const std::string& texto, CodigoGenerador& c);
+
+/// La CPU (% de la máquina) de cada máquina GENERADORA en una línea de muestras.jsonl del
+/// coordinador de hinchada (`maquinas`: una por máquina). No cuenta la sonda ni la máquina
+/// medida (la que vigila ba-gateway o ba-app: la del coordinador, que corre al lado de la app).
+std::map<std::string, double> generadorasDeMuestra(const nlohmann::json& linea);
 /// "" si sigue; si no, por qué se corta.
 std::string debeCortar(const Medida& m, const Umbrales& u);
 
@@ -68,6 +153,9 @@ struct Muestra {
     double kbpsBajada = -1; ///< lo que sale del gateway hacia ellos
     double cpuApp = -1;     ///< % de la máquina
     double cpuGateway = -1; ///< % de la máquina
+    double cpuGenerador = -1; ///< % de la máquina: los procesos de hinchada de ESTA máquina
+    double cpuMaquina = -1;   ///< % de la máquina entera
+    double redEntraMbps = -1, redSaleMbps = -1; ///< sus placas de red
     double memLibreMb = -1;
     double carga = -1;
     int hilosApp = -1;
@@ -77,6 +165,11 @@ class Informe {
    public:
     /// Empieza otra prueba (olvida la anterior).
     void empezar(int64_t t, int pedidos, const std::string& generador, const std::string& evento);
+    /// Cómo se generó (va al informe como `probador`): {decodificar: aJson(Decodificar),
+    /// maquinas: {otras, estaGenera, sumadas}, …}. Se puede volver a llamar (las sumadas).
+    void probador(const nlohmann::json& p);
+    /// La CPU de las máquinas generadoras en un segundo (generadorasDeMuestra).
+    void generadoras(const std::map<std::string, double>& cpuPorMaquina);
     void muestra(const Muestra& m);
     /// Los participantes de prueba como los da la sala (snapshot: id, name, state,
     /// connected, mediaUp, joinedMs). Se llama con cada foto de la sala.
@@ -114,9 +207,15 @@ class Informe {
     int64_t inicio_ = 0, fin_ = 0;
     int pedidos_ = 0;
     std::string generador_, evento_, motivo_;
+    nlohmann::json probador_ = nlohmann::json::object();
     bool porGuardia_ = false;
     std::map<std::string, Persona> gente_;
     std::vector<Muestra> serie_;
+    struct Generadora {
+        double suma = 0, pico = -1;
+        int n = 0;
+    };
+    std::map<std::string, Generadora> generadoras_;
 };
 
 } // namespace ba::app::sala::prueba

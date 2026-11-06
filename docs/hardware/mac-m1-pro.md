@@ -87,7 +87,7 @@ Cómo leerlas:
 - **TURN y pinggy** en la Mac (la campaña de la tarde quedó con solo directo).
 
 No hay un techo medido para esta Mac: **40 con margen** es lo único que se puede afirmar.
-Para saber cuántos aguanta hoy, la pestaña **Configuración → Sistema → Capacidad** hace la
+Para saber cuántos aguanta hoy, la pestaña **Pruebas → Capacidad** hace la
 rampa sola ([CAPACIDAD.md](../funciones/CAPACIDAD.md)).
 
 ## La Mac como generadora

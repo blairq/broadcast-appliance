@@ -13,6 +13,9 @@ Panel {
     readonly property var m: ps.maquina
     readonly property var ult: ps.ultimoInforme
     readonly property var u: v.ultima || ({})
+    readonly property var rp: ps.reparto
+    property bool copiado: false
+    function revisar() { panel.ps.revisarMaquina(cuantos.value, conHinchada.checked, varias.checked ? otras.value : 0, estaGenera.checked) }
     title: qsTr("Prueba de sala")
     Layout.preferredHeight: col.implicitHeight + 62
 
@@ -45,7 +48,7 @@ Panel {
                 id: cuantos
                 from: 1; to: panel.ps.maxParticipantes; value: 10; editable: true
                 Layout.fillWidth: true
-                onValueModified: panel.ps.revisarMaquina(value, conHinchada.checked)
+                onValueModified: panel.revisar()
             }
             Text { text: qsTr("Minutos"); color: Theme.textDim; font.pixelSize: 12 }
             SpinBox { id: minutos; from: 1; to: 120; value: 5; editable: true; Layout.fillWidth: true }
@@ -63,7 +66,38 @@ Panel {
             enabled: panel.ps.hinchadaDisponible
             text: panel.ps.hinchadaDisponible ? qsTr("Los genera esta máquina (hinchada)")
                                               : qsTr("Sin probador en el programa: carga externa")
-            onToggled: panel.ps.revisarMaquina(cuantos.value, checked)
+            onToggled: panel.revisar()
+        }
+        // Cuánto decodifica el probador de lo que vuelve (de fábrica, una muestra).
+        OpcionDecodificar {
+            id: decodificar
+            Layout.fillWidth: true
+            visible: !panel.ps.corriendo
+            pct: panel.ps.muestraDeFabrica
+            pctMin: panel.ps.muestraMinPct
+            pctMax: panel.ps.muestraMaxPct
+        }
+        // Repartir los N entre esta máquina y otras (hinchada coordina).
+        CheckBox {
+            id: varias
+            visible: !panel.ps.corriendo && conHinchada.checked
+            text: qsTr("Repartir entre varias máquinas")
+            onToggled: panel.revisar()
+        }
+        RowLayout {
+            Layout.fillWidth: true
+            visible: !panel.ps.corriendo && varias.checked && varias.visible
+            spacing: 8
+            Text { text: qsTr("Otras máquinas"); color: Theme.textDim; font.pixelSize: 12 }
+            SpinBox { id: otras; from: 1; to: panel.ps.maxOtrasMaquinas; value: 1; editable: true; onValueModified: panel.revisar() }
+            CheckBox {
+                id: estaGenera
+                checked: true
+                text: qsTr("Esta también genera")
+                onToggled: panel.revisar()
+                ToolTip.visible: hovered; ToolTip.delay: 400
+                ToolTip.text: qsTr("Sin tildar, esta máquina solo coordina: la app medida no comparte la CPU con el generador.")
+            }
         }
         // La guardia: lo que dice la máquina antes de arrancar.
         Text {
@@ -118,7 +152,9 @@ Panel {
                 active: true
                 enabled: panel.ps.estado === "apagada"
                 onClicked: {
-                    const err = panel.ps.arrancar(cuantos.value, minutos.value, conHinchada.checked, hablan.value)
+                    const err = panel.ps.arrancar(cuantos.value, minutos.value, conHinchada.checked, hablan.value,
+                                                  decodificar.modo, decodificar.pct,
+                                                  varias.checked && varias.visible ? otras.value : 0, estaGenera.checked)
                     if (err) Studio.notify(qsTr("Prueba de sala: %1").arg(err), "error")
                 }
             }
@@ -142,6 +178,14 @@ Panel {
             Text { text: panel.mbps(panel.u.kbpsSubida) + " / " + panel.mbps(panel.u.kbpsBajada); color: Theme.text; font { family: Theme.mono; pixelSize: 11 } }
             Text { text: qsTr("CPU app / gateway"); color: Theme.textDim; font.pixelSize: 11 }
             Text { text: panel.pct(panel.u.cpuApp) + " / " + panel.pct(panel.u.cpuGateway); color: Theme.text; font { family: Theme.mono; pixelSize: 11 } }
+            Text { text: qsTr("CPU del probador (acá)"); color: Theme.textDim; font.pixelSize: 11 }
+            Text {
+                text: panel.pct(panel.u.cpuGenerador) + "  ·  " + qsTr("decodifica: %1").arg(
+                          panel.ps.decodificacion.modo === "nada" ? qsTr("nada")
+                          : panel.ps.decodificacion.modo === "todo" ? qsTr("todo")
+                          : qsTr("muestra %1 %").arg(panel.ps.decodificacion.pctEfectivo))
+                color: Theme.text; font { family: Theme.mono; pixelSize: 11 }
+            }
             Text { text: qsTr("Memoria disponible"); color: Theme.textDim; font.pixelSize: 11 }
             Text {
                 text: panel.u.memLibreMb !== undefined ? Math.round(panel.u.memLibreMb) + " MB" : "–"
@@ -154,6 +198,49 @@ Panel {
             Text {
                 text: panel.v.hd && panel.v.hd.cuantos > 0 ? qsTr("%1 ms (p95 %2)").arg(panel.v.hd.p50).arg(panel.v.hd.p95) : "–"
                 color: Theme.text; font { family: Theme.mono; pixelSize: 11 }
+            }
+        }
+        // Los dos lados en vivo: esta máquina (la medida) y las que generan.
+        GraficasPrueba {
+            Layout.fillWidth: true
+            visible: panel.ps.corriendo && panel.ps.serie.length > 1
+            serie: panel.ps.serie
+            deSala: true
+        }
+        // Varias máquinas: el código para la otra app (o la línea de hinchada) y quién se sumó.
+        ColumnLayout {
+            Layout.fillWidth: true
+            visible: panel.ps.corriendo && panel.rp.activo === true
+            spacing: 4
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; font.pixelSize: 12
+                color: panel.rp.sumadasOtras >= panel.rp.otras ? Theme.ok : Theme.amber
+                text: !panel.rp.escuchando ? qsTr("Preparando el coordinador (la primera vez graba su video unos minutos)…")
+                      : qsTr("Se sumaron %1 de %2 máquinas · a cada una le tocan %3 participantes").arg(panel.rp.sumadasOtras).arg(panel.rp.otras).arg(panel.rp.porMaquina)
+            }
+            Text {
+                Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 11
+                visible: (panel.rp.codigo || "") !== ""
+                text: qsTr("En cada otra PC con BroadcastAppliance: Pruebas → «Generar para otro equipo», pegá este código. Sin el programa, corré la línea en la carpeta de hinchada (bin/64bit/hinchada)%1. Dejá pasar el puerto %2 en el firewall de esta máquina.")
+                          .arg(panel.rp.procesosPorOtra > 1 ? qsTr(", %1 veces (una por terminal)").arg(panel.rp.procesosPorOtra) : "")
+                          .arg((panel.rp.direccion || "").split(":").pop())
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                visible: (panel.rp.codigo || "") !== ""
+                spacing: 6
+                TextField { Layout.fillWidth: true; readOnly: true; selectByMouse: true; echoMode: TextInput.Password; text: panel.rp.codigo || ""; font.family: Theme.mono; font.pixelSize: 11 }
+                GlassButton { compact: true; text: panel.copiado ? qsTr("Copiado ✓") : qsTr("Copiar el código"); onClicked: { Studio.copiar(panel.rp.codigo); panel.copiado = true } }
+            }
+            TextField { Layout.fillWidth: true; visible: (panel.rp.comando || "") !== ""; readOnly: true; selectByMouse: true; text: panel.rp.comando || ""; font.family: Theme.mono; font.pixelSize: 11 }
+            TextField { Layout.fillWidth: true; visible: (panel.rp.comandoWindows || "") !== ""; readOnly: true; selectByMouse: true; text: panel.rp.comandoWindows || ""; font.family: Theme.mono; font.pixelSize: 11 }
+            Repeater {
+                model: panel.rp.generadoras || []
+                delegate: Text {
+                    required property var modelData
+                    color: modelData.cpu > 90 ? Theme.live : Theme.textDim; font.pixelSize: 11
+                    text: qsTr("Generadora %1: CPU %2 %").arg(modelData.maquina).arg(Math.round(modelData.cpu))
+                }
             }
         }
         // Para un generador externo: la URL y la credencial de prueba (vence al terminar).

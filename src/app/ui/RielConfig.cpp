@@ -89,6 +89,9 @@ const std::vector<Grupo>& catalogo() {
           {30, "latencias", "⏱",
            QT_TRANSLATE_NOOP("riel", "Latencias del pipeline: cuánto tarda cada cosa, de cada entrada a cada salida (video y audio, "
            "tarjeta por tarjeta, módulo por módulo), y los análisis")},
+          {34, "pruebas", "⚗",
+           QT_TRANSLATE_NOOP("riel", "Pruebas: la prueba de sala, la capacidad (cuántos invitados aguanta esta máquina u otra), la "
+           "prueba de asamblea y el enlace; probar entre dos o más PC")},
           {29, "enlaces", "⇄",
            QT_TRANSLATE_NOOP("riel", "Servicios: todos los enlaces web y sus códigos QR (invitados, público, teleprompter, rótulos, "
            "botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR")},

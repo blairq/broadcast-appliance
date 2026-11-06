@@ -16,7 +16,7 @@ El resumen en inglés, con el modelo de costos y las condiciones de la prueba, e
 
 ## Cómo se mide
 
-Para el operador, la pestaña **Configuración → Sistema → Capacidad** hace una rampa
+Para el operador, la pestaña **Pruebas → Capacidad** hace una rampa
 automática y da un número ([CAPACIDAD.md](../funciones/CAPACIDAD.md)). Lo de abajo es la
 medición de laboratorio, con todo el detalle interno.
 

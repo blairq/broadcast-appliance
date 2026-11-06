@@ -37,6 +37,9 @@ class GeneradorCarga : public QObject {
         QString prefijo;    ///< para los nombres («c40-»): no se repiten entre escalones
         QString salida;     ///< carpeta para su consola e informe
         bool inseguro = true; ///< certificado propio de la caja (no se verifica)
+        /// `--decodificar` de hinchada: "nada", "todo" o el % (sala::prueba::argDecodificar);
+        /// vacío, el de hinchada.
+        QString decodificar;
     };
     /// ¿Se puede? (hinchada viene en el programa)
     virtual bool disponible() const = 0;

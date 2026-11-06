@@ -27,6 +27,8 @@
 #include "ui/ConferenceViewModel.hpp"
 #include "ui/EnlaceViewModel.hpp"
 #include "ui/EstadoAireViewModel.hpp"
+#include "ui/HistorialPruebasViewModel.hpp"
+#include "ui/PruebaAsambleaViewModel.hpp"
 #include "ui/PruebaSalaViewModel.hpp"
 #include "ui/RecursosViewModel.hpp"
 #include "ui/SalaViewModel.hpp"
@@ -61,6 +63,8 @@ void StudioViewModel::crearCapacidad() {
         m.cpuMaquina = r.cpu;
         m.memLibreMb = mm.memLibreMb;
         m.memTotalMb = r.ramTotalMb;
+        m.redEntraMbps = r.redEntradaMbps;
+        m.redSaleMbps = r.redSalidaMbps;
         double gen = 0;
         bool hayGen = false;
         for (const auto& pr : r.procesos) {
@@ -93,6 +97,8 @@ void StudioViewModel::crearCapacidad() {
     p.otraPrueba = [this]() -> QString {
         if (pruebaSala_ && pruebaSala_->corriendo())
             return QString::fromStdString(ba::i18n::traducir("capacidad", "hay una prueba de sala corriendo"));
+        if (pruebaSala_ && pruebaSala_->generandoActivo())
+            return QString::fromStdString(ba::i18n::traducir("capacidad", "esta máquina está generando para otro equipo"));
         if (enlace_ && enlace_->midiendo())
             return QString::fromStdString(ba::i18n::traducir("capacidad", "se está midiendo el enlace"));
         return {};
@@ -132,8 +138,12 @@ void StudioViewModel::crearCapacidad() {
         acc->usar(capacidad_.get(), false);
     };
     // La red.
-    p.pedirRemota = [](QObject* quien, const QString& url, const QString& cred, const QString& huella,
-                       std::function<void(const json&)> listo) { net::pedirMedidaRemota(quien, url, cred, huella, std::move(listo)); };
+    p.pedirRemota = [](QObject* quien, const QString& url, const QString& cred, const QString& huella, const json& generador,
+                       std::function<void(const json&)> listo) {
+        net::pedirMedidaRemota(quien, url, cred, huella, std::move(listo), generador);
+    };
+    // La ficha de esta máquina (va en los informes y, por el emparejamiento, al otro equipo).
+    p.ficha = [this]() { return sala::prueba::fichaMaquina(recursos_->muestreador().ultima()); };
     p.medirIdaYVuelta = [](QObject* quien, const QString& url, const QString& secreto, std::shared_ptr<std::atomic<bool>> cancelar,
                            std::function<void(const json&)> listo) {
         net::medirIdaYVuelta(quien, url, secreto, net::IdaYVuelta{}, std::move(cancelar), std::move(listo));
@@ -164,6 +174,12 @@ void StudioViewModel::crearCapacidad() {
     connect(enlace_.get(), &EnlaceViewModel::termino, c, &CapacidadViewModel::alTerminarEnlace);
     connect(enlace_.get(), &EnlaceViewModel::medicionChanged, c, &CapacidadViewModel::revisar);
     if (acc != nullptr) connect(acc, &AccesoRemoto::estadoChanged, c, &CapacidadViewModel::alCambiarPinggy);
+    // El historial de pruebas de la máquina: se recarga cuando una prueba guarda su informe.
+    historialPruebas_ = std::make_unique<HistorialPruebasViewModel>(rt_.dataRoot());
+    HistorialPruebasViewModel* hp = historialPruebas_.get();
+    connect(c, &CapacidadViewModel::historialChanged, hp, &HistorialPruebasViewModel::alGuardar);
+    connect(pruebaSala_.get(), &PruebaSalaViewModel::informeChanged, hp, &HistorialPruebasViewModel::alGuardar);
+    connect(pruebaAsamblea_.get(), &PruebaAsambleaViewModel::informeChanged, hp, &HistorialPruebasViewModel::alGuardar);
     // La prueba de sala no arranca con la de capacidad cargando la máquina.
     pruebaSala_->setOtraPrueba([c]() -> QString {
         if (c->estado() == QLatin1String("local") || c->estado() == QLatin1String("remoto") ||
@@ -171,6 +187,11 @@ void StudioViewModel::crearCapacidad() {
             return QString::fromStdString(ba::i18n::traducir("capacidad", "hay una prueba de capacidad corriendo"));
         return {};
     });
+}
+
+QObject* StudioViewModel::historialPruebasQml() const {
+    QQmlEngine::setObjectOwnership(historialPruebas_.get(), QQmlEngine::CppOwnership);
+    return historialPruebas_.get();
 }
 
 QObject* StudioViewModel::capacidadQml() const {

@@ -323,7 +323,21 @@ Rectangle {
             Loader {
                 anchors.fill: parent
                 active: page.section === page.capacidadSection
-                sourceComponent: Component { PanelCapacidad {} }
+                // Vive en la página Pruebas; acá queda el acceso.
+                sourceComponent: Component {
+                    ColumnLayout {
+                        spacing: 10
+                        Text {
+                            Layout.fillWidth: true; wrapMode: Text.WordWrap; color: Theme.textDim; font.pixelSize: 13
+                            text: qsTr("¿Cuántos invitados aguanta esta máquina, otra o la conexión? La prueba de capacidad está en la página Pruebas, con la prueba de sala y la de asamblea.")
+                        }
+                        GlassButton {
+                            text: qsTr("Ir a Pruebas")
+                            onClicked: ApplicationWindow.window.showPage((Studio.riel.paginaPorId["pruebas"] ?? -1))
+                        }
+                        Item { Layout.fillHeight: true }
+                    }
+                }
             }
         }
     }

@@ -4,6 +4,8 @@
 
 #include <QProcess>
 
+#include <algorithm>
+#include <fstream>
 #include <system_error>
 
 #include "persist/ColaEscritura.hpp"
@@ -44,6 +46,35 @@ json informeHinchada(const fs::path& salida) {
             {"integrantes", todo.value("integrantes", json::array())},
             {"resumen", todo.value("resumen", json::object())},
             {"notas", todo.value("notas", json::array())}};
+}
+
+Tramo leerLineasDesde(const fs::path& archivo, std::int64_t desde, std::int64_t maxBytes) {
+    Tramo t;
+    t.hasta = std::max<std::int64_t>(0, desde);
+    std::ifstream f(archivo, std::ios::binary);
+    if (!f) return t;
+    f.seekg(0, std::ios::end);
+    const std::int64_t largo = static_cast<std::int64_t>(f.tellg());
+    // Más corto que lo leído: lo volvieron a empezar.
+    if (largo < t.hasta) t.hasta = 0;
+    const std::int64_t cuanto = std::min(largo - t.hasta, std::max<std::int64_t>(0, maxBytes));
+    if (cuanto <= 0) return t;
+    std::string s(static_cast<std::size_t>(cuanto), '\0');
+    f.seekg(t.hasta);
+    f.read(s.data(), cuanto);
+    s.resize(static_cast<std::size_t>(f.gcount()));
+    const std::size_t fin = s.rfind('\n');
+    if (fin == std::string::npos) {
+        // Una línea entera más larga que maxBytes: se toma igual (si no, no avanzaría nunca).
+        if (cuanto < maxBytes) return t;
+        t.texto = std::move(s);
+        t.hasta += static_cast<std::int64_t>(t.texto.size());
+        return t;
+    }
+    s.resize(fin + 1);
+    t.hasta += static_cast<std::int64_t>(s.size());
+    t.texto = std::move(s);
+    return t;
 }
 
 void borrar(const fs::path& archivo) {

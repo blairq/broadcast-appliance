@@ -136,8 +136,12 @@ ColumnLayout {
             text: qsTr("Ninguno todavía: se registran solos la primera vez que alguien entra con su PIN.")
         }
     }
-    // --- La prueba de asamblea (integrantes simulados por este mismo camino) -------------------
-    PanelPruebaAsamblea { onIrAlRecinto: cr.irAlRecinto() }
+    // --- La prueba de asamblea (integrantes simulados por este mismo camino): en Pruebas ----------
+    RowLayout {
+        spacing: 8
+        Text { color: Theme.textFaint; font.pixelSize: 12; text: qsTr("La prueba de asamblea (integrantes simulados) está en Pruebas.") }
+        GlassButton { compact: true; text: qsTr("Pruebas"); onClicked: ApplicationWindow.window.showPage((Studio.riel.paginaPorId["pruebas"] ?? -1)) }
+    }
     Dialog {
         id: nuevaConsola
         anchors.centerIn: Overlay.overlay

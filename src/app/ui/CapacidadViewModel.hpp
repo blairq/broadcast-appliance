@@ -1,5 +1,5 @@
 // ============================================================================
-// src/app/ui/CapacidadViewModel.hpp — ¿cuántos invitados aguanta? (Configuración → Sistema → Capacidad)
+// src/app/ui/CapacidadViewModel.hpp — ¿cuántos invitados aguanta? (Pruebas → Capacidad)
 //
 // docs/funciones/CAPACIDAD.md. Es el MODELO/CONTROLADOR de la pestaña y de las
 // herramientas MCP capacidad_*, con las mismas reglas para las dos. Tres pruebas y un modo:
@@ -47,6 +47,7 @@
 #include <filesystem>
 #include <functional>
 #include <memory>
+#include <map>
 #include <vector>
 
 #include <nlohmann/json.hpp>
@@ -72,6 +73,14 @@ class CapacidadViewModel : public QObject {
     Q_PROPERTY(QVariantMap progreso READ progreso NOTIFY progresoChanged)
     /// La última muestra (aJson(Muestra)).
     Q_PROPERTY(QVariantMap vivo READ vivo NOTIFY vivoChanged)
+    /// La serie en vivo para los gráficos (un punto por segundo, los últimos 10 minutos): [{t,
+    /// cpuMaquina, cpuApp, cpuGateway, redEntraMbps, redSaleMbps (la máquina medida), cpuEquipo,
+    /// cpuProbador, redEntraEquipoMbps, redSaleEquipoMbps (la que genera)}]. Recibiendo, lo de la
+    /// que genera llega del otro equipo por el emparejamiento (la más cargada).
+    Q_PROPERTY(QVariantList serie READ serie NOTIFY serieChanged)
+    /// Recibiendo: las máquinas que generan contra esta (lo que mandan con cada pedido de la
+    /// medida): [{maquina, edadMs, cpuMaquina, cpuProbador, redEntraMbps, redSaleMbps, decodificar, ficha}].
+    Q_PROPERTY(QVariantList generadores READ generadores NOTIFY generadoresChanged)
     /// Los escalones juzgados de la prueba en curso o la última: [aJson(Paso)].
     Q_PROPERTY(QVariantList pasos READ pasos NOTIFY pasosChanged)
     /// El último resultado de una prueba de capacidad (local o remota), entero.
@@ -125,9 +134,12 @@ class CapacidadViewModel : public QObject {
         std::function<QString()> prenderPinggy;
         std::function<void()> apagarPinggy;
         // --- La red (net/ClienteCapacidad) ---------------------------------------------------
-        std::function<void(QObject*, const QString& url, const QString& cred, const QString& huella,
+        /// `generador`: lo de esta máquina que genera (su CPU, su red y su ficha), para el otro.
+        std::function<void(QObject*, const QString& url, const QString& cred, const QString& huella, const nlohmann::json& generador,
                            std::function<void(const nlohmann::json&)>)>
             pedirRemota;
+        /// La ficha de esta máquina (sala::prueba::fichaMaquina): nombre, sistema, CPU, memoria, GPU, red.
+        std::function<nlohmann::json()> ficha;
         std::function<void(QObject*, const QString& url, const QString& secreto, std::shared_ptr<std::atomic<bool>>,
                            std::function<void(const nlohmann::json&)>)>
             medirIdaYVuelta;
@@ -145,6 +157,8 @@ class CapacidadViewModel : public QObject {
     static constexpr int kEsperaPinggyS = 90;
     static constexpr int kSinRemotoS = 15; ///< el otro equipo sin contestar: se corta
     static constexpr int kPrepararMaxS = 15 * 60; ///< hinchada grabando su video de prueba (la primera vez)
+    static constexpr int kSalaRemotaMaxMin = 15;  ///< la prueba de sala contra otro equipo (hinchada corta a los 20)
+    static constexpr int kSerieMaxPuntos = 600;
 
     explicit CapacidadViewModel(Partes p, QObject* parent = nullptr);
     ~CapacidadViewModel() override;
@@ -154,6 +168,8 @@ class CapacidadViewModel : public QObject {
     QString riesgo() const { return riesgo_; }
     QVariantMap progreso() const { return progreso_; }
     QVariantMap vivo() const { return vivo_; }
+    QVariantList serie() const { return serie_; }
+    QVariantList generadores() const { return generadoresUi_; }
     QVariantList pasos() const { return pasosUi_; }
     QVariantMap resultado() const { return resultado_; }
     QVariantMap internet() const { return internet_; }
@@ -165,10 +181,15 @@ class CapacidadViewModel : public QObject {
     QString maquina() const { return p_.maquina; }
     int topeMax() const { return ba::ipc::kMaxInvitados; }
 
-    /// ¿Cuántos aguanta ESTE equipo? Hasta `tope` invitados (escalones). "" o por qué no.
-    Q_INVOKABLE QString probarEsteEquipo(int tope);
+    /// ¿Cuántos aguanta ESTE equipo? Hasta `tope` invitados (escalones). `decodificar`:
+    /// cuánto video que vuelve decodifica hinchada («nada», «muestra» con `muestraPct` % o
+    /// «todo»: sala::prueba::Decodificar). "" o por qué no.
+    Q_INVOKABLE QString probarEsteEquipo(int tope, const QString& decodificar = QStringLiteral("muestra"), int muestraPct = 5);
     /// ¿Cuántos aguanta el OTRO equipo del `codigo` (el que muestra el otro al recibir)?
-    Q_INVOKABLE QString probarRemoto(const QString& codigo, int tope);
+    /// `minutos` > 0: no es una rampa sino una PRUEBA DE SALA contra el otro equipo: `tope`
+    /// invitados de una vez durante `minutos` (como mucho kSalaRemotaMaxMin), y el mismo juicio.
+    Q_INVOKABLE QString probarRemoto(const QString& codigo, int tope, const QString& decodificar = QStringLiteral("muestra"),
+                                     int muestraPct = 5, int minutos = 0);
     /// Dejarse probar desde otro equipo: hasta `cupo` invitados, `minutos` como mucho.
     Q_INVOKABLE QString empezarARecibir(int cupo, int minutos);
     Q_INVOKABLE void dejarDeRecibir();
@@ -212,6 +233,8 @@ class CapacidadViewModel : public QObject {
     void riesgoChanged();
     void progresoChanged();
     void vivoChanged();
+    void serieChanged();
+    void generadoresChanged();
     void pasosChanged();
     void resultadoChanged();
     void internetChanged();
@@ -277,6 +300,17 @@ class CapacidadViewModel : public QObject {
     int64_t ultimoTic_ = 0;
     QString credencial_, url_, huella_, maquinaMedida_;
     QString salida_; ///< carpeta de los informes de hinchada de esta prueba
+    sala::prueba::Decodificar decodificar_; ///< el de la rampa en curso o la última
+    int regimenFijoS_ = 0;      ///< > 0: prueba de sala contra otro (un escalón de N, este régimen)
+    QVariantList serie_;        ///< los gráficos en vivo
+    nlohmann::json serieJson_ = nlohmann::json::array(); ///< la misma, de a 5 s, para el informe
+    int serieTics_ = 0;
+    nlohmann::json generadorAca_;  ///< lo de esta máquina para el otro (remoto)
+    nlohmann::json generadores_ = nlohmann::json::array(); ///< recibiendo: los que generan contra esta
+    QVariantList generadoresUi_;
+    std::map<std::string, nlohmann::json> fichasGeneradores_; ///< recibiendo: la última ficha de cada una
+    int maxEntraron_ = 0;       ///< recibiendo: cuántos llegaron a estar adentro
+    void sumarASerie(const sala::capacidad::Muestra& m);
     int cupoAntes_ = 0;
     int64_t renovadaMs_ = 0;
     // Remoto.

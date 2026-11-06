@@ -36,6 +36,7 @@ std::vector<std::string> PruebaSala::cerrar() {
     entradas_ = 0;
     medida_ = nullptr;
     medidaMs_ = 0;
+    generadores_.clear();
     ips_.clear();
     return out;
 }
@@ -121,6 +122,30 @@ nlohmann::json PruebaSala::medida(int64_t ahoraMs) const {
     std::lock_guard<std::mutex> l(m_);
     if (!activaLocked(ahoraMs) || medida_.is_null()) return nullptr;
     return nlohmann::json{{"medida", medida_}, {"edadMs", ahoraMs - medidaMs_}};
+}
+
+void PruebaSala::ponerGenerador(const nlohmann::json& g, int64_t ahoraMs) {
+    if (!g.is_object() || !g.contains("maquina") || !g["maquina"].is_string()) return;
+    const std::string maquina = g["maquina"].get<std::string>();
+    if (maquina.empty() || maquina.size() > 64) return;
+    if (g.dump().size() > kMaxGeneradorBytes) return;
+    std::lock_guard<std::mutex> l(m_);
+    if (!activaLocked(ahoraMs)) return;
+    // Los viejos se van; uno nuevo no entra si ya hay muchos.
+    for (auto it = generadores_.begin(); it != generadores_.end();)
+        it = ahoraMs - it->second.second > 30000 ? generadores_.erase(it) : std::next(it);
+    if (!generadores_.count(maquina) && generadores_.size() >= kMaxGeneradores) return;
+    generadores_[maquina] = {g, ahoraMs};
+}
+
+nlohmann::json PruebaSala::generadores(int64_t ahoraMs) const {
+    std::lock_guard<std::mutex> l(m_);
+    nlohmann::json out = nlohmann::json::array();
+    if (!activaLocked(ahoraMs)) return out;
+    for (const auto& [maquina, g] : generadores_)
+        if (ahoraMs - g.second <= 30000)
+            out.push_back({{"maquina", maquina}, {"edadMs", ahoraMs - g.second}, {"medida", g.first}});
+    return out;
 }
 
 void PruebaSala::anotarIp(std::uint32_t ip) {
