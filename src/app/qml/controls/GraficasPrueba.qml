@@ -43,6 +43,17 @@ GridLayout {
                 : [{ clave: "cpuEquipo", titulo: qsTr("máquina"), color: Theme.accentSoft },
                    { clave: "cpuProbador", titulo: qsTr("hinchada"), color: Theme.canalPfl }]
     }
+    // Lugar previsto: la fluidez del video dibujado (cuadros perdidos / irregulares por video:
+    // celdas de la grilla, invitados, programa). La medida la agrega el estado de la app
+    // (trabajo de fluidez); cuando la serie la traiga como `cuadrosPerdidosPct`, se ve sola.
+    GraficaPrueba {
+        Layout.fillWidth: true
+        visible: gs.serie.some(p => p.cuadrosPerdidosPct !== undefined)
+        titulo: qsTr("Máquina medida: cuadros perdidos / regularidad")
+        unidad: "%"
+        serie: gs.serie
+        lineas: [{ clave: "cuadrosPerdidosPct", titulo: qsTr("perdidos"), color: Theme.live }]
+    }
     GraficaPrueba {
         Layout.fillWidth: true
         visible: !gs.deSala
