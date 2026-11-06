@@ -26,6 +26,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace ba::motor {
@@ -112,6 +113,24 @@ class AnalisisCeldas {
         return f;
     }
 
+    /// El brillo medio (0..255) de la caja del destello de hinchada (`--sincronia si`: abajo a
+    /// la derecha, 1/8 del ancho y del alto, blanca en el cuadro 0 del loop y negra en los
+    /// demás) en la celda: 3×3 puntos del centro de la caja (el recorte de la celda la corre
+    /// poco; el borde del resaltado queda afuera).
+    static float brilloDestello(const std::uint8_t* px, int w, int h, int stride, double x, double y, double cw, double ch) {
+        if (px == nullptr || w <= 0 || h <= 0) return 0;
+        float suma = 0;
+        for (int j = 0; j < 3; ++j) {
+            const int py = std::clamp(static_cast<int>((y + ch * (0.905 + 0.03 * j)) * h), 0, h - 1);
+            for (int i = 0; i < 3; ++i) {
+                const int pxi = std::clamp(static_cast<int>((x + cw * (0.905 + 0.03 * i)) * w), 0, w - 1);
+                const std::uint8_t* p = px + static_cast<std::size_t>(py) * static_cast<std::size_t>(stride) + static_cast<std::size_t>(pxi) * 4;
+                suma += (static_cast<float>(p[0]) + p[1] + p[2]) / 3.0f;
+            }
+        }
+        return suma / 9.0f;
+    }
+
     /// Un cuadro del mosaico (BGRA o cualquier formato de 4 bytes por píxel), llegado a
     /// `tNs` (reloj monotónico). `indice`: su número en el canal del emisor (0 = no se sabe).
     void cuadro(const std::uint8_t* px, int w, int h, int stride, std::int64_t tNs, std::uint64_t indice = 0) {
@@ -131,6 +150,7 @@ class AnalisisCeldas {
             if (tNs < e.desdeNs || (e.hastaNs >= 0 && tNs >= e.hastaNs)) continue; // fuera de su tramo
             if (!e.vista) e.primerNs = tNs;
             e.ultimoNs = tNs;
+            e.brillos.push_back({tNs, brilloDestello(px, w, h, stride, c.x, c.y, c.w, c.h)});
             const std::uint64_t f = firma(px, w, h, stride, c.x, c.y, c.w, c.h);
             if (e.vista && f == e.firma) {
                 ++e.repetidos;
@@ -210,6 +230,7 @@ class AnalisisCeldas {
                           {"cps_p5", cps.empty() ? 0.0 : r2(percentil(cps, 0.05))},
                           {"por_debajo_pct", conRef > 0 ? std::round(1000.0 * debajo / conRef) / 10 : 0.0}};
         out["celdas"] = std::move(celdas);
+        out["destello"] = destello();
         return out;
     }
 
@@ -224,7 +245,68 @@ class AnalisisCeldas {
         std::int64_t desdeNs = 0, hastaNs = -1;
         std::int64_t primerNs = 0, ultimoNs = 0; ///< el primer y el último cuadro del tramo
         bool cortado = false; ///< un cambio lo abrió o lo cerró (cuenta su propio tiempo)
+        std::vector<std::pair<std::int64_t, float>> brillos; ///< {llegada, brillo de la caja del destello} por cuadro
     };
+
+    /// La sincronía entre celdas (hinchada `--sincronia si`): en qué cuadro del mosaico aparece
+    /// el destello de cada celda. Con todos los invitados en fase, el destello sale en el mismo
+    /// instante en todos: la dispersión entre celdas (el último menos el primero, en ms de
+    /// llegada del mosaico) es lo que el camino los desfasó. Por celda, el umbral es la mitad
+    /// entre su mínimo y su máximo (si difieren en más de 60: si no, no hay destello).
+    nlohmann::json destello() const {
+        using json = nlohmann::json;
+        struct Inicio {
+            std::int64_t t;
+            std::size_t celda;
+        };
+        std::vector<Inicio> inicios;
+        std::size_t conDestello = 0;
+        for (std::size_t i = 0; i < estado_.size(); ++i) {
+            const auto& b = estado_[i].brillos;
+            if (b.size() < 2) continue;
+            float lo = 255, hi = 0;
+            for (const auto& [t, v] : b) lo = std::min(lo, v), hi = std::max(hi, v);
+            if (hi - lo < 60) continue;
+            ++conDestello;
+            const float umbral = (lo + hi) / 2;
+            for (std::size_t k = 1; k < b.size(); ++k)
+                if (b[k].second >= umbral && b[k - 1].second < umbral) inicios.push_back({b[k].first, i});
+        }
+        std::sort(inicios.begin(), inicios.end(), [](const Inicio& a, const Inicio& b) { return a.t < b.t; });
+        // Los destellos de una vuelta del loop: los que caen a menos de 1 s del primero.
+        std::vector<double> dispersion;
+        std::vector<std::vector<double>> desfase(estado_.size());
+        json eventos = json::array();
+        const auto r1 = [](double x) { return std::round(x * 10) / 10; };
+        for (std::size_t a = 0; a < inicios.size();) {
+            std::size_t b = a;
+            while (b < inicios.size() && inicios[b].t - inicios[a].t < 1'000'000'000LL) ++b;
+            std::vector<double> ts;
+            for (std::size_t k = a; k < b; ++k) ts.push_back(static_cast<double>(inicios[k].t) / 1e6);
+            const double med = percentil(ts, 0.5);
+            const double d = ts.back() - ts.front();
+            // Solo las vueltas que vio al menos la mitad de las celdas con destello.
+            if (conDestello > 0 && 2 * (b - a) >= conDestello) {
+                dispersion.push_back(d);
+                for (std::size_t k = a; k < b; ++k) desfase[inicios[k].celda].push_back(static_cast<double>(inicios[k].t) / 1e6 - med);
+                if (eventos.size() < 20)
+                    eventos.push_back({{"t_ms", r1(ts.front() - static_cast<double>(primeroNs_) / 1e6)}, {"celdas", b - a}, {"dispersion_ms", r1(d)}});
+            }
+            a = b;
+        }
+        const auto ms = [&](const std::vector<double>& v) {
+            if (v.empty()) return json(nullptr);
+            return json{{"p50", r1(percentil(v, 0.5))}, {"p95", r1(percentil(v, 0.95))}, {"max", r1(*std::max_element(v.begin(), v.end()))}};
+        };
+        json celdas = json::array();
+        for (std::size_t i = 0; i < estado_.size(); ++i)
+            if (!desfase[i].empty())
+                celdas.push_back({{"id", celdas_[i].id}, {"desfase_ms", r1(percentil(desfase[i], 0.5))},
+                                  {"desfase_max_ms", r1(*std::max_element(desfase[i].begin(), desfase[i].end(), [](double x, double y) { return std::abs(x) < std::abs(y); }))}});
+        return json{{"celdas_con_destello", conDestello}, {"vueltas", dispersion.size()}, {"dispersion_ms", ms(dispersion)},
+                    {"eventos", std::move(eventos)}, {"celdas", std::move(celdas)}};
+    }
+
     std::vector<Celda> celdas_;
     std::vector<Estado> estado_;
     std::uint64_t cuadros_ = 0, perdidos_ = 0, repetidosCanal_ = 0, ultimoIndice_ = 0;
