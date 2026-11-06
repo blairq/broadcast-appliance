@@ -6,6 +6,7 @@
 
 #include "emision/FuentesApp.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Ritmo.hpp"
 
 #include <glib.h>
 
@@ -191,7 +192,7 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
             }
             if (esperando) {
                 siguiente = std::chrono::steady_clock::now() + paso;
-                std::this_thread::sleep_until(siguiente);
+                ba::platform::dormirHasta(siguiente);
                 continue;
             }
             entregar(inst->id, cuadro);
@@ -201,7 +202,7 @@ bool reproducir(std::uint64_t id, std::vector<QImage> cuadros, int fps, bool rep
             if (ultimo) break;
             ++i;
             siguiente += paso;
-            std::this_thread::sleep_until(siguiente);
+            ba::platform::dormirHasta(siguiente);
         }
     });
     return true;

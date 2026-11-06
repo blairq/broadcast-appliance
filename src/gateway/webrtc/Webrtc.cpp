@@ -53,6 +53,7 @@
 #include "diag/Registro.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/Nucleos.hpp"
+#include "platform/Ritmo.hpp"
 #include "platform/TiempoReal.hpp"
 #include "rtc/CapasHilos.hpp"
 #include "rtc/Conmutador.hpp"
@@ -366,7 +367,7 @@ void RelojPlayout::tick() {
         // Los otros grupos tiran en esta MISMA vuelta (una despertada de K−1 hilos cada 10 ms).
         if (grupos_.size() > 1) cv_.notify_all();
         tirarGrupo(0, buf);
-        std::this_thread::sleep_until(next);
+        ba::platform::dormirHasta(next); // en Windows sleep_until redondea a 15,6 ms
     }
 }
 

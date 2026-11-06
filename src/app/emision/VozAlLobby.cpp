@@ -10,6 +10,7 @@
 #include "dsp/Resampler.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "platform/Hilo.hpp"
+#include "platform/Ritmo.hpp"
 
 #ifdef _WIN32
 #ifndef NOMINMAX
@@ -110,7 +111,7 @@ void VozAlLobby::bucle() {
         // Si el hilo se atrasó mucho (la máquina se trabó), no se recupera
         // mandando de golpe lo atrasado: se sigue desde ahora.
         if (ahora - proximo > std::chrono::milliseconds(100)) proximo = ahora;
-        std::this_thread::sleep_until(proximo);
+        ba::platform::dormirHasta(proximo); // en Windows sleep_until redondea a 15,6 ms
     }
 }
 

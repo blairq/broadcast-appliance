@@ -18,6 +18,7 @@
 #include "ipc/SpoutTransport.hpp"
 #include "platform/Hilo.hpp"
 #include "platform/Nucleos.hpp"
+#include "platform/Ritmo.hpp"
 
 #include "libyuv/convert.h"
 #include "libyuv/convert_argb.h"
@@ -1136,7 +1137,8 @@ void Grillas::bucle() {
         periodoPintarNs_.store(periodoLienzo >= 1'000'000'000ULL / 61 && periodoLienzo <= 1'000'000'000ULL / 4 ? periodoLienzo
                                                                                                                : propio,
                                std::memory_order_relaxed);
-        std::this_thread::sleep_until(Reloj::time_point(std::chrono::duration_cast<Reloj::duration>(std::chrono::nanoseconds(proximo))));
+        // En Windows sleep_until redondea al tic de 15,6 ms: la grilla salía a ~24 cps disparejos.
+        ba::platform::dormirHasta(Reloj::time_point(std::chrono::duration_cast<Reloj::duration>(std::chrono::nanoseconds(proximo))));
     }
 }
 
