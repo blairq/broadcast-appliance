@@ -43,8 +43,9 @@ class DestinoCamara {
     /// tarjeta que no se ve, uno por segundo). Se llama con cada cuadro que llega: anota la
     /// llegada para la placa del lugar (MediaPump::llegoCamara).
     bool quiereEntero() const;
-    /// El cuadro entero en BGRA (filas de w*4) a ba-app.
-    void entero(const std::uint8_t* bgra, int w, int h);
+    /// El cuadro entero en BGRA (filas de w*4) a ba-app, con la hora de su contenido
+    /// (`contenidoQpc`, codecs::horaDeContenido; 0 = no se sabe: va con la de publicación).
+    void entero(const std::uint8_t* bgra, int w, int h, std::uint64_t contenidoQpc = 0);
     /// La celda que quiere la grilla para un cuadro de `w`x`h` (ver Grillas::pedirCelda; `redUs`
     /// y `decoUs`: cuándo llegó de la red y cuándo salió del decodificador, para su ritmo).
     Grillas::PedidoCelda pedirCelda(int w, int h, std::int64_t redUs = 0, std::int64_t decoUs = 0);

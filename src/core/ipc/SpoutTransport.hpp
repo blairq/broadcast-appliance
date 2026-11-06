@@ -6,15 +6,22 @@
 //   `BA.Program`, los canales de cada salida). Es el MISMO transporte en las
 //   tres plataformas: memoria compartida por CPU (SharedMemoryRegion: en
 //   Windows CreateFileMappingW en `Local\`, en macOS/Linux shm_open + mmap
-//   MAP_SHARED) con triple buffer. No hay texturas compartidas ni Spout2/spoutDX
+//   MAP_SHARED) con triple buffer (o más: SlotConfig::buffers, los canales de
+//   los invitados que van a la mezcla). No hay texturas compartidas ni Spout2/spoutDX
 //   (el nombre «Spout» quedó de la spec original): cada cuadro se copia a la
 //   region y el lector lo copia afuera. No depende de Qt.
 //
 // Layout del slot (ver SpoutTransport.cpp):
-//   [ VideoSlotHeader | buffer 0 | buffer 1 | buffer 2 ], buffers alineados a
-//   4096 B. Cada buffer lleva su secuencia (seqlock), su frameIndex y su sello
-//   QPC: los sellos viajan con el cuadro. `instanceId` cambia si el productor
-//   se reinicia y vuelve a publicar el nombre (stale()).
+//   [ VideoSlotHeader | buffer 0 | buffer 1 | buffer 2 (| … hasta kMaxBuffersCanal) ],
+//   buffers alineados a 4096 B. Cada buffer lleva su secuencia (seqlock), su número de
+//   publicación, su frameIndex y su sello QPC: los sellos viajan con el cuadro.
+//   `instanceId` cambia si el productor se reinicia y vuelve a publicar el nombre (stale()).
+//
+// Dos maneras de leer: receive() da el ÚLTIMO (lo de siempre: una vista, una tarjeta) y
+// receiveSiguiente() da el más viejo que no se leyó, en orden: un lector que pasa cada
+// 1/60 s por un canal con N buffers recibe todos los cuadros mientras no se atrase más de
+// N-1 (los invitados a la mezcla: una ráfaga de 3-4 cuadros tras un cuadro clave ya no se
+// pierde, docs/local/hora-de-captura.md).
 //
 // Modelo de threading:
 //   - Un sender es un solo ESCRITOR: publish() se llama una vez (config fija
@@ -78,8 +85,11 @@ inline constexpr std::size_t kSpoutCacheLine = 64;
 /// para alinear video con audio sin deriva). POD plano, trivialmente copiable.
 ///
 /// `contenidoQpc` (F2-11): la hora, en el mismo reloj, a la que corresponde lo que
-/// muestra el cuadro (la del programa en A, la misma con que se sella su audio); 0 = no
-/// se sabe. `qpc` sigue siendo cuándo se publicó (la edad del salto la mide con eso).
+/// muestra el cuadro (la del programa en A, la misma con que se sella su audio; la de un
+/// invitado, la que le dio libwebrtc: su hora de captura llevada a este reloj más la espera
+/// de red, y sincronizada con su audio); 0 = no se sabe. Puede ser unos ms del FUTURO (la
+/// hora a la que libwebrtc lo mostraría). `qpc` sigue siendo cuándo se publicó (la edad del
+/// salto la mide con eso).
 /// `ancho`/`alto` (F2-13, V3): el tamaño real del cuadro, si es más chico que el canal
 /// (sus filas van juntas, ancho×4 bytes, desde el principio del buffer); 0 = el del canal.
 struct FrameMeta {
@@ -212,7 +222,15 @@ struct SlotConfig {
     std::uint64_t periodoNs = 0;
     /// El formato de los píxeles (NV12: ancho y alto pares; los cuadros, siempre enteros).
     FormatoCanal formato = FormatoCanal::BGRA;
+    /// Cuántos buffers (de 3 a kMaxBuffersCanal): con N, un lector en orden
+    /// (receiveSiguiente) no pierde nada mientras no se atrase más de N-1 cuadros. Cada uno
+    /// es un cuadro entero de memoria (solo cuenta lo que se escribe: un 720p en un canal de
+    /// 1080p usa 3,7 MB por buffer).
+    int buffers = 3;
 };
+
+/// El tope de buffers de un canal (SlotConfig::buffers).
+inline constexpr int kMaxBuffersCanal = 8;
 
 /// Layout del slot en memoria compartida (backend CPU, definido en el .cpp).
 struct VideoSlotHeader;
@@ -328,6 +346,12 @@ class SpoutReceiver {
     ///           o el receiver no esta suscrito.
     bool receive(void* dst, std::size_t cap, FrameMeta& metaOut);
 
+    /// Como receive(), pero EN ORDEN: el más viejo de los que no se leyeron y que el canal
+    /// todavía guarda (con N buffers, los últimos N-1 publicados). Llamándolo hasta que dé
+    /// false se leen todos los nuevos. `perdidos` suma los que el productor publicó y ya no
+    /// estaban (el lector se atrasó más que los buffers del canal).
+    bool receiveSiguiente(void* dst, std::size_t cap, FrameMeta& metaOut, std::uint64_t* perdidos = nullptr);
+
     /// Indica si hay un frame nuevo por recibir (lado LECTOR, no destructivo).
     ///
     /// :returns: true si llego un frame con frameIndex mayor al ultimo visto;
@@ -412,6 +436,9 @@ class SpoutReceiver {
 
     /// Deja en la cabecera que este lector miró ahora (SpoutSender::demanda).
     void anotarLectura() const;
+    /// Copia el cuadro de la publicación `p` (si el buffer todavía lo tiene y no se está
+    /// escribiendo). true si lo copió entero.
+    bool copiar(std::uint64_t p, void* dst, FrameMeta& metaOut);
 };
 
 } // namespace ba::ipc

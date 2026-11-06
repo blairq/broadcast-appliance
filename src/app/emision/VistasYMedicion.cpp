@@ -567,6 +567,10 @@ json VistasYMedicion::latenciaEstudio() const {
                                        {"entra_al_oido", e.value("entra_al_oido", true)},
                                        {"video", e.value("video", false)},
                                        {"marca", id == out["la_marca"].get<std::string>()}});
+            // Los cuadros que salieron de la entrada ya pasados de la hora del compositor (no se
+            // ven), desde que se creó; con las sondas, el ritmo de sus horas y de cuándo salen.
+            if (e.contains("video_tarde")) out["entradas"].back()["video_tarde"] = e["video_tarde"];
+            if (e.contains("video_ritmo")) out["entradas"].back()["video_ritmo"] = e["video_ritmo"];
         }
     // Los cuadros que llegaron tarde al compositor del programa en el último minuto (por entrada):
     // si aparecen, el colchón no alcanza.

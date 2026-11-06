@@ -59,6 +59,8 @@
 #include <limits>
 
 #include "Piezas.hpp"
+#include "diag/RitmoCuadros.hpp"
+#include "diag/SondasCuadros.hpp"
 #include "ReglasEntrada.hpp"
 #include "Sondas.hpp"
 #include "Trabajos.hpp"
@@ -277,6 +279,9 @@ class Entrada {
     /// video y su audio (cada rama por su lado) traen la hora del estudio.
     bool videoDeAnillo() const;
     bool audioDeAnillo() const;
+    /// Cuántos cuadros guarda la cola de antes de los filtros: los de la ventana de latencia
+    /// del estudio si lee un anillo (los invitados), si no 1 (el último).
+    int cuadrosDeVentana() const;
     std::string controlMedioYa(const std::string& accion);
     void irAYa(std::int64_t ms);
     nlohmann::json estadoYa() const;
@@ -423,6 +428,14 @@ class Entrada {
     VigiaDatos vigiaDatos_; ///< con mu_ tomado (ReglasEntrada.hpp)
     std::atomic<std::int64_t> pide_{0};
     std::atomic<bool> llegaTarde_{false};
+    /// Los cuadros de video que salen de la entrada ya pasados de su hora para el compositor
+    /// (más viejos que su latencia + un cuadro: no se van a ver; los tira el compositor). Desde
+    /// que se creó la entrada; el plazo lo pone medirLatencia (0 = todavía no se sabe).
+    std::atomic<std::uint64_t> tardeV_{0};
+    std::atomic<std::int64_t> plazoTardeNs_{0};
+    /// SONDAS: el ritmo de las horas de los cuadros que salen (µs del estudio: parejas si la hora
+    /// es la del contenido) y el de cuándo salen (en ráfaga tras un cuadro clave atrasado).
+    BA_SONDA(ba::diag::RitmoCuadros ritmoHora_; ba::diag::RitmoCuadros ritmoSale_;)
 };
 
 } // namespace ba::motor

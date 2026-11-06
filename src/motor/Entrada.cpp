@@ -490,6 +490,19 @@ std::string Entrada::canalAnillo() const {
     return !canalVideo_.empty() ? canalVideo_ : canalAudio_;
 }
 
+int Entrada::cuadrosDeVentana() const {
+    // Lo de un anillo del gateway (un invitado, el remoto) llega con la hora de su contenido:
+    // tras un cuadro clave atrasado, 3-4 juntos con sus horas parejas. La cola de antes de los
+    // filtros guarda lo que entra en la ventana de latencia del estudio (lo que el compositor
+    // todavía puede mostrar) en vez del último: con uno, la ráfaga se pisaba ahí. Más que la
+    // ventana no: si un filtro no da abasto, lo que se acumula llega tarde igual (y se cuenta,
+    // alSalir). Lo demás (una cámara, un archivo), el último: lo que tarda de más se tira.
+    if (!videoDeAnillo()) return 1;
+    const double periodoNs = lienzo_.fpsN > 0 ? 1e9 * lienzo_.fpsD / lienzo_.fpsN : 1e9 / 30;
+    const auto n = static_cast<int>(static_cast<double>(reloj_.latencia()) / periodoNs);
+    return std::clamp(n, 2, 16);
+}
+
 bool Entrada::videoDeAnillo() const {
     std::lock_guard<std::mutex> l(canalesM_);
     return !canalVideo_.empty();
@@ -1017,13 +1030,17 @@ void Entrada::armar() {
     const bool usaGpu = gpuVideo();
     // La toma entera, antes del recorte del PTZ digital (productorEntera).
     Derivacion entera{"ptz", id_ + ":entera:video", ""};
+    entera.cuadros = cuadrosDeVentana();
     const std::string cadenaV = cadenaDe(filtrosV, "videoconvert", "ba_f_", avisos_, usaGpu, &entera);
     // La cola que descarta lo viejo antes de los filtros (un hilo por entrada que anda). Si la
     // cadena EMPIEZA con la derivación de la toma entera (el PTZ primero: el video de cada
     // invitado), el tee ya trae esa misma cola en cada rama: otra delante era un hilo más por
-    // invitado sin cambiar nada (con 200, 3 colas por invitado: ~600 hilos).
+    // invitado sin cambiar nada (con 200, 3 colas por invitado: ~600 hilos). Lo que guarda:
+    // ver cuadrosDeVentana.
     const bool empiezaConTee = cadenaV.rfind("tee name=", 0) == 0;
-    const std::string cola = empiezaConTee ? std::string() : "queue leaky=downstream max-size-buffers=1 max-size-time=0 max-size-bytes=0 ! ";
+    const std::string cola = empiezaConTee ? std::string()
+                                           : "queue leaky=downstream max-size-buffers=" + std::to_string(entera.cuadros) +
+                                                 " max-size-time=0 max-size-bytes=0 ! ";
     if (!cadenaV.empty() && !usaGpu) {
         // ANTES de `videorate` (no se procesa cada cuadro repetido), con una cola que
         // descarta lo viejo (si un filtro tarda, no se acumula demora). Si el primer
@@ -1352,6 +1369,20 @@ GstPadProbeReturn Entrada::alSalir(GstPad* pad, GstPadProbeInfo* info, gpointer 
                 edad = (static_cast<double>(e->reloj_.ahora()) - static_cast<double>(rt)) / 1e6;
         }
     }
+    // Ya pasada de su hora para el compositor (su latencia + un cuadro): no se va a ver, lo tira
+    // él. Se cuenta acá, por entrada (no se tira acá: lo de la entrada va también a lo que no
+    // tiene apuro, las tomas y el ISO).
+    if (esVideo && edad > -1e8) {
+        const std::int64_t plazo = e->plazoTardeNs_.load(std::memory_order_relaxed);
+        if (plazo > 0 && edad * 1e6 > static_cast<double>(plazo)) e->tardeV_.fetch_add(1, std::memory_order_relaxed);
+        BA_SONDA(if (GstEvent* ev = gst_pad_get_sticky_event(pad, GST_EVENT_SEGMENT, 0)) {
+            const GstSegment* seg = nullptr;
+            gst_event_parse_segment(ev, &seg);
+            const GstClockTime rt = gst_segment_to_running_time(seg, GST_FORMAT_TIME, GST_BUFFER_PTS(b));
+            gst_event_unref(ev);
+            if (GST_CLOCK_TIME_IS_VALID(rt)) e->ritmoHora_.cuadro(static_cast<std::int64_t>(rt / 1000));
+        } e->ritmoSale_.cuadro(static_cast<std::int64_t>(e->reloj_.ahora() / 1000));)
+    }
     std::lock_guard<std::mutex> l(e->medMu_);
     e->ultimoDatoNs_ = ahoraNs();
     if (esVideo) {
@@ -1556,6 +1587,10 @@ void Entrada::medirLatencia() {
             return;
         }
     }
+    // El plazo para contar los que salen tarde (alSalir): el del compositor, su latencia + un cuadro.
+    plazoTardeNs_.store(reloj_.latencia() + ajustes::msANs("video.margenComposicionMs", 5) +
+                            static_cast<std::int64_t>(lienzo_.fpsN > 0 ? 1e9 * lienzo_.fpsD / lienzo_.fpsN : 1e9 / 30),
+                        std::memory_order_relaxed);
     const std::int64_t piso = latenciaMs_ * static_cast<std::int64_t>(GST_MSECOND);
     // Lo que necesita, sobre la edad SIN correr (el retraso propio la achica al medir) y con el
     // p90: un par de cuadros trabados no arrastran la latencia de todos.
@@ -2206,6 +2241,16 @@ json Entrada::estadoYa() const {
         const auto edad = [](double p50, double p95) { return std::isnan(p50) ? json() : json{{"p50_ms", p50}, {"p95_ms", p95}}; };
         j["edad_video"] = edad(edadVP50_, edadVP95_);
         j["edad_audio"] = edad(edadAP50_, edadAP95_);
+        // Los cuadros que salieron pasados de la hora del compositor (no se ven), desde que se creó.
+        j["video_tarde"] = tardeV_.load();
+        // SONDAS: el ritmo de las horas que salen (parejo = la hora del contenido) y el de cuándo salen.
+        BA_SONDA(const auto ritmo = [](const ba::diag::RitmoCuadros& r) {
+            const auto z = r.resumen(33'333);
+            const auto r1 = [](double x) { return std::round(x * 10) / 10; };
+            return json{{"cps", r1(z.cps)}, {"p50_ms", r1(z.p50Ms)}, {"p95_ms", r1(z.p95Ms)}, {"max_ms", r1(z.maxMs)},
+                        {"huecos", z.huecos}, {"n", z.n}};
+        };
+        j["video_ritmo"] = {{"hora", ritmo(ritmoHora_)}, {"sale", ritmo(ritmoSale_)}};)
         if (!dispositivoAudio_.empty()) j["dispositivo_audio"] = dispositivoAudio_;
         j["origen"] = origen_;
         j["sale"] = sale_;

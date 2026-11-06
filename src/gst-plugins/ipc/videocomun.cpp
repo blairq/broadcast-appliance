@@ -4,9 +4,17 @@
 // Lo mismo que bavideoanillo (video.cpp: el video de un canal compartido, BGRA o NV12,
 // a su tamaño real, con la hora que le puso el gateway, 1 cuadro de latencia), pero lo
 // lee el lector común del video (comun.hpp): un hilo para todos los canales, una vuelta
-// cada 1/60 s que toma el último cuadro de cada uno, en vez de un hilo por canal
-// despertado por su timbre. Lo usa el motor para los canales de las entradas
-// (Entrada.cpp: la cámara y la pantalla de cada lugar, el remoto, la grilla).
+// cada 1/60 s, en vez de un hilo por canal despertado por su timbre. Lo usa el motor para
+// los canales de las entradas (Entrada.cpp: la cámara y la pantalla de cada lugar, el
+// remoto, la grilla).
+//
+// En cada vuelta empuja TODOS los cuadros nuevos del canal, en orden (receiveSiguiente: los
+// que el canal todavía guarda; los de los invitados tienen 6 buffers), cada uno con la hora
+// de su CONTENIDO si el gateway la puso (FrameMeta::contenidoQpc: la de libwebrtc, la
+// captura del invitado más la espera de red, sincronizada con su audio) y si no con la de
+// publicación. Así la ráfaga que llega después de un cuadro clave atrasado no se tira: cada
+// cuadro tiene su hora pareja y la latencia del compositor la absorbe
+// (docs/local/hora-de-captura.md). `perdidos`: los que el canal ya no tenía al leer.
 //
 // `cps-max` (0 = todos): como mucho tantos cuadros por segundo. Una entrada que nadie
 // mira pasa 2 por segundo (Entrada::ponerEnUso); con esto los otros ni se copian.
@@ -50,6 +58,8 @@ class LecturaVideo : public ba::ipc_gst::Lectura {
     int ancho = 0, alto = 0;
     ba::ipc::FormatoCanal formato = ba::ipc::FormatoCanal::BGRA;
     std::chrono::steady_clock::time_point reintento{}, ultimo{};
+    GstClockTime ultimoPts = GST_CLOCK_TIME_NONE; ///< la hora del último empujado (siempre hacia adelante)
+    std::atomic<std::uint64_t> perdidos{0};       ///< publicados que ya no estaban al leer (la propiedad)
 
     ~LecturaVideo() override {
         salida.reiniciar();
@@ -61,6 +71,7 @@ class LecturaVideo : public ba::ipc_gst::Lectura {
         suscripto = false;
         ancho = alto = 0;
         formato = ba::ipc::FormatoCanal::BGRA;
+        ultimoPts = GST_CLOCK_TIME_NONE;
     }
 
     void leer() override {
@@ -80,22 +91,42 @@ class LecturaVideo : public ba::ipc_gst::Lectura {
             suscriptoCanal = canal;
         }
         if (!rx.hasData()) return;
-        // Pocos cuadros (nadie la mira): el que llega antes de tiempo ni se copia.
-        if (const int c = cpsMax.load(); c > 0 && ahora - ultimo < std::chrono::microseconds(1'000'000 / c)) return;
+        // Pocos cuadros (nadie la mira): el que llega antes de tiempo ni se copia, y del
+        // resto solo el último.
+        const int c = cpsMax.load();
+        if (c > 0 && ahora - ultimo < std::chrono::microseconds(1'000'000 / c)) return;
+        ultimo = ahora;
+        // Los dos relojes, una vez por vuelta.
+        const ba::ipc_gst::TraductorQpc t(e);
+        if (c > 0) {
+            uno(false, t);
+            return;
+        }
+        // Todos los nuevos, en orden (ningún cuadro tirado: tras un cuadro clave que llegó
+        // tarde vienen 3-4 juntos), cada uno con la hora de su contenido. Como mucho los que
+        // guarda el canal (el resto ya no está).
+        for (int k = 0; k < ba::ipc::kMaxBuffersCanal && uno(true, t); ++k) {
+        }
+    }
+
+    /// Lee un cuadro (`enOrden`: el más viejo que no se leyó; si no, el último) y lo empuja.
+    /// false si no había.
+    bool uno(bool enOrden, const ba::ipc_gst::TraductorQpc& t) {
         const int w = rx.width(), h = rx.height();
-        if (w <= 0 || h <= 0) return;
+        if (w <= 0 || h <= 0) return false;
         const ba::ipc::FormatoCanal fmt = rx.formato();
         GstBuffer* b = gst_buffer_new_allocate(nullptr, ba::ipc::bytesDeCuadro(w, h, fmt), nullptr);
         GstMapInfo map;
         gst_buffer_map(b, &map, GST_MAP_WRITE);
         ba::ipc::FrameMeta meta{};
-        const bool hay = rx.receive(map.data, map.size, meta);
+        std::uint64_t perdidosAhora = 0;
+        const bool hay = enOrden ? rx.receiveSiguiente(map.data, map.size, meta, &perdidosAhora) : rx.receive(map.data, map.size, meta);
         gst_buffer_unmap(b, &map);
+        if (perdidosAhora != 0) perdidos.fetch_add(perdidosAhora, std::memory_order_relaxed);
         if (!hay) {
             gst_buffer_unref(b);
-            return;
+            return false;
         }
-        ultimo = ahora;
         // Su tamaño real (más chico que el canal; solo en BGRA): solo esos bytes, con las filas juntas.
         const int cw = meta.ancho != 0 ? static_cast<int>(meta.ancho) : w;
         const int ch = meta.alto != 0 ? static_cast<int>(meta.alto) : h;
@@ -107,13 +138,25 @@ class LecturaVideo : public ba::ipc_gst::Lectura {
             alto = ch;
             formato = fmt;
         }
-        // La hora: la que le puso el gateway, en el reloj del pipeline.
-        GST_BUFFER_PTS(b) = ba::ipc_gst::horaDeQpc(e, meta.qpc);
+        // La hora, en el reloj del pipeline: la de su CONTENIDO si el gateway la sabe (un
+        // invitado: la que le dio libwebrtc, su captura más la espera de red y sincronizada
+        // con su audio; puede ser unos ms del futuro), si no la de publicación. Así una ráfaga
+        // que llegó junta sale con sus horas parejas y la latencia del compositor la absorbe.
+        GstClockTime pts = t.hora(meta.contenidoQpc, GST_SECOND);
+        if (!GST_CLOCK_TIME_IS_VALID(pts)) pts = t.hora(meta.qpc);
+        if (!GST_CLOCK_TIME_IS_VALID(pts)) pts = t.ahora(); // sin sello creíble: la de ahora (como horaDeQpc)
+        // Siempre hacia adelante (si la hora de libwebrtc vuelve atrás, p. ej. al rehacer su
+        // estimación, el cuadro va pegado al anterior: un PTS que retrocede confunde al
+        // videorate y al compositor).
+        if (GST_CLOCK_TIME_IS_VALID(pts) && GST_CLOCK_TIME_IS_VALID(ultimoPts) && pts <= ultimoPts) pts = ultimoPts + 1;
+        ultimoPts = pts;
+        GST_BUFFER_PTS(b) = pts;
         GST_BUFFER_DURATION(b) = GST_CLOCK_TIME_NONE;
         // El número de publicación del cuadro en el canal: quien mide ve los que el emisor
         // publicó y no se leyeron (motor/MedidorCeldas: la grilla de personas).
         GST_BUFFER_OFFSET(b) = rx.ultimoPublicado();
         salida.empujar(e, b, caps);
+        return true;
     }
 };
 
@@ -131,7 +174,7 @@ struct _BaVideoAnilloComun {
 
 G_DEFINE_TYPE(BaVideoAnilloComun, ba_video_anillo_comun, GST_TYPE_ELEMENT)
 
-enum { PROP_0, PROP_CANAL, PROP_CPS_MAX, PROP_VUELTAS };
+enum { PROP_0, PROP_CANAL, PROP_CPS_MAX, PROP_VUELTAS, PROP_PERDIDOS };
 
 static GstStaticPadTemplate srcTpl = GST_STATIC_PAD_TEMPLATE(
     "src", GST_PAD_SRC, GST_PAD_ALWAYS,
@@ -150,6 +193,7 @@ static GstStateChangeReturn cambiar(GstElement* e, GstStateChange t) {
         case GST_STATE_CHANGE_READY_TO_PAUSED: {
             std::lock_guard<std::mutex> g(l->mu);
             l->salida.reiniciar();
+            l->ultimoPts = GST_CLOCK_TIME_NONE; // un segmento nuevo
             r = GST_STATE_CHANGE_NO_PREROLL; // en vivo
             break;
         }
@@ -189,6 +233,7 @@ static void leerPropiedad(GObject* o, guint id, GValue* v, GParamSpec* ps) {
             break;
         }
         case PROP_CPS_MAX: g_value_set_int(v, l->cpsMax.load()); break;
+        case PROP_PERDIDOS: g_value_set_uint64(v, l->perdidos.load()); break;
         case PROP_VUELTAS: {
             const ba::ipc_gst::Vueltas x = ba::ipc_gst::vueltas(ba::ipc_gst::Medio::Video);
             g_value_take_boxed(v, gst_structure_new("vueltas", "n", G_TYPE_UINT64, x.n, "ns", G_TYPE_UINT64, x.ns, "tarde",
@@ -226,6 +271,11 @@ static void ba_video_anillo_comun_class_init(BaVideoAnilloComunClass* k) {
         go, PROP_CPS_MAX,
         g_param_spec_int("cps-max", "Cuadros por segundo como mucho", "0 = todos los que lleguen", 0, 240, 0,
                          static_cast<GParamFlags>(G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | GST_PARAM_MUTABLE_PLAYING)));
+    g_object_class_install_property(
+        go, PROP_PERDIDOS,
+        g_param_spec_uint64("perdidos", "Cuadros perdidos",
+                            "Los que el productor publicó y el canal ya no tenía al leerlos (el lector se atrasó más que sus buffers)",
+                            0, G_MAXUINT64, 0, static_cast<GParamFlags>(G_PARAM_READABLE | G_PARAM_STATIC_STRINGS)));
     g_object_class_install_property(
         go, PROP_VUELTAS,
         g_param_spec_boxed("vueltas", "Vueltas del lector común del video",

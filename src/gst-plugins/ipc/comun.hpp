@@ -16,8 +16,9 @@
 // conversión, el rack, la subida a la GPU) hasta su salida. Por eso solo lo usa una
 // cadena que no se traba (la del motor: termina en intersink/baentrega, sin esperar al
 // reloj; los filtros de video van detrás de una cola). Una cadena armada a mano con
-// bavideoanillo/baanillo sigue con su hilo propio. Cada lectura entrega como mucho un
-// anillo por vuelta.
+// bavideoanillo/baanillo sigue con su hilo propio. Cada lectura entrega lo nuevo de su
+// anillo en esa vuelta (el video: todos los cuadros que el canal guarda y no se leyeron, en
+// orden; ver videocomun.cpp).
 //
 // NUNCA ESPERA A UN MEZCLADOR. El pad de un agregador en vivo hace esperar a gst_pad_push
 // hasta su próxima vuelta cuando guarda más que su espera, y en un bus de oído (20 ms) eso
