@@ -39,6 +39,8 @@
 #pragma once
 
 #include "Cuadro.hpp"
+#include "diag/SondasCuadros.hpp"
+#include "diag/TrazaCuadros.hpp"
 
 #include <gst/gst.h>
 
@@ -107,6 +109,8 @@ class Vistas {
         // BA_MEDIR_VISTAS=1: cuadros por segundo y el hueco más largo, al registro cada 2 s.
         std::int64_t medirDesde = 0, ultimoUs = 0, huecoMaxUs = 0;
         int medidos = 0;
+        /// SONDA: los cuadros que sacó esta vista y su tramo (diag/TrazaCuadros: «vista:<clave>:sale»).
+        BA_SONDA(std::uint64_t numero = 0; std::shared_ptr<ba::diag::TrazaCuadros> trSale;)
     };
     static GstFlowReturn alCuadro(GstElement* sink, gpointer d);
     void armar(const std::string& clave, Una& u);

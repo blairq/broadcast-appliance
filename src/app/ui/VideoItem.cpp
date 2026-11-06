@@ -8,6 +8,7 @@
 #include <QSGImageNode>
 #include <QSGRendererInterface>
 #include <QSGTexture>
+#include <QThread>
 #include <rhi/qrhi.h>
 
 #include <algorithm>
@@ -40,6 +41,11 @@ class TexturaVideo final : public QSGTexture {
         tam_ = img.size();
         alfa_ = img.hasAlphaChannel();
     }
+    /// SONDA: la hora de origen del cuadro puesto y el tramo donde anotar su subida.
+    BA_SONDA(void sonda(std::int64_t origen, std::shared_ptr<ba::diag::TrazaCuadros> tr) {
+        origen_ = origen;
+        tr_ = std::move(tr);
+    })
 
     qint64 comparisonKey() const override { return qint64(reinterpret_cast<qintptr>(this)); }
     QRhiTexture* rhiTexture() const override { return tex_; }
@@ -49,6 +55,7 @@ class TexturaVideo final : public QSGTexture {
 
     void commitTextureOperations(QRhi* rhi, QRhiResourceUpdateBatch* cambios) override {
         if (pendiente_.isNull()) return;
+        BA_SONDA(const std::int64_t t0 = ba::diag::TrazaCuadros::ahoraUs();)
         QImage img = std::exchange(pendiente_, QImage());
         // Lo que viene de los canales y del motor es RGB32 (BGRA en memoria): va tal cual
         // si la GPU lo toma; si no, o si es otro formato, se pasa a RGBA (como QSGPlainTexture).
@@ -73,9 +80,11 @@ class TexturaVideo final : public QSGTexture {
             }
         }
         cambios->uploadTexture(tex_, img);
+        BA_SONDA(if (tr_) tr_->anotar(t0, origen_, ba::diag::TrazaCuadros::ahoraUs() - t0);)
     }
 
    private:
+    BA_SONDA(std::int64_t origen_ = 0; std::shared_ptr<ba::diag::TrazaCuadros> tr_;)
     QRhiTexture* tex_ = nullptr;
     QImage pendiente_;
     QSize tam_;
@@ -106,6 +115,8 @@ std::map<const QQuickWindow*, std::shared_ptr<VideoItem::RitmoVentana>>& ventana
 std::shared_ptr<VideoItem::Ritmo> nuevoRitmo(const QString& fuente) {
     auto r = std::make_shared<VideoItem::Ritmo>();
     r->fuente = fuente;
+    BA_SONDA(const std::string f = "item:" + fuente.toStdString(); r->trTomado = ba::diag::traza(f + ":tomado");
+             r->trSync = ba::diag::traza(f + ":sync"); r->trSubida = ba::diag::traza(f + ":subida");)
     std::lock_guard<std::mutex> l(ritmosMu());
     auto& v = ritmosVivos();
     v.erase(std::remove_if(v.begin(), v.end(), [](const auto& w) { return w.expired(); }), v.end());
@@ -126,6 +137,27 @@ void mirarVentana(QQuickWindow* w) {
         m[w] = rv;
     }
     QObject::connect(w, &QQuickWindow::frameSwapped, w, [rv]() { rv->swaps.cuadro(ahoraUs()); }, Qt::DirectConnection);
+    // SONDA: cada paso del cuadro de la ventana (diag/TrazaCuadros: «ventana:<n>:<paso>»): animar
+    // y pulir (hilo de la UI), sincronizar (hilo de render con la UI parada), dibujar y mostrar.
+    // De dato, 1 si corrió en el hilo de la interfaz (con el render loop básico, todo).
+    if constexpr (ba::diag::kSondasCuadros) {
+        static std::atomic<int> nVentanas{0};
+        const std::string base = "ventana:" + std::to_string(nVentanas.fetch_add(1)) + ":";
+        const auto paso = [w, base](auto senal, const char* nombre) {
+            QObject::connect(
+                w, senal, w,
+                [w, tr = ba::diag::traza(base + nombre)]() {
+                    tr->anotar(ba::diag::TrazaCuadros::ahoraUs(), 0, QThread::currentThread() == w->thread() ? 1 : 0);
+                },
+                Qt::DirectConnection);
+        };
+        paso(&QQuickWindow::afterAnimating, "animado");
+        paso(&QQuickWindow::beforeSynchronizing, "sync_ini");
+        paso(&QQuickWindow::afterSynchronizing, "sync_fin");
+        paso(&QQuickWindow::beforeRendering, "render_ini");
+        paso(&QQuickWindow::afterRendering, "render_fin");
+        paso(&QQuickWindow::frameSwapped, "swap");
+    }
     QObject::connect(w, &QObject::destroyed, [w]() {
         std::lock_guard<std::mutex> l(ritmosMu());
         ventanas().erase(w);
@@ -266,6 +298,8 @@ void VideoItem::traer(bool sinTurno) {
     if (service_->ultimo(source_, image_, serial_, intervalo)) {
         tomadoUs_ = ahoraUs();
         origenTomado_ = service_->origenUs(source_); // la de la imagen que se tomó
+        BA_SONDA(ritmo_->trTomado->anotar(tomadoUs_, origenTomado_,
+                                          serialAntes != 0 && serial_ > serialAntes + 1 ? static_cast<std::int64_t>(serial_ - serialAntes - 1) : 0);)
         ritmo_->tomado.cuadro(tomadoUs_);
         if (origenTomado_ > 0) ritmo_->contenido.cuadro(origenTomado_);
         if (serialAntes != 0 && serial_ > serialAntes + 1) ritmo_->salteados.fetch_add(serial_ - serialAntes - 1, kRelajado);
@@ -327,6 +361,8 @@ QSGNode* VideoItem::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
             tex->poner(image_);
             node->markDirty(QSGNode::DirtyMaterial);
         }
+        BA_SONDA(if (rhi) static_cast<TexturaVideo*>(node->texture())->sonda(origenTomado_, ritmo_->trSubida);
+                 ritmo_->trSync->anotar(ba::diag::TrazaCuadros::ahoraUs(), origenTomado_, 0);)
         dirty_ = false;
         contadores().subidas.fetch_add(1, kRelajado);
         ritmo_->subido.cuadro(ahoraUs());

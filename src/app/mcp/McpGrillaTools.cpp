@@ -8,12 +8,15 @@
 // ============================================================================
 
 #include "escenas/ControlGrillas.hpp"
+#include "diag/SondasCuadros.hpp"
+#include "diag/TrazaCuadros.hpp"
 #include "escenas/GrillaPersonas.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "mcp/InterfazMcp.hpp"
 
+#include <algorithm>
 #include <functional>
 
 namespace ba::app::mcp {
@@ -160,12 +163,39 @@ void McpService::registerGrillaTools() {
                         "el ritmo del mosaico publicado. `fuentes`: lo que llega a la interfaz por clave (program, guest:N…). "
                         "`vistas`: cada video en pantalla (tomados, dibujados, salteados, tope_cps). `ventanas`: los cuadros "
                         "que pone cada ventana en la pantalla. `peor`: el video con más huecos.");
+        t.inputSchema = {{"type", "object"},
+                         {"properties",
+                          {{"trazas_s", {{"type", "integer"}, {"minimum", 0}, {"maximum", 110},
+                                         {"description", QT_TRANSLATE_NOOP("mcp", "solo en un build con las sondas de los cuadros: cada cuadro en cada "
+                                                                                  "tramo de los últimos N segundos (`trazas`: por tramo, t, origen y dato en µs "
+                                                                                  "desde `trazas_base_us`)")}}}}}};
         t.examples = {R"({})"};
-        t.run = [vmp](const json&, Done done) {
+        t.run = [vmp](const json& a, Done done) {
             const auto* e = vmp->fluidezEstado();
             if (e == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "la medición de fluidez todavía no arrancó")));
             ToolResult r;
-            r.data(*e);
+            json out = *e;
+            // SONDA (diag/TrazaCuadros): los tramos del camino de los cuadros, con su hora de origen.
+            if constexpr (ba::diag::kSondasCuadros) {
+                const int segs = std::clamp(a.value("trazas_s", 0), 0, 110);
+                if (segs > 0) {
+                    const std::int64_t ahora = ba::diag::TrazaCuadros::ahoraUs();
+                    const std::int64_t base = ahora - static_cast<std::int64_t>(segs) * 1'000'000;
+                    json tr = json::object();
+                    for (const auto& [nombre, traza] : ba::diag::trazas()) {
+                        json ts = json::array(), os = json::array(), ds = json::array();
+                        for (const auto& paso : traza->desde(base)) {
+                            ts.push_back(paso.t - base);
+                            os.push_back(paso.origen != 0 ? paso.origen - base : 0);
+                            ds.push_back(paso.dato);
+                        }
+                        if (!ts.empty()) tr[nombre] = {{"t", std::move(ts)}, {"origen", std::move(os)}, {"dato", std::move(ds)}};
+                    }
+                    out["trazas_base_us"] = base;
+                    out["trazas"] = std::move(tr);
+                }
+            }
+            r.data(out);
             r.untrusted = true;
             done(r);
         };

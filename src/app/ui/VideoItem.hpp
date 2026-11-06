@@ -34,6 +34,8 @@
 #include <vector>
 
 #include "diag/RitmoCuadros.hpp"
+#include "diag/SondasCuadros.hpp"
+#include "diag/TrazaCuadros.hpp"
 
 #include "ui/ProveedorCuadros.hpp"
 
@@ -89,6 +91,10 @@ class VideoItem : public QQuickItem {
         std::atomic<bool> activa{false}; ///< visible, en la vista y no diminuta
         ba::diag::RitmoCuadros tomado, subido, contenido;
         std::atomic<std::uint64_t> salteados{0};
+        /// SONDA (diag/TrazaCuadros), por fuente: «item:<fuente>:tomado» (hilo de la UI; dato: los
+        /// de la fuente que se saltearon), «:sync» (updatePaintNode con cuadro nuevo, hilo de render
+        /// con la UI parada) y «:subida» (commitTextureOperations; dato: lo que tardó).
+        BA_SONDA(std::shared_ptr<ba::diag::TrazaCuadros> trTomado, trSync, trSubida;)
     };
     /// Las vistas vivas (una copia de los punteros: cada Ritmo vive lo que la que más lo use).
     static std::vector<std::shared_ptr<Ritmo>> ritmos();

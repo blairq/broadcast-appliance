@@ -74,16 +74,28 @@ struct FrameService::Despertador {
     std::mutex mu;
     FrameService* fs = nullptr; ///< bajo mu: nullptr cuando se va
     std::atomic<bool> pendiente{false};
+    /// SONDA: cada toque («ui:timbre», dato 1 si ya había uno en camino) y cada vez que poll
+    /// corre por el timbre («ui:despierta», dato: cuánto esperó en la cola de la interfaz).
+    BA_SONDA(std::atomic<std::int64_t> tocadoUs{0};
+             const std::shared_ptr<ba::diag::TrazaCuadros> trTimbre = ba::diag::traza("ui:timbre");
+             const std::shared_ptr<ba::diag::TrazaCuadros> trDespierta = ba::diag::traza("ui:despierta");)
 
     /// Desde cualquier hilo.
     static void tocar(const std::shared_ptr<Despertador>& d) {
-        if (d->pendiente.exchange(true)) return; // ya hay uno en camino
+        BA_SONDA(const std::int64_t t = ba::diag::TrazaCuadros::ahoraUs();)
+        if (d->pendiente.exchange(true)) {
+            BA_SONDA(d->trTimbre->anotar(t, 0, 1);)
+            return; // ya hay uno en camino
+        }
+        BA_SONDA(d->tocadoUs.store(t, std::memory_order_relaxed); d->trTimbre->anotar(t, 0, 0);)
         std::lock_guard<std::mutex> l(d->mu);
         if (d->fs == nullptr) return;
         QMetaObject::invokeMethod(
             d->fs,
             [d]() {
                 d->pendiente = false;
+                BA_SONDA(const std::int64_t t = ba::diag::TrazaCuadros::ahoraUs();
+                         d->trDespierta->anotar(t, 0, t - d->tocadoUs.load(std::memory_order_relaxed));)
                 if (d->fs != nullptr) d->fs->poll(); // en el hilo de la interfaz: el destructor también
             },
             Qt::QueuedConnection);
@@ -546,7 +558,8 @@ void FrameService::poll() {
         s.image = envolver(c);
         s.origenUs = c.contenidoQpc != 0 ? static_cast<std::int64_t>(c.contenidoQpc / 1000) : t0;
         ++s.serial;
-        BA_SONDA(s.ritmo->cuadro(ahoraUs());)
+        BA_SONDA(s.ritmo->cuadro(ahoraUs()); if (!s.traza) s.traza = ba::diag::traza("ui:" + key.toStdString() + ":tomado");
+                 s.traza->anotar(ba::diag::TrazaCuadros::ahoraUs(), s.origenUs, static_cast<std::int64_t>(c.numero));)
         any = true;
     };
     // Programa: vista previa del motor (BGRA, ya escalada en la GPU).
@@ -617,6 +630,9 @@ void FrameService::poll() {
     if (any) {
         emit framesUpdated();
     }
+    // SONDA: cada vuelta de poll («ui:poll»: cuándo empezó y, de dato, lo que tardó con lo que
+    // hicieron los que escuchan framesUpdated).
+    BA_SONDA(static const auto trPoll = ba::diag::traza("ui:poll"); trPoll->anotar(t0, 0, ahoraUs() - t0);)
     // Lo que tardó esta vuelta en la UI (con lo que hagan los que escuchan framesUpdated).
     pollUs_[pollPos_] = static_cast<std::int32_t>(std::min<std::int64_t>(ahoraUs() - t0, INT32_MAX));
     pollPos_ = (pollPos_ + 1) % pollUs_.size();

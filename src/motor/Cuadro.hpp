@@ -8,6 +8,7 @@
 #pragma once
 
 #include "GstAdelantado.hpp"
+#include "diag/SondasCuadros.hpp"
 
 #include <cstddef>
 #include <cstdint>
@@ -46,6 +47,8 @@ struct Cuadro {
     std::uint64_t serie = 0;
     /// La hora de lo que muestra, en el reloj de los sellos (HealthBlock::nowQpc); 0 = no se sabe.
     std::uint64_t contenidoQpc = 0;
+    /// SONDA: el número de cuadro de ESTA vista (1, 2, 3…): quien lee ve cuántos se perdió.
+    BA_SONDA(std::uint64_t numero = 0;)
 };
 
 } // namespace ba::motor
