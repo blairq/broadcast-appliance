@@ -13,7 +13,6 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "mcp/InterfazMcp.hpp"
-#include "ui/Fluidez.hpp"
 
 #include <functional>
 
@@ -163,10 +162,10 @@ void McpService::registerGrillaTools() {
                         "que pone cada ventana en la pantalla. `peor`: el video con más huecos.");
         t.examples = {R"({})"};
         t.run = [vmp](const json&, Done done) {
-            auto* f = vmp->fluidez();
-            if (f == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "la medición de fluidez todavía no arrancó")));
+            const auto* e = vmp->fluidezEstado();
+            if (e == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "la medición de fluidez todavía no arrancó")));
             ToolResult r;
-            r.data(f->estado());
+            r.data(*e);
             r.untrusted = true;
             done(r);
         };

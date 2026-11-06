@@ -8,6 +8,7 @@
 
 #include "arranque/RuntimeConfig.hpp"
 #include "ui/StudioViewModel.hpp"
+#include "ui/Fluidez.hpp"
 
 namespace ba::app {
 
@@ -76,7 +77,10 @@ QObject* InterfazMcp::flujos() const { return studio_.flujos(); }
 QObject* InterfazMcp::frames() const { return studio_.frames(); }
 bool InterfazMcp::gatewayAlive() const { return studio_.gatewayAlive(); }
 escenas::ControlGrillas* InterfazMcp::grillasPersonas() { return studio_.grillasPersonas(); }
-Fluidez* InterfazMcp::fluidez() { return studio_.fluidez(); }
+const nlohmann::json* InterfazMcp::fluidezEstado() {
+    auto* f = studio_.fluidez();
+    return f != nullptr ? &f->estado() : nullptr;
+}
 HistoricoViewModel* InterfazMcp::historico() const { return studio_.historico(); }
 asamblea::InformesResultado* InterfazMcp::informes() { return studio_.informes(); }
 QObject* InterfazMcp::inputs() const { return studio_.inputs(); }
