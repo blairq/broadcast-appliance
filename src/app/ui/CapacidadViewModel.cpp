@@ -2,6 +2,12 @@
 
 #include "ui/CapacidadViewModel.hpp"
 
+#include "sala/HistorialPruebas.hpp"
+
+#ifndef BA_APP_VERSION
+#define BA_APP_VERSION ""
+#endif
+
 #include <QDateTime>
 #include <QDir>
 #include <QFile>
@@ -124,7 +130,9 @@ int64_t CapacidadViewModel::ahora() const { return p_.reloj(); }
 
 bool CapacidadViewModel::hinchadaDisponible() const { return p_.generador && p_.generador->disponible(); }
 
-fs::path CapacidadViewModel::dirHistorial() const { return p_.dataRoot / "Capacidad"; }
+// El historial de pruebas de la máquina (sala/HistorialPruebas): Pruebas/, con lo de antes
+// en Capacidad/ (se lee igual).
+fs::path CapacidadViewModel::dirHistorial() const { return p_.dataRoot / sala::historial::kCarpeta; }
 fs::path CapacidadViewModel::archivoEnCurso() const { return p_.dataRoot / "Runtime" / "capacidad-en-curso.json"; }
 
 void CapacidadViewModel::setEstado(const QString& e) {
@@ -161,9 +169,11 @@ QString CapacidadViewModel::puedeArrancar() const {
 
 // --- Este equipo y el remoto: la rampa -------------------------------------------------------
 
-QString CapacidadViewModel::probarEsteEquipo(int tope) {
+QString CapacidadViewModel::probarEsteEquipo(int tope, const QString& decodificar, int muestraPct) {
     revisar();
     if (const QString no = puedeArrancar(); !no.isEmpty()) return no;
+    sala::prueba::Decodificar dec;
+    if (const std::string e = sala::prueba::leerDecodificar(decodificar.toStdString(), muestraPct, dec); !e.empty()) return qs(e);
     if (!hinchadaDisponible())
         return qs(traducir("capacidad", "el probador (hinchada) no viene en este programa: probá desde otro equipo"));
     if (tope < 1 || tope > topeMax())
@@ -174,6 +184,8 @@ QString CapacidadViewModel::probarEsteEquipo(int tope) {
         if (const std::string no = sala::prueba::puedeArrancar(p_.medidaGuardia(), u, tope, true); !no.empty()) return qs(no);
     }
     plan_ = cap::escalones(tope);
+    regimenFijoS_ = 0;
+    decodificar_ = dec;
     maquinaMedida_ = p_.maquina;
     huella_.clear();
     setEstado(QStringLiteral("local"));
@@ -215,8 +227,10 @@ void CapacidadViewModel::seguirLocal() {
     });
 }
 
-QString CapacidadViewModel::probarRemoto(const QString& codigo, int tope) {
+QString CapacidadViewModel::probarRemoto(const QString& codigo, int tope, const QString& decodificar, int muestraPct, int minutos) {
     if (ocupado()) return qs(traducir("capacidad", "ya hay una prueba de capacidad en curso"));
+    sala::prueba::Decodificar dec;
+    if (const std::string e = sala::prueba::leerDecodificar(decodificar.toStdString(), muestraPct, dec); !e.empty()) return qs(e);
     if (p_.otraPrueba) {
         if (const QString o = p_.otraPrueba(); !o.isEmpty()) return o;
     }
@@ -227,6 +241,9 @@ QString CapacidadViewModel::probarRemoto(const QString& codigo, int tope) {
         return qs(traducir("capacidad", "ese no es un código de capacidad: copialo entero del otro equipo (empieza con BACAP1.)"));
     if (tope < 1 || tope > topeMax())
         return qs(llenar(traducir("capacidad", "el tope va de 1 a %1 invitados"), {std::to_string(topeMax())}));
+    if (minutos < 0 || minutos > kSalaRemotaMaxMin)
+        return qs(llenar(traducir("capacidad", "la prueba de sala contra otro equipo dura de 1 a %1 minutos"),
+                         {std::to_string(kSalaRemotaMaxMin)}));
     // Acá corre el generador: la memoria de ESTA máquina.
     if (p_.medidaGuardia) {
         sala::prueba::Umbrales u;
@@ -235,11 +252,18 @@ QString CapacidadViewModel::probarRemoto(const QString& codigo, int tope) {
     url_ = qs(c.url);
     credencial_ = qs(c.credencial);
     huella_ = qs(c.huella);
+    decodificar_ = dec;
     maquinaMedida_ = c.maquina.empty() ? url_ : qs(c.maquina);
-    plan_ = cap::escalones(tope);
+    // Con minutos: una prueba de sala (los N de una vez, ese tiempo); sin, la rampa.
+    regimenFijoS_ = minutos * 60;
+    plan_ = minutos > 0 ? std::vector<int>{tope} : cap::escalones(tope);
     setEstado(QStringLiteral("remoto"));
     empezarRampa();
-    emit notify(tr("Prueba de capacidad del otro equipo (%1): los invitados de prueba salen de esta máquina.").arg(maquinaMedida_), "ok");
+    if (minutos > 0)
+        emit notify(tr("Prueba de sala contra el otro equipo (%1): %2 invitados de prueba salen de esta máquina.").arg(maquinaMedida_).arg(tope),
+                    "ok");
+    else
+        emit notify(tr("Prueba de capacidad del otro equipo (%1): los invitados de prueba salen de esta máquina.").arg(maquinaMedida_), "ok");
     if (!p_.generador->preparado()) prepararGenerador();
     else seguirRemoto();
     return {};
@@ -249,7 +273,9 @@ void CapacidadViewModel::seguirRemoto() {
     const int tope = plan_.empty() ? 0 : plan_.back();
     // Primero: ¿el otro contesta y cuánto cupo abrió?
     QPointer<CapacidadViewModel> yo(this);
-    p_.pedirRemota(this, url_, credencial_, huella_, [yo, tope](const json& r) {
+    generadorAca_ = json{{"maquina", p_.maquina.toStdString()}, {"decodificar", sala::prueba::aJson(decodificar_, std::max(1, tope))}};
+    if (p_.ficha) generadorAca_["ficha"] = p_.ficha();
+    p_.pedirRemota(this, url_, credencial_, huella_, generadorAca_, [yo, tope](const json& r) {
         if (!yo || yo->estado_ != QLatin1String("remoto")) return;
         if (!r.value("ok", false)) {
             yo->terminarRampa(r.value("error", traducir("capacidad", "el otro equipo no contestó")), true, false);
@@ -260,7 +286,7 @@ void CapacidadViewModel::seguirRemoto() {
         const json med = r.contains("medida") && r["medida"].is_object() ? r["medida"] : json::object();
         const int cupo = med.value("cupo", 0);
         if (cupo > 0 && cupo < tope) {
-            yo->plan_ = cap::escalones(cupo);
+            yo->plan_ = yo->regimenFijoS_ > 0 ? std::vector<int>{cupo} : cap::escalones(cupo);
             emit yo->notify(tr("El otro equipo abrió lugar para %n: la prueba llega hasta ahí.", "", cupo), "warn");
         }
         yo->empezarEscalon();
@@ -292,6 +318,10 @@ void CapacidadViewModel::empezarRampa() {
     fase_ = QStringLiteral("abriendo");
     faseDesde_ = escalonDesde_ = inicioMs_;
     ultimoTic_ = 0;
+    serie_.clear();
+    serieJson_ = json::array();
+    serieTics_ = 0;
+    emit serieChanged();
     salida_ = QString::fromStdString((dirHistorial() / ("hinchada-" + QDateTime::fromMSecsSinceEpoch(inicioMs_)
                                                                           .toString("yyyyMMdd-HHmmss")
                                                                           .toStdString()))
@@ -365,6 +395,8 @@ void CapacidadViewModel::empezarEscalon() {
     l.prefijo = QStringLiteral("c%1-").arg(n);
     l.salida = salida_ + QStringLiteral("/escalon-%1").arg(n);
     l.inseguro = true; // la caja tiene su certificado propio
+    // Cada lote es un proceso de hinchada: la muestra, sobre los de este lote.
+    l.decodificar = qs(sala::prueba::argDecodificar(decodificar_, nuevos));
     if (const QString e = p_.generador->lanzar(l); !e.isEmpty()) {
         terminarRampa(e.toStdString(), true, false);
         return;
@@ -384,6 +416,10 @@ cap::Muestra CapacidadViewModel::muestraLocal(double uiMs) {
     cap::Muestra m = p_.medirMaquina ? p_.medirMaquina(pids) : cap::Muestra{};
     m.t = ahora();
     m.cpuEquipo = m.cpuMaquina;
+    // La que genera es esta misma: su hinchada y su red.
+    m.cpuProbador = m.cpuGenerador;
+    m.redEntraEquipoMbps = m.redEntraMbps;
+    m.redSaleEquipoMbps = m.redSaleMbps;
     m.cps = cps_;
     m.audioMs = audioMs_;
     m.uiMs = uiMs;
@@ -397,15 +433,28 @@ cap::Muestra CapacidadViewModel::muestraRemota() {
     // La del otro equipo (la última que llegó) y, de esta, la CPU (la que genera).
     const bool hay = remota_.is_object() && remota_.contains("medida") && remota_["medida"].is_object();
     cap::Muestra m = hay ? cap::muestraDe(remota_["medida"]) : cap::Muestra{};
-    const cap::Muestra local = p_.medirMaquina ? p_.medirMaquina({}) : cap::Muestra{};
+    // Esta máquina es la que genera: su CPU, la de su hinchada y su red.
+    const cap::Muestra local = p_.medirMaquina ? p_.medirMaquina(p_.generador ? p_.generador->pids() : std::vector<std::uint32_t>{})
+                                               : cap::Muestra{};
     m.t = ahora();
     m.cpuGenerador = -1;
     m.cpuEquipo = local.cpuMaquina;
+    m.cpuProbador = local.cpuGenerador;
+    m.redEntraEquipoMbps = local.redEntraMbps;
+    m.redSaleEquipoMbps = local.redSaleMbps;
+    // Lo que se le manda al otro con el próximo pedido (el canal del emparejamiento).
+    generadorAca_["cpuMaquina"] = local.cpuMaquina;
+    generadorAca_["cpuProbador"] = local.cpuGenerador;
+    generadorAca_["redEntraMbps"] = local.redEntraMbps;
+    generadorAca_["redSaleMbps"] = local.redSaleMbps;
     // Si lo del otro es viejo, no se juzga con eso.
     if (!hay || remota_.value("edadMs", 0) > 5000 || ahora() - remotaOkMs_ > 5000) {
         cap::Muestra vacia;
         vacia.t = m.t;
         vacia.cpuEquipo = m.cpuEquipo;
+        vacia.cpuProbador = m.cpuProbador;
+        vacia.redEntraEquipoMbps = m.redEntraEquipoMbps;
+        vacia.redSaleEquipoMbps = m.redSaleEquipoMbps;
         return vacia;
     }
     return m;
@@ -468,7 +517,7 @@ void CapacidadViewModel::ticRampa(double uiMs) {
         if (!pidiendoRemota_) {
             pidiendoRemota_ = true;
             QPointer<CapacidadViewModel> yo(this);
-            p_.pedirRemota(this, url_, credencial_, huella_, [yo](const json& r) {
+            p_.pedirRemota(this, url_, credencial_, huella_, generadorAca_, [yo](const json& r) {
                 if (!yo) return;
                 yo->pidiendoRemota_ = false;
                 if (r.value("ok", false)) {
@@ -486,6 +535,7 @@ void CapacidadViewModel::ticRampa(double uiMs) {
     delEscalon_.push_back(m);
     vivo_ = aMapa(cap::aJson(m));
     emit vivoChanged();
+    sumarASerie(m);
     // La guardia, cada segundo, antes que nada.
     if (const std::string clave = cap::claveGuardia(delEscalon_, p_.criterios); !clave.empty()) {
         cerrarEscalon(clave, cap::guardia(delEscalon_, p_.criterios));
@@ -508,13 +558,14 @@ void CapacidadViewModel::ticRampa(double uiMs) {
         }
     } else if (fase_ == QLatin1String("midiendo")) {
         regimen_.push_back(m);
-        if (t - faseDesde_ >= p_.tiempos.regimenS * 1000LL) {
+        if (t - faseDesde_ >= (regimenFijoS_ > 0 ? regimenFijoS_ : p_.tiempos.regimenS) * 1000LL) {
             cerrarEscalon();
             return;
         }
     }
-    // Nunca más de lo que dura un escalón.
-    if (enEscalon >= p_.tiempos.maxEscalonS * 1000LL) {
+    // Nunca más de lo que dura un escalón (la prueba de sala: la entrada, el asiento y sus minutos).
+    const int64_t maxEscalonMs = regimenFijoS_ > 0 ? (p_.tiempos.maxEscalonS + regimenFijoS_) * 1000LL : p_.tiempos.maxEscalonS * 1000LL;
+    if (enEscalon >= maxEscalonMs) {
         cerrarEscalon();
         return;
     }
@@ -597,6 +648,14 @@ void CapacidadViewModel::terminarRampa(const std::string& motivo, bool error, bo
              {"pasos", pasos},
              {"resultado", cap::aJson(r)},
              {"motivo", motivo},
+             {"decodificar", sala::prueba::aJson(decodificar_, std::max(1, tope))},
+             {"modo", regimenFijoS_ > 0 ? "sala" : "rampa"},
+             {"minutos", regimenFijoS_ / 60},
+             {"serie", serieJson_},
+             {"fichas", {{"local", p_.ficha ? p_.ficha() : json()},
+                         {"remota", remota_.is_object() && remota_.contains("medida") && remota_["medida"].is_object()
+                                        ? remota_["medida"].value("ficha", json())
+                                        : json()}}},
              {"criterios",
               {{"cpuMaxPct", p_.criterios.cpuMaxPct},
                {"memAvisoMb", p_.criterios.memAvisoMb},
@@ -639,6 +698,15 @@ QString CapacidadViewModel::empezarARecibir(int cupo, int minutos) {
     setEstado(QStringLiteral("recibiendo"));
     inicioMs_ = ahora();
     recibirHastaMs_ = inicioMs_ + minutos * 60000LL;
+    maxEntraron_ = 0;
+    generadores_ = json::array();
+    generadoresUi_.clear();
+    fichasGeneradores_.clear();
+    serie_.clear();
+    serieJson_ = json::array();
+    serieTics_ = 0;
+    emit generadoresChanged();
+    emit serieChanged();
     cupoRecibir_ = cupo;
     recibidas_.clear();
     cps_ = audioMs_ = -1;
@@ -705,6 +773,25 @@ QString CapacidadViewModel::empezarARecibir(int cupo, int minutos) {
     return {};
 }
 
+void CapacidadViewModel::sumarASerie(const cap::Muestra& m) {
+    const QVariantMap punto{{"t", static_cast<double>(m.t)},
+                            {"cpuMaquina", m.cpuMaquina},
+                            {"cpuApp", m.cpuApp},
+                            {"cpuGateway", m.cpuGateway},
+                            {"redEntraMbps", m.redEntraMbps},
+                            {"redSaleMbps", m.redSaleMbps},
+                            {"cpuEquipo", m.cpuEquipo},
+                            {"cpuProbador", m.cpuProbador},
+                            {"redEntraEquipoMbps", m.redEntraEquipoMbps},
+                            {"redSaleEquipoMbps", m.redSaleEquipoMbps}};
+    serie_.push_back(punto);
+    while (serie_.size() > kSerieMaxPuntos) serie_.removeFirst();
+    // Para el informe, de a 5 s (todas las medidas: lo que se compara después).
+    if (serieTics_ % 5 == 0) serieJson_.push_back(cap::aJson(m));
+    // La vista se redibuja cada 2 s (no en cada segundo).
+    if (++serieTics_ % 2 == 0) emit serieChanged();
+}
+
 void CapacidadViewModel::ticRecibir(double uiMs) {
     const int64_t t = ahora();
     if (t >= recibirHastaMs_) {
@@ -718,6 +805,25 @@ void CapacidadViewModel::ticRecibir(double uiMs) {
     medirGrillaYAudio(t - ultimaGrillaMs_ >= 30000);
     cap::Muestra m = muestraLocal(uiMs);
     m.cpuGenerador = -1; // el generador está en el otro equipo
+    // Lo de las que generan llegó por el emparejamiento (la más cargada; su red, sumada).
+    m.cpuEquipo = m.cpuProbador = m.redEntraEquipoMbps = m.redSaleEquipoMbps = -1;
+    for (const json& g : generadores_) {
+        const json md = g.value("medida", json::object());
+        const auto mayor = [&md](const char* k, double& v) {
+            const double x = md.value(k, -1.0);
+            if (x >= 0) v = std::max(v, x);
+        };
+        const auto sumar = [&md](const char* k, double& v) {
+            const double x = md.value(k, -1.0);
+            if (x >= 0) v = (v < 0 ? 0 : v) + x;
+        };
+        mayor("cpuMaquina", m.cpuEquipo);
+        mayor("cpuProbador", m.cpuProbador);
+        sumar("redEntraMbps", m.redEntraEquipoMbps);
+        sumar("redSaleMbps", m.redSaleEquipoMbps);
+    }
+    maxEntraron_ = std::max(maxEntraron_, m.entraron);
+    sumarASerie(m);
     recibidas_.push_back(m);
     if (recibidas_.size() > 60) recibidas_.erase(recibidas_.begin());
     vivo_ = aMapa(cap::aJson(m));
@@ -725,7 +831,31 @@ void CapacidadViewModel::ticRecibir(double uiMs) {
     json medida = cap::aJson(m);
     medida["cupo"] = cupoRecibir_;
     medida["maquina"] = p_.maquina.toStdString();
-    p_.post("/api/v1/prueba-sala", QJsonObject{{"medida", QJsonDocument::fromJson(QByteArray::fromStdString(medida.dump())).object()}}, {});
+    if (p_.ficha) medida["ficha"] = p_.ficha();
+    QPointer<CapacidadViewModel> yo(this);
+    p_.post("/api/v1/prueba-sala", QJsonObject{{"medida", QJsonDocument::fromJson(QByteArray::fromStdString(medida.dump())).object()}},
+            [yo](bool ok, const QJsonObject& r) {
+        // La respuesta trae lo que mandan las que generan contra esta (su CPU, su red, su ficha).
+        if (!yo || !ok || yo->estado_ != QLatin1String("recibiendo")) return;
+        const json gs = deQJson(r).value("generadores", json::array());
+        if (!gs.is_array()) return;
+        yo->generadores_ = gs;
+        QVariantList ui;
+        for (const json& g : gs) {
+            json plano = g.value("medida", json::object());
+            plano["maquina"] = g.value("maquina", std::string());
+            plano["edadMs"] = g.value("edadMs", 0);
+            if (plano.contains("ficha")) {
+                yo->fichasGeneradores_[g.value("maquina", std::string())] = plano["ficha"];
+                plano.erase("ficha");
+            }
+            ui << aMapa(plano);
+        }
+        if (ui != yo->generadoresUi_) {
+            yo->generadoresUi_ = ui;
+            emit yo->generadoresChanged();
+        }
+    });
     if (recibir_.value("participantes").toInt() != m.entraron || recibir_.value("conVideo").toInt() != m.conVideo) {
         recibir_["participantes"] = m.entraron;
         recibir_["conVideo"] = m.conVideo;
@@ -741,6 +871,27 @@ void CapacidadViewModel::ticRecibir(double uiMs) {
 void CapacidadViewModel::dejarDeRecibir() {
     if (estado_ != QLatin1String("recibiendo")) return;
     tic_.stop();
+    // Si llegó a entrar alguien, el informe de lo recibido queda en el historial de esta
+    // máquina: su medida (la serie), quién generó (con su ficha) y cómo terminó.
+    if (maxEntraron_ > 0) {
+        json fichas = json::array();
+        for (const auto& [maquina, f] : fichasGeneradores_) fichas.push_back(f);
+        json estad = json::object();
+        if (!recibidas_.empty()) estad["ultima"] = cap::aJson(recibidas_.back());
+        const json inf{{"tipo", "recibida"},
+                       {"maquina", p_.maquina.toStdString()},
+                       {"fecha", inicioMs_},
+                       {"fin", ahora()},
+                       {"cupo", cupoRecibir_},
+                       {"maxEntraron", maxEntraron_},
+                       {"generadores", generadores_},
+                       {"serie", serieJson_},
+                       {"estadisticas", estad},
+                       {"fichas", {{"local", p_.ficha ? p_.ficha() : json()}, {"generadoras", fichas}}},
+                       {"frase", llenar(traducir("capacidad", "Recibió una prueba: llegaron a estar %1 invitados de prueba (cupo %2)."),
+                                        {std::to_string(maxEntraron_), std::to_string(cupoRecibir_)})}};
+        guardar(inf, "recibida");
+    }
     cerrarCredencial(traducir("capacidad", "terminó de recibir"));
     devolverCupo();
     ba::persist::cola().borrar(archivoEnCurso());
@@ -1004,9 +1155,10 @@ void CapacidadViewModel::limpiarColgada() {
 }
 
 void CapacidadViewModel::guardar(const json& informe, const std::string& tipo) {
-    const std::string nombre = cap::nombreArchivo(informe.value("fecha", ahora()), informe.value("maquina", p_.maquina.toStdString()), tipo);
-    ba::persist::cola().escribir(dirHistorial() / nombre, informe.dump(1, ' ', false, json::error_handler_t::replace));
-    historial_.prepend(aMapa(resumenDe(informe, nombre)));
+    const json sobre = sala::historial::sobre(informe, tipo, BA_APP_VERSION, ahora());
+    const std::string nombre = cap::nombreArchivo(sobre.value("fecha", ahora()), sobre.value("maquina", p_.maquina.toStdString()), tipo);
+    ba::persist::cola().escribir(dirHistorial() / nombre, sobre.dump(1, ' ', false, json::error_handler_t::replace));
+    historial_.prepend(aMapa(resumenDe(sobre, nombre)));
     while (historial_.size() > 50) historial_.removeLast();
     emit historialChanged();
 }
@@ -1014,12 +1166,18 @@ void CapacidadViewModel::guardar(const json& informe, const std::string& tipo) {
 void CapacidadViewModel::recargarHistorial() {
     std::vector<std::pair<std::string, json>> leidos;
     std::error_code ec;
-    for (const auto& e : fs::directory_iterator(dirHistorial(), ec)) {
+    std::vector<fs::directory_entry> archivos;
+    for (const fs::path& d : {dirHistorial(), p_.dataRoot / sala::historial::kCarpetaVieja})
+        for (const auto& e : fs::directory_iterator(d, ec)) archivos.push_back(e);
+    for (const auto& e : archivos) {
         if (!e.is_regular_file(ec) || e.path().extension() != ".json") continue;
         std::string s;
         if (!ba::persist::cola().leer(e.path(), s)) continue;
         json j = json::parse(s, nullptr, false);
         if (!j.is_object()) continue;
+        // Solo lo de capacidad (en Pruebas/ también están la de sala y la de asamblea).
+        const std::string tipo = j.value("tipo", std::string());
+        if (tipo != "local" && tipo != "remoto" && tipo != "internet" && tipo != "recibida") continue;
         leidos.emplace_back(e.path().filename().string(), std::move(j));
     }
     std::sort(leidos.begin(), leidos.end(),
@@ -1113,6 +1271,17 @@ json CapacidadViewModel::estadoJson(bool conCodigo) const {
         j["ultimo_resultado"] = r;
     }
     if (internetJson_.is_object()) j["ultima_conexion"] = internetJson_;
+    if (!generadores_.empty()) {
+        json gs = generadores_;
+        for (json& g : gs)
+            if (g.contains("medida") && g["medida"].is_object()) g["medida"].erase("ficha");
+        j["generadores"] = gs;
+    }
+    // La serie: los últimos 2 minutos de a 5 s (la entera, en el informe).
+    json serie = json::array();
+    const int desde = std::max(0, static_cast<int>(serieJson_.size()) - 24);
+    for (int i = desde; i < static_cast<int>(serieJson_.size()); ++i) serie.push_back(serieJson_[static_cast<std::size_t>(i)]);
+    j["serie"] = serie;
     return j;
 }
 
@@ -1120,11 +1289,8 @@ json CapacidadViewModel::ultimoDeEstaMaquina() const {
     for (const QVariant& v : historial_) {
         const QVariantMap m = v.toMap();
         if (m.value("tipo").toString() != QLatin1String("local") || m.value("maquina").toString() != p_.maquina) continue;
-        std::string s;
-        if (ba::persist::cola().leer(dirHistorial() / m.value("archivo").toString().toStdString(), s)) {
-            json j = json::parse(s, nullptr, false);
-            if (j.is_object()) return j;
-        }
+        // En Pruebas/ o, si es de antes, en Capacidad/.
+        if (json j = sala::historial::leer(p_.dataRoot, m.value("archivo").toString().toStdString()); j.is_object()) return j;
         // Recién guardado (la cola todavía no escribió): el de memoria.
         if (resultadoJson_.is_object() && resultadoJson_.value("tipo", std::string()) == "local") return resultadoJson_;
     }
@@ -1146,7 +1312,7 @@ QVariantList CapacidadViewModel::chequeoPrevio(int cupoEvento) const {
     }
     if (ultimo.isEmpty()) {
         out << QVariantMap{{"grave", false},
-                           {"texto", tr("Capacidad de esta máquina sin medir: Configuración → Sistema → Capacidad dice cuántos invitados aguanta.")}};
+                           {"texto", tr("Capacidad de esta máquina sin medir: Pruebas → Capacidad dice cuántos invitados aguanta.")}};
     } else {
         const int n = ultimo.value("conMargen").toInt();
         const QString cuando = QDateTime::fromMSecsSinceEpoch(static_cast<qint64>(ultimo.value("fecha").toDouble())).toString("dd/MM/yyyy");

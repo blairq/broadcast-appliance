@@ -13,6 +13,7 @@
 // ============================================================================
 #pragma once
 
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -35,6 +36,16 @@ std::string escribirCredenciales(const std::filesystem::path& archivo, const std
 /// {carpeta, asamblea, integrantes, resumen, notas}; objeto vacío si no hay o no se entiende.
 /// En el pool.
 nlohmann::json informeHinchada(const std::filesystem::path& salida);
+
+/// Lo nuevo de un archivo de texto que otro va escribiendo (la consola del coordinador de
+/// hinchada): desde el byte `desde` hasta el último fin de línea (lo que quedó a medio
+/// escribir se lee la próxima vez), `maxBytes` como mucho. `hasta`: desde dónde seguir. Sin
+/// el archivo, nada (y `hasta` = `desde`). En el pool.
+struct Tramo {
+    std::string texto;
+    std::int64_t hasta = 0;
+};
+Tramo leerLineasDesde(const std::filesystem::path& archivo, std::int64_t desde, std::int64_t maxBytes = 1 << 20);
 
 /// Borra un archivo (si no está, nada). En el pool.
 void borrar(const std::filesystem::path& archivo);

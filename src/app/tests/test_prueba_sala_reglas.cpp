@@ -127,6 +127,121 @@ int main() {
     cortada.terminar(2000, "guardia", true);
     CHECK(!cortada.final()["bien"].get<bool>() && cortada.porGuardia(), "cortada por la guardia: no salió bien");
 
+    // --- Repartido entre máquinas: la memoria de esta -----------------------------------------
+    // 7000 - (40 + 40) × 40 = 3800 < 4500: con los 40 acá, no; con 10 acá, 7000 - 50 × 40 = 5000: sí.
+    CHECK(!pr::puedeArrancarRepartido(medida(7000, 2, 300), u, 40, 40).empty(), "repartido: con todos acá pesa como local");
+    CHECK(pr::puedeArrancarRepartido(medida(7000, 2, 300), u, 40, 10).empty(), "repartido: con pocos acá, entra");
+    CHECK(pr::puedeArrancarRepartido(medida(7000, 2, 300), u, 40, 0).empty(), "repartido: nada acá = generador externo");
+
+    // --- Decodificar ------------------------------------------------------------------------
+    {
+        pr::Decodificar d;
+        CHECK(d.modo == "muestra" && d.pct == 5, "de fábrica: una muestra del 5 %");
+        CHECK(!pr::leerDecodificar("algo", 5, d).empty(), "un modo que no existe: no");
+        CHECK(!pr::leerDecodificar("muestra", 0, d).empty() && !pr::leerDecodificar("muestra", 51, d).empty(), "la muestra va de 1 a 50");
+        CHECK(pr::leerDecodificar("nada", 0, d).empty() && d.modo == "nada", "nada (el % no importa)");
+        CHECK(pr::argDecodificar(d, 200) == "nada" && pr::pctEfectivo(d, 200) == 0, "nada → --decodificar nada");
+        CHECK(pr::leerDecodificar("todo", 0, d).empty() && pr::argDecodificar(d, 200) == "todo", "todo → --decodificar todo");
+        CHECK(pr::leerDecodificar("muestra", 5, d).empty(), "muestra del 5 %");
+        CHECK(pr::argDecodificar(d, 200) == "5", "con 200, el 5 % (10 decodifican)");
+        CHECK(pr::pctEfectivo(d, 10) == 30 && pr::argDecodificar(d, 10) == "30", "con 10, sube al 30 % (al menos 3)");
+        CHECK(pr::pctEfectivo(d, 40) == 7.5 && pr::argDecodificar(d, 40) == "7.5", "con 40, 7,5 % (3 de 40)");
+        CHECK(pr::pctEfectivo(d, 2) == 100, "con muy pocos, todos");
+        const json j = pr::aJson(d, 10);
+        CHECK(j["modo"] == "muestra" && j["pct"] == 5 && j["pctEfectivo"].get<double>() == 30, "para el informe: modo, pedido y efectivo");
+    }
+
+    // --- Repartir entre máquinas ------------------------------------------------------------
+    {
+        CHECK(!pr::puedeRepartir(10, 0, false).empty(), "sin otras y sin generar acá: nadie genera");
+        CHECK(!pr::puedeRepartir(10, pr::kMaxOtrasMaquinas + 1, true).empty(), "más máquinas que el tope: no");
+        CHECK(!pr::puedeRepartir(1, 2, true).empty(), "más máquinas que participantes: no");
+        CHECK(pr::puedeRepartir(200, 1, false).empty(), "200 en otra, esta solo coordina: sí");
+        pr::Reparto r = pr::repartir(200, 1, false);
+        CHECK(r.maquinas == 1 && r.local == 0 && r.procesosLocales == 0, "esta solo coordina: no genera nada");
+        CHECK(r.porMaquina == 200 && r.procesosPorOtra == 2 && r.porProcesoOtra == 100 && r.trabajadores == 2,
+              "200 en una Mac: dos procesos de 100 (tope 150 por proceso)");
+        r = pr::repartir(200, 1, true);
+        CHECK(r.maquinas == 2 && r.porMaquina == 100 && r.local == 100 && r.procesosLocales == 1 && r.procesosPorOtra == 1 &&
+                  r.trabajadores == 2,
+              "200 entre esta y otra: 100 y 100, un proceso cada una");
+        r = pr::repartir(10, 0, false);
+        CHECK(!r.varias() && r.estaGenera && r.local == 10, "sin otras: esta genera todo (aunque no se haya pedido)");
+        const std::string sh = pr::comandoTrabajador(pr::repartir(200, 1, false), "192.168.1.10", 7890, "CLAVE123", false);
+        CHECK(sh == "HINCHADA_CLAVE=CLAVE123 ./hinchada trabajar --coordinador 192.168.1.10:7890 --por-proceso 100", "la línea (sh)");
+        const std::string ps = pr::comandoTrabajador(pr::repartir(200, 1, false), "192.168.1.10", 7890, "CLAVE123", true);
+        CHECK(ps.find("$env:HINCHADA_CLAVE=\"CLAVE123\"") == 0 && ps.find(".\\hinchada.exe trabajar") != std::string::npos,
+              "la línea (PowerShell)");
+        const std::string consola =
+            "hinchada: escuchando trabajadores y sondas en el puerto 7890\n"
+            "   >>> se sumó el trabajador «esta-maquina-1» (mac, hasta 100)\n"
+            "   >>> se sumó el trabajador «pc-177-4242» (pc-177, hasta 100)\n"
+            "   >>> se sumó el trabajador «pc-178-11» (pc-178, hasta 100)\n"
+            "   >>> se cortó el trabajador «pc-178-11»\n";
+        int otras = -1;
+        CHECK(pr::trabajadoresSumados(consola, &otras) == 2 && otras == 1, "sumados: 2 (uno de acá y uno de otra; el que se cortó no)");
+        CHECK(pr::trabajadoresSumados("", &otras) == 0 && otras == 0, "sin consola, ninguno");
+    }
+
+    // --- El código del generador -------------------------------------------------------------
+    {
+        pr::CodigoGenerador c;
+        c.coordinador = "192.168.1.10:7890";
+        c.clave = "abcdefghijklmnop";
+        c.procesos = 2;
+        c.porProceso = 100;
+        c.maquina = "mac-sala";
+        const std::string cod = pr::armarCodigoGenerador(c);
+        CHECK(cod.rfind("BAGEN1.", 0) == 0, "empieza con BAGEN1.");
+        pr::CodigoGenerador l;
+        CHECK(pr::leerCodigoGenerador("  " + cod + "\n", l) && l.coordinador == c.coordinador && l.clave == c.clave && l.procesos == 2 &&
+                  l.porProceso == 100 && l.maquina == "mac-sala",
+              "se lee entero (con espacios alrededor)");
+        CHECK(!pr::leerCodigoGenerador("BACAP1.xxxx", l), "un código de capacidad no es de generador");
+        c.coordinador = "sin-puerto";
+        CHECK(!pr::leerCodigoGenerador(pr::armarCodigoGenerador(c), l), "sin puerto: no");
+        c.coordinador = "h:7890";
+        c.procesos = 0;
+        CHECK(!pr::leerCodigoGenerador(pr::armarCodigoGenerador(c), l), "procesos fuera de rango: no");
+    }
+
+    // --- La CPU de las generadoras (muestras.jsonl del coordinador) ---------------------------
+    {
+        const json linea = {{"maquinas",
+                             json::array({{{"maquina", "mac-sala"}, {"rol", "probador"}, {"cpuPct", 60},
+                                           {"procesos", json::array({{{"nombre", "probador"}}, {{"nombre", "ba-gateway"}}})}},
+                                          {{"maquina", "pc-177"}, {"rol", "probador"}, {"cpuPct", 45}, {"procesos", json::array()}},
+                                          {{"maquina", "servidor"}, {"rol", "sonda"}, {"cpuPct", 30}}})}};
+        const auto g = pr::generadorasDeMuestra(linea);
+        CHECK(g.size() == 1 && g.count("pc-177") && g.at("pc-177") == 45, "solo las generadoras (ni la medida ni la sonda)");
+        CHECK(pr::generadorasDeMuestra(json()).empty(), "sin línea, nada");
+    }
+
+    // --- El informe: cómo se generó --------------------------------------------------------------
+    {
+        pr::Informe g;
+        g.empezar(1000, 2, "hinchada", "x");
+        pr::Decodificar d;
+        g.probador({{"decodificar", pr::aJson(d, 2)}, {"maquinas", {{"otras", 1}, {"estaGenera", false}, {"sumadas", 1}}}});
+        pr::Muestra mm;
+        mm.t = 2000;
+        mm.cpuGenerador = 10;
+        g.muestra(mm);
+        mm.cpuGenerador = 30;
+        g.muestra(mm);
+        g.generadoras({{"pc-177", 40}});
+        g.generadoras({{"pc-177", 60}});
+        g.terminar(3000, "a mano");
+        const json f = g.final();
+        CHECK(f["picos"]["cpuGenerador"].get<double>() == 30 && f["promedios"]["cpuGenerador"].get<double>() == 20,
+              "la CPU del probador: pico y promedio");
+        CHECK(f["probador"]["decodificar"]["modo"] == "muestra" && f["probador"]["maquinas"]["sumadas"] == 1, "el informe dice cómo se generó");
+        CHECK(f["generadoras"].size() == 1 && f["generadoras"][0]["cpuProm"].get<double>() == 50 && f["generadoras"][0]["cpuPico"].get<double>() == 60,
+              "la CPU de cada generadora");
+        const std::string nota = g.nota();
+        CHECK(nota.find("decodific") != std::string::npos && nota.find("pc-177") != std::string::npos, "la nota dice qué decodificó y las generadoras");
+    }
+
     std::printf(g_fallas == 0 ? "test_prueba_sala_reglas: OK\n" : "test_prueba_sala_reglas: %d fallas\n", g_fallas);
     return g_fallas == 0 ? 0 : 1;
 }

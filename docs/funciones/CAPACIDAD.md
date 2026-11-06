@@ -1,6 +1,6 @@
 # Capacidad: ¿cuántos invitados aguanta?
 
-Pestaña **Configuración → Sistema → Capacidad** o las herramientas MCP `capacidad_*`: las
+Página **Pruebas → Capacidad** (antes en Configuración → Sistema, que ahora lleva ahí) o las herramientas MCP `capacidad_*`: las
 dos usan el mismo modelo (`src/app/ui/CapacidadViewModel`). Es para el operador: dice
 cuántos invitados aguanta **esta máquina**, **otro BroadcastAppliance** y **la conexión a
 internet**, con un número y lo que limita. No muestra hilos ni métricas internas (eso es
@@ -16,6 +16,11 @@ la medición del [enlace](ENLACE.md) con su cuenta (`sala/EnlaceNecesita`).
 invitados de prueba con hinchada **en esta misma máquina** contra el propio gateway, por
 escalones: **10, 20, 40, 60, 80, 100, 120, 160, 200…** hasta el tope elegido (de fábrica 80)
 o hasta que se degrade.
+
+**Decodificar lo que vuelve** (vale para este equipo y para probar otro): «una muestra» (de
+fábrica, 5 % y al menos 3 por escalón), «nada (solo envía)» o «todo»; por qué la muestra, en
+[PRUEBA-SALA.md](PRUEBA-SALA.md#decodificar-lo-que-vuelve). El resultado lo guarda
+(`decodificar`).
 
 Cada escalón dura **2 minutos como mucho**: entran los nuevos (los de antes siguen adentro;
 de a 300 ms, menos si son muchos, para que entren a tiempo), 15 s para que se acomode la
@@ -68,8 +73,16 @@ notebook): los invitados salen de acá y el otro informa su CPU, memoria, grilla
 1. En el otro: **Que otro equipo pruebe este → Recibir una prueba…** (hasta cuántos y
    cuántos minutos, como mucho 60). Abre la credencial de prueba, sube el cupo y muestra
    un **código** (oculto; **Copiar el código**).
-2. En este: pegar el código en **Un sistema remoto** y **Probar el otro equipo…**. La rampa
-   es la misma, con el tope recortado al cupo que abrió el otro.
+2. En este: pegar el código en **Un sistema remoto**, elegir **Rampa** o **Prueba de sala** (N
+   invitados de una vez durante 1 a 15 minutos, con el mismo juicio) y **Probar el otro
+   equipo…**. La rampa es la misma, con el tope recortado al cupo que abrió el otro.
+
+Los dos ven en vivo los **gráficos de CPU y red de los dos lados** (la máquina medida: la
+máquina, la app, el gateway y su red; la que genera: la máquina, hinchada y su red). La que
+genera manda lo suyo (CPU, red, lo que decodifica y su **ficha**) con cada pedido de la medida
+(cabecera `X-BA-Generador`, con la credencial); el otro lo muestra («Genera mac-b: CPU…») y,
+al dejar de recibir, guarda un informe **recibida** en su historial. Varias PC pueden generar
+contra la misma: cada una pega el mismo código. Pasos para el usuario: [PRUEBAS.md](PRUEBAS.md#probar-entre-dos-pc).
 
 El código (`BACAP1.` + base64url) lleva la dirección del otro gateway, la credencial y la
 **huella del certificado** de su HTTPS (es autofirmado: la conexión se fija a ESE
@@ -114,9 +127,11 @@ programa se cierra en el medio, al volver se apaga.
 
 ## El historial
 
-Cada prueba queda en `Capacidad/<fecha>-<máquina>-<tipo>.json` en la carpeta de datos
-(`local`, `remoto` o `internet`), con los escalones, lo medido, los criterios y la frase.
-Los informes de hinchada de cada escalón quedan en `Capacidad/hinchada-<fecha>/`.
+Cada prueba queda en el **historial de pruebas** de la máquina, `Pruebas/<fecha>-<máquina>-<tipo>.json`
+en la carpeta de datos (`local`, `remoto`, `recibida` o `internet`; las de antes siguen en
+`Capacidad/`), con los escalones, lo medido, los criterios, la frase, lo que se decodificó, la
+serie (de a 5 s) y la ficha de cada máquina ([PRUEBAS.md](PRUEBAS.md#el-historial)). Los
+informes de hinchada de cada escalón quedan en `Pruebas/hinchada-<fecha>/`.
 
 - La pestaña muestra la lista (fecha, tipo, máquina, resultado) y al abrir carga el último.
 - **Exportar el último…** (JSON: la capacidad y la conexión) y **Exportar el historial
@@ -129,9 +144,9 @@ Los informes de hinchada de cada escalón quedan en `Capacidad/hinchada-<fecha>/
 
 | Herramienta | |
 |---|---|
-| `capacidad_arrancar` | `{prueba: este_equipo\|remoto\|internet, tope?, codigo?, prender_pinggy?, confirmar}` |
+| `capacidad_arrancar` | `{prueba: este_equipo\|remoto\|internet, tope?, codigo?, minutos? (remoto: prueba de sala), prender_pinggy?, decodificar?, muestra_pct?, confirmar}` |
 | `capacidad_recibir` | `{on, cupo?, minutos?}`: dejarse probar desde otro equipo |
-| `capacidad_estado` | estado, riesgo, progreso, en vivo, escalones, recibir (con el código), pinggy y los últimos |
+| `capacidad_estado` | estado, riesgo, progreso, en vivo, escalones, recibir (con el código), `generadores` (recibiendo), `serie` (los últimos 2 min), pinggy y los últimos |
 | `capacidad_cancelar` | corta y limpia |
 | `capacidad_ultimo` | `{que: capacidad\|remoto\|internet\|historial}` |
 
@@ -139,9 +154,9 @@ Los informes de hinchada de cada escalón quedan en `Capacidad/hinchada-<fecha>/
 
 | Método | Ruta | |
 |---|---|---|
-| POST | `/api/v1/prueba-sala` | `{medida}`: la de esta máquina para el probador remoto (127.0.0.1, la app) |
+| POST | `/api/v1/prueba-sala` | `{medida}`: la de esta máquina para el probador remoto (127.0.0.1, la app) → `{ok, generadores}` (lo que mandan las que generan) |
 | POST / DELETE | `/api/v1/capacidad/red` | `{duracionS}` → `{secreto}` para medir por el túnel (≤ 3 min) · lo olvida (127.0.0.1) |
-| GET | `/api/prueba-sala/medida` | pública, cabecera `X-BA-Prueba: <credencial>` → `{ok, medida, edadMs, participantes}` |
+| GET | `/api/prueba-sala/medida` | pública, cabecera `X-BA-Prueba: <credencial>` (y, de la que genera, `X-BA-Generador: <JSON>`) → `{ok, medida, edadMs, participantes}` |
 | GET | `/api/capacidad/relleno?kb=N` | pública, cabecera `X-BA-Medir: <secreto>` → N KB (≤ 4096) que no se comprimen |
 
 ## Pruebas

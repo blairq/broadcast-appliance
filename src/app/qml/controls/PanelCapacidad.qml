@@ -1,4 +1,4 @@
-// Configuración → Sistema → Capacidad: ¿cuántos invitados aguanta? Este equipo, otro
+// Pruebas → Capacidad: ¿cuántos invitados aguanta? Este equipo, otro
 // equipo y la conexión a internet. Solo presentación: todo sale de Studio.capacidad
 // (ui/CapacidadViewModel), el mismo modelo que usan las herramientas capacidad_* del MCP.
 // Ver docs/funciones/CAPACIDAD.md.
@@ -172,12 +172,24 @@ ScrollView {
                 StatusPill { visible: (panel.vivo.cps || -1) >= 0; text: qsTr("grilla %1 cps").arg(panel.num(panel.vivo.cps)); dot: (panel.vivo.cps || 30) < 25 ? Theme.live : Theme.ok }
                 StatusPill { visible: (panel.vivo.audioMs || -1) >= 0; text: qsTr("audio %1 ms").arg(panel.num(panel.vivo.audioMs)); dot: (panel.vivo.audioMs || 0) > 50 ? Theme.live : Theme.ok }
             }
+            // Los dos lados en vivo: la máquina medida y la que genera.
+            GraficasPrueba {
+                Layout.fillWidth: true
+                visible: panel.rampa && panel.cv.serie.length > 1
+                serie: panel.cv.serie
+            }
         }
 
         // --- Este equipo -------------------------------------------------------------------
         Seccion {
             titulo: qsTr("Este equipo")
             subtitulo: qsTr("¿Cuántos invitados aguanta esta máquina? El generador de prueba (hinchada) corre acá mismo: su CPU se mide aparte y se descuenta.")
+            // Vale para este equipo y para probar otro (abajo).
+            OpcionDecodificar {
+                id: decodificar
+                Layout.fillWidth: true
+                enabled: !panel.cv.ocupado
+            }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -195,7 +207,7 @@ ScrollView {
                     onClicked: panel.confirmar(qsTr("¿Probar este equipo?"),
                                                qsTr("Van a entrar hasta %1 invitados de prueba por escalones: la máquina se va a cargar durante unos minutos. No lo hagas con un evento en curso. Se puede cancelar en cualquier momento.").arg(topeLocal.value),
                                                qsTr("Probar"),
-                                               function() { panel.avisar(panel.cv.probarEsteEquipo(topeLocal.value)) })
+                                               function() { panel.avisar(panel.cv.probarEsteEquipo(topeLocal.value, decodificar.modo, decodificar.pct)) })
                 }
             }
             Text {
@@ -266,7 +278,16 @@ ScrollView {
         // --- Un sistema remoto ----------------------------------------------------------------
         Seccion {
             titulo: qsTr("Un sistema remoto")
-            subtitulo: qsTr("Probar otro BroadcastAppliance desde acá: en el otro, «Que otro equipo pruebe este» muestra un código; pegalo acá. Los invitados de prueba salen de esta máquina y el otro informa su CPU y su memoria.")
+            subtitulo: qsTr("Probar otro BroadcastAppliance desde acá (otra PC): en el otro, «Que otro equipo pruebe este» muestra un código; pegalo acá. Los invitados de prueba salen de esta máquina y el otro informa su CPU, su memoria y su red; esta le manda la suya (y su ficha) para su informe. Varias PC pueden generar contra la misma: cada una pega el mismo código.")
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 8
+                GlassButton { compact: true; text: qsTr("Rampa (cuántos aguanta)"); active: !salaRemota.checked; onClicked: salaRemota.checked = false }
+                GlassButton { compact: true; text: qsTr("Prueba de sala (N durante unos minutos)"); active: salaRemota.checked; onClicked: salaRemota.checked = true }
+                CheckBox { id: salaRemota; visible: false }
+                Text { visible: salaRemota.checked; text: qsTr("minutos"); color: Theme.textDim; font.pixelSize: 12 }
+                SpinBox { id: minutosRemota; visible: salaRemota.checked; from: 1; to: 15; value: 3; editable: true }
+            }
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 8
@@ -277,15 +298,19 @@ ScrollView {
                     echoMode: TextInput.PasswordEchoOnEdit
                     enabled: !panel.cv.ocupado
                 }
-                SpinBox { id: topeRemoto; from: 10; to: panel.cv.topeMax; stepSize: 10; value: 80; editable: true }
+                Text { text: salaRemota.checked ? qsTr("Invitados") : qsTr("Hasta"); color: Theme.textDim; font.pixelSize: 12 }
+                SpinBox { id: topeRemoto; from: 1; to: panel.cv.topeMax; stepSize: 10; value: 80; editable: true }
                 GlassButton {
                     text: qsTr("Probar el otro equipo…")
                     enabled: !panel.cv.ocupado && codigo.text.trim() !== "" && panel.cv.hinchadaDisponible
                     onClicked: panel.confirmar(qsTr("¿Probar el otro equipo?"),
-                                               qsTr("Esta máquina va a generar hasta %1 invitados de prueba contra el otro equipo. Que el otro no tenga un evento en curso.").arg(topeRemoto.value),
+                                               salaRemota.checked
+                                               ? qsTr("Esta máquina va a generar %1 invitados de prueba contra el otro equipo durante %2 minutos. Que el otro no tenga un evento en curso.").arg(topeRemoto.value).arg(minutosRemota.value)
+                                               : qsTr("Esta máquina va a generar hasta %1 invitados de prueba contra el otro equipo. Que el otro no tenga un evento en curso.").arg(topeRemoto.value),
                                                qsTr("Probar"),
                                                function() {
-                                                   const e = panel.cv.probarRemoto(codigo.text, topeRemoto.value)
+                                                   const e = panel.cv.probarRemoto(codigo.text, topeRemoto.value, decodificar.modo, decodificar.pct,
+                                                                                   salaRemota.checked ? minutosRemota.value : 0)
                                                    panel.avisar(e)
                                                    if (!e) codigo.text = ""
                                                })
@@ -359,6 +384,25 @@ ScrollView {
                         text: qsTr("Dejar de recibir")
                         onClicked: panel.cv.dejarDeRecibir()
                     }
+                }
+                // Las que generan contra esta (lo que mandan por el emparejamiento).
+                Repeater {
+                    model: panel.cv.generadores
+                    delegate: Text {
+                        required property var modelData
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
+                        color: (modelData.cpuMaquina || 0) > 90 ? Theme.live : Theme.textDim
+                        font.pixelSize: 11
+                        text: qsTr("Genera %1: CPU %2 % (hinchada %3 %), red sale %4 Mbps")
+                              .arg(modelData.maquina).arg(panel.num(modelData.cpuMaquina)).arg(panel.num(modelData.cpuProbador))
+                              .arg(panel.num(modelData.redSaleMbps, 1))
+                    }
+                }
+                GraficasPrueba {
+                    Layout.fillWidth: true
+                    visible: panel.cv.serie.length > 1
+                    serie: panel.cv.serie
                 }
             }
         }
@@ -446,7 +490,7 @@ ScrollView {
                     spacing: 10
                     Text { text: panel.fecha(modelData.fecha); color: Theme.textFaint; font { family: Theme.mono; pixelSize: 11 } Layout.preferredWidth: 130 }
                     Text {
-                        text: modelData.tipo === "internet" ? qsTr("conexión") : modelData.tipo === "remoto" ? qsTr("remoto") : qsTr("este equipo")
+                        text: modelData.tipo === "internet" ? qsTr("conexión") : modelData.tipo === "remoto" ? qsTr("remoto") : modelData.tipo === "recibida" ? qsTr("recibida") : qsTr("este equipo")
                         color: Theme.textDim; font.pixelSize: 11; Layout.preferredWidth: 80
                     }
                     Text { text: modelData.maquina || ""; color: Theme.textDim; font.pixelSize: 11; elide: Text.ElideRight; Layout.preferredWidth: 140 }

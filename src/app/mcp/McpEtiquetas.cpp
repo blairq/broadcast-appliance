@@ -878,6 +878,12 @@ const Fila kPropias[] = {
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"prueba_sala_informe", QT_TRANSLATE_NOOP("mcp-etiquetas", "informe resultado de la prueba de sala simulacro como salio")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"pruebas_historial", QT_TRANSLATE_NOOP("mcp-etiquetas", "historial de pruebas pruebas anteriores capacidad medida comparar exportar csv cuando se probo")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"pruebas_ver", QT_TRANSLATE_NOOP("mcp-etiquetas", "ver una prueba informe completo ficha de la maquina series estadisticas")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
+    {"prueba_sala_generar", QT_TRANSLATE_NOOP("mcp-etiquetas", "generar carga para otro equipo otra pc otra maquina generadora sumarse codigo hinchada trabajador varias maquinas")},
+    //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"capacidad_arrancar", QT_TRANSLATE_NOOP("mcp-etiquetas", "capacidad cuantos invitados aguanta la maquina cuantos usuarios soporta prueba de carga rampa hinchada cpu memoria ancho de banda conexion a internet otro equipo remoto")},
     //: palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra
     {"capacidad_recibir", QT_TRANSLATE_NOOP("mcp-etiquetas", "dejar que otro equipo me pruebe recibir prueba de capacidad codigo credencial remoto")},

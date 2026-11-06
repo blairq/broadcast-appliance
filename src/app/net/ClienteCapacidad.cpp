@@ -63,17 +63,21 @@ double ping(const std::string& base) {
 } // namespace
 
 void pedirMedidaRemota(QObject* quien, const QString& url, const QString& credencial, const QString& huella,
-                       std::function<void(const json&)> listo) {
+                       std::function<void(const json&)> listo, const json& generador) {
     const std::string base = sinBarra(url);
     const std::string cred = credencial.toStdString();
     const std::string h = huella.trimmed().toStdString();
+    // En una cabecera: una línea, solo ASCII (ensure_ascii), y corta.
+    std::string gen = generador.is_object() ? generador.dump(-1, ' ', true, json::error_handler_t::replace) : std::string();
+    if (gen.size() > 6000) gen.clear();
     enElFondo(
         quien,
-        [base, cred, h]() {
+        [base, cred, h, gen]() {
             HttpRequest rq;
             rq.url = base + "/api/prueba-sala/medida";
             rq.timeoutMs = 3000;
             rq.headers = {{"X-BA-Prueba", cred}, {"X-Pinggy-No-Screen", "1"}, {"Cache-Control", "no-store"}};
+            if (!gen.empty()) rq.headers.emplace_back("X-BA-Generador", gen);
             rq.huellaSha256 = h;
             const HttpResponse r = HttpsClient::request(rq);
             json out = json::parse(r.body, nullptr, false);

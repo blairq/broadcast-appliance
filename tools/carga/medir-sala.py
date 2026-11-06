@@ -56,6 +56,20 @@ CAMINO (--camino): por dónde entran los invitados de hinchada.
   pinggy[:udp|tcp|mezcla:PCT]  por los extremos PÚBLICOS de pinggy: la señalización por la URL pública
                   y el medio por su TURN público (tcp de fábrica). La credencial de pinggy la tiene el
                   gateway (nunca va en la línea de comandos ni en archivos): acá solo se lee la URL.
+DECODIFICAR (--decodificar): cuánto del video que VUELVE (el retorno) decodifica hinchada.
+  muestra        (de fábrica) el --muestra-pct % (5) y al menos 3 por proceso: se comprueba que el retorno
+                 llega entero y a su ritmo sin cargar la máquina que genera (con «todo» y 200, la Mac que
+                 genera llegaba al 100 % de CPU y mandaba los cuadros a destiempo: la medición se ensucia)
+  nada           solo envía: recibe y cuenta (cuadros, pérdida, jitter) sin decodificar nada
+  todo           cada invitado decodifica lo suyo (lo de antes)
+  En el resumen: «decodificar» y, con la muestra, los cps decodificados son los de los que decodifican.
+VARIAS MÁQUINAS (--otras-maquinas K): hinchada como coordinador (`hinchada coordinar`) en esta máquina y
+  los N repartidos entre esta y K más. Imprime la línea para cada otra (`HINCHADA_CLAVE=… ./hinchada
+  trabajar --coordinador IP:PUERTO --por-proceso P`, en la carpeta de hinchada de esa máquina) y espera a
+  que se sumen (hasta 10 min). --solo-coordinar: esta no genera (la app medida no comparte la CPU).
+  --url tiene que ser la del gateway EN LA RED (no 127.0.0.1) y el --puerto (7890) abierto en el firewall.
+  Desde otra PC con BroadcastAppliance también se puede sumar desde su app (Pruebas → «Generar para otro
+  equipo») con el código que imprime (BAGEN1.…).
 OTRAS MEDICIONES
   --duracion 30m        régimen largo (resistencia): el resumen trae la tendencia por minuto (memoria,
                         hilos, edad del audio, faltantes del retorno)
@@ -153,6 +167,38 @@ def sin_pin(o):
 
 
 # --------------------------------------------------------------------------- el sistema
+def repartir(n, otras, esta_genera, tope=150):
+    """Lo mismo que sala::prueba::repartir (src/app/sala/PruebaSalaReglas.cpp)."""
+    esta_genera = esta_genera or otras == 0
+    maquinas = otras + (1 if esta_genera else 0)
+    por_maquina = -(-n // maquinas)
+    local = por_maquina if esta_genera else 0
+    pl = -(-local // tope) if local else 0
+    po = -(-por_maquina // tope) if otras else 0
+    return {"otras": otras, "por_maquina": por_maquina, "procesos_locales": pl,
+            "por_proceso_local": -(-local // pl) if pl else 0, "procesos_por_otra": po,
+            "por_proceso_otra": -(-por_maquina // po) if po else 0, "trabajadores": pl + otras * po}
+
+
+def arg_decodificar(modo, pct, n, minima=3):
+    """Lo mismo que sala::prueba::argDecodificar: la muestra sube para que decodifiquen al menos 3."""
+    if modo == "nada":
+        return "nada"
+    if modo == "todo" or n <= minima:
+        return "todo"
+    import math
+    p = min(100.0, math.ceil(max(pct, 100.0 * minima / n) * 2) / 2)
+    return "todo" if p >= 100 else (str(int(p)) if p == int(p) else f"{p:.1f}")
+
+
+def codigo_generador(host, puerto, clave, rep, maquina=None):
+    """El código BAGEN1. que se pega en otra app (sala::prueba::armarCodigoGenerador)."""
+    import socket
+    j = json.dumps({"c": f"{host}:{puerto}", "k": clave, "n": rep["procesos_por_otra"], "p": rep["por_proceso_otra"],
+                    "m": maquina or socket.gethostname()}, separators=(",", ":"))
+    return "BAGEN1." + base64.urlsafe_b64encode(j.encode()).decode().rstrip("=")
+
+
 def pids():
     out = {}
     for l in correr(["ps", "-axo", "pid=,ppid=,time=,rss=,comm="]).splitlines():
@@ -480,11 +526,23 @@ def main():
     ap.add_argument("--xctrace", type=int, default=0, help="(Mac) segundos de xctrace en régimen (gateway y app)")
     ap.add_argument("--contadores", action="store_true", help="(Mac) con --xctrace, también CPU Counters")
     ap.add_argument("--etw", type=int, default=0, help="(Windows remoto) segundos de WPR en régimen")
+    ap.add_argument("--decodificar", choices=("nada", "muestra", "todo"), default="muestra",
+                    help="cuánto del retorno decodifica hinchada (de fábrica una muestra: ver DECODIFICAR)")
+    ap.add_argument("--muestra-pct", type=float, default=5, help="con --decodificar muestra: el %% (al menos 3 por proceso)")
+    ap.add_argument("--otras-maquinas", type=int, default=0, help="repartir los N entre esta y K máquinas más (ver VARIAS MÁQUINAS)")
+    ap.add_argument("--solo-coordinar", action="store_true", help="con --otras-maquinas: esta máquina no genera")
+    ap.add_argument("--puerto", type=int, default=7890, help="el del coordinador de hinchada (--otras-maquinas)")
     ap.add_argument("hinchada_extra", nargs="*", help="opciones para hinchada (después de --)")
     a = ap.parse_args()
     if a.duracion:
         a.regimen = segs_texto(a.duracion)
     turn_hinchada, por_pinggy = camino_a_turn(a.camino)
+    if a.otras_maquinas < 0 or a.otras_maquinas > 16:
+        sys.exit("--otras-maquinas: de 0 a 16")
+    if a.solo_coordinar and a.otras_maquinas == 0:
+        sys.exit("--solo-coordinar va con --otras-maquinas")
+    if a.otras_maquinas and re.search(r"//(127\.|localhost)", a.url):
+        sys.exit("--otras-maquinas: --url tiene que ser la del gateway en la red (las otras máquinas entran por ahí)")
     if not 1 <= a.participantes <= 512:
         sys.exit("--participantes: de 1 a 512 (el tope de invitados de la sala, ipc::kMaxInvitados)")
     if a.remoto and not (os.environ.get("BA_MCP_URL") and os.environ.get("BA_MCP_TOKEN")):
@@ -603,10 +661,38 @@ def main():
         extra += ["--turn", turn_hinchada]
     if a.rafaga:
         extra += ["--entrada-cada", "0ms"]
-    cmd = [a.hinchada, "--servidor", "gateway", "--url", url, "--participantes", str(a.participantes),
-           "--durante", f"{int(durante)}s"] + vigilar + ["--salida", str(hdir), "--detalle"] + extra + a.hinchada_extra
+    rep = repartir(a.participantes, a.otras_maquinas, not a.solo_coordinar)
+    por_proceso = max(1, max(rep["por_proceso_otra"], rep["por_proceso_local"])) if a.otras_maquinas else min(a.participantes, 150)
+    dec_arg = arg_decodificar(a.decodificar, a.muestra_pct, por_proceso)
+    extra += ["--decodificar", dec_arg]
+    base = ["--servidor", "gateway", "--url", url, "--participantes", str(a.participantes),
+            "--durante", f"{int(durante)}s"] + vigilar + ["--salida", str(hdir), "--detalle"] + extra + a.hinchada_extra
+    trabajadores = []
+    if a.otras_maquinas:
+        clave = base64.urlsafe_b64encode(os.urandom(15)).decode().rstrip("=")
+        env["HINCHADA_CLAVE"] = clave
+        cmd = [a.hinchada, "coordinar", "--trabajadores", str(rep["trabajadores"]), "--puerto", str(a.puerto)] + base
+    else:
+        cmd = [a.hinchada] + base
     t0 = time.time()
     hin = subprocess.Popen(cmd, stdout=open(hdir / "consola.txt", "w"), stderr=subprocess.STDOUT, env=env)
+    if a.otras_maquinas:
+        host = re.sub(r"^\w+://", "", url).split("/")[0].rsplit(":", 1)[0]
+        print(f"\nVARIAS MÁQUINAS: {rep['otras']} más, {rep['por_maquina']} participantes cada una. En cada otra, en la carpeta de hinchada"
+              + (f" ({rep['procesos_por_otra']} veces, una por terminal)" if rep["procesos_por_otra"] > 1 else "") + ":\n"
+              f"  HINCHADA_CLAVE={clave} ./hinchada trabajar --coordinador {host}:{a.puerto} --por-proceso {rep['por_proceso_otra']}\n"
+              f"  (Windows: $env:HINCHADA_CLAVE=\"{clave}\"; .\\hinchada.exe trabajar --coordinador {host}:{a.puerto} --por-proceso {rep['por_proceso_otra']})\n"
+              f"  o en su app, Pruebas → «Generar para otro equipo»: {codigo_generador(host, a.puerto, clave, rep)}\n", file=sys.stderr)
+        # Los de esta máquina, cuando el coordinador ya escucha (antes graba su video si falta).
+        if rep["procesos_locales"]:
+            hasta = time.time() + 900
+            while time.time() < hasta and hin.poll() is None and "escuchando" not in (hdir / "consola.txt").read_text(errors="replace"):
+                time.sleep(0.5)
+            for i in range(rep["procesos_locales"]):
+                trabajadores.append(subprocess.Popen(
+                    [a.hinchada, "trabajar", "--coordinador", f"127.0.0.1:{a.puerto}", "--nombre", f"esta-maquina-{i + 1}",
+                     "--por-proceso", str(rep["por_proceso_local"])],
+                    stdout=open(hdir / f"trabajador-{i + 1}.txt", "w"), stderr=subprocess.STDOUT, env=env))
 
     muestras, app_info = [], []
     # La medición de la grilla por celda: con su propio ba-mcp (la llamada espera los segundos
@@ -876,12 +962,14 @@ def main():
             except Exception as ex:
                 (sal / f"{nombre}-error.txt").write_text(str(ex))
     finally:
-        if hin.poll() is None:
-            hin.send_signal(signal.SIGTERM)
+        for h in [hin] + trabajadores:
+            if h.poll() is None:
+                h.send_signal(signal.SIGTERM)
+        for h in [hin] + trabajadores:
             try:
-                hin.wait(20)
+                h.wait(20)
             except Exception:
-                hin.kill()
+                h.kill()
         top.parar()
         red.parar()
         if remoto:
@@ -964,6 +1052,8 @@ def hora_log(l):
 
 def resumir(a, muestras, app_info, lineas, corte, estable_t, ncpu, t0, hdir):
     r = {"participantes": a.participantes, "nucleos": ncpu, "corte": corte, "remoto": a.remoto,
+         "decodificar": {"modo": a.decodificar, "pct": a.muestra_pct if a.decodificar == "muestra" else (100 if a.decodificar == "todo" else 0)},
+         "maquinas": {"otras": a.otras_maquinas, "esta_genera": not a.solo_coordinar},
          "estable_s": estable_t if estable_t not in (None, -1) else None,
          "se_estabilizo": estable_t not in (None, -1)}
     # Cuándo todos tuvieron medios.
@@ -1279,7 +1369,7 @@ def resumir_f0(r, a, muestras, lineas, extras, hdir, remoto, estable_t, app_info
                     "hilos": (e.get("hilos") or [])[:15]}
     # El lado del invitado (hinchada): lo que recibe de vuelta (el retorno) y por dónde va.
     try:
-        tot = []
+        tot, fps_dec = [], []
         t0 = reg[0]["t"] if reg else 0
         ult = None
         with open(hdir / "muestras.jsonl") as h:
@@ -1293,6 +1383,16 @@ def resumir_f0(r, a, muestras, lineas, extras, hdir, remoto, estable_t, app_info
                 tt = tt / 1000 if tt > 1e11 else tt
                 if "totales" in o and tt >= t0:
                     tot.append(o["totales"])
+                    # Los cps del retorno de los que decodifican (con --detalle): con una muestra,
+                    # los demás reciben sin decodificar y no dan cps en getStats.
+                    for pa in o.get("participantes") or []:
+                        for e in pa.get("entradas") or []:
+                            if e.get("tipo") == "video" and e.get("decodifica") and e.get("fps", -1) >= 0:
+                                fps_dec.append(e["fps"])
+        dec = (r.get("decodificar") or {})
+        frac_dec = 1.0 if dec.get("modo") in (None, "todo") else (0.0 if dec.get("modo") == "nada" else
+                                                                  float(arg_decodificar("muestra", dec.get("pct", 5), max(1, a.participantes)).replace("todo", "100")) / 100)
+        frac_dec = frac_dec or 1.0
         if tot:
             u = tot[-1]
             ret = lambda t: t.get("retorno") or {}
@@ -1300,8 +1400,10 @@ def resumir_f0(r, a, muestras, lineas, extras, hdir, remoto, estable_t, app_info
             pc = ret(u)
             r["invitado"] = {
                 "retorno_cps_medio": _prom([t.get("fpsRecibidos", 0) / ve(t) for t in tot]),
-                "retorno_cps_decodificados": _prom([t.get("fpsDecodificados", 0) / ve(t) for t in tot]),
-                "retorno_cps_min": min((ret(t).get("fpsMin", -1) for t in tot if ret(t).get("fpsMin", -1) >= 0), default=None),
+                # Con una muestra, la media es la de los que decodifican (los demás reciben sin decodificar).
+                "retorno_cps_decodificados": _prom([t.get("fpsDecodificados", 0) / max(1, round(ve(t) * frac_dec)) for t in tot]),
+                "retorno_cps_min": (min(fps_dec, default=None) if frac_dec < 1 else
+                                    min((ret(t).get("fpsMin", -1) for t in tot if ret(t).get("fpsMin", -1) >= 0), default=None)),
                 "congelamientos": sum(t.get("congelamientos", 0) for t in tot),
                 "resoluciones": pc.get("resoluciones"),
                 "rtt_ms": _prom([t["rttSuma"] / t["rttN"] for t in tot if t.get("rttN")]),

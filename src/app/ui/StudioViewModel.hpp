@@ -166,6 +166,7 @@ class PruebaSalaViewModel;
 class PruebaAsambleaViewModel;
 class EnlaceViewModel;
 class CapacidadViewModel;
+class HistorialPruebasViewModel;
 namespace sala {
 class ClavesEvento;
 class GuardadoEnEvento;
@@ -282,8 +283,10 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* pruebaAsamblea READ pruebaAsambleaQml CONSTANT)
     /// La velocidad del enlace por el túnel y cuánto necesita el evento (ui/EnlaceViewModel).
     Q_PROPERTY(QObject* enlace READ enlaceQml CONSTANT)
-    /// ¿Cuántos invitados aguanta? (Configuración → Sistema → Capacidad, ui/CapacidadViewModel).
+    /// ¿Cuántos invitados aguanta? (Pruebas → Capacidad, ui/CapacidadViewModel).
     Q_PROPERTY(QObject* capacidad READ capacidadQml CONSTANT)
+    /// El historial de pruebas de la máquina (Pruebas → Historial, ui/HistorialPruebasViewModel).
+    Q_PROPERTY(QObject* historialPruebas READ historialPruebasQml CONSTANT)
     /// El control web (dashboard /control/, /ws?control): aparatos, perfiles y solicitudes. control/ControlWeb.
     Q_PROPERTY(QObject* controlWeb READ controlWebQml CONSTANT)
     /// El área de las superficies de control (ui/ControlViewModel): el tema web,
@@ -564,6 +567,8 @@ class StudioViewModel : public QObject {
     PruebaAsambleaViewModel& pruebaAsamblea() { return *pruebaAsamblea_; }
     CapacidadViewModel& capacidad() { return *capacidad_; }
     QObject* capacidadQml() const;
+    QObject* historialPruebasQml() const;
+    HistorialPruebasViewModel& historialPruebas() { return *historialPruebas_; }
     QObject* pruebaSalaQml() const;
     QObject* pruebaAsambleaQml() const;
     EnlaceViewModel& enlace() { return *enlace_; }
@@ -1010,6 +1015,9 @@ class StudioViewModel : public QObject {
     /// La prueba de capacidad: usa la sala, el cupo, los recursos, el enlace, pinggy y la
     /// grilla. Después de todo: se destruye primero (corta hinchada).
     std::unique_ptr<CapacidadViewModel> capacidad_;
+    /// El historial de pruebas (lo arma crearCapacidad: lo llenan la prueba de sala, la de
+    /// capacidad y la de asamblea).
+    std::unique_ptr<HistorialPruebasViewModel> historialPruebas_;
     /// La arma con todo lo de afuera (ui/StudioCapacidad.cpp).
     void crearCapacidad();
 };

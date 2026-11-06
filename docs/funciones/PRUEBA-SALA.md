@@ -11,13 +11,18 @@ personas**: entran participantes «de prueba» por el **camino real** de los inv
 (`/api/join` + `/ws`, con video y voz), se mide todo y, al terminar, se van todos. Del
 evento queda solo el informe.
 
-Página **Sala → Prueba de sala** (columna derecha) o las herramientas MCP `prueba_sala_*`:
-las dos usan el mismo modelo (`src/app/ui/PruebaSalaViewModel`).
+Página **Pruebas → Prueba de sala** (en la barra lateral, grupo Sistema; la columna derecha de
+la página Sala tiene un acceso) o las herramientas MCP `prueba_sala_*`: las dos usan el mismo
+modelo (`src/app/ui/PruebaSalaViewModel`). La página **Pruebas** junta todo lo de probar: la
+prueba de sala, la [capacidad](CAPACIDAD.md), la [prueba de asamblea](PRUEBA-ASAMBLEA.md) y el
+[enlace](ENLACE.md).
 
 ## Cómo se usa
 
 1. Abrí el evento que vas a probar (el informe va a su lista de chequeo).
-2. Elegí cuántos participantes (1 a 512, el tope de la sala), cuántos minutos y cuántos hablan a la vez.
+2. Elegí cuántos participantes (1 a 512, el tope de la sala), cuántos minutos, cuántos hablan a la
+   vez y cuánto **decodifica el probador** de lo que vuelve (abajo). Si querés repartir la carga,
+   **Repartir entre varias máquinas** ([abajo](#con-dos-o-más-pc)).
 3. **Revisar la máquina** dice si la guardia deja arrancar (memoria disponible, carga).
 4. El **enlace**: la tarjeta dice si la última medición del túnel alcanza para los N y
    ofrece medir ([ENLACE.md](ENLACE.md)). Con hinchada la carga no pasa por el enlace (es
@@ -35,6 +40,73 @@ las dos usan el mismo modelo (`src/app/ui/PruebaSalaViewModel`).
    grilla los muestra en baja; al darle la palabra a uno pasa a alta con el fundido).
 7. **Terminar la prueba** (o se termina sola: por tiempo, porque el probador terminó, por
    la guardia o porque la sala la cerró).
+
+## Decodificar lo que vuelve
+
+Cada participante de prueba recibe el **retorno** (el programa) como un invitado. Decodificarlo
+es lo que más le cuesta al probador: con «todo» y 200 participantes la máquina que genera llega
+al 100 % de CPU y manda sus cuadros a destiempo, y entonces lo medido en la sala es en parte culpa
+del generador. Por eso hay tres opciones (`hinchada --decodificar`):
+
+| Opción | Qué hace | Para qué |
+|---|---|---|
+| **Una muestra** (de fábrica, 5 %) | decodifican de verdad el 5 % (al menos 3 por proceso de hinchada: con 10 participantes, 3); los demás reciben y cuentan sin decodificar | ver que el retorno **llega entero y a su ritmo** (cuadros decodificados, congelamientos) sin cargar la máquina que genera |
+| **Nada (solo envía)** | nadie decodifica: se recibe y se cuenta (bytes, cuadros, pérdida, jitter) | lo más liviano, cuando solo importa cuánto aguanta la sala |
+| **Todo** | cada uno decodifica lo suyo | lo de antes; solo con pocos participantes o con varias máquinas generando |
+
+La muestra es la de fábrica porque es la más liviana **sin perder la medición del retorno**:
+«nada» ahorra un poco más pero no comprueba que el retorno se pueda ver. El informe dice qué se
+usó (`probador.decodificar`: el modo, el % pedido y el efectivo) y la **CPU del probador** en
+esta máquina (sus procesos y sus hijos: pico y promedio), para comparar entre corridas.
+
+## Con dos o más PC
+
+Para que la app medida no comparta la CPU con el generador, o para llegar a más participantes,
+la prueba reparte los N entre esta máquina y otras. hinchada lo hace solo: la app lo levanta como
+**coordinador** (`hinchada coordinar`), que reparte los participantes entre los **trabajadores**
+que se le suman (`hinchada trabajar`) y junta un solo informe.
+
+**En la PC que se mide (A):**
+
+1. Pruebas → Prueba de sala: los participantes, los minutos, lo que se decodifica.
+2. Tildá **Repartir entre varias máquinas**, cuántas **otras máquinas** y si **esta también
+   genera** (sin tildar, A solo coordina: lo más limpio para medir).
+3. **Arrancar la prueba**. La tarjeta muestra un **código** (`BAGEN1.…`, oculto: **Copiar el
+   código**) y la línea de hinchada para quien no tenga el programa, y cuántas máquinas se sumaron.
+
+**En cada PC que genera (B, C…):**
+
+- **Con BroadcastAppliance** (Mac, Windows o Linux): Pruebas → Prueba de sala → **Generar para
+  otro equipo**, pegá el código y **Empezar a generar…**. La app lanza sus hinchada y muestra su
+  CPU; terminan solos cuando termina la prueba de A (o **Dejar de generar**).
+- **Sin el programa**: copiá la carpeta `bin/64bit/hinchada/` de un BroadcastAppliance de la
+  misma versión y corré ahí la línea que muestra A (en Windows, la de PowerShell). Si a esa
+  máquina le tocan más de 150, la línea va más de una vez (la tarjeta lo dice): en macOS un
+  proceso de hinchada no pasa de 150.
+
+Lo que hace falta:
+
+- Las PC en la misma red, y A con **HTTPS en la red** (la dirección de la sala que se ve en
+  Servicios): las otras entran al gateway de A por ahí, como cualquier invitado.
+- El **puerto del coordinador** (7890; si está ocupado, otro: la tarjeta lo dice) abierto en el
+  firewall de A. La primera vez, macOS o Windows preguntan si hinchada puede recibir conexiones:
+  aceptalo.
+- Cada generadora graba su video de prueba la primera vez (unos minutos, en su carpeta de
+  hinchada: `grabado.hgr`); mientras tanto, los que le tocan entran tarde.
+- La **clave de coordinación** va en el código y en la línea (`HINCHADA_CLAVE`): es de esa prueba
+  sola (el coordinador rechaza a quien no la trae). La credencial de prueba de la sala no está en
+  el código: el coordinador se la pasa a cada trabajador por su conexión (en la red local, sin
+  cifrar; vence sola a los 90 s si nadie la renueva).
+- El coordinador espera a todas las máquinas pedidas hasta 10 minutos; si no llegan, la prueba
+  termina con error («¿no llegaron las otras máquinas?»).
+
+El informe de A suma `probador.maquinas` (cuántas se pidieron y cuántas se sumaron) y
+`generadoras` (la CPU de cada máquina generadora, promedio y pico, de las muestras del
+coordinador). Si una generadora llega al 100 %, sus números son los de la generadora, no los de
+la sala.
+
+Desde la línea de comandos, lo mismo con `tools/carga/medir-sala.py --otras-maquinas K
+[--solo-coordinar] --url https://IP_DE_A:PUERTO` (ver su `--help`).
 
 ## Qué hace con los de prueba
 
@@ -88,7 +160,8 @@ carga (no se usa). Las reglas son puras (`src/app/sala/PruebaSalaReglas`, `test_
   del evento (ítem `prueba_sala`: hecho si todos tuvieron video, sin cortes y sin la guardia).
   Con hinchada, su propio informe (HTML y JSON) queda en `Pruebas/hinchada-<fecha>/`.
 - El ancho de banda es el del gateway (lo que suben los participantes / lo que les baja);
-  la CPU, la de los procesos de la app y del gateway (en % de la máquina).
+  la CPU, la de los procesos de la app, del gateway y del probador de esta máquina (en % de la
+  máquina), con el pico y el promedio.
 
 ## Si el programa se cierra en el medio
 
@@ -100,11 +173,12 @@ vencer. Lo que queda (el cupo subido) lo deshace la app al volver a arrancar
 
 | Herramienta | |
 |---|---|
-| `prueba_sala_arrancar` | `{participantes, minutos?, hinchada?, hablan?}` (con la guardia) |
+| `prueba_sala_arrancar` | `{participantes, minutos?, hinchada?, hablan?, decodificar? (nada\|muestra\|todo), muestra_pct?, otras_maquinas?, esta_genera?}` (con la guardia) |
 | `prueba_sala_parar` | termina y limpia |
 | `prueba_sala_entrada_directa` | `{on}` (confirmalo con el operador) |
-| `prueba_sala_estado` | en vivo, acceso para el generador externo y la última |
-| `prueba_sala_revisar` | `{participantes?, hinchada?}`: ¿la guardia dejaría arrancar? |
+| `prueba_sala_estado` | en vivo, acceso para el generador externo, `decodificar`, `reparto` (con el código), `generando` y la última |
+| `prueba_sala_revisar` | `{participantes?, hinchada?, otras_maquinas?, esta_genera?}`: ¿la guardia dejaría arrancar? |
+| `prueba_sala_generar` | `{on, codigo?}`: esta máquina genera para la prueba de otro equipo (el código BAGEN1. del otro) |
 | `prueba_sala_informe` | el informe completo de la última |
 
 ## API del gateway (127.0.0.1, la usa la app)

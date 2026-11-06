@@ -169,6 +169,22 @@ void capacidad() {
     p.cerrar();
     CHECK(p.abrir(kCred, 70000, 130000), "otra prueba");
     CHECK(p.medida(70000).is_null() && !p.ipDePrueba(0x0a00000a, 70000), "cerrar olvida la medida y las IP");
+    // Las que generan contra esta: lo suyo llega con el pedido de la medida y vuelve a la app.
+    p.ponerGenerador(nlohmann::json{{"maquina", "mac-b"}, {"cpuMaquina", 70}, {"ficha", {{"nombre", "mac-b"}}}}, 71000);
+    p.ponerGenerador(nlohmann::json{{"cpuMaquina", 10}}, 71000);
+    p.ponerGenerador(nlohmann::json("no"), 71000);
+    p.ponerGenerador(nlohmann::json{{"maquina", "grande"}, {"x", std::string(PruebaSala::kMaxGeneradorBytes, 'a')}}, 71000);
+    nlohmann::json g = p.generadores(72000);
+    CHECK(g.size() == 1 && g[0]["maquina"] == "mac-b" && g[0]["medida"].value("cpuMaquina", 0) == 70 && g[0]["edadMs"] == 1000,
+          "una generadora (sin nombre, no objeto o muy grande: no)");
+    CHECK(p.generadores(102000).empty(), "lo de hace más de 30 s no va");
+    for (int i = 0; i < 20; ++i) p.ponerGenerador(nlohmann::json{{"maquina", "m" + std::to_string(i)}}, 103000);
+    CHECK(p.generadores(103000).size() == PruebaSala::kMaxGeneradores, "hasta 16");
+    p.cerrar();
+    CHECK(p.abrir(kCred, 104000, 164000) && p.generadores(104000).empty(), "cerrar las olvida");
+    PruebaSala sin;
+    sin.ponerGenerador(nlohmann::json{{"maquina", "x"}}, 1000);
+    CHECK(sin.generadores(1000).empty(), "sin prueba, nada");
 }
 
 } // namespace

@@ -3700,7 +3700,11 @@ void SignalingServer::tickPruebaSala(int64_t ahora) {
     }
 }
 
-void SignalingServer::medidaPruebaSala(const json& medida) { prueba_.ponerMedida(medida, nowMs()); }
+json SignalingServer::medidaPruebaSala(const json& medida) {
+    prueba_.ponerMedida(medida, nowMs());
+    // De vuelta, lo que mandan las máquinas que generan contra esta (para su informe).
+    return prueba_.generadores(nowMs());
+}
 
 // --- La prueba de capacidad (docs/funciones/CAPACIDAD.md) -----------------------------------
 
@@ -3735,6 +3739,9 @@ bool SignalingServer::atenderCapacidad(long long fd, const std::string& method, 
             http::sendResponse(fd, 401, "application/json", R"({"ok":false,"error":"credencial"})");
             return true;
         }
+        // La que genera manda lo suyo (su CPU, su red, su ficha) en una cabecera.
+        if (const std::string g = http::getHeader(headers, "X-BA-Generador"); !g.empty() && g.size() <= PruebaSala::kMaxGeneradorBytes)
+            prueba_.ponerGenerador(json::parse(g, nullptr, false), nowMs());
         json r = prueba_.medida(nowMs());
         if (r.is_null()) r = json{{"medida", nullptr}};
         r["ok"] = true;

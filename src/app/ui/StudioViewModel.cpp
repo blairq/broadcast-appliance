@@ -57,6 +57,7 @@
 #include "ui/PruebaAsambleaViewModel.hpp"
 #include "ui/EnlaceViewModel.hpp"
 #include "ui/CapacidadViewModel.hpp"
+#include "ui/HistorialPruebasViewModel.hpp"
 #include "ui/BitacoraEvento.hpp"
 #include "ui/CapturaError.hpp"
 #include "ui/CarruselViewModel.hpp"

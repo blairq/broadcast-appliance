@@ -10,6 +10,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QProcessEnvironment>
+#include <QSysInfo>
 #include <QThreadPool>
 #include <QUrl>
 
@@ -25,10 +26,16 @@
 #include "persist/Escritor.hpp"
 #include "platform/Paths.hpp"
 #include "sala/ArchivosPrueba.hpp"
+#include "sala/HistorialPruebas.hpp"
+#include "sala/MedidaMaquina.hpp"
 #include "ui/ConferenceClient.hpp"
 #include "ui/EventoAbierto.hpp"
 #include "ui/EventoViewModel.hpp"
 #include "ui/GuionViewModel.hpp"
+
+#ifndef BA_APP_VERSION
+#define BA_APP_VERSION ""
+#endif
 
 namespace ba::app {
 
@@ -467,6 +474,17 @@ void PruebaAsambleaViewModel::cerrarCon(const std::string& motivo, std::int64_t 
             "prueba-asamblea-" + QDateTime::fromMSecsSinceEpoch(inicioMs_).toString("yyyyMMdd-HHmmss").toStdString() + ".json";
         ba::persist::cola().escribir(carpetaPruebas() / nombre, fin_.dump(1, ' ', false, json::error_handler_t::replace));
         fin_["archivo"] = (fs::path("Pruebas") / nombre).generic_string();
+        // También al historial de pruebas de la máquina (sin lo privado: las credenciales de
+        // los integrantes de prueba no van).
+        json h2 = fin_;
+        h2["fecha"] = inicioMs_;
+        h2["maquina"] = QSysInfo::machineHostName().toStdString();
+        h2["pedidos"] = pedidos_;
+        h2["fichas"] = {{"local", sala::prueba::fichaMaquina(ba::diag::Recursos::Muestra{})}};
+        const json sobre = sala::historial::sobre(h2, "asamblea", BA_APP_VERSION, inicioMs_);
+        ba::persist::cola().escribir(p_.dataRoot / sala::historial::kCarpeta /
+                                         sala::historial::nombreArchivo(inicioMs_, h2.value("maquina", std::string()), "asamblea"),
+                                     sobre.dump(1, ' ', false, json::error_handler_t::replace));
         if (p_.evento.eventoAbierto().hay())
             p_.evento.guionVm().marcarChequeo(QString::fromLatin1(kItemChequeo), bien, qs(nota),
                                               tr("Prueba de asamblea (integrantes simulados por la sesión remota)"));

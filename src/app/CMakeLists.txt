@@ -416,6 +416,7 @@ if(BA_APP_QT_OK)
                 sala/CapasNecesarias.cpp sala/CapasRemotos.cpp sala/ClavesEvento.cpp sala/ConfigSala.cpp
                 sala/ControlSala.cpp sala/CorreccionSala.cpp sala/CupoSala.cpp sala/Direcciones.cpp
                 sala/EnlaceNecesita.cpp sala/EnlacesSala.cpp sala/GeneradorCarga.cpp sala/GuardadoEnEvento.cpp
+                sala/HistorialPruebas.cpp
                 sala/ListaPrompters.cpp sala/LugaresConGente.cpp sala/MedidaMaquina.cpp sala/OradoresSala.cpp
                 sala/OradoresSalaReglas.cpp sala/PaginaPublico.cpp sala/PantallasSala.cpp
                 sala/ParticipantesSala.cpp sala/Pedido.cpp sala/PreguntasSala.cpp sala/PruebaSalaReglas.cpp
@@ -750,6 +751,7 @@ if(BA_APP_QT_OK)
         DEPENDE ba_app_net ba_app_base ba_app_comun ba_core ba_motor ba_emisor_pedido ${_ba_w6_gst} nlohmann_json::nlohmann_json Qt6::Core Qt6::Gui Qt6::Network Qt6::Qml Qt6::Quick Qt6::Multimedia Qt6::QuickControls2 Qt6::Svg Qt6::Pdf Qt6::GuiPrivate
         FUENTES ui/AlarmasViewModel.cpp ui/AppViewModel.cpp ui/AsambleaViewModel.cpp ui/AsistenteViewModel.cpp
                 ui/AtencionViewModel.cpp ui/BitacoraEvento.cpp ui/CalidadCara.cpp ui/CapacidadViewModel.cpp
+                ui/HistorialPruebasViewModel.cpp
                 ui/CarruselViewModel.cpp ui/ChatHilo.cpp ui/ChatOverlayRenderer.cpp ui/ConduccionLinea.cpp
                 ui/ConferenceClient.cpp ui/ConferenceViewModel.cpp ui/ControlViewModel.cpp
                 ui/CorridaViewModel.cpp ui/CuentasViewModel.cpp ui/DashboardModel.cpp

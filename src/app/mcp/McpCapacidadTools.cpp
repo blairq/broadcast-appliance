@@ -1,7 +1,7 @@
 // ============================================================================
 // src/app/mcp/McpCapacidadTools.cpp — ¿cuántos invitados aguanta? (capacidad_*)
 //
-// Las mismas operaciones que la pestaña Configuración → Sistema → Capacidad
+// Las mismas operaciones que la pestaña Pruebas → Capacidad
 // (ui/CapacidadViewModel): arrancar una prueba (este equipo, otro equipo o la conexión a
 // internet), recibir la de otro equipo, el estado en vivo, cancelar y el último resultado.
 // Ver docs/funciones/CAPACIDAD.md.
@@ -42,7 +42,12 @@ void McpService::registerCapacidadTools() {
                    "degrade), «remoto» (lo mismo contra OTRO BroadcastAppliance que está recibiendo: `codigo` es el que "
                    "muestra el otro, empieza con BACAP1.) o «internet» (la conexión: el túnel WireGuard si está y el "
                    "camino de los invitados por pinggy; con `prender_pinggy` lo prende si está apagado y lo apaga al "
-                   "terminar). Seguila con capacidad_estado.");
+                   "terminar). `decodificar` (este_equipo y remoto): cuánto del video que vuelve decodifica hinchada "
+                   "(«muestra», de fábrica: unos pocos, para ver que el retorno llega bien sin cargar la máquina que "
+                   "genera; «nada»: solo envía; «todo»). Remoto con `minutos`: una prueba de sala contra la otra PC (N de una "
+                   "vez); varias PC pueden generar contra la misma pegando el mismo código. Lo de esta máquina (CPU, red, "
+                   "ficha) viaja al otro con cada pedido de su medida y queda en su informe. Seguila con capacidad_estado "
+                   "(con `serie`: los gráficos de CPU y red de los dos lados).");
         t.details = QT_TRANSLATE_NOOP(
             "mcp", "Nunca corre sola: confirmalo con el operador (`confirmar: true`). No arranca con algo al aire, con "
                    "invitados de verdad conectados ni con otra prueba corriendo (`riesgo` en capacidad_estado). Cada "
@@ -61,6 +66,12 @@ void McpService::registerCapacidadTools() {
                                      {"description", QT_TRANSLATE_NOOP("mcp", "hasta cuántos invitados sube la rampa")}}},
                            {"codigo", {{"type", "string"}, {"description", QT_TRANSLATE_NOOP("mcp", "remoto: el código que muestra el otro equipo (BACAP1.…)")}}},
                            {"prender_pinggy", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "internet: prender pinggy para medir si está apagado")}}},
+                           {"decodificar", {{"type", "string"}, {"enum", {"nada", "muestra", "todo"}}, {"default", "muestra"},
+                                            {"description", QT_TRANSLATE_NOOP("mcp", "cuánto video que vuelve decodifica el probador")}}},
+                           {"minutos", {{"type", "integer"}, {"minimum", 0}, {"maximum", 15}, {"default", 0},
+                                        {"description", QT_TRANSLATE_NOOP("mcp", "remoto: > 0 es una PRUEBA DE SALA contra el otro equipo (`tope` invitados de una vez, esos minutos) en vez de la rampa")}}},
+                           {"muestra_pct", {{"type", "integer"}, {"minimum", 1}, {"maximum", 50}, {"default", 5},
+                                            {"description", QT_TRANSLATE_NOOP("mcp", "con «muestra»: el % que se decodifica (al menos 3 por escalón)")}}},
                            {"confirmar", {{"type", "boolean"}, {"description", QT_TRANSLATE_NOOP("mcp", "el operador confirmó que se puede cargar la máquina ahora")}}}}}};
         t.examples = {R"({"prueba": "este_equipo", "tope": 40, "confirmar": true})", R"({"prueba": "internet", "confirmar": true})",
                       R"({"prueba": "remoto", "codigo": "BACAP1.eyJ1Ijoi…", "tope": 80, "confirmar": true})"};
@@ -69,8 +80,12 @@ void McpService::registerCapacidadTools() {
                 return done(ToolResult::error(ba::i18n::traducir("mcp", "Confirmalo con el operador antes (confirmar: true): la prueba carga la máquina.")));
             const std::string prueba = a.value("prueba", std::string());
             QString e;
-            if (prueba == "este_equipo") e = cv.probarEsteEquipo(a.value("tope", 80));
-            else if (prueba == "remoto") e = cv.probarRemoto(QString::fromStdString(a.value("codigo", std::string())), a.value("tope", 80));
+            const QString dec = QString::fromStdString(a.value("decodificar", std::string("muestra")));
+            const int pct = a.value("muestra_pct", 5);
+            if (prueba == "este_equipo") e = cv.probarEsteEquipo(a.value("tope", 80), dec, pct);
+            else if (prueba == "remoto")
+                e = cv.probarRemoto(QString::fromStdString(a.value("codigo", std::string())), a.value("tope", 80), dec, pct,
+                                    a.value("minutos", 0));
             else if (prueba == "internet") e = cv.medirInternet(a.value("prender_pinggy", false));
             else e = QString::fromStdString(ba::i18n::traducir("mcp", "`prueba` es este_equipo, remoto o internet"));
             if (!e.isEmpty()) return done(ToolResult::error(e.toStdString()));

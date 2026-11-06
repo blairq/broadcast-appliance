@@ -477,8 +477,8 @@ void SignalingServer::handleAdmin(long long fd, const std::string& method, const
         if (method == "POST") {
             // La medida de esta máquina para el probador de capacidad de otro equipo.
             if (req.contains("medida") && !req.contains("duracionS")) {
-                medidaPruebaSala(req["medida"]);
-                sendJson(fd, 200, json{{"ok", true}});
+                const json gen = medidaPruebaSala(req["medida"]);
+                sendJson(fd, 200, json{{"ok", true}, {"generadores", gen}});
                 return;
             }
             std::optional<bool> directa;

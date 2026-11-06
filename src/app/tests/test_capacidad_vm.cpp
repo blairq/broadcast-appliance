@@ -84,6 +84,9 @@ struct Mundo {
     GeneradorFalso* gen = nullptr;
     QVariantMap pinggy{{"activo", true}, {"via", "pinggy"}, {"estado", "listo"}, {"url", "https://x.a.pinggy.link"}};
     json remota = json{{"ok", true}, {"medida", {{"cupo", 20}, {"cpuMaquina", 30}, {"memLibreMb", 9000}, {"entraron", 0}, {"conVideo", 0}}}};
+    json generadorEnviado; ///< lo que esta máquina le mandó al otro (la que genera)
+    /// Recibiendo: lo que el gateway contesta con la medida (los que generan contra esta).
+    QJsonArray generadores;
 
     QJsonObject foto() const {
         QJsonArray ps;
@@ -107,6 +110,7 @@ CapacidadViewModel::Partes partes(Mundo& w, const QString& dir) {
             resp["credencial"] = "0123456789abcdef0123456789abcdef";
         } else if (ruta == "/api/v1/prueba-sala" && c.contains("medida")) {
             w.medidas.push_back(c.value("medida").toObject());
+            resp["generadores"] = w.generadores;
         } else if (ruta == "/api/v1/prueba-sala/cerrar") {
             w.credencialAbierta = false;
         } else if (ruta == "/api/v1/capacidad/red") {
@@ -152,9 +156,12 @@ CapacidadViewModel::Partes partes(Mundo& w, const QString& dir) {
     p.juzgarEnlace = [](const ba::app::sala::enlace::Medicion& m, int) {
         return json{{"entranConMargen", static_cast<int>(m.subidaKbps / 2000)}};
     };
-    p.pedirRemota = [&w](QObject*, const QString&, const QString&, const QString&, std::function<void(const json&)> listo) {
+    p.pedirRemota = [&w](QObject*, const QString&, const QString&, const QString&, const json& generador,
+                         std::function<void(const json&)> listo) {
+        w.generadorEnviado = generador;
         listo(w.remota);
     };
+    p.ficha = []() { return json{{"nombre", "mac-de-prueba"}, {"cpu", "M1"}}; };
     p.medirIdaYVuelta = [](QObject*, const QString&, const QString&, std::shared_ptr<std::atomic<bool>>,
                            std::function<void(const json&)> listo) {
         listo(json{{"ok", true}, {"kbps", 50000}, {"rttMs", 40}, {"rttCargaMs", 90}, {"perdida", 0.0}});
@@ -316,6 +323,38 @@ int main(int argc, char** argv) {
         CHECK(!w.credencialAbierta, "el remoto no toca la credencial de esta máquina");
         CHECK(vm.resultado().value("tipo").toString() == "remoto" && vm.resultado().value("maquina").toString() == "pc-sala",
               "el resultado es del otro equipo");
+        CHECK(w.generadorEnviado.contains("maquina"),
+              "con cada pedido, lo de esta máquina viaja al otro (el canal del emparejamiento)");
+        CHECK(w.generadorEnviado.contains("ficha") && w.generadorEnviado.contains("decodificar") && w.generadorEnviado.contains("cpuMaquina"),
+              "su ficha, lo que decodifica y su CPU");
+        CHECK(!w.generadorEnviado.dump().empty() && w.generadorEnviado.dump().find("0123456789abcdef") == std::string::npos,
+              "sin la credencial adentro");
+        CHECK(vm.resultado().value("decodificar").toMap().value("modo").toString() == "muestra", "el resultado dice qué se decodificó");
+        CHECK(!vm.resultado().value("serie").toList().isEmpty(), "y trae la serie (los gráficos)");
+    }
+    // --- Prueba de sala contra otro equipo (N de una vez, unos minutos) ---------------------------
+    {
+        Mundo w;
+        CapacidadViewModel vm(partes(w, tmp.path()));
+        cap::Codigo c;
+        c.url = "https://192.168.1.20:8443";
+        c.credencial = "0123456789abcdef0123456789abcdef";
+        c.maquina = "pc-sala";
+        w.remota["medida"]["cupo"] = 100;
+        CHECK(!vm.probarRemoto(QString::fromStdString(cap::armarCodigo(c)), 40, "muestra", 5, 99).isEmpty(), "más de 15 minutos: no");
+        CHECK(vm.probarRemoto(QString::fromStdString(cap::armarCodigo(c)), 40, "nada", 5, 1).isEmpty(), "40 durante 1 minuto");
+        CHECK(vm.progreso().value("escalones").toList().size() == 1, "un solo escalón de 40 (no una rampa)");
+        CHECK(w.gen->lotes.size() == 1 && w.gen->lotes[0].cantidad == 40 && w.gen->lotes[0].decodificar == "nada",
+              "los 40 de una vez, sin decodificar");
+        w.remota["medida"]["conVideo"] = 40;
+        w.remota["medida"]["entraron"] = 40;
+        for (int i = 0; i < 200 && vm.ocupado(); ++i) {
+            w.reloj += 1000;
+            vm.tic();
+        }
+        CHECK(!vm.ocupado() && vm.resultado().value("modo").toString() == "sala" && vm.resultado().value("minutos").toInt() == 1,
+              "termina sola: el resultado dice que fue una prueba de sala de 1 minuto");
+        CHECK(vm.pasos().size() == 1, "con un paso juzgado");
     }
     // --- Recibir -------------------------------------------------------------------------------
     {
@@ -334,6 +373,19 @@ int main(int argc, char** argv) {
             vm.tic();
         }
         CHECK(w.medidas.size() == 3 && w.medidas.back().value("cupo").toInt() == 60, "cada segundo deja la medida para el otro");
+        CHECK(w.medidas.back().contains("ficha"), "con su ficha");
+        // Una que genera contra esta: llega con la respuesta a la medida (su CPU, su red, su ficha).
+        w.generadores = QJsonArray{QJsonObject{{"maquina", "mac-b"}, {"edadMs", 300},
+                                               {"medida", QJsonObject{{"cpuMaquina", 70}, {"cpuProbador", 50}, {"redSaleMbps", 12},
+                                                                      {"ficha", QJsonObject{{"nombre", "mac-b"}}}}}}};
+        for (int i = 0; i < 3; ++i) {
+            w.reloj += 1000;
+            vm.tic();
+        }
+        CHECK(vm.generadores().size() == 1 && vm.generadores()[0].toMap().value("cpuProbador").toDouble() == 50,
+              "recibiendo: se ve la CPU de la que genera");
+        CHECK(!vm.generadores()[0].toMap().contains("ficha"), "(la ficha no va a la vista en vivo)");
+        CHECK(!vm.serie().isEmpty() && vm.serie().back().toMap().value("cpuEquipo").toDouble() == 70, "y va a la serie (los gráficos)");
         vm.dejarDeRecibir();
         CHECK(!vm.ocupado() && !w.credencialAbierta && w.cupo == 10, "al terminar cierra y devuelve el cupo");
     }

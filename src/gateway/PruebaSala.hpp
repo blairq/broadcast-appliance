@@ -80,6 +80,14 @@ class PruebaSala {
     void ponerMedida(const nlohmann::json& medida, int64_t ahoraMs);
     /// {medida, edadMs} (null sin medida o sin prueba).
     nlohmann::json medida(int64_t ahoraMs) const;
+    /// Lo que manda cada máquina que GENERA contra esta (con la credencial, en la cabecera
+    /// X-BA-Generador del pedido de la medida): su CPU, su red, lo que decodifica, su ficha.
+    /// Un objeto con `maquina`; hasta kMaxGeneradores y kMaxGeneradorBytes cada uno.
+    void ponerGenerador(const nlohmann::json& g, int64_t ahoraMs);
+    /// [{maquina, edadMs, medida}] de los que mandaron en los últimos 30 s.
+    nlohmann::json generadores(int64_t ahoraMs) const;
+    static constexpr std::size_t kMaxGeneradores = 16;
+    static constexpr std::size_t kMaxGeneradorBytes = 6000;
     /// Una IP (orden de red) entró con la credencial: sin tope por IP mientras dure.
     void anotarIp(std::uint32_t ip);
     bool ipDePrueba(std::uint32_t ip, int64_t ahoraMs) const;
@@ -101,6 +109,7 @@ class PruebaSala {
     int entradas_ = 0; ///< tokens canjeados en esta prueba
     nlohmann::json medida_; ///< la de la app (null = ninguna)
     int64_t medidaMs_ = 0;
+    std::map<std::string, std::pair<nlohmann::json, int64_t>> generadores_; ///< maquina -> (lo que mandó, cuándo)
     std::set<std::uint32_t> ips_; ///< las que entraron con la credencial
 };
 

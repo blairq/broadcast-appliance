@@ -46,6 +46,7 @@ QString GeneradorHinchada::lanzar(const Lote& l) {
     if (!grabado_.isEmpty()) args << "--grabado" << grabado_;
     if (!l.prefijo.isEmpty()) args << "--prefijo" << l.prefijo;
     if (l.inseguro) args << "--inseguro";
+    if (!l.decodificar.isEmpty()) args << "--decodificar" << l.decodificar;
     QPointer<GeneradorHinchada> yo(this);
     connect(proc, &QProcess::finished, this, [yo, proc](int codigo, QProcess::ExitStatus) {
         proc->deleteLater();
