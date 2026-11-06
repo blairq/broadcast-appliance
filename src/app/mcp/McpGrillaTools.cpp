@@ -13,6 +13,7 @@
 #include "mcp/McpService.hpp"
 #include "mcp/McpToolsCommon.hpp"
 #include "mcp/InterfazMcp.hpp"
+#include "ui/Fluidez.hpp"
 
 #include <functional>
 
@@ -124,7 +125,11 @@ void McpService::registerGrillaTools() {
                          {"properties",
                           {{"segundos", {{"type", "integer"}, {"minimum", 2}, {"maximum", 120}}},
                            {"programa_rect", {{"type", "array"}, {"items", {{"type", "number"}}}, {"minItems", 4}, {"maxItems", 4},
-                                              {"description", QT_TRANSLATE_NOOP("mcp", "dónde está la grilla en el programa, en fracciones del lienzo")}}}}}};
+                                              {"description", QT_TRANSLATE_NOOP("mcp", "dónde está la grilla en el programa, en fracciones del lienzo")}}},
+                           {"zonas", {{"type", "array"},
+                                      {"items", {{"type", "object"}}},
+                                      {"description", QT_TRANSLATE_NOOP("mcp", "otras zonas del programa a medir igual (un invitado en su lugar, una cámara): "
+                                                                               "[{id, x, y, w, h en fracciones del lienzo, cps que manda}]; el resultado va en `zonas`")}}}}}};
         t.examples = {R"({})", R"({"segundos": 20})"};
         t.run = [vmp](const json& a, Done done) {
             auto* g = vmp->grillasPersonas();
@@ -137,6 +142,33 @@ void McpService::registerGrillaTools() {
                 done(res);
             });
             if (!e.empty()) done(ToolResult::error(e));
+        };
+        core_.addTool(std::move(t));
+    }
+
+    {
+        Tool t;
+        t.name = "video_fluidez";
+        t.title = ba::i18n::traducir("mcp", "Si los videos se ven parejos o a saltos");
+        t.category = "video";
+        t.clase = Clase::Lectura;
+        t.untrustedOutput = true; // las claves y los nombres de las personas
+        t.description = QT_TRANSLATE_NOOP("mcp", "La app se mide sola, siempre: por cada video que dibuja, cada cuánto llega un cuadro nuevo en cada "
+                        "tramo (intervalo p50/p95/max en ms de los últimos 128, huecos = intervalos de más de 1,5 veces el período "
+                        "que debería tener, cps contra esperado_cps) y si viene «a_saltos» (sostenido 5 s; se avisa al operador). "
+                        "`grilla`: cada celda de la grilla de personas con lo del gateway (red: lo que llegó; deco: lo que salió "
+                        "del decodificador; guardado; pintado: lo que se ve en el mosaico, con salteados y repetidos; tirados) y "
+                        "el ritmo del mosaico publicado. `fuentes`: lo que llega a la interfaz por clave (program, guest:N…). "
+                        "`vistas`: cada video en pantalla (tomados, dibujados, salteados, tope_cps). `ventanas`: los cuadros "
+                        "que pone cada ventana en la pantalla. `peor`: el video con más huecos.");
+        t.examples = {R"({})"};
+        t.run = [vmp](const json&, Done done) {
+            auto* f = vmp->fluidez();
+            if (f == nullptr) return done(ToolResult::error(ba::i18n::traducir("mcp", "la medición de fluidez todavía no arrancó")));
+            ToolResult r;
+            r.data(f->estado());
+            r.untrusted = true;
+            done(r);
         };
         core_.addTool(std::move(t));
     }

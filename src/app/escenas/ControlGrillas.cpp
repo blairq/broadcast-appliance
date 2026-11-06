@@ -602,13 +602,26 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
         x.celdas = celdasAMedir(g);
         grillas->push_back(std::move(x));
     }
-    if (grillas->empty()) return ba::i18n::traducir("escenas", "no hay ninguna grilla de personas andando");
+    // `zonas` (para diagnosticar la fluidez de cualquier video del programa, no solo la grilla:
+    // un invitado en su lugar, una cámara): [{id, x, y, w, h (fracciones del lienzo), cps}].
+    auto zonas = std::make_shared<std::vector<motor::AnalisisCeldas::Celda>>();
+    for (const auto& z : opciones.value("zonas", json::array())) {
+        motor::AnalisisCeldas::Celda c;
+        c.id = z.value("id", std::string("zona"));
+        c.x = z.value("x", 0.0);
+        c.y = z.value("y", 0.0);
+        c.w = z.value("w", 0.0);
+        c.h = z.value("h", 0.0);
+        c.referenciaCps = z.value("cps", 0.0);
+        if (c.w > 0 && c.h > 0) zonas->push_back(std::move(c));
+    }
+    if (grillas->empty() && zonas->empty()) return ba::i18n::traducir("escenas", "no hay ninguna grilla de personas andando");
     {
         std::lock_guard<std::mutex> l(medirMu_);
         midiendo_ = true;
     }
     if (hiloMedir_.joinable()) hiloMedir_.join();
-    hiloMedir_ = std::thread([this, yo = QPointer<ControlGrillas>(this), mot, grillas, segundos, px, py, pw, ph,
+    hiloMedir_ = std::thread([this, yo = QPointer<ControlGrillas>(this), mot, grillas, zonas, segundos, px, py, pw, ph,
                               listo = std::move(listo)]() {
         ba::platform::nombrarHilo("medir-grilla");
         const std::string kVista = "programa@medir_grilla";
@@ -630,6 +643,17 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
             return v;
         };
         json vueltas0;
+        // Las zonas del programa (si las pidieron): su propia vista, sin grilla.
+        std::shared_ptr<motor::MedidorCeldas> enZonas;
+        if (!zonas->empty()) {
+            enZonas = std::make_shared<motor::MedidorCeldas>(*zonas);
+            if (mot->verPedir(kVista + "z", 960, 540).empty())
+                mot->verAvisar(kVista + "z", [m = enZonas](const motor::Cuadro& c) {
+                    if (!c.nv12 && !c.bgra.empty()) m->cuadro(c.bgra.data(), c.ancho, c.alto, c.stride);
+                });
+            else
+                enZonas.reset();
+        }
         for (Grilla& g : *grillas) {
             // En la entrada: apenas sale del lector común (ba_origen, memoria de sistema).
             g.entrada = std::make_shared<motor::MedidorCeldas>(g.celdas);
@@ -673,6 +697,10 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
             mot->verAvisar(kVista, nullptr);
             mot->verSoltar(kVista);
         }
+        if (enZonas) {
+            mot->verAvisar(kVista + "z", nullptr);
+            mot->verSoltar(kVista + "z");
+        }
         json out = json::array();
         for (Grilla& g : *grillas) {
             if (g.entrada) g.entrada->sacar();
@@ -682,6 +710,7 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
             out.push_back(std::move(x));
         }
         json r{{"segundos", segundos}, {"grillas", out}};
+        if (enZonas) r["zonas"] = enZonas->resumen();
         if (const json v1 = vueltas(); v1.is_object() && vueltas0.is_object()) {
             const auto d = [&](const char* k) { return v1.value(k, 0ULL) - vueltas0.value(k, 0ULL); };
             const double n = static_cast<double>(d("n"));
@@ -699,10 +728,30 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
         }
         QMetaObject::invokeMethod(
             this,
-            [yo, r = std::move(r), listo]() {
+            [yo, r = std::move(r), listo]() mutable {
                 if (!yo) return;
-                yo->ultimaMedicion_ = r;
-                if (listo) listo(r);
+                // Lo del gateway, por celda: el ritmo de cada tramo (red, decodificado, guardado,
+                // pintado en el mosaico, publicado; gateway/Grillas.hpp «ritmo»).
+                yo->p_.sala.get("/api/v1/grillas", [yo, r = std::move(r), listo](bool ok, const QJsonObject& o) mutable {
+                    if (!yo) return;
+                    if (ok) {
+                        const json g = json::parse(QJsonDocument(o).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+                        json gw = json::array();
+                        for (const auto& x : g.value("grillas", json::array())) {
+                            json celdas = json::array();
+                            for (const auto& c : x.value("celdas", json::array()))
+                                celdas.push_back({{"persona", c.value("persona", std::string())},
+                                                  {"capa", c.value("capa", std::string())},
+                                                  {"ritmo", c.value("ritmo", json::object())}});
+                            gw.push_back({{"canal", x.value("canal", 0)},
+                                          {"publicado", x.value("ritmo_publicado", json::object())},
+                                          {"celdas", std::move(celdas)}});
+                        }
+                        r["gateway"] = std::move(gw);
+                    }
+                    yo->ultimaMedicion_ = r;
+                    if (listo) listo(r);
+                });
             },
             Qt::QueuedConnection);
     });

@@ -53,12 +53,18 @@ INCOMPLETO ?= 0
 # no guardan símbolos (tools/ci/receta-docker.sh lo pone sin SIMBOLOS=1). Con ella los builds
 # de Linux y Windows ocupaban 31 y 17 GB. De fábrica prendida: los volcados la necesitan.
 DEPURACION ?= 1
+# SONDAS=1: las sondas del camino de los cuadros (src/core/diag/SondasCuadros.hpp): un build de
+# diagnóstico de la fluidez de los videos. Explícito siempre (no se hereda del caché); cambiarlo
+# recompila todo: mejor en otro BUILD_DIR.
+SONDAS ?= 0
 BA_CMAKE_PERFIL = -DBA_PERFILAR=$(if $(filter 1,$(PERFILAR)),ON,OFF) \
+	-DBA_SONDAS_CUADROS=$(if $(filter 1,$(SONDAS)),ON,OFF) \
 	-DBA_DIAG_ACOPLES=$(if $(filter 0,$(DIAG_ACOPLES)),OFF,ON) \
 	-DBA_PERMITIR_INCOMPLETO=$(if $(filter 1,$(INCOMPLETO)),ON,OFF) \
 	-DBA_DEPURACION=$(if $(filter 0,$(DEPURACION)),OFF,ON)
 BA_SUFIJO = $(if $(filter 1,$(PERFILAR)),-perfil,)
 export PERFILAR
+export SONDAS
 export DIAG_ACOPLES
 export INCOMPLETO
 export DEPURACION

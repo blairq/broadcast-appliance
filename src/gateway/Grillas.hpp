@@ -91,6 +91,8 @@
 #include <nlohmann/json.hpp>
 
 #include "Capas.hpp"
+#include "diag/RitmoCuadros.hpp"
+#include "diag/SondasCuadros.hpp"
 #include "Fundido.hpp"
 #include "MediaRoute.hpp"
 #include "PlanosYuv.hpp"
@@ -172,7 +174,11 @@ class Grillas {
         std::int64_t ms_ = 0;
         bool vivo_ = true;
     };
-    PedidoCelda pedirCelda(const std::string& persona, int w, int h, std::int64_t ahoraMs);
+    /// `redUs`/`decoUs` (0 = no se sabe): cuándo llegó de la red el primer paquete de este
+    /// cuadro y cuándo salió del decodificador (µs, el mismo reloj los dos): el ritmo de cada
+    /// tramo (estado() → celdas[].ritmo).
+    PedidoCelda pedirCelda(const std::string& persona, int w, int h, std::int64_t ahoraMs, std::int64_t redUs = 0,
+                           std::int64_t decoUs = 0);
     /// La celda ya llena entra a la cola de su persona (su búfer queda para el próximo pedido).
     void guardarCelda(PedidoCelda&& p);
     /// No se pudo llenar: se suelta sin guardar nada (el búfer vuelve al retrato).
@@ -224,6 +230,8 @@ class Grillas {
     static bool color(const std::string& texto, std::uint32_t& bgra);
     /// El reloj de las grillas (ms monotónicos): el que hay que pasarles a cuadro/foto/audio.
     static std::int64_t reloj();
+    /// El mismo reloj, en µs (el de los ritmos).
+    static std::int64_t relojUs();
     /// La curva de la animación (0..1 → 0..1, suave al salir y al llegar).
     static float suavizar(float t);
     /// Un viaje de `desde` a `hasta` que empezó en `t0` y dura `durMs`, en `ahoraMs` (con la curva).
@@ -270,6 +278,11 @@ class Grillas {
         std::int64_t creditoMs = 0;
         std::vector<std::uint8_t> repuesto; ///< donde se achica el próximo (fuera del candado)
         Fundido fundido;              ///< de la baja a la HD (ver fundir)
+        // SONDAS (solo con BA_SONDAS_CUADROS, diag/SondasCuadros.hpp): el ritmo de lo que llegó
+        // de la red y de lo que salió del decodificador (de los cuadros que entran a la grilla)
+        // y de lo que se guardó en la cola. `tirados`: los que el balde no dejó entrar.
+        BA_SONDA(ba::diag::RitmoCuadros ritmoRed; ba::diag::RitmoCuadros ritmoDeco; ba::diag::RitmoCuadros ritmoGuardado;
+                 std::atomic<std::uint64_t> tirados{0};)
         int fundidoPendienteMs = 0;   ///< > 0: el próximo cuadro en vivo arranca el fundido
 
         /// El último que llegó (nullptr si ninguno). Con `m` tomado.
@@ -330,6 +343,16 @@ class Grillas {
         std::uint64_t cuadro = 0;
         std::int64_t enviadoMs = 0;
         std::map<std::string, std::uint64_t> visto; // persona → seq del retrato pintado
+        /// El ritmo de lo que se PINTÓ de cada persona (un cuadro suyo nuevo en el mosaico) y
+        /// los que el pintor salteó (llegaron y nunca se pintaron): lo que se ve. Es el final
+        /// del camino de cada cara (después el mosaico es UN video): va siempre (ui/Fluidez).
+        struct Pintado {
+            ba::diag::RitmoCuadros ritmo;
+            std::uint64_t salteados = 0, repetidos = 0;
+        };
+        std::map<std::string, std::unique_ptr<Pintado>> pintado;
+        /// SONDA: el ritmo de los mosaicos publicados (BA.Grilla.<k>).
+        BA_SONDA(std::unique_ptr<ba::diag::RitmoCuadros> ritmoPublicado = std::make_unique<ba::diag::RitmoCuadros>();)
         bool sucia = true;
         // medición
         std::uint64_t pintados = 0;
@@ -349,7 +372,8 @@ class Grillas {
     static PedidoCelda pedirEn(std::shared_ptr<Retrato> r, int w, int h, std::int64_t ahoraMs, bool vivo);
     /// Si el cuadro de `persona` que llega ahora se usa (está en una grilla y no llega a más
     /// del doble del ritmo del pintor). nullptr si no.
-    std::shared_ptr<Retrato> retratoParaCuadro(const std::string& persona, std::int64_t ahoraMs) const;
+    std::shared_ptr<Retrato> retratoParaCuadro(const std::string& persona, std::int64_t ahoraMs, std::int64_t redUs = 0,
+                                               std::int64_t decoUs = 0) const;
     static Rect animado(const Anim& a, int durMs, std::int64_t ahoraMs);
     /// Pinta el rótulo `r` en la celda `c` (con el estilo de la grilla).
     static void pintarRotulo(std::uint8_t* lienzo, int W, int H, const Grillas::Rect& celda, const Rotulo& r,

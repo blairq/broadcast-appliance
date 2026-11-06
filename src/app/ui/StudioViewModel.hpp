@@ -211,6 +211,7 @@ class ChatOverlayRenderer;
 class FuenteQrPintor;
 class DashboardModel;
 class FrameService;
+class Fluidez;
 class MixerModel;
 class RelojNiveles;
 class PropertiesModel;
@@ -300,6 +301,8 @@ class StudioViewModel : public QObject {
     Q_PROPERTY(QObject* dsk READ dskQml CONSTANT)
     /// La grilla de personas (escenas/ControlGrillas): quién está en cada una y lo hecho a mano.
     Q_PROPERTY(QObject* grillas READ grillasQml CONSTANT)
+    /// ¿Los videos se ven parejos? (ui/Fluidez: la app se mide sola, siempre).
+    Q_PROPERTY(QObject* fluidez READ fluidezQml CONSTANT)
     /// Seguir al micrófono abierto: propone (o arma) la banca que pidió la palabra.
     Q_PROPERTY(QObject* seguirMicrofono READ seguirMicrofonoQml CONSTANT)
     /// El orden del día de la sesión y el uso de la palabra (asamblea/OrdenDelDia).
@@ -587,6 +590,8 @@ class StudioViewModel : public QObject {
     QObject* carasBotoneraQml() const;
     QObject* dskQml() const;
     QObject* grillasQml() const;
+    QObject* fluidezQml() const;
+    Fluidez* fluidez() { return fluidez_.get(); }
     QObject* seguirMicrofonoQml() const;
     asamblea::SeguirMicrofono& seguirMicrofono();
     QObject* ordenDelDiaQml() const;
@@ -862,6 +867,7 @@ class StudioViewModel : public QObject {
     std::unique_ptr<SettingsModel> settings_;
     std::unique_ptr<DashboardModel> dashboard_;
     std::unique_ptr<FrameService> frames_;
+    std::unique_ptr<Fluidez> fluidez_;
     std::unique_ptr<PropertiesModel> props_;
     std::unique_ptr<ConferenceViewModel> conference_;
     /// El cupo, la configuración, las direcciones, la votación, las preguntas, el PIN y el

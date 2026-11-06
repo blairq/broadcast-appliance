@@ -71,6 +71,7 @@
 #include "ui/ExtensionesModel.hpp"
 #include "ui/Flanco.hpp"
 #include "ui/FrameService.hpp"
+#include "ui/Fluidez.hpp"
 #include "ui/FuenteQrPintor.hpp"
 #include "ui/GraficoViewModel.hpp"
 #include "ui/HistoricoViewModel.hpp"
@@ -861,6 +862,9 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
         if (a.running()) a.send(texto);
     });
     connect(grillasPersonas_.get(), &escenas::ControlGrillas::notify, this, &StudioViewModel::notify);
+    // La fluidez de los videos: la app se mide sola y avisa si alguno viene a saltos.
+    fluidez_ = std::make_unique<Fluidez>(*frames_, conference_->client());
+    connect(fluidez_.get(), &Fluidez::notify, this, &StudioViewModel::notify);
     // Los lugares vacíos del cupo: sus entradas, en reposo en el motor hasta que llega alguien.
     lugaresConGente_ = std::make_unique<sala::LugaresConGente>(conference_->client(), ventanilla_, rt_, this);
     marca("plugins");
@@ -1121,7 +1125,7 @@ StudioViewModel::StudioViewModel(AppRuntime& rt, VentanillaMotor& ventanilla, QO
     // sin ninguna vista abierta, 4 por segundo (lo que pide y suelta el motor sigue al día,
     // y el primer cuadro de una vista que se abre llega a lo sumo un cuarto de segundo tarde).
     connect(&frameTick_, &QTimer::timeout, this, [this]() {
-        frames_->poll();
+        frames_->pollDelTemporizador();
         const int cada = frames_->mirado() ? 16 : 250;
         if (frameTick_.interval() != cada) frameTick_.setInterval(cada);
     });
@@ -1240,6 +1244,7 @@ void StudioViewModel::alSegundo() {
         emit notify(tr("La interfaz estuvo trabada %1 s; el aire siguió").arg(ms / 1000.0, 0, 'f', 1), "warn");
     // El latido (si el motor saca cuadros, la última traba, la política): para la salud.
     revisarLatido();
+    if (fluidez_) fluidez_->tic();
     publicarSegundo();
 }
 
@@ -1676,6 +1681,10 @@ QObject* StudioViewModel::satelliteQml() const { return control_->satelliteQml()
 QObject* StudioViewModel::carasBotoneraQml() const { return control_->carasBotoneraQml(); }
 QObject* StudioViewModel::dskQml() const { return control_->dskQml(); }
 QObject* StudioViewModel::grillasQml() const { return grillasPersonas_.get(); }
+QObject* StudioViewModel::fluidezQml() const {
+    QQmlEngine::setObjectOwnership(fluidez_.get(), QQmlEngine::CppOwnership);
+    return fluidez_.get();
+}
 QObject* StudioViewModel::accionesQml() const { return control_->accionesQml(); }
 QObject* StudioViewModel::notificadorQml() const { return notificador_.get(); }
 QObject* StudioViewModel::accesoRemotoQml() const { return sala_->accesoRemotoQml(); }

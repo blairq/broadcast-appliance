@@ -61,6 +61,7 @@
 #include <algorithm>
 #include <atomic>
 #include <chrono>
+#include <cmath>
 #include <condition_variable>
 #include <cstdlib>
 #include <cstring>
@@ -1112,6 +1113,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
     // Estadisticas de la conexion (las arma el callback de GetStats).
     std::mutex statsMu;
     std::string statsJson = "{}";
+    std::shared_ptr<DestinoCamara> camaraSonda; ///< SONDA: la cámara que sale (su ritmo), bajo statsMu
     std::string codecsAnotados; ///< lo último que se anotó en el log (códec que sube/baja)
     uint64_t prevIn = 0, prevOut = 0, prevPkts = 0;
     int64_t prevLost = 0;
@@ -1131,6 +1133,10 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             double jbDemora = 0, jbObjetivo = 0;
             uint64_t jbEmitidos = 0, jbDescartados = 0;
             nlohmann::json salida;
+            // El video que llega, del lado de libwebrtc (antes y en el decodificador): para ver
+            // dónde se pierde la fluidez (docs/local/camino-del-cuadro.md). Totales desde que
+            // empezó el flujo; la ventana la saca quien lee (dos lecturas).
+            nlohmann::json videoRx;
             // El video que SUBE el invitado: en qué códec y quién lo decodifica (placa o no).
             std::string codecEntraId, decodificador, codecSaleId;
             bool decodificaHw = false;
@@ -1154,6 +1160,29 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
                             decodificaHw = r.power_efficient_decoder.value_or(false);
                         }
                         perdidos += r.frames_dropped.value_or(0);
+                        // Con dos capas hay dos flujos (el que no sale, en pausa): el que más recibió.
+                        if (r.frames_received.value_or(0) > 0 &&
+                            (videoRx.is_null() || r.frames_received.value_or(0) > videoRx.value("recibidos", 0U))) {
+                            const double n = static_cast<double>(r.frames_decoded.value_or(0));
+                            const double ifd = r.total_inter_frame_delay.value_or(0.0);
+                            const double ifd2 = r.total_squared_inter_frame_delay.value_or(0.0);
+                            const double media = n > 1 ? ifd / (n - 1) : 0.0;
+                            const double desvio = n > 1 ? std::sqrt(std::max(0.0, ifd2 / (n - 1) - media * media)) : 0.0;
+                            const double jbN = static_cast<double>(r.jitter_buffer_emitted_count.value_or(0));
+                            videoRx = {{"recibidos", r.frames_received.value_or(0)},
+                                       {"decodificados", r.frames_decoded.value_or(0)},
+                                       {"descartados", r.frames_dropped.value_or(0)},
+                                       {"claves", r.key_frames_decoded.value_or(0)},
+                                       {"nack", r.nack_count.value_or(0)},
+                                       {"pli", r.pli_count.value_or(0)},
+                                       {"fir", r.fir_count.value_or(0)},
+                                       {"congelados", r.freeze_count.value_or(0)},
+                                       {"congelados_ms", std::lround(r.total_freezes_duration.value_or(0.0) * 1000)},
+                                       {"pausas", r.pause_count.value_or(0)},
+                                       {"jitter_bufer_ms", jbN > 0 ? std::lround(r.jitter_buffer_delay.value_or(0.0) * 1000 / jbN) : 0},
+                                       {"entre_cuadros_ms", std::round(media * 10000) / 10},
+                                       {"entre_cuadros_desvio_ms", std::round(desvio * 10000) / 10}};
+                        }
                         alto = std::max(alto, r.frame_height.value_or(0));
                         ancho = std::max(ancho, r.frame_width.value_or(0));
                     }
@@ -1241,6 +1270,7 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             }
             if (!codecEntra.empty())
                 j["entrada"] = {{"codec", codecEntra}, {"decodificador", decodificador}, {"hardware", decodificaHw}};
+            if (!videoRx.is_null()) j["video_rx"] = std::move(videoRx);
             if (jbMs >= 0)
                 j["audio_bufer"] = {{"ms", std::lround(jbMs)}, {"objetivo_ms", std::lround(jbObjMs)},
                                     {"descartados", jbDescartados}};
@@ -1591,6 +1621,10 @@ struct WebrtcSession::Impl : public webrtc::PeerConnectionObserver {
             }
             video->AddOrUpdateSink(sink.get(), rtc::VideoSinkWants());
             videoAttached.emplace_back(rtc::scoped_refptr<webrtc::VideoTrackInterface>(video), sink.get());
+            if (camera && cb.camara) {
+                std::lock_guard<std::mutex> ls(statsMu);
+                camaraSonda = cb.camara;
+            }
             videoSinks.push_back(std::move(sink));
         } else if (track->kind() == webrtc::MediaStreamTrackInterface::kAudioKind) {
             auto sink = std::make_unique<RemoteAudioSink>(cb.onRemoteAudio);
@@ -1745,9 +1779,19 @@ std::string WebrtcSession::estadisticas() {
     if (impl_ == nullptr) return "{}";
     std::string s = impl_->estadisticas();
     const bool conRetorno = impl_->retornoEstado->fuente.load(std::memory_order_relaxed) != 0;
-    if (!impl_->capas.con() && !conRetorno) return s;
+    if (!impl_->capas.con() && !conRetorno && !ba::diag::kSondasCuadros) return s;
     json j = json::parse(s, nullptr, false);
     if (!j.is_object()) j = json::object();
+    // SONDAS (diag/SondasCuadros.hpp): el ritmo de la cámara en el gateway (red, decodificado,
+    // publicado entero a ba-app). Los sinks se arman en el hilo de señalización: con su candado.
+    BA_SONDA({
+        std::shared_ptr<DestinoCamara> c;
+        {
+            std::lock_guard<std::mutex> l(impl_->statsMu);
+            c = impl_->camaraSonda;
+        }
+        if (c) j["ritmo"] = c->ritmo();
+    })
     if (impl_->capas.con()) {
         // Con dos capas: cuál sale y cuál pidió la sala (para ver que lo que se pide llega).
         j["capa"] = nombreCapa(impl_->capas.sale());

@@ -249,7 +249,13 @@ void entregarCamara(const webrtc::VideoFrame& frame, DestinoCamara& destino, std
 
     // Primero preguntar: lo que nadie usa no se convierte.
     const bool entero = destino.quiereEntero();
-    Grillas::PedidoCelda celda = destino.pedirCelda(w, h);
+    // SONDA (diag/SondasCuadros.hpp): cuándo llegó de la red el primer paquete de este cuadro y
+    // cuándo salió del decodificador, en el reloj de libwebrtc (el ritmo de cada tramo, Grillas.hpp).
+    std::int64_t decoUs = 0, redUs = 0;
+    BA_SONDA(decoUs = rtc::TimeMicros();
+             redUs = frame.packet_infos().empty() ? 0 : frame.packet_infos().begin()->receive_time().us();
+             destino.anotarLlegada(redUs, decoUs);)
+    Grillas::PedidoCelda celda = destino.pedirCelda(w, h, redUs, decoUs);
     if (!entero && !celda.vale()) {
         cuenta.salteados.fetch_add(1, std::memory_order_relaxed);
         return;

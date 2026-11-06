@@ -76,6 +76,7 @@ QObject* InterfazMcp::flujos() const { return studio_.flujos(); }
 QObject* InterfazMcp::frames() const { return studio_.frames(); }
 bool InterfazMcp::gatewayAlive() const { return studio_.gatewayAlive(); }
 escenas::ControlGrillas* InterfazMcp::grillasPersonas() { return studio_.grillasPersonas(); }
+Fluidez* InterfazMcp::fluidez() { return studio_.fluidez(); }
 HistoricoViewModel* InterfazMcp::historico() const { return studio_.historico(); }
 asamblea::InformesResultado* InterfazMcp::informes() { return studio_.informes(); }
 QObject* InterfazMcp::inputs() const { return studio_.inputs(); }

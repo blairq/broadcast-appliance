@@ -289,6 +289,9 @@ bool Grillas::color(const std::string& texto, std::uint32_t& bgra) {
 }
 
 std::int64_t Grillas::reloj() { return ahoraMs(); }
+std::int64_t Grillas::relojUs() {
+    return std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now().time_since_epoch()).count();
+}
 
 float Grillas::suavizar(float t) {
     t = std::clamp(t, 0.0f, 1.0f);
@@ -548,6 +551,27 @@ json Grillas::estado() const {
                    {"h", c.r.h},           {"resaltar", c.resaltar}, {"imagen", imagen}, {"imagen_ancho", iw},
                    {"imagen_alto", ih},    {"fundiendo", fundiendo}};
             if (c.capa != Capa::Nada) x["capa"] = nombreCapa(c.capa);
+            // El ritmo de cada tramo (diag/RitmoCuadros.hpp), con el período de su capa.
+            const std::int64_t esperadoUs = c.capa == Capa::Baja ? 1'000'000 / 15 : c.capa == Capa::Nada ? 0 : 1'000'000 / 30;
+            const auto ritmoJson = [esperadoUs](const ba::diag::RitmoCuadros& rc) {
+                const auto z = rc.resumen(esperadoUs);
+                const auto r1 = [](double v) { return std::round(v * 10) / 10; };
+                return json{{"cps", r1(z.cps)}, {"p50_ms", r1(z.p50Ms)}, {"p95_ms", r1(z.p95Ms)}, {"max_ms", r1(z.maxMs)},
+                            {"huecos", z.huecos}, {"n", z.n}};
+            };
+            json ritmo = json::object();
+            BA_SONDA(if (auto r = retrato(c.persona)) {
+                ritmo["red"] = ritmoJson(r->ritmoRed);
+                ritmo["deco"] = ritmoJson(r->ritmoDeco);
+                ritmo["guardado"] = ritmoJson(r->ritmoGuardado);
+                ritmo["tirados"] = r->tirados.load(std::memory_order_relaxed);
+            })
+            if (const auto pin = g.pintado.find(c.persona); pin != g.pintado.end() && pin->second) {
+                ritmo["pintado"] = ritmoJson(pin->second->ritmo);
+                ritmo["salteados"] = pin->second->salteados;
+                ritmo["repetidos"] = pin->second->repetidos;
+            }
+            x["ritmo"] = std::move(ritmo);
             if (!c.rotulo.empty()) {
                 x["rotulo"] = c.rotulo;
                 x["rotulo_listo"] = rotulos_.count(c.rotulo) > 0;
@@ -560,6 +584,13 @@ json Grillas::estado() const {
                        {"celdas", celdas},
                        {"mas", g.mas},
                        {"ms_por_cuadro", std::round(g.msPintar * 100) / 100},
+                       {"ritmo_publicado", [&] {
+                            json j = json::object();
+                            BA_SONDA(const auto z = g.ritmoPublicado->resumen(static_cast<std::int64_t>(periodoPintarNs_.load() / 1000));
+                                     j = json{{"cps", std::round(z.cps * 10) / 10}, {"p50_ms", z.p50Ms}, {"p95_ms", z.p95Ms},
+                                              {"max_ms", z.maxMs}, {"huecos", z.huecos}};)
+                            return j;
+                        }()},
                        {"cuadros", g.pintados}});
     }
     json hablan = json::array();
@@ -646,9 +677,10 @@ Grillas::PedidoCelda Grillas::pedirEn(std::shared_ptr<Retrato> r, int w, int h, 
     return p;
 }
 
-Grillas::PedidoCelda Grillas::pedirCelda(const std::string& persona, int w, int h, std::int64_t ahora) {
+Grillas::PedidoCelda Grillas::pedirCelda(const std::string& persona, int w, int h, std::int64_t ahora, std::int64_t redUs,
+                                          std::int64_t decoUs) {
     if (w <= 0 || h <= 0) return {};
-    auto r = retratoParaCuadro(persona, ahora);
+    auto r = retratoParaCuadro(persona, ahora, redUs, decoUs);
     if (!r) return {};
     return pedirEn(std::move(r), w, h, ahora, true);
 }
@@ -676,6 +708,7 @@ void Grillas::guardarCelda(PedidoCelda&& p) {
         r.fundidoPendienteMs = 0;
     }
     ++r.seq;
+    BA_SONDA(r.ritmoGuardado.cuadro(relojUs());)
     Foto& nueva = r.cola[r.seq % kCola]; // pisa el más viejo
     nueva.px.swap(p.bgra);
     r.repuesto.swap(p.bgra); // el que se pisó queda para el próximo
@@ -686,9 +719,13 @@ void Grillas::guardarCelda(PedidoCelda&& p) {
     if (p.vivo_) r.vivoMs = ahora;
 }
 
-std::shared_ptr<Grillas::Retrato> Grillas::retratoParaCuadro(const std::string& persona, std::int64_t ahora) const {
+std::shared_ptr<Grillas::Retrato> Grillas::retratoParaCuadro(const std::string& persona, std::int64_t ahora, std::int64_t redUs,
+                                                             std::int64_t decoUs) const {
     auto r = retrato(persona);
     if (!r) return nullptr; // no está en ninguna grilla: ni se toca
+    BA_SONDA(if (redUs > 0) r->ritmoRed.cuadro(redUs); r->ritmoDeco.cuadro(decoUs > 0 ? decoUs : relojUs());)
+    (void)redUs;
+    (void)decoUs;
     {
         // Lo que llega mucho más rápido que el ritmo de las grillas (60 cps contra 30) se
         // achicaría para no pintarse. Un balde: entra a 1,5 veces el ritmo del pintor en
@@ -701,7 +738,10 @@ std::shared_ptr<Grillas::Retrato> Grillas::retratoParaCuadro(const std::string& 
         if (r->creditoMs == 0 || ahora < r->creditoMs) r->credito = kRafaga;
         else r->credito = std::min(kRafaga, r->credito + 1.5 * static_cast<double>(ahora - r->creditoMs) / periodoMs);
         r->creditoMs = ahora;
-        if (r->credito < 1.0) return nullptr;
+        if (r->credito < 1.0) {
+            BA_SONDA(r->tirados.fetch_add(1, std::memory_order_relaxed);)
+            return nullptr;
+        }
         r->credito -= 1.0;
     }
     return r;
@@ -898,6 +938,18 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora) {
             const auto v = g.visto.find(persona);
             const Foto* f = ret->elegir(v != g.visto.end() ? v->second : 0, ahora, atrasoMs);
             if (f != nullptr && !f->px.empty()) {
+                // El ritmo de lo que se ve: un cuadro suyo nuevo en el mosaico (y los que se saltearon).
+                if (!a.sale) {
+                    auto& pin = g.pintado[persona];
+                    if (!pin) pin = std::make_unique<Grilla::Pintado>();
+                    const std::uint64_t antes = v != g.visto.end() ? v->second : 0;
+                    if (f->seq != antes) {
+                        pin->ritmo.cuadro(relojUs());
+                        if (antes != 0 && f->seq > antes + 1) pin->salteados += f->seq - antes - 1;
+                    } else {
+                        ++pin->repetidos;
+                    }
+                }
                 // Recorte que llena el lugar (sin barras).
                 int sx = 0, sy = 0, sw = 0, sh = 0;
                 recorte(f->w, f->h, c.w, c.h, sx, sy, sw, sh);
@@ -959,8 +1011,11 @@ bool Grillas::pintar(int canal, std::int64_t ahora, std::vector<std::uint8_t>& l
 
 void Grillas::limpiarRetratosLocked() {
     std::set<std::string> usados;
-    for (const auto& [k, g] : grillas_)
+    for (auto& [k, g] : grillas_) {
         for (const auto& [p, a] : g.anim) usados.insert(p);
+        for (auto it = g.pintado.begin(); it != g.pintado.end();)
+            it = g.anim.count(it->first) ? std::next(it) : g.pintado.erase(it);
+    }
     std::lock_guard<std::mutex> l(retratosMu_);
     for (auto it = retratos_.begin(); it != retratos_.end();)
         it = usados.count(it->first) ? std::next(it) : retratos_.erase(it);
@@ -1052,6 +1107,7 @@ void Grillas::bucle() {
                 if (g.sender) {
                     const std::uint64_t t = ba::ipc::HealthBlock::nowQpc();
                     g.sender->send(g.lienzo.data(), g.lienzo.size(), ba::ipc::FrameMeta{t, t});
+                    BA_SONDA(g.ritmoPublicado->cuadro(relojUs());)
                 }
                 g.enviadoMs = ahora;
             }

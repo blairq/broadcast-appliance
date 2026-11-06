@@ -84,6 +84,11 @@ endif()
 if(BA_DIAG_ACOPLES)
     target_compile_definitions(ba_core PUBLIC BA_DIAG_ACOPLES=1)
 endif()
+# Las sondas del camino de los cuadros (ver el CMakeLists raíz y diag/SondasCuadros.hpp):
+# PUBLIC (cambian campos de structs que ven varios módulos): todo el programa con o sin ellas.
+if(BA_SONDAS_CUADROS)
+    target_compile_definitions(ba_core PUBLIC BA_SONDAS_CUADROS=1)
+endif()
 if(BA_HAVE_ROSTROS)
     target_include_directories(ba_core PUBLIC "${BA_ORT_DIR}/include")
     target_link_libraries(ba_core PUBLIC "${BA_ORT_LIB}")

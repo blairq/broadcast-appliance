@@ -26,6 +26,13 @@ class ProveedorCuadros : public QObject {
     /// `intervaloUs`: cada cuánto, como mucho, quiere cuadros quien lee (0: todos): el
     /// servicio puede leer el canal más espaciado si nadie quiere más (celdas chicas).
     virtual bool ultimo(const QString& clave, QImage& out, std::uint64_t& serial, std::int64_t intervaloUs) const = 0;
+    /// La hora de lo que muestra la última imagen de `clave` (µs del reloj monotónico: cuándo
+    /// la compuso el motor o la publicó el gateway); 0 = no se sabe. Es lo que mide si un
+    /// video avanza parejo (VideoItem: el ritmo de lo que se dibuja, ui/Fluidez).
+    virtual std::int64_t origenUs(const QString& clave) const {
+        (void)clave;
+        return 0;
+    }
 
    signals:
     /// Llegó al menos un cuadro nuevo (de cualquier clave): una vez por vuelta, no por cuadro.

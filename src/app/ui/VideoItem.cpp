@@ -12,6 +12,8 @@
 
 #include <algorithm>
 #include <chrono>
+#include <map>
+#include <mutex>
 #include <utility>
 
 namespace ba::app {
@@ -86,7 +88,69 @@ std::int64_t ahoraUs() {
 
 constexpr auto kRelajado = std::memory_order_relaxed;
 
+// Los ritmos de las vistas y de las ventanas (VideoItem::ritmos): se anotan y se sacan al
+// crear o cambiar de fuente (nunca por cuadro).
+std::mutex& ritmosMu() {
+    static std::mutex m;
+    return m;
+}
+std::vector<std::weak_ptr<VideoItem::Ritmo>>& ritmosVivos() {
+    static std::vector<std::weak_ptr<VideoItem::Ritmo>> v;
+    return v;
+}
+std::map<const QQuickWindow*, std::shared_ptr<VideoItem::RitmoVentana>>& ventanas() {
+    static std::map<const QQuickWindow*, std::shared_ptr<VideoItem::RitmoVentana>> v;
+    return v;
+}
+
+std::shared_ptr<VideoItem::Ritmo> nuevoRitmo(const QString& fuente) {
+    auto r = std::make_shared<VideoItem::Ritmo>();
+    r->fuente = fuente;
+    std::lock_guard<std::mutex> l(ritmosMu());
+    auto& v = ritmosVivos();
+    v.erase(std::remove_if(v.begin(), v.end(), [](const auto& w) { return w.expired(); }), v.end());
+    v.push_back(r);
+    return r;
+}
+
+/// La ventana de una vista: su ritmo de cuadros se anota una vez (frameSwapped, en el hilo de render).
+void mirarVentana(QQuickWindow* w) {
+    if (w == nullptr) return;
+    std::shared_ptr<VideoItem::RitmoVentana> rv;
+    {
+        std::lock_guard<std::mutex> l(ritmosMu());
+        auto& m = ventanas();
+        if (m.count(w) != 0) return;
+        rv = std::make_shared<VideoItem::RitmoVentana>();
+        rv->titulo = w->title();
+        m[w] = rv;
+    }
+    QObject::connect(w, &QQuickWindow::frameSwapped, w, [rv]() { rv->swaps.cuadro(ahoraUs()); }, Qt::DirectConnection);
+    QObject::connect(w, &QObject::destroyed, [w]() {
+        std::lock_guard<std::mutex> l(ritmosMu());
+        ventanas().erase(w);
+    });
+}
+
 } // namespace
+
+std::vector<std::shared_ptr<VideoItem::Ritmo>> VideoItem::ritmos() {
+    std::vector<std::shared_ptr<Ritmo>> out;
+    std::lock_guard<std::mutex> l(ritmosMu());
+    for (const auto& w : ritmosVivos())
+        if (auto r = w.lock()) out.push_back(std::move(r));
+    return out;
+}
+
+std::vector<std::shared_ptr<VideoItem::RitmoVentana>> VideoItem::ritmosVentanas() {
+    std::vector<std::shared_ptr<RitmoVentana>> out;
+    std::lock_guard<std::mutex> l(ritmosMu());
+    for (const auto& [w, r] : ventanas()) {
+        r->titulo = w->title(); // en el hilo de la UI (quien lee)
+        out.push_back(r);
+    }
+    return out;
+}
 
 QPointer<ProveedorCuadros> VideoItem::service_;
 
@@ -101,6 +165,7 @@ VideoItem::VideoItem(QQuickItem* parent) : QQuickItem(parent) {
     setFlag(ItemHasContents, true);
     contadores().creados.fetch_add(1, kRelajado);
     contadores().vivos.fetch_add(1, kRelajado);
+    ritmo_ = nuevoRitmo(source_);
     if (service_ != nullptr) {
         connect(service_, &ProveedorCuadros::framesUpdated, this, &VideoItem::refresh);
     }
@@ -113,8 +178,10 @@ void VideoItem::setSource(const QString& s) {
         return;
     }
     source_ = s;
+    ritmo_ = nuevoRitmo(source_); // otra fuente, otra medida (el render lo toma en el próximo sync)
     serial_ = 0;
-    turno_ = -1;
+    origenTomado_ = 0;
+    tomadoUs_ = 0;
     const bool habia = !image_.isNull();
     image_ = QImage();
     emit sourceChanged();
@@ -170,21 +237,41 @@ void VideoItem::traer(bool sinTurno) {
     // Fuera de la parte que se ve de una grilla o lista desplazable: nada, ni el primero (la
     // grilla no mira hasFrame). Sin leerlos, el servicio deja de copiar ese canal y el
     // productor lo manda «de vez en cuando»; al volver a la vista (setEnVista) se trae.
-    if (!enVista_) return;
+    if (!enVista_) {
+        ritmo_->activa.store(false, kRelajado);
+        return;
+    }
     const bool had = !image_.isNull();
     // Oculto (una página precargada que no se ve) o diminuto (no se distingue) no copia
     // cuadros ni redibuja la ventana: al mostrarse o agrandarse los pide. El primero sí,
     // por si alguien mira hasFrame para decidir si mostrarlo.
-    if (had && (!isVisible() || diminuto())) return;
-    // Chico: un cuadro por turno del reloj, el mismo turno para todos los chicos (los
-    // cuadros de las 120 celdas de la sala entran en el mismo redibujo, no uno cada vez).
+    if (had && (!isVisible() || diminuto())) {
+        ritmo_->activa.store(false, kRelajado);
+        return;
+    }
+    // Chico (como mucho kCpsChico): uno de cada tantos, por lo que avanzó el video desde el
+    // último tomado (su hora de origen), con 3/4 del intervalo de margen: de una fuente de 30,
+    // uno sí y uno no, parejo, aunque cada cuadro llegue a la interfaz con su temblor. Un turno
+    // del reloj común (lo de antes) caía cerca de la llegada de algún cuadro y alternaba
+    // saltos de 33 y 100 ms. Sin la hora de origen, por cuándo se tomó.
     const std::int64_t intervalo = intervaloUs();
-    const std::int64_t turno = intervalo > 0 ? ahoraUs() / intervalo : -1;
-    if (had && !sinTurno && intervalo > 0 && turno == turno_) return;
+    const std::int64_t origen = service_->origenUs(source_);
+    if (had && !sinTurno && intervalo > 0) {
+        const std::int64_t avanzo = origen > 0 && origenTomado_ > 0 ? origen - origenTomado_ : ahoraUs() - tomadoUs_;
+        if (avanzo < intervalo * 3 / 4) return;
+    }
     c.pedidos.fetch_add(1, kRelajado);
     const QSize antes = image_.size();
+    const std::uint64_t serialAntes = serial_;
     if (service_->ultimo(source_, image_, serial_, intervalo)) {
-        turno_ = turno;
+        tomadoUs_ = ahoraUs();
+        origenTomado_ = service_->origenUs(source_); // la de la imagen que se tomó
+        ritmo_->tomado.cuadro(tomadoUs_);
+        if (origenTomado_ > 0) ritmo_->contenido.cuadro(origenTomado_);
+        if (serialAntes != 0 && serial_ > serialAntes + 1) ritmo_->salteados.fetch_add(serial_ - serialAntes - 1, kRelajado);
+        ritmo_->topeCps.store(intervalo > 0 ? static_cast<int>(1'000'000 / intervalo) : 0, kRelajado);
+        ritmo_->lado.store(static_cast<int>(std::max(width(), height())), kRelajado);
+        ritmo_->activa.store(true, kRelajado);
         c.cuadros.fetch_add(1, kRelajado);
         dirty_ = true;
         update();
@@ -200,6 +287,7 @@ void VideoItem::traer(bool sinTurno) {
 void VideoItem::itemChange(ItemChange change, const ItemChangeData& value) {
     QQuickItem::itemChange(change, value);
     if (change == ItemVisibleHasChanged && value.boolValue) traer(true);
+    if (change == ItemSceneChange) mirarVentana(value.window);
 }
 
 void VideoItem::geometryChange(const QRectF& nuevo, const QRectF& viejo) {
@@ -241,6 +329,7 @@ QSGNode* VideoItem::updatePaintNode(QSGNode* old, UpdatePaintNodeData*) {
         }
         dirty_ = false;
         contadores().subidas.fetch_add(1, kRelajado);
+        ritmo_->subido.cuadro(ahoraUs());
     }
     // Ajuste: Fit = entero con barras; Cover = llena y recorta (fondos).
     const QSizeF img = image_.size();

@@ -9,6 +9,7 @@
 #include "AudioCompartido.hpp"
 
 #include <algorithm>
+#include <cstdlib>
 #include <chrono>
 #include <cstdio>
 #include <cstring>
@@ -1393,17 +1394,25 @@ bool MediaPump::llegoCamara(int session) {
 
 bool MediaPump::pideCuadro(const VideoOut& v, uint64_t ahoraNs) {
     if (!v.sender.published()) return false;
-    const uint64_t ultimo = v.lastNs.load(std::memory_order_relaxed);
-    uint64_t intervalo = v.minIntervalNs;
     if (v.segunDemanda) {
         switch (v.sender.demanda()) {
         case ba::ipc::SpoutSender::Demanda::Nadie: return false;
         // La tarjeta que no se ve (FrameService la refresca una vez por segundo).
-        case ba::ipc::SpoutSender::Demanda::DeVezEnCuando: intervalo = std::max<uint64_t>(intervalo, 1'000'000'000ULL); break;
+        case ba::ipc::SpoutSender::Demanda::DeVezEnCuando:
+            return ahoraNs - v.lastNs.load(std::memory_order_relaxed) >= std::max<uint64_t>(v.minIntervalNs, 1'000'000'000ULL);
         case ba::ipc::SpoutSender::Demanda::Todos: break;
         }
     }
-    return intervalo == 0 || ahoraNs - ultimo >= intervalo;
+    // El tope de fps: el balde (VideoOut::teoricoNs), con un intervalo de tolerancia.
+    return v.minIntervalNs == 0 || ahoraNs + v.minIntervalNs >= v.teoricoNs.load(std::memory_order_relaxed);
+}
+
+void MediaPump::publicado(VideoOut& v, uint64_t ahoraNs) {
+    v.lastNs.store(ahoraNs, std::memory_order_relaxed);
+    if (v.minIntervalNs == 0) return;
+    // Un solo hilo publica cada canal (el que decodifica a ese invitado): sin carrera.
+    const uint64_t t = v.teoricoNs.load(std::memory_order_relaxed);
+    v.teoricoNs.store(std::max(t, ahoraNs) + v.minIntervalNs, std::memory_order_relaxed);
 }
 
 Mirada MediaPump::vistaDe(int session) const {
@@ -1577,7 +1586,7 @@ void MediaPump::publishVideo(VideoOut& out, const uint8_t* pixels, int w, int h,
         if (out.segunDemanda && out.sender.demanda() == ba::ipc::SpoutSender::Demanda::Nadie) return;
         if (out.minIntervalNs != 0 && monoNs() - out.lastNs.load(std::memory_order_relaxed) < out.minIntervalNs) return;
     }
-    if (real) out.lastNs.store(monoNs(), std::memory_order_relaxed);
+    if (real) publicado(out, monoNs());
     std::lock_guard<std::mutex> lock(out.lock);
     const uint8_t* frame = pixels;
     // El canal tiene tamaño fijo; el participante manda lo que su camara/red
