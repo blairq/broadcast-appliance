@@ -17862,7 +17862,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 86
+        "linea": 88
       },
       "roles": [
         "asistente",
@@ -17902,7 +17902,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 258
+        "linea": 287
       },
       "roles": [
         "asistente",
@@ -17943,7 +17943,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 227
+        "linea": 256
       },
       "roles": [
         "asistente",
@@ -17979,7 +17979,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 236
+        "linea": 265
       },
       "roles": [
         "asistente",
@@ -18007,7 +18007,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 59
+        "linea": 61
       },
       "roles": [
         "asistente",
@@ -18049,7 +18049,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 204
+        "linea": 233
       },
       "roles": [
         "asistente",
@@ -18099,7 +18099,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 112
+        "linea": 114
       },
       "roles": [
         "asistente",
@@ -18146,7 +18146,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 218
+        "linea": 247
       },
       "roles": [
         "asistente",
@@ -18187,7 +18187,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 211
+        "linea": 240
       },
       "roles": [
         "asistente",
@@ -36745,7 +36745,14 @@
       "descripcion": "La app se mide sola, siempre: por cada video que dibuja, cada cuánto llega un cuadro nuevo en cada tramo (intervalo p50/p95/max en ms de los últimos 128, huecos = intervalos de más de 1,5 veces el período que debería tener, cps contra esperado_cps) y si viene «a_saltos» (sostenido 5 s; se avisa al operador). `grilla`: cada celda de la grilla de personas con lo del gateway (red: lo que llegó; deco: lo que salió del decodificador; guardado; pintado: lo que se ve en el mosaico, con salteados y repetidos; tirados) y el ritmo del mosaico publicado. `fuentes`: lo que llega a la interfaz por clave (program, guest:N…). `vistas`: cada video en pantalla (tomados, dibujados, salteados, tope_cps). `ventanas`: los cuadros que pone cada ventana en la pantalla. `peor`: el video con más huecos.",
       "esquema": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "trazas_s": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 110,
+            "description": "solo en un build con las sondas de los cuadros: cada cuadro en cada tramo de los últimos N segundos (`trazas`: por tramo, t, origen y dato en µs desde `trazas_base_us`)"
+          }
+        }
       },
       "clase": "lectura",
       "hilo": "interfaz",
@@ -36758,7 +36765,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 151
+        "linea": 153
       },
       "roles": [
         "asistente"
