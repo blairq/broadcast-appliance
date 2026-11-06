@@ -58,6 +58,8 @@
 # registro en dist/logs/ (y los de lo que falló, en dist/logs/<corrida>/).
 # SIN_CACHE=1 lo hace todo de cero (`make publicar` lo pone solo).
 # TESTS_SIN_CACHE=1, TESTS_SIN_LENTOS=1, TESTS_JOBS, TESTS_WIN_JOBS y PYTEST_ARGS también llegan adentro.
+# SONDAS=1: el build de diagnóstico (sondas de los cuadros) en build/win-sondas y …-windows-x64-sondas.zip.
+# TESTS_WIN=0: sin los tests de Windows bajo Wine (un paquete para probar a mano en la PC).
 # ============================================================================
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -202,6 +204,19 @@ if [ "${SIMBOLOS:-0}" = 1 ]; then
     MONTAR_SIMBOLOS="-v $BA_SIMBOLOS:/simbolos"
 fi
 
+# hinchada (el probador de carga) sale de los paquetes del proyecto hermano de la Mac
+# (../hinchada/dist, o HINCHADA_DIR): se montan de solo lectura y deps-hinchada los toma de ahí.
+# Sin esto, adentro miraba /trabajo/hinchada (una copia vieja en el volumen) y el .zip de
+# Windows salía con esa.
+HINCHADA_HOST="${HINCHADA_DIR:-$(cd "$GITDIR/../.." && pwd)/hinchada}"
+MONTAR_HINCHADA=""
+if [ -d "$HINCHADA_HOST/dist" ]; then
+    case "$HINCHADA_HOST" in *" "*) morir "HINCHADA_DIR no puede tener espacios: $HINCHADA_HOST" ;; esac
+    MONTAR_HINCHADA="-v $HINCHADA_HOST/dist:/hinchada/dist:ro -e HINCHADA_DIR=/hinchada"
+else
+    log "AVISO: no está $HINCHADA_HOST/dist: hinchada sale de lo que haya en el volumen"
+fi
+
 # Un registro por corrida en dist/logs/ (ignorado por git): todo lo que sale por la
 # terminal, para ver después qué falló y dónde se fue el tiempo. Los registros de los
 # tests que fallaron quedan al lado, en dist/logs/<corrida>/.
@@ -231,11 +246,12 @@ log "$([ "$VALIDAR" = 1 ] && echo validando || echo compilando) $QUE ($ARQ) en e
 # «todo» es la receta entera; «tests-win», solo los tests de Windows bajo Wine (validación arm64).
 correr() {
     d run --rm --platform "linux/$1" --privileged \
-    -v "$VOLUMEN:/trabajo" -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" $MONTAR_SIMBOLOS \
+    -v "$VOLUMEN:/trabajo" -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" $MONTAR_SIMBOLOS $MONTAR_HINCHADA \
     -v "$ROOT/tools/ci/capa-docker.sh:/capa-docker.sh:ro" \
     -v "$CCACHE_VOL:/ccache" -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
     -e MODO="$MODO" -e CAPA="$CAPA" -e VALIDAR="$VALIDAR" -e ETAPA="$3" -e INCOMPLETO="$VALIDAR" \
     -e SHA="$SHA" -e QUE="$QUE" -e CORRIDA="$CORRIDA" -e PERFILAR="${PERFILAR:-0}" -e DIAG_ACOPLES="${DIAG_ACOPLES:-1}" \
+    -e SONDAS="${SONDAS:-0}" -e TESTS_WIN="${TESTS_WIN:-1}" \
     -e SIN_CACHE="${SIN_CACHE:-0}" -e SIMBOLOS="${SIMBOLOS:-0}" -e TESTS_SIN_CACHE="${TESTS_SIN_CACHE:-0}" \
     -e TESTS_SIN_LENTOS="${TESTS_SIN_LENTOS:-0}" ${TESTS_WIN_JOBS:+-e TESTS_WIN_JOBS="$TESTS_WIN_JOBS"} ${TESTS_JOBS:+-e TESTS_JOBS="$TESTS_JOBS"} \
     ${PYTEST_ARGS:+-e PYTEST_ARGS="$PYTEST_ARGS"} \

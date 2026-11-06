@@ -62,7 +62,7 @@ BA_CMAKE_PERFIL = -DBA_PERFILAR=$(if $(filter 1,$(PERFILAR)),ON,OFF) \
 	-DBA_DIAG_ACOPLES=$(if $(filter 0,$(DIAG_ACOPLES)),OFF,ON) \
 	-DBA_PERMITIR_INCOMPLETO=$(if $(filter 1,$(INCOMPLETO)),ON,OFF) \
 	-DBA_DEPURACION=$(if $(filter 0,$(DEPURACION)),OFF,ON)
-BA_SUFIJO = $(if $(filter 1,$(PERFILAR)),-perfil,)
+BA_SUFIJO = $(if $(filter 1,$(PERFILAR)),-perfil,)$(if $(filter 1,$(SONDAS)),-sondas,)
 export PERFILAR
 export SONDAS
 export DIAG_ACOPLES

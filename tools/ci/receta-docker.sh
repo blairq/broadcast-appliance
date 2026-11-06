@@ -48,6 +48,13 @@ ETAPA="${ETAPA:-todo}"
 # comodín sin versión los volvía a copiar a dist/.
 VER=$(sed -n "/^project(/,/)/s/.*VERSION \([0-9.]*\).*/\1/p" CMakeLists.txt | head -1)
 SUF=""; [ "$PERFILAR" = 1 ] && SUF="-perfil"   # PERFILAR=1: un build que mide (diag/Perfil)
+# SONDAS=1: el build de diagnóstico de los cuadros (src/core/diag/SondasCuadros.hpp), en su propia
+# carpeta (build/win-sondas, release-win-sondas: mk/windows.mk) y con su .zip (…-sondas.zip).
+export SONDAS="${SONDAS:-0}"
+WINB=build/win; WINR=release-win
+[ "$SONDAS" = 1 ] && SUF="$SUF-sondas" && WINB=build/win-sondas && WINR=release-win-sondas
+# TESTS_WIN=0: sin los tests de Windows bajo Wine (un paquete para probar a mano en una PC).
+TESTS_WIN="${TESTS_WIN:-1}"
 [ "$SIN_CACHE" != 0 ] && echo "[compilar-en-docker] SIN_CACHE=1: todo de cero (sin caché de tests ni atajos)"
 # A dist/ de la Mac: solo si cambió (el .zip son 800 MB por el volumen compartido).
 # El .commit, siempre: el mismo contenido es lo que sale de este commit.
@@ -147,7 +154,7 @@ fi
 if [ "$QUE" != linux ]; then
     make deps-win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1
     etapa "deps-win"
-    compilar_si_cambio "compilar (win)" build/win -o deps-win win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR
+    compilar_si_cambio "compilar (win)" "$WINB" -o deps-win win JOBS=$J BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR SONDAS=$SONDAS
     etapa "compilar (win)"
     if [ "$VALIDAR" = 1 ]; then
         # Los tests bajo Wine, en el contenedor x86_64 (compilar-en-docker.sh, ETAPA=tests-win).
@@ -160,11 +167,15 @@ if [ "$QUE" != linux ]; then
     # .zip, pero se informa y la corrida termina con error: no es verde.
     tests_win=0
     touch /tmp/inicio-de-etapa
-    make -o deps-win -o win test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
+    if [ "$TESTS_WIN" = 0 ]; then
+        echo "[compilar-en-docker] TESTS_WIN=0: sin los tests de Windows bajo Wine"
+    else
+        make -o deps-win -o win test-win BA_ACCEPT_MSVC_LICENSE=1 PERFILAR=$PERFILAR || tests_win=$?
+    fi
     if [ "$tests_win" != 0 ]; then
         # Solo los de los que fallaron (rc ni 0 ni 77; «rc segundos nombre registro exe»).
         mkdir -p "/salida/logs/$CORRIDA"
-        awk '$1 != "0" && $1 != "77" { print $4 }' build/win/wine-logs/.resultados 2>/dev/null |
+        awk '$1 != "0" && $1 != "77" { print $4 }' "$WINB/wine-logs/.resultados" 2>/dev/null |
             while read -r r; do cp "$r" "/salida/logs/$CORRIDA/"; done
         echo "[compilar-en-docker] registros de lo que falló: dist/logs/$CORRIDA/"
     fi
@@ -181,9 +192,9 @@ if [ "$QUE" != linux ]; then
     # la PC de pruebas): cada build suma ~250 MB de lo nuestro. Si el bundle es el mismo
     # que la última vez, ya están.
     if [ "${SIMBOLOS:-0}" = 1 ]; then
-        python3 tools/ci/huellas.py atajo --nombre "símbolos de Windows" --clave-en build/win/atajos/simbolos.json \
-            --memo build/win/atajos/huellas.json --entrada release-win --salida /simbolos/compilaciones.jsonl -- \
-            python3 tools/caidas/simbolos.py guardar --release release-win --buscar build/win extern/gstreamer-win-pdb \
+        python3 tools/ci/huellas.py atajo --nombre "símbolos de Windows" --clave-en "$WINB/atajos/simbolos.json" \
+            --memo "$WINB/atajos/huellas.json" --entrada "$WINR" --salida /simbolos/compilaciones.jsonl -- \
+            python3 tools/caidas/simbolos.py guardar --release "$WINR" --buscar "$WINB" extern/gstreamer-win-pdb \
             --destino /simbolos --commit "$SHA" || echo "ATENCION: no se guardaron los símbolos" >&2
         etapa "símbolos (win)"
     else

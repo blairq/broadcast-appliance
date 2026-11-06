@@ -46,9 +46,14 @@ deps:
 # versions.cmake, tools/deps/, el toolchain) ni lo que hay en extern/ (qué
 # dependencias y sus .version), no se vuelve a verificar nada (eran ~23 s de
 # sha256 de archivos bajados en cada build). SIN_CACHE=1 verifica todo.
+# hinchada no tiene versión fijada: sale de los paquetes de ../hinchada (HINCHADA_DIR), así que
+# la clave lleva su contenido (HINCHADA_HUELLA). Sin eso, un paquete nuevo de hinchada no
+# entraba nunca (el atajo veía todo igual y deps-hinchada no corría: el .zip de Windows salía
+# con la hinchada vieja).
 DEPS_ATAJO = python3 tools/ci/huellas.py atajo --entrada Makefile --entrada mk --entrada versions.cmake --entrada tools/deps \
 	--entrada cmake/estaticas --entrada cmake/mbedtls_user_config.h \
-	--entrada cmake/toolchains --centinelas $(EXTERNS_DIR) --texto "BA_ACCEPT_MSVC_LICENSE=$(BA_ACCEPT_MSVC_LICENSE)"
+	--entrada cmake/toolchains --centinelas $(EXTERNS_DIR) --texto "BA_ACCEPT_MSVC_LICENSE=$(BA_ACCEPT_MSVC_LICENSE)" \
+	--texto "hinchada $(HINCHADA_HUELLA)"
 
 # Recepcion NDI abierta: libNoIDea + libmicrodns por commit fijado.
 deps-ndi-src:
@@ -230,6 +235,8 @@ deps-pinggy:
 # (`make -C ../hinchada paquete`) y quedan en extern/hinchada/<plataforma>; el bundle lo
 # lleva en bin/64bit/hinchada/. La Mac copia la carpeta del paquete; Linux y Windows, sus .tar.gz.
 HINCHADA_DIR ?= $(abspath $(CURDIR)/../hinchada)
+# Lo que hay en sus paquetes (para la clave de DEPS_ATAJO): los .tar.gz y el VERSION del de la Mac.
+HINCHADA_HUELLA = $(shell cat $(HINCHADA_DIR)/dist/hinchada-*.tar.gz $(HINCHADA_DIR)/dist/hinchada-macos-arm64/VERSION 2>/dev/null | $(SHA256) | cut -c1-16)
 ifeq ($(shell uname -s)-$(shell uname -m),Linux-aarch64)
 # hinchada no arma paquete para Linux arm64 (sus paquetes: macos-arm64, linux-x86_64,
 # windows-x86_64): se dice y se sigue; CMake lo marca como faltante (ba_falta).

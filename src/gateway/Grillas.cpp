@@ -625,6 +625,41 @@ bool Grillas::admin(long long fd, const std::string& method, const std::string& 
                            out.dump(-1, ' ', false, json::error_handler_t::replace));
         return true;
     }
+    if (path == "/api/v1/grillas/trazas") {
+        // SONDA: los últimos 15 s de cada persona (Retrato::PasoGuardado / PasoElegido), en µs
+        // del reloj de los sellos. Sin las sondas: {"sondas": false}.
+        json out{{"sondas", ba::diag::kSondasCuadros}};
+        BA_SONDA({
+            const std::int64_t ahoraUs = static_cast<std::int64_t>(ba::ipc::HealthBlock::nowQpc() / 1000);
+            const std::int64_t desde = ahoraUs - 15'000'000;
+            std::map<std::string, std::shared_ptr<Retrato>> rs;
+            {
+                std::lock_guard<std::mutex> l(retratosMu_);
+                for (const auto& [k, v] : retratos_) rs[k] = v;
+            }
+            json personas = json::object();
+            for (const auto& [k, r] : rs) {
+                json gs = json::array(), es = json::array();
+                std::lock_guard<std::mutex> l(r->m);
+                for (std::uint64_t i = r->nG > Retrato::kTraza ? r->nG - Retrato::kTraza : 0; i < r->nG; ++i) {
+                    const auto& x = r->trazaG[i % Retrato::kTraza];
+                    if (x.t >= desde)
+                        gs.push_back({x.t, x.red, x.rtp, x.instante, x.desfase, x.contenido, x.seq, std::round(x.brillo)});
+                }
+                for (std::uint64_t i = r->nE > Retrato::kTraza ? r->nE - Retrato::kTraza : 0; i < r->nE; ++i) {
+                    const auto& x = r->trazaE[i % Retrato::kTraza];
+                    if (x.tic >= desde) es.push_back({x.tic, x.objetivo, x.instante, x.seq, x.canal});
+                }
+                personas[k] = {{"g", std::move(gs)}, {"e", std::move(es)}};
+            }
+            out["ahora_us"] = ahoraUs;
+            out["campos_g"] = {"t", "red", "rtp", "instante", "desfase", "contenido", "seq", "brillo"};
+            out["campos_e"] = {"tic", "objetivo", "instante", "seq", "canal"};
+            out["personas"] = std::move(personas);
+        })
+        http::sendResponse(fd, 200, "application/json", out.dump(-1, ' ', false, json::error_handler_t::replace));
+        return true;
+    }
     if (path != "/api/v1/grillas") return false;
     if (method == "GET") {
         http::sendResponse(fd, 200, "application/json", estado().dump(-1, ' ', false, json::error_handler_t::replace));
@@ -736,6 +771,27 @@ void Grillas::guardarCelda(PedidoCelda&& p) {
         else r.atrasoNs += (d - r.atrasoNs) / (d > r.atrasoNs ? 8 : 128);
         r.atrasoQpc = llego;
     }
+    BA_SONDA({
+        // El brillo de la caja del destello de hinchada (--sincronia si: abajo a la derecha,
+        // 1/8 del lado; 3×3 puntos de su centro, como motor/AnalisisCeldas::brilloDestello).
+        float suma = 0;
+        for (int j = 0; j < 3; ++j)
+            for (int i = 0; i < 3; ++i) {
+                const int py = std::clamp(static_cast<int>((0.905 + 0.03 * j) * nueva.h), 0, nueva.h - 1);
+                const int px = std::clamp(static_cast<int>((0.905 + 0.03 * i) * nueva.w), 0, nueva.w - 1);
+                const std::uint8_t* q = nueva.px.data() + (static_cast<std::size_t>(py) * nueva.w + px) * 4;
+                suma += (static_cast<float>(q[0]) + q[1] + q[2]) / 3.0f;
+            }
+        Retrato::PasoGuardado& g = r.trazaG[r.nG++ % Retrato::kTraza];
+        g = {static_cast<std::int64_t>(ba::ipc::HealthBlock::nowQpc() / 1000),
+             static_cast<std::int64_t>(p.llegadaRedQpc / 1000),
+             r.conRtp ? r.rtpExt * 1'000'000LL / 90000 : 0,
+             static_cast<std::int64_t>(instante / 1000),
+             r.desfaseRtpNs / 1000,
+             static_cast<std::int64_t>(p.contenidoQpc / 1000),
+             nueva.seq,
+             suma / 9.0f};
+    })
     if (p.vivo_) r.vivoMs = ahora;
 }
 
@@ -1005,6 +1061,9 @@ void Grillas::pintarLocked(Grilla& g, std::int64_t ahora, std::uint64_t ticQpc) 
             std::lock_guard<std::mutex> l(ret->m);
             const auto v = g.visto.find(persona);
             const Foto* f = ret->elegir(v != g.visto.end() ? v->second : 0, ahora, atrasoMs, objetivo, esperaMaxMs);
+            BA_SONDA(if (f != nullptr && !a.sale) ret->trazaE[ret->nE++ % Retrato::kTraza] = {
+                         static_cast<std::int64_t>(ticQpc / 1000), static_cast<std::int64_t>(objetivo / 1000),
+                         static_cast<std::int64_t>(f->instante / 1000), f->seq, g.canal};)
             if (f != nullptr && !f->px.empty()) {
                 // El ritmo de lo que se ve: un cuadro suyo nuevo en el mosaico (y los que se saltearon).
                 if (!a.sale) {
