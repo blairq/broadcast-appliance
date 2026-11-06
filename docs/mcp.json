@@ -8,10 +8,10 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 858,
+  "cuantas": 861,
   "por_clase": {
-    "lectura": 285,
-    "escritura": 505,
+    "lectura": 287,
+    "escritura": 506,
     "aire": 50,
     "ui": 18
   },
@@ -956,9 +956,12 @@
         "prueba_sala_arrancar",
         "prueba_sala_entrada_directa",
         "prueba_sala_estado",
+        "prueba_sala_generar",
         "prueba_sala_informe",
         "prueba_sala_parar",
         "prueba_sala_revisar",
+        "pruebas_historial",
+        "pruebas_ver",
         "room_link",
         "room_pin",
         "room_pin_bloqueos",
@@ -20089,7 +20092,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 497
+        "linea": 498
       },
       "roles": [
         "asistente"
@@ -20129,7 +20132,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 469
+        "linea": 470
       },
       "roles": [
         "asistente"
@@ -20155,7 +20158,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 426
+        "linea": 427
       },
       "roles": [
         "asistente"
@@ -20341,7 +20344,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 542
+        "linea": 543
       },
       "roles": [
         "asistente"
@@ -20384,7 +20387,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 228
+        "linea": 229
       },
       "roles": [
         "asistente"
@@ -20457,7 +20460,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 646
+        "linea": 647
       },
       "roles": [
         "asistente"
@@ -20500,7 +20503,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 405
+        "linea": 406
       },
       "roles": [
         "asistente"
@@ -20561,7 +20564,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 279
+        "linea": 280
       },
       "roles": [
         "asistente"
@@ -20610,7 +20613,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 326
+        "linea": 327
       },
       "roles": [
         "asistente"
@@ -29979,7 +29982,7 @@
       "nombre": "prueba_sala_arrancar",
       "titulo": "Arrancar una prueba de sala",
       "categoria": "sala",
-      "descripcion": "Simulacro antes del evento: entran `participantes` de prueba por el camino real de los invitados (video con su número y voz sintética) durante `minutos`, para ver si la máquina y la red aguantan. Con `hinchada` (de fábrica, si viene en el programa) los genera esta máquina; si no, devuelve la URL y la credencial de prueba para un generador externo.",
+      "descripcion": "Simulacro antes del evento: entran `participantes` de prueba por el camino real de los invitados (video con su número y voz sintética) durante `minutos`, para ver si la máquina y la red aguantan. Con `hinchada` (de fábrica, si viene en el programa) los genera esta máquina; si no, devuelve la URL y la credencial de prueba para un generador externo. `decodificar`: cuánto del video que vuelve decodifica el probador («muestra», de fábrica: unos pocos, lo justo para ver que el retorno llega bien sin cargar la máquina que genera; «nada»: solo envía; «todo»: cada uno decodifica lo suyo). `otras_maquinas` > 0 reparte los N entre esta y otras PC: devuelve en `reparto` el código (BAGEN1.…) que se pega en la otra app (prueba_sala_generar) o la línea de hinchada para correr allá.",
       "esquema": {
         "type": "object",
         "required": [
@@ -30059,7 +30062,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 76
+        "linea": 93
       },
       "roles": [
         "asistente",
@@ -30071,7 +30074,7 @@
       "nombre": "prueba_sala_estado",
       "titulo": "Cómo va la prueba de sala",
       "categoria": "sala",
-      "descripcion": "El estado de la prueba de sala: si corre, el generador, la entrada directa, la URL y la credencial (para un generador externo), el informe en vivo (cuántos entraron, con video, fallidos, cortes, la HD, el ancho de banda, la CPU de la app y del gateway, la memoria) y el resumen de la última.",
+      "descripcion": "El estado de la prueba de sala: si corre, el generador, la entrada directa, la URL y la credencial (para un generador externo), el informe en vivo (cuántos entraron, con video, fallidos, cortes, la HD, el ancho de banda, la CPU de la app, del gateway y del probador, la memoria), cuánto decodifica el probador, el reparto entre máquinas (cuántas se sumaron, su CPU y el código para sumar otra), si esta máquina está generando para otra (`generando`) y el resumen de la última.",
       "esquema": {
         "type": "object",
         "properties": {}
@@ -30087,7 +30090,46 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 96
+        "linea": 113
+      },
+      "roles": [
+        "asistente",
+        "recepcion",
+        "vigilante"
+      ]
+    },
+    {
+      "nombre": "prueba_sala_generar",
+      "titulo": "Generar para la prueba de sala de otro equipo",
+      "categoria": "sala",
+      "descripcion": "Esta máquina se suma como GENERADORA a la prueba de sala de OTRO BroadcastAppliance: con `on` y el `codigo` que muestra el otro en su prueba de sala con varias máquinas (BAGEN1.…), lanza hinchada acá y le manda parte de los participantes de prueba; termina sola cuando termina la prueba del otro. `on: false` deja de generar. Carga esta máquina: confirmalo con el operador.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "on"
+        ],
+        "properties": {
+          "on": {
+            "type": "boolean"
+          },
+          "codigo": {
+            "type": "string",
+            "description": "el código del otro equipo (BAGEN1.…)"
+          }
+        }
+      },
+      "clase": "escritura",
+      "hilo": "interfaz",
+      "soloLectura": false,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "generar carga para otro equipo otra pc otra maquina generadora sumarse codigo hinchada trabajador varias maquinas",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
+        "linea": 150
       },
       "roles": [
         "asistente",
@@ -30115,7 +30157,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 129
+        "linea": 178
       },
       "roles": [
         "asistente",
@@ -30143,7 +30185,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 59
+        "linea": 76
       },
       "roles": [
         "asistente",
@@ -30180,7 +30222,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
-        "linea": 110
+        "linea": 128
       },
       "roles": [
         "asistente",
@@ -30190,6 +30232,90 @@
       "origen": {
         "esquema": "inventario_anterior"
       }
+    },
+    {
+      "nombre": "pruebas_historial",
+      "titulo": "El historial de pruebas de esta máquina",
+      "categoria": "sala",
+      "descripcion": "Todas las pruebas de esta máquina, lo más nuevo primero: prueba de sala, capacidad (este equipo, otro equipo, la recibida desde otro, la conexión) y prueba de asamblea. Cada una con la fecha, el tipo, la máquina y la remota o las generadoras, cuántos participantes, la capacidad con margen y la máxima, lo que limitó, qué se decodificó y la versión del programa. Para una entera: pruebas_ver; para dos lado a lado: `comparar` con dos archivos. `csv`: la lista en CSV.",
+      "esquema": {
+        "type": "object",
+        "properties": {
+          "limite": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 500,
+            "default": 50
+          },
+          "comparar": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "minItems": 2,
+            "maxItems": 2,
+            "description": "dos `archivo` de la lista: sus números lado a lado"
+          },
+          "csv": {
+            "type": "boolean"
+          }
+        }
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "historial de pruebas pruebas anteriores capacidad medida comparar exportar csv cuando se probo",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
+        "linea": 195
+      },
+      "roles": [
+        "asistente",
+        "recepcion",
+        "vigilante"
+      ],
+      "contenidoNoConfiable": true
+    },
+    {
+      "nombre": "pruebas_ver",
+      "titulo": "Una prueba del historial, entera",
+      "categoria": "sala",
+      "descripcion": "Una prueba del historial de esta máquina, entera: los parámetros, la ficha de cada máquina (la local y la remota o las generadoras: sistema, CPU, núcleos, memoria, GPU, la red y si es Wi-Fi o cable), los resultados, las estadísticas y las series (CPU, memoria, red, grilla, audio, de los dos lados). Sin credenciales ni códigos. `archivo` sale de pruebas_historial.",
+      "esquema": {
+        "type": "object",
+        "required": [
+          "archivo"
+        ],
+        "properties": {
+          "archivo": {
+            "type": "string"
+          }
+        }
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "ver una prueba informe completo ficha de la maquina series estadisticas",
+        "porPrefijo": ""
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpPruebaSalaTools.cpp",
+        "linea": 231
+      },
+      "roles": [
+        "asistente",
+        "recepcion",
+        "vigilante"
+      ],
+      "contenidoNoConfiable": true
     },
     {
       "nombre": "room_link",
@@ -32172,7 +32298,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 761
+        "linea": 762
       },
       "roles": [
         "asistente"
@@ -32186,7 +32312,7 @@
       "nombre": "capacidad_arrancar",
       "titulo": "Arrancar una prueba de capacidad (cuántos invitados aguanta)",
       "categoria": "sistema",
-      "descripcion": "Prueba cuántos invitados aguanta un sistema. `prueba`: «este_equipo» (invitados de prueba generados acá contra esta misma conferencia, por escalones 10, 20, 40, 60, 80… hasta `tope` o hasta que se degrade), «remoto» (lo mismo contra OTRO BroadcastAppliance que está recibiendo: `codigo` es el que muestra el otro, empieza con BACAP1.) o «internet» (la conexión: el túnel WireGuard si está y el camino de los invitados por pinggy; con `prender_pinggy` lo prende si está apagado y lo apaga al terminar). Seguila con capacidad_estado.",
+      "descripcion": "Prueba cuántos invitados aguanta un sistema. `prueba`: «este_equipo» (invitados de prueba generados acá contra esta misma conferencia, por escalones 10, 20, 40, 60, 80… hasta `tope` o hasta que se degrade), «remoto» (lo mismo contra OTRO BroadcastAppliance que está recibiendo: `codigo` es el que muestra el otro, empieza con BACAP1.) o «internet» (la conexión: el túnel WireGuard si está y el camino de los invitados por pinggy; con `prender_pinggy` lo prende si está apagado y lo apaga al terminar). `decodificar` (este_equipo y remoto): cuánto del video que vuelve decodifica hinchada («muestra», de fábrica: unos pocos, para ver que el retorno llega bien sin cargar la máquina que genera; «nada»: solo envía; «todo»). Remoto con `minutos`: una prueba de sala contra la otra PC (N de una vez); varias PC pueden generar contra la misma pegando el mismo código. Lo de esta máquina (CPU, red, ficha) viaja al otro con cada pedido de su medida y queda en su informe. Seguila con capacidad_estado (con `serie`: los gráficos de CPU y red de los dos lados).",
       "esquema": {
         "type": "object",
         "required": [
@@ -32216,6 +32342,30 @@
           "prender_pinggy": {
             "type": "boolean",
             "description": "internet: prender pinggy para medir si está apagado"
+          },
+          "decodificar": {
+            "type": "string",
+            "enum": [
+              "nada",
+              "muestra",
+              "todo"
+            ],
+            "default": "muestra",
+            "description": "cuánto video que vuelve decodifica el probador"
+          },
+          "minutos": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 15,
+            "default": 0,
+            "description": "remoto: > 0 es una PRUEBA DE SALA contra el otro equipo (`tope` invitados de una vez, esos minutos) en vez de la rampa"
+          },
+          "muestra_pct": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 5,
+            "description": "con «muestra»: el % que se decodifica (al menos 3 por escalón)"
           },
           "confirmar": {
             "type": "boolean",
@@ -32260,7 +32410,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpCapacidadTools.cpp",
-        "linea": 133
+        "linea": 148
       },
       "roles": [
         "asistente"
@@ -32286,7 +32436,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpCapacidadTools.cpp",
-        "linea": 113
+        "linea": 128
       },
       "roles": [
         "asistente"
@@ -32332,7 +32482,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpCapacidadTools.cpp",
-        "linea": 83
+        "linea": 98
       },
       "roles": [
         "asistente"
@@ -32368,7 +32518,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpCapacidadTools.cpp",
-        "linea": 150
+        "linea": 165
       },
       "roles": [
         "asistente"
@@ -32554,7 +32704,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 607
+        "linea": 608
       },
       "roles": [
         "asistente"
@@ -32658,7 +32808,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpUiTools.cpp",
-        "linea": 723
+        "linea": 724
       },
       "roles": [
         "asistente"
