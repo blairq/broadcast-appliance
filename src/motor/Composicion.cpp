@@ -23,6 +23,7 @@
 #include <cstdlib>
 #include <atomic>
 #include <cmath>
+#include <memory>
 
 namespace ba::motor {
 
@@ -448,17 +449,54 @@ GQuark quarkMostrado() {
     return q;
 }
 
+Mostrado* mostradoDe(GstPad* pad) {
+    auto* p = pad != nullptr ? static_cast<std::shared_ptr<Mostrado>*>(g_object_get_qdata(G_OBJECT(pad), quarkMostrado())) : nullptr;
+    return p != nullptr ? p->get() : nullptr;
+}
+
 GstPadProbeReturn contarLlegada(GstPad* pad, GstPadProbeInfo*, gpointer) {
-    if (auto* m = static_cast<Mostrado*>(g_object_get_qdata(G_OBJECT(pad), quarkMostrado())))
-        m->nLlegan.fetch_add(1, std::memory_order_relaxed);
+    if (Mostrado* m = mostradoDe(pad)) m->nLlegan.fetch_add(1, std::memory_order_relaxed);
     return GST_PAD_PROBE_OK;
 }
 
-void mostradoEnPad(GstPad* pad, std::int64_t periodoUs) {
+/// El pad del agregador al que lleva `pad`: él mismo, o (glvideomixer es un bin: su pad es un
+/// fantasma que pasa por la subida y la conversión de GL) el que se encuentra siguiendo la cadena.
+GstPad* padDelAgregador(GstPad* pad) {
+    if (pad == nullptr) return nullptr;
+    if (GST_IS_AGGREGATOR_PAD(pad)) return GST_PAD(gst_object_ref(pad));
+    if (!GST_IS_GHOST_PAD(pad)) return nullptr;
+    GstPad* p = gst_ghost_pad_get_target(GST_GHOST_PAD(pad));
+    for (int salto = 0; p != nullptr && salto < 8; ++salto) {
+        if (GST_IS_AGGREGATOR_PAD(p)) return p;
+        GstElement* el = gst_pad_get_parent_element(p);
+        gst_object_unref(p);
+        p = nullptr;
+        if (el == nullptr) break;
+        if (GstPad* sale = gst_element_get_static_pad(el, "src")) {
+            p = gst_pad_get_peer(sale);
+            gst_object_unref(sale);
+        }
+        gst_object_unref(el);
+    }
+    if (p != nullptr) gst_object_unref(p);
+    return nullptr;
+}
+
+void mostradoEnPad(GstPad* fuera, std::int64_t periodoUs) {
     if constexpr (!ba::diag::kSondasCuadros) return;
-    if (pad == nullptr || !GST_IS_AGGREGATOR_PAD(pad)) return;
-    g_object_set_qdata_full(G_OBJECT(pad), quarkMostrado(), new Mostrado(periodoUs), [](gpointer p) { delete static_cast<Mostrado*>(p); });
+    GstPad* pad = padDelAgregador(fuera);
+    if (pad == nullptr) return;
+    // La misma medida en los dos pads (el del agregador, donde se mide, y el de afuera, donde
+    // la lee estado()): cada uno con su referencia, se va con el último.
+    const auto m = std::make_shared<Mostrado>(periodoUs);
+    const auto poner = [&m](GstPad* p) {
+        g_object_set_qdata_full(G_OBJECT(p), quarkMostrado(), new std::shared_ptr<Mostrado>(m),
+                                [](gpointer x) { delete static_cast<std::shared_ptr<Mostrado>*>(x); });
+    };
+    poner(pad);
+    if (fuera != pad) poner(fuera);
     gst_pad_add_probe(pad, GST_PAD_PROBE_TYPE_BUFFER, &contarLlegada, nullptr, nullptr);
+    gst_object_unref(pad);
 }
 
 void muestrasElegidas(GstAggregator* agg, GstSegment*, GstClockTime pts, GstClockTime, GstClockTime, GstStructure*, gpointer) {
@@ -467,7 +505,7 @@ void muestrasElegidas(GstAggregator* agg, GstSegment*, GstClockTime pts, GstCloc
     GValue v = G_VALUE_INIT;
     while (gst_iterator_next(it, &v) == GST_ITERATOR_OK) {
         auto* pad = GST_AGGREGATOR_PAD(g_value_get_object(&v));
-        if (auto* m = static_cast<Mostrado*>(g_object_get_qdata(G_OBJECT(pad), quarkMostrado())))
+        if (Mostrado* m = mostradoDe(GST_PAD(pad)))
             if (GstSample* s = gst_aggregator_peek_next_sample(agg, pad)) {
                 GstBuffer* b = gst_sample_get_buffer(s);
                 const GstClockTime t = b != nullptr ? GST_BUFFER_PTS(b) : GST_CLOCK_TIME_NONE;
@@ -497,9 +535,19 @@ void muestrasElegidas(GstAggregator* agg, GstSegment*, GstClockTime pts, GstCloc
 
 void mostradoEnMezclador(GstElement* mx) {
     if constexpr (!ba::diag::kSondasCuadros) return;
-    if (mx == nullptr || !GST_IS_AGGREGATOR(mx) || g_object_class_find_property(G_OBJECT_GET_CLASS(mx), "emit-signals") == nullptr) return;
-    g_object_set(mx, "emit-signals", TRUE, nullptr);
-    g_signal_connect(mx, "samples-selected", G_CALLBACK(&muestrasElegidas), nullptr);
+    if (mx == nullptr) return;
+    // glvideomixer es un bin: el agregador es su «mixer».
+    GstElement* agg = nullptr;
+    if (GST_IS_AGGREGATOR(mx))
+        agg = GST_ELEMENT(gst_object_ref(mx));
+    else if (g_object_class_find_property(G_OBJECT_GET_CLASS(mx), "mixer") != nullptr)
+        g_object_get(mx, "mixer", &agg, nullptr);
+    if (agg == nullptr) return;
+    if (GST_IS_AGGREGATOR(agg) && g_object_class_find_property(G_OBJECT_GET_CLASS(agg), "emit-signals") != nullptr) {
+        g_object_set(agg, "emit-signals", TRUE, nullptr);
+        g_signal_connect(agg, "samples-selected", G_CALLBACK(&muestrasElegidas), nullptr);
+    }
+    gst_object_unref(agg);
 }
 
 /// De los últimos 128: {cps, p50_ms, p95_ms, max_ms, huecos (> 1,5 cuadros del lienzo), n};
@@ -507,7 +555,7 @@ void mostradoEnMezclador(GstElement* mx) {
 /// (≥ 100 ms sin un cuadro nuevo), max_total_ms. null sin la sonda.
 json mostradoJson(GstPad* pad) {
     if constexpr (!ba::diag::kSondasCuadros) return json();
-    auto* m = pad != nullptr ? static_cast<Mostrado*>(g_object_get_qdata(G_OBJECT(pad), quarkMostrado())) : nullptr;
+    Mostrado* m = mostradoDe(pad);
     if (m == nullptr) return json();
     const auto z = m->nuevos.resumen(m->periodoUs);
     const auto r1 = [](double x) { return std::round(x * 10) / 10; };
