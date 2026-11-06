@@ -266,6 +266,13 @@ class MediaPump {
         // es lo que mira la placa para saber si el invitado tiene video.
         std::atomic<uint64_t> llegoNs{0};
         uint64_t minIntervalNs = 0;      // 0 = todos los cuadros; si no, tope de fps
+        // El tope de fps es un BALDE (GCRA), no «al menos minIntervalNs desde el último»: la
+        // hora teórica del próximo (`teoricoNs`) avanza minIntervalNs por cuadro publicado y
+        // pasa el que llega hasta un intervalo antes de esa hora. Con «desde el último», una
+        // cámara de 30 con su temblor (un cuadro a 28 ms del anterior) contra un tope de 30 ms
+        // perdía ese cuadro y la tarjeta mostraba un salto de 67 ms: 10-15 % de los cuadros
+        // (2026-11-05, la vista chica de cada invitado). En promedio el tope es el mismo.
+        std::atomic<uint64_t> teoricoNs{0};
         // Solo si alguien lo lee (SpoutSender::demanda): la cámara de los lugares del programa
         // y su vista chica. Con 40 en la grilla, ba-app lee pocas (las tarjetas que se ven, las
         // entradas de las escenas) y convertir cada cuadro entero para nadie era lo que más
@@ -296,6 +303,8 @@ class MediaPump {
     /// demanda —uno por segundo si solo mira de vez en cuando— y no topado de cps). Lo
     /// mismo para quiereCamara (antes de convertir) que para publishVideo (antes de copiar).
     static bool pideCuadro(const VideoOut& v, uint64_t ahoraNs);
+    /// Se publicó un cuadro real: corre el balde del tope de fps (ver VideoOut::teoricoNs).
+    static void publicado(VideoOut& v, uint64_t ahoraNs);
     /// Canal de audio B->A: ring + re-bloqueo a 10 ms + re-muestreo.
     struct AudioOut {
         ba::ipc::SharedAudioRing ring;

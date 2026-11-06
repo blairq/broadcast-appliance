@@ -69,6 +69,15 @@ endif()
 # DIAG_ACOPLES=0): con la opción apagada no se define BA_DIAG_ACOPLES, BA_ACOPLE queda en
 # ((void)0), no hay herramienta MCP diag_acoples y no queda ningún símbolo del detector.
 option(BA_DIAG_ACOPLES "El detector de acoples de la interfaz (desarrollo y pruebas; no en lo que se publica)" ON)
+# Las SONDAS del camino de los cuadros (src/core/diag/SondasCuadros.hpp, docs/local/camino-del-cuadro.md):
+# el ritmo de cada video en cada tramo (red, decodificador, grilla, publicación, interfaz), con cada
+# cuadro. Para encontrar dónde un video pierde la fluidez; nunca en lo que se usa en un evento.
+# `make app SONDAS=1` (mejor en otro BUILD_DIR: cambiarla recompila todo). Apagada, BA_SONDA(…) no
+# genera nada; queda solo lo del final del camino (ui/Fluidez: lo que se dibuja).
+option(BA_SONDAS_CUADROS "Sondas del ritmo de los cuadros en cada tramo (build de diagnóstico)" OFF)
+if(BA_SONDAS_CUADROS)
+    message(STATUS "BA_SONDAS_CUADROS: build con las sondas del camino de los cuadros")
+endif()
 # BA_DEPURACION: la información de depuración (-g; /Zi y /DEBUG en Windows). Prendida: los
 # volcados se leen con ella (dist/simbolos, tools/caidas). Apagada solo en las validaciones en
 # Docker que no guardan símbolos (DEPURACION=0, tools/ci/receta-docker.sh sin SIMBOLOS=1): con

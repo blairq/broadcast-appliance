@@ -4,6 +4,7 @@
 
 #include "ui/FrameService.hpp"
 
+#include "TimbreVistas.hpp"
 #include "Vistas.hpp" // motor: Cuadro y Pixeles
 #include "emision/ApiMotor.hpp"
 #include "ipc/SpoutTransport.hpp"
@@ -58,9 +59,40 @@ std::int64_t ahoraUs() {
 // (proximaMirada, F2-14), con un tope de 50 ms para ver los pedidos nuevos.
 // ============================================================================
 
+// ============================================================================
+// Despertador: poll APENAS llega un cuadro, no en la próxima vuelta del temporizador
+//
+// El temporizador de 16 ms (StudioViewModel) no tiene la fase de nadie: un video de 30
+// parejo se tomaba a veces 17 ms y a veces 50 ms después del anterior (2026-11-05, el
+// programa: lo que avanza el video, 33,3 exactos; cuándo se tomaba, p95 48,6 ms) y se veía a
+// saltos. Las vistas del motor (motor/TimbreVistas.hpp) y el hilo de los canales tocan este
+// timbre con cada cuadro nuevo; los toques se juntan (uno pendiente a la vez) y poll corre en
+// el hilo de la interfaz. El temporizador sigue para lo demás (pedir y soltar vistas).
+// ============================================================================
+
+struct FrameService::Despertador {
+    std::mutex mu;
+    FrameService* fs = nullptr; ///< bajo mu: nullptr cuando se va
+    std::atomic<bool> pendiente{false};
+
+    /// Desde cualquier hilo.
+    static void tocar(const std::shared_ptr<Despertador>& d) {
+        if (d->pendiente.exchange(true)) return; // ya hay uno en camino
+        std::lock_guard<std::mutex> l(d->mu);
+        if (d->fs == nullptr) return;
+        QMetaObject::invokeMethod(
+            d->fs,
+            [d]() {
+                d->pendiente = false;
+                if (d->fs != nullptr) d->fs->poll(); // en el hilo de la interfaz: el destructor también
+            },
+            Qt::QueuedConnection);
+    }
+};
+
 class FrameService::Canales {
    public:
-    Canales() : hilo_([this] { bucle(); }) {}
+    explicit Canales(std::function<void()> llego) : llego_(std::move(llego)), hilo_([this] { bucle(); }) {}
     ~Canales() {
         {
             std::lock_guard<std::mutex> l(mu_);
@@ -84,8 +116,13 @@ class FrameService::Canales {
         std::lock_guard<std::mutex> l(mu_);
         pedidos_ = std::move(pedidos);
     }
+    /// Una imagen leída y la hora en que el productor la publicó (µs, reloj monotónico).
+    struct Llegado {
+        QImage imagen;
+        std::int64_t origenUs = 0;
+    };
     /// Lo que llegó desde la última vez (por clave, la última imagen).
-    std::map<QString, QImage> tomar() {
+    std::map<QString, Llegado> tomar() {
         std::lock_guard<std::mutex> l(mu_);
         return std::exchange(llegados_, {});
     }
@@ -97,6 +134,7 @@ class FrameService::Canales {
         ba::ipc::SpoutReceiver r;
         std::int64_t intentoUs = 0; ///< el último intento de suscribirse
         std::int64_t leidoUs = 0;   ///< la última vez que se copió un cuadro
+        std::int64_t origenUs = 0;  ///< cuándo publicó el productor el último que se copió
     };
 
     void bucle() {
@@ -146,12 +184,19 @@ class FrameService::Canales {
         r.pedirTodos(mirado);
         if (!mirado && ahora - lec.leidoUs < 1'000'000) return;
         // Mirado, pero solo por celdas chicas (15 por segundo): no se copia cada cuadro del
-        // productor (640×360, ~0,9 MB) para tirar la mitad. Se despierta cuando toca.
-        // (El 90 %: el cuadro que llega apenas antes de cumplirse el intervalo vale.)
-        if (mirado && pedido.intervaloUs > 0 && ahora - lec.leidoUs < pedido.intervaloUs * 9 / 10) {
-            const auto toca = std::chrono::steady_clock::time_point(std::chrono::microseconds(lec.leidoUs + pedido.intervaloUs * 9 / 10));
-            despertar = std::min(despertar, std::max(toca, std::chrono::steady_clock::now()));
-            return;
+        // productor (640×360, ~0,9 MB) para tirar la mitad. Se elige por lo que AVANZÓ el video
+        // (cuándo publicó el productor el más nuevo, sin leerlo) desde el último copiado, con 3/4
+        // del intervalo de margen: de un canal de 30, uno sí y uno no, parejo. Antes era por el
+        // reloj de este hilo (el 90 % del intervalo desde la última copia): copiaba cada ~60 ms
+        // el último publicado y lo que se veía avanzaba 33, 67, 67, 33… ms (a saltos). Si no
+        // toca, se vuelve a mirar con el próximo que publique.
+        if (mirado && pedido.intervaloUs > 0 && lec.origenUs != 0) {
+            const auto envio = static_cast<std::int64_t>(r.ultimoEnvioNs() / 1000);
+            const std::int64_t avanzo = envio != 0 ? envio - lec.origenUs : ahora - lec.leidoUs;
+            if (avanzo < pedido.intervaloUs * 3 / 4) {
+                despertar = std::min(despertar, r.proximaMirada(std::chrono::milliseconds(50)));
+                return;
+            }
         }
         if (mirado) despertar = std::min(despertar, r.proximaMirada(std::chrono::milliseconds(50)));
         if (!r.hasData()) return;
@@ -164,6 +209,7 @@ class FrameService::Canales {
             return;
         }
         lec.leidoUs = ahora;
+        lec.origenUs = meta.qpc != 0 ? static_cast<std::int64_t>(meta.qpc / 1000) : ahora;
         // Un invitado chico viaja a su tamaño (F2-13): las filas, juntas, de ancho×4.
         const int w = meta.ancho != 0 ? static_cast<int>(meta.ancho) : r.width();
         const int h = meta.alto != 0 ? static_cast<int>(meta.alto) : r.height();
@@ -171,17 +217,21 @@ class FrameService::Canales {
             p, w, h, w * 4, QImage::Format_RGB32, [](void* q) { delete[] static_cast<std::uint8_t*>(q); }, p);
         ++leidos_;
         bytes_ += static_cast<std::uint64_t>(w) * static_cast<std::uint64_t>(h) * 4;
-        std::lock_guard<std::mutex> l(mu_);
-        llegados_[key] = std::move(img);
+        {
+            std::lock_guard<std::mutex> l(mu_);
+            llegados_[key] = Llegado{std::move(img), meta.qpc != 0 ? static_cast<std::int64_t>(meta.qpc / 1000) : ahora};
+        }
+        if (llego_) llego_(); // la interfaz lo toma ya (Despertador)
     }
 
     std::mutex mu_; // lo de abajo, hasta lectores_
     std::condition_variable cv_;
     bool seguir_ = true;
     std::vector<Pedido> pedidos_;
-    std::map<QString, QImage> llegados_;
+    std::map<QString, Llegado> llegados_;
     std::map<QString, Lector> lectores_; ///< solo el hilo
     std::atomic<std::uint64_t> leidos_{0}, bytes_{0};
+    std::function<void()> llego_;
     std::thread hilo_; // el último: arranca con todo lo de arriba ya construido
 };
 
@@ -203,10 +253,20 @@ FrameService::FrameService(ApiMotor& engine, Encargar encargar, int guests, QObj
     rotulos_ = new QQmlPropertyMap(this);
     connect(this, &FrameService::keysChanged, this, &FrameService::rehacerRotulos);
     setGuests(guests);
-    canales_ = std::make_unique<Canales>();
+    despertador_ = std::make_shared<Despertador>();
+    despertador_->fs = this;
+    canales_ = std::make_unique<Canales>([d = despertador_]() { Despertador::tocar(d); });
+    motor::ponerTimbreVistas([d = despertador_]() { Despertador::tocar(d); });
 }
 
-FrameService::~FrameService() = default;
+FrameService::~FrameService() {
+    motor::ponerTimbreVistas(nullptr);
+    {
+        std::lock_guard<std::mutex> l(despertador_->mu);
+        despertador_->fs = nullptr;
+    }
+    canales_.reset();
+}
 
 QStringList FrameService::keys() const {
     // Lo que se puede elegir para fondos, monitores y ventanas de salida. Los
@@ -455,17 +515,38 @@ bool FrameService::ultimo(const QString& clave, QImage& out, std::uint64_t& seri
     return true;
 }
 
+std::map<QString, std::shared_ptr<ba::diag::RitmoCuadros>> FrameService::ritmos() const {
+    std::map<QString, std::shared_ptr<ba::diag::RitmoCuadros>> out;
+    BA_SONDA(const std::int64_t ahora = ahoraUs();
+             for (const auto& [k, s] : slots_) if (s.ritmo && ahora - s.ritmo->ultimoUs() < 5'000'000) out[k] = s.ritmo;)
+    return out;
+}
+
+std::int64_t FrameService::origenUs(const QString& key) const {
+    const bool deSalida = key.startsWith(QLatin1String("program:")) || key.startsWith(QLatin1String("armada:"));
+    const auto it = slots_.find(deSalida ? clavePropia(key) : key);
+    return it != slots_.end() ? it->second.origenUs : 0;
+}
+
 bool FrameService::mirado() const { return ahoraUs() - leidoUs_ <= 1'000'000; }
+
+void FrameService::pollDelTemporizador() {
+    if (ahoraUs() - ultimoPollUs_ < 12'000) return;
+    poll();
+}
 
 void FrameService::poll() {
     const std::int64_t t0 = ahoraUs();
+    ultimoPollUs_ = t0;
     bool any = false;
     motor::Cuadro c;
     // Un canal del motor: solo si trae un cuadro nuevo, y sin copiarlo (envolver).
     const auto tomar = [&](const QString& key) {
         Slot& s = slots_[key];
         s.image = envolver(c);
+        s.origenUs = c.contenidoQpc != 0 ? static_cast<std::int64_t>(c.contenidoQpc / 1000) : t0;
         ++s.serial;
+        BA_SONDA(s.ritmo->cuadro(ahoraUs());)
         any = true;
     };
     // Programa: vista previa del motor (BGRA, ya escalada en la GPU).
@@ -524,10 +605,12 @@ void FrameService::poll() {
             else pedidos.push_back({key, it->second.pedidoUs, it->second.intervaloUs});
         }
         canales_->pedir(std::move(pedidos));
-        for (auto& [key, img] : canales_->tomar()) {
+        for (auto& [key, llegado] : canales_->tomar()) {
             Slot& s = slots_[key];
-            s.image = std::move(img);
+            s.image = std::move(llegado.imagen);
+            s.origenUs = llegado.origenUs;
             ++s.serial;
+            BA_SONDA(s.ritmo->cuadro(ahoraUs());)
             any = true;
         }
     }

@@ -19,6 +19,10 @@ build: _enlaces _estaticas
 _configurado: _enlaces _estaticas
 	@[ "$(PLATAFORMA)" != mac ] || [ -f "$(BUILD_DIR)/CMakeCache.txt" ] || $(MAKE) modelo-mac
 	@$(CONFIGURAR) --si-falta $(BUILD_DIR) $(BA_CMAKE_PERFIL) $(BA_CMAKE_PLATAFORMA) -DCMAKE_BUILD_TYPE=Release
+	@# Las sondas de los cuadros (SONDAS=1) sí se siguen: un build de diagnóstico no tiene que
+	@# quedar con ellas sin querer (ni al revés). Cambiarlas recompila casi todo.
+	@grep -q "^BA_SONDAS_CUADROS:BOOL=$(if $(filter 1,$(SONDAS)),ON,OFF)$$" $(BUILD_DIR)/CMakeCache.txt || \
+	  $(CONFIGURAR) $(BUILD_DIR) -DBA_SONDAS_CUADROS=$(if $(filter 1,$(SONDAS)),ON,OFF)
 
 # Las estáticas de terceros de esta plataforma (cmake/estaticas): si ya están con la misma
 # huella, nada (una cuenta, ~0,1 s); si no (otra configuración de mbedtls, una versión

@@ -2,6 +2,7 @@
 // src/motor/Vistas.cpp — ver Vistas.hpp
 // ============================================================================
 #include "Vistas.hpp"
+#include "TimbreVistas.hpp"
 #include "GpuPerdida.hpp"
 
 #include <cstdlib>
@@ -119,6 +120,7 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
         if (c.nv12 && (c.desdeUv == 0 || c.bgra.size() < bytes)) c.bgra = Pixeles(); // planos que no son los esperados
         c.contenidoQpc = contenidoQpc(sink, s, b);
         std::function<void(const Cuadro&)> aviso;
+        bool leida = false; // alguien la lee con `ultimo` (la interfaz): se le toca el timbre
         if (!c.bgra.empty()) {
             std::lock_guard<std::mutex> l(self->mu_);
             auto it = self->vistas_.find(ll->clave);
@@ -126,6 +128,7 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
                 c.serie = ++self->serie_;
                 it->second->cuadro = c; // el anterior se suelta acá (o cuando lo suelte quien lo tenga)
                 aviso = it->second->aviso;
+                leida = g_get_monotonic_time() - it->second->leidoUs < 500'000;
                 static const bool medir = [] {
                     const char* v = std::getenv("BA_MEDIR_VISTAS");
                     return v != nullptr && std::string(v) == "1";
@@ -151,6 +154,7 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
             }
         }
         if (aviso) aviso(c); // fuera del candado, con los mismos bytes
+        if (leida) tocarTimbreVistas(); // la interfaz lo toma ya, no en su próxima vuelta (TimbreVistas.hpp)
     }
     gst_sample_unref(s);
     return GST_FLOW_OK;

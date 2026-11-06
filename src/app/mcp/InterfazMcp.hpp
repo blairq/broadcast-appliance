@@ -138,6 +138,7 @@ namespace medios {
 class Playlist;
 }
 class PuestoCorreccion;
+class Fluidez;
 class AvisoFueraDeUi;
 class AlarmasViewModel;
 class AsambleaViewModel;
@@ -306,6 +307,7 @@ class InterfazMcp : public QObject {
     QObject* frames() const;
     bool gatewayAlive() const;
     escenas::ControlGrillas* grillasPersonas();
+    Fluidez* fluidez();
     HistoricoViewModel* historico() const;
     asamblea::InformesResultado* informes();
     QObject* inputs() const;

@@ -758,7 +758,7 @@ if(BA_APP_QT_OK)
                 ui/EscenasViewModel.cpp ui/EscritorioViewModel.cpp ui/EstadoAireViewModel.cpp
                 ui/EventoAbierto.cpp ui/EventoViewModel.cpp ui/EventosListaViewModel.cpp
                 ui/ExtensionesModel.cpp ui/FacebookViewModel.cpp ui/FilaViva.cpp
-                ui/Formulario.cpp ui/FotosPersonas.cpp ui/FrameService.cpp ui/FuenteQrPintor.cpp
+                ui/Formulario.cpp ui/FotosPersonas.cpp ui/FrameService.cpp ui/Fluidez.cpp ui/FuenteQrPintor.cpp
                 ui/GrabacionesModel.cpp ui/GraficoViewModel.cpp ui/GuionViewModel.cpp ui/HistoricoConsulta.cpp
                 ui/HistoricoViewModel.cpp ui/ImagenViewModel.cpp ui/ImagenViva.cpp
                 ui/InformeEventoViewModel.cpp ui/InputsViewModel.cpp ui/InterfazMcp.cpp

@@ -57,6 +57,8 @@
 #include <vector>
 
 #include "comun/UsoPorVistas.hpp"
+#include "diag/RitmoCuadros.hpp"
+#include "diag/SondasCuadros.hpp"
 #include "ipc/CanalesRegistro.hpp"
 #include "ui/ProveedorCuadros.hpp"
 
@@ -106,6 +108,7 @@ class FrameService : public ProveedorCuadros {
     /// de una grilla, 15 por segundo). Un canal entre procesos se lee al ritmo del que más
     /// quiera de los que lo leyeron en el último segundo.
     bool ultimo(const QString& key, QImage& out, std::uint64_t& serial, std::int64_t intervaloUs) const override;
+    std::int64_t origenUs(const QString& key) const override;
     /// Si alguien pidió un cuadro en el último segundo (una vista abierta): sin nadie, el
     /// que llama a poll lo puede espaciar.
     bool mirado() const;
@@ -139,10 +142,18 @@ class FrameService : public ProveedorCuadros {
     /// Lo que tarda `poll` en el hilo de la UI: {vueltas, ultimo_minuto: {p50_ms, p99_ms,
     /// max_ms}, canales: {leidos, bytes}} (F3-11: p99 < 1 ms).
     QJsonObject medidas() const;
+    /// SONDA: el ritmo de lo que llega de cada clave que alguien mira: {clave: RitmoCuadros} (la
+    /// fluidez, VideoItem::ritmos). Solo las que tuvieron un cuadro en los últimos 5 s. Vacío
+    /// sin BA_SONDAS_CUADROS.
+    std::map<QString, std::shared_ptr<ba::diag::RitmoCuadros>> ritmos() const;
 
    public slots:
     /// Trae frames nuevos (lo llama el timer de la UI, ~30 Hz).
     void poll();
+    /// La vuelta del temporizador (StudioViewModel): poll solo si el timbre (Despertador) no lo
+    /// llamó hace poco; con video andando, los cuadros los trae el timbre y esto queda para
+    /// pedir y soltar vistas (sin el doble de vueltas).
+    void pollDelTemporizador();
 
    signals:
     void keysChanged();
@@ -157,14 +168,20 @@ class FrameService : public ProveedorCuadros {
         QImage image;
         std::uint64_t serial = 0;
         std::uint64_t serieMotor = 0; ///< el último cuadro del motor que se tomó
+        std::int64_t origenUs = 0;    ///< la hora de lo que muestra `image` (ProveedorCuadros::origenUs)
         mutable std::int64_t pedidoUs = 0; ///< la última vez que alguien lo leyó (latest)
         /// Cada cuánto lo quiere el que más lo quiere (0: todos los cuadros) y cuándo lo
         /// renovó: el que pide más espaciado no lo pisa hasta que el otro deja de leer 1 s.
         mutable std::int64_t intervaloUs = 0;
         mutable std::int64_t intervaloVistoUs = 0;
+        /// SONDA: cada cuánto llega un cuadro nuevo de esta clave a la interfaz (diag/SondasCuadros.hpp).
+        BA_SONDA(std::shared_ptr<ba::diag::RitmoCuadros> ritmo = std::make_shared<ba::diag::RitmoCuadros>();)
     };
     /// El hilo que lee los canales entre procesos (en el .cpp).
     class Canales;
+    /// El que llama a poll apenas hay un cuadro nuevo (en el .cpp).
+    struct Despertador;
+    std::shared_ptr<Despertador> despertador_;
     ApiMotor& engine_; ///< solo lo que se lee desde cualquier hilo (las vistas)
     Encargar encargar_;
     int guests_ = 0;
@@ -202,6 +219,7 @@ class FrameService : public ProveedorCuadros {
     QJsonArray salidas_;
     QVariantMap colores_;
     std::uint64_t vueltas_ = 0;
+    std::int64_t ultimoPollUs_ = 0;
 };
 
 } // namespace ba::app

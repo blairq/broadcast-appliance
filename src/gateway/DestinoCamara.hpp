@@ -22,6 +22,10 @@
 #include <utility>
 
 #include "Grillas.hpp"
+#include "diag/RitmoCuadros.hpp"
+#include "diag/SondasCuadros.hpp"
+
+#include <nlohmann/json.hpp>
 
 namespace ba::gateway {
 
@@ -41,12 +45,24 @@ class DestinoCamara {
     bool quiereEntero() const;
     /// El cuadro entero en BGRA (filas de w*4) a ba-app.
     void entero(const std::uint8_t* bgra, int w, int h);
-    /// La celda que quiere la grilla para un cuadro de `w`x`h` (ver Grillas::pedirCelda).
-    Grillas::PedidoCelda pedirCelda(int w, int h);
+    /// La celda que quiere la grilla para un cuadro de `w`x`h` (ver Grillas::pedirCelda; `redUs`
+    /// y `decoUs`: cuándo llegó de la red y cuándo salió del decodificador, para su ritmo).
+    Grillas::PedidoCelda pedirCelda(int w, int h, std::int64_t redUs = 0, std::int64_t decoUs = 0);
     void guardarCelda(Grillas::PedidoCelda&& p);
     void soltarCelda(Grillas::PedidoCelda&& p);
     /// ¿Se puede achicar en la placa? (`gateway.celdaEnPlaca`; apagado: del cuadro bajado).
     static bool celdaEnPlaca();
+
+    /// SONDAS (diag/SondasCuadros.hpp; sin BA_SONDAS_CUADROS no hacen nada): el ritmo de cada
+    /// cuadro de esta cámara al llegar de la red (su primer paquete) y al salir del
+    /// decodificador (los dos en µs de libwebrtc), y el de lo publicado entero a ba-app.
+    void anotarLlegada(std::int64_t redUs, std::int64_t decoUs) {
+        BA_SONDA(if (redUs > 0) ritmoRed_.cuadro(redUs); if (decoUs > 0) ritmoDeco_.cuadro(decoUs);)
+        (void)redUs;
+        (void)decoUs;
+    }
+    /// {red, deco, entero: {cps, p50_ms, p95_ms, max_ms, huecos (> 1,5 × la mediana), n}}; vacío sin sondas.
+    nlohmann::json ritmo() const;
 
     const std::string& persona() const { return persona_; }
     int sesion() const { return sesion_; }
@@ -56,6 +72,7 @@ class DestinoCamara {
     int sesion_;
     Grillas* grillas_;
     std::string persona_;
+    BA_SONDA(ba::diag::RitmoCuadros ritmoRed_; ba::diag::RitmoCuadros ritmoDeco_; ba::diag::RitmoCuadros ritmoEntero_;)
 };
 
 } // namespace ba::gateway

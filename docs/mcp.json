@@ -8,9 +8,9 @@
     "«hay acople» llegue a audio_set sin que nadie nombre la herramienta."
   ],
   "fuente": "codigo",
-  "cuantas": 858,
+  "cuantas": 859,
   "por_clase": {
-    "lectura": 285,
+    "lectura": 286,
     "escritura": 505,
     "aire": 50,
     "ui": 18
@@ -1171,6 +1171,7 @@
         "video_entrada_virtual",
         "video_estado",
         "video_filtros",
+        "video_fluidez",
         "video_grafo",
         "video_grafo_limpiar",
         "video_modulos",
@@ -17858,7 +17859,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 85
+        "linea": 86
       },
       "roles": [
         "asistente",
@@ -17898,7 +17899,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 226
+        "linea": 258
       },
       "roles": [
         "asistente",
@@ -17939,7 +17940,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 195
+        "linea": 227
       },
       "roles": [
         "asistente",
@@ -17975,7 +17976,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 204
+        "linea": 236
       },
       "roles": [
         "asistente",
@@ -18003,7 +18004,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 58
+        "linea": 59
       },
       "roles": [
         "asistente",
@@ -18045,7 +18046,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 172
+        "linea": 204
       },
       "roles": [
         "asistente",
@@ -18074,6 +18075,13 @@
             "minItems": 4,
             "maxItems": 4,
             "description": "dónde está la grilla en el programa, en fracciones del lienzo"
+          },
+          "zonas": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            },
+            "description": "otras zonas del programa a medir igual (un invitado en su lugar, una cámara): [{id, x, y, w, h en fracciones del lienzo, cps que manda}]; el resultado va en `zonas`"
           }
         }
       },
@@ -18088,7 +18096,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 111
+        "linea": 112
       },
       "roles": [
         "asistente",
@@ -18135,7 +18143,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 186
+        "linea": 218
       },
       "roles": [
         "asistente",
@@ -18176,7 +18184,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGrillaTools.cpp",
-        "linea": 179
+        "linea": 211
       },
       "roles": [
         "asistente",
@@ -36579,6 +36587,33 @@
       "roles": [
         "asistente"
       ]
+    },
+    {
+      "nombre": "video_fluidez",
+      "titulo": "Si los videos se ven parejos o a saltos",
+      "categoria": "video",
+      "descripcion": "La app se mide sola, siempre: por cada video que dibuja, cada cuánto llega un cuadro nuevo en cada tramo (intervalo p50/p95/max en ms de los últimos 128, huecos = intervalos de más de 1,5 veces el período que debería tener, cps contra esperado_cps) y si viene «a_saltos» (sostenido 5 s; se avisa al operador). `grilla`: cada celda de la grilla de personas con lo del gateway (red: lo que llegó; deco: lo que salió del decodificador; guardado; pintado: lo que se ve en el mosaico, con salteados y repetidos; tirados) y el ritmo del mosaico publicado. `fuentes`: lo que llega a la interfaz por clave (program, guest:N…). `vistas`: cada video en pantalla (tomados, dibujados, salteados, tope_cps). `ventanas`: los cuadros que pone cada ventana en la pantalla. `peor`: el video con más huecos.",
+      "esquema": {
+        "type": "object",
+        "properties": {}
+      },
+      "clase": "lectura",
+      "hilo": "interfaz",
+      "soloLectura": true,
+      "destructiva": false,
+      "idempotente": false,
+      "etiquetas": {
+        "propias": "fluidez video a saltos entrecortado trabado cuadros perdidos repetidos ritmo intervalo fps parejo",
+        "porPrefijo": "video camara webcam dispositivo entrada"
+      },
+      "donde": {
+        "archivo": "src/app/mcp/McpGrillaTools.cpp",
+        "linea": 151
+      },
+      "roles": [
+        "asistente"
+      ],
+      "contenidoNoConfiable": true
     },
     {
       "nombre": "video_grafo",

@@ -12,9 +12,12 @@
 // que kLadoMinimo en algún lado, no pide cuadros, no los sube ni redibuja la
 // ventana; al volverse visible, entrar a la vista o agrandarse los pide.
 // Chico (una celda de la grilla de la sala, hasta kLadoChico), como mucho
-// kCpsChico cuadros por segundo (topeCps), y todos los chicos en el MISMO turno
-// del reloj: con 120 celdas, la ventana se redibuja ~15 veces por segundo por
-// ellas y no cada vez que llega el cuadro de alguna.
+// kCpsChico cuadros por segundo (topeCps): toma uno de cada tantos según lo que
+// AVANZA el video (la hora de origen de cada cuadro, ProveedorCuadros::origenUs),
+// no según un turno del reloj. Antes era un turno del reloj común a todos los
+// chicos (ahora / 66 ms): un video de 30 cuyos cuadros caían cerca del cambio de
+// turno tomaba a veces el de 33 ms y a veces el de 100 ms después (2026-11-05,
+// «los invitados se mueven a saltitos aunque sean dos»).
 // La textura es una sola por item y se reescribe en cada cuadro (sin crear y
 // soltar recursos de GPU por cuadro); se rehace solo si cambia el tamaño.
 // ============================================================================
@@ -27,6 +30,10 @@
 
 #include <atomic>
 #include <cstdint>
+#include <memory>
+#include <vector>
+
+#include "diag/RitmoCuadros.hpp"
 
 #include "ui/ProveedorCuadros.hpp"
 
@@ -69,6 +76,30 @@ class VideoItem : public QQuickItem {
     };
     static Contadores& contadores();
 
+    /// La FLUIDEZ de cada vista, siempre (diag/RitmoCuadros.hpp: anotar es barato): cada
+    /// cuánto toma un cuadro nuevo (`tomado`, hilo de la UI), cada cuánto lo sube a la GPU
+    /// para dibujarlo (`subido`, hilo de render), cuánto AVANZA lo que muestra entre uno y el
+    /// siguiente (`contenido`: la hora de origen de cada cuadro tomado; 15 cuadros por segundo
+    /// tomados parejos que muestran 33, 67, 33, 100 ms de video se ven a saltos) y los de la
+    /// fuente que nunca tomó (`salteados`). Lo lee video_fluidez / la Prueba de sala.
+    struct Ritmo {
+        QString fuente;
+        std::atomic<int> topeCps{0};     ///< el tope que usa ahora (0: todos)
+        std::atomic<int> lado{0};        ///< el lado más largo, px lógicos
+        std::atomic<bool> activa{false}; ///< visible, en la vista y no diminuta
+        ba::diag::RitmoCuadros tomado, subido, contenido;
+        std::atomic<std::uint64_t> salteados{0};
+    };
+    /// Las vistas vivas (una copia de los punteros: cada Ritmo vive lo que la que más lo use).
+    static std::vector<std::shared_ptr<Ritmo>> ritmos();
+    /// El ritmo de los cuadros de cada ventana (frameSwapped, hilo de render): lo que de
+    /// verdad llega a la pantalla. {titulo, ritmo}.
+    struct RitmoVentana {
+        QString titulo;
+        ba::diag::RitmoCuadros swaps;
+    };
+    static std::vector<std::shared_ptr<RitmoVentana>> ritmosVentanas();
+
     explicit VideoItem(QQuickItem* parent = nullptr);
     ~VideoItem() override;
 
@@ -110,15 +141,17 @@ class VideoItem : public QQuickItem {
     bool diminuto() const { return diminuto(size()); }
     /// Cada cuánto toma un cuadro (µs; 0: todos), según topeCps y el tamaño.
     std::int64_t intervaloUs() const;
-    /// Trae lo último que haya, sin esperar el turno (al cambiar de fuente, volver a la vista…).
+    /// Trae lo último que haya, sin esperar a que le toque (al cambiar de fuente, volver a la vista…).
     void traer(bool sinTurno);
 
     QString source_ = "program";
     FillMode fillMode_ = Fit;
     QImage image_;
     std::uint64_t serial_ = 0;
-    std::int64_t turno_ = -1; ///< el turno del reloj (ahora / intervalo) del último cuadro tomado
+    std::int64_t origenTomado_ = 0; ///< la hora de origen del último cuadro tomado (0 = no se sabe)
+    std::int64_t tomadoUs_ = 0;     ///< cuándo se tomó (si la fuente no dice su hora de origen)
     int topeCps_ = -1;
+    std::shared_ptr<Ritmo> ritmo_;
     bool dirty_ = false;
     bool enVista_ = true;
     static QPointer<ProveedorCuadros> service_;
