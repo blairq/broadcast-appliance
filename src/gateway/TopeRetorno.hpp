@@ -107,6 +107,9 @@ class ReguladorRetorno {
     int tope() const;
     bool automatico() const { return a_.fijo <= 0; }
     Causa causa() const { return causa_; }
+    /// Cuántas veces cambió (el tope, el modo o la causa): el que publica el estado en la sala
+    /// sabe así si tiene que esperarla (un cambio) o si es solo la medida de cada segundo.
+    std::uint64_t cambios() const { return cambios_; }
     /// La medida que decidió el último cambio (promediada).
     const MedidaRetorno& medidaDelCambio() const { return medidaCambio_; }
     /// El promedio de los últimos segundos (lo que se está mirando).
@@ -132,6 +135,7 @@ class ReguladorRetorno {
     std::int64_t margenDesde_ = 0;      ///< desde cuándo sobra (0 = no)
     std::int64_t ultimoCambio_ = 0;
     std::int64_t desdeMs_ = 0;
+    std::uint64_t cambios_ = 0;
     /// Por escalón: con cuántos oyentes no llegaba al bajar de él, cuándo y cuánto esperar
     /// para volver a probarlo con la misma gente.
     struct Recuerdo {

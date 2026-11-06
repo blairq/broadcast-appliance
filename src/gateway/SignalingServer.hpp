@@ -784,6 +784,7 @@ class SignalingServer {
     std::map<int, std::pair<std::uint64_t, std::uint64_t>> retornoAntes_;
     std::uint64_t codifAntes_ = 0, descAntes_ = 0; ///< del codificador del retorno (solo bucleCarga)
     std::int64_t retornoAntesMs_ = 0;
+    std::uint64_t cambiosEnSala_ = 0; ///< los cambios del regulador ya pasados a la sala (solo bucleCarga)
 
    public:
     /// Para gateway_estado (`videoSegunCarga`): {pausados, frenados, cps:{pid: cps},

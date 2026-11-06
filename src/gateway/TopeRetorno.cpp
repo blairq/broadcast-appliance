@@ -124,6 +124,7 @@ void ReguladorRetorno::cambiar(int escalon, Causa c, const MedidaRetorno& m, std
     ultimoCambio_ = ahoraMs;
     desdeMs_ = ahoraMs;
     presionDesde_ = margenDesde_ = 0;
+    ++cambios_;
 }
 
 bool ReguladorRetorno::medir(const MedidaRetorno& m, std::int64_t ahoraMs) {

@@ -4004,14 +4004,20 @@ void SignalingServer::ajustarTopeRetorno() {
     const std::vector<CapaRetorno> capas = capasRetorno();
     a.escalones = escalonesDesde(capas.empty() ? 720 : capas.front().alto);
     json estado;
+    std::uint64_t cambios = 0;
     {
         std::lock_guard<std::mutex> l(cpsMu_);
         reguladorTope_.ajustes(a);
         if (reguladorTope_.medir(m, ahora)) log_.info(reguladorTope_.motivo());
         ponerTopeSala(reguladorTope_.tope());
         estado = reguladorTope_.estado(false);
+        cambios = reguladorTope_.cambios();
     }
-    room_.setRetornoTope(estado);
+    // A la sala: un cambio (tope, modo o causa) se espera; la medida de cada segundo, no (si la
+    // sala está ocupada, va la del segundo que viene). Este hilo no se queda esperando el
+    // candado de la sala (Room::setRetornoTope).
+    const bool cambio = cambios != cambiosEnSala_;
+    if (room_.setRetornoTope(estado, cambio)) cambiosEnSala_ = cambios;
 }
 
 json SignalingServer::estadoTopeRetorno() const {

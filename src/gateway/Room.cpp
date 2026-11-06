@@ -991,20 +991,23 @@ void Room::setSinRetorno(std::vector<int> lugares) {
     flush(out);
 }
 
-void Room::setRetornoTope(const json& t) {
+bool Room::setRetornoTope(const json& t, bool esperar) {
     Out out;
     {
-        std::lock_guard<std::mutex> lock(m_);
+        std::unique_lock<std::mutex> lock(m_, std::defer_lock);
+        if (esperar) lock.lock();
+        else if (!lock.try_lock()) return false;
         const auto clave = [](const json& j) {
             return j.value("modo", std::string()) + "/" + std::to_string(j.value("alto", 0)) + "/" +
                    j.value("causa", std::string());
         };
         const bool cambio = clave(retornoTope_) != clave(t);
         retornoTope_ = t;
-        if (!cambio) return;
+        if (!cambio) return true;
         out.roomChanged = true;
     }
     flush(out);
+    return true;
 }
 
 json Room::speakerCfgJson() const {

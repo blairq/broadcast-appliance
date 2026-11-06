@@ -8,6 +8,9 @@
 //      instante; con la máquina holgada un retorno lento es la red de alguien (no se toca); el
 //      codificador que descarta también baja; sube con margen sostenido; la histéresis; con la
 //      misma gente espera para volver a probar y la espera se duplica si recae; fijo manda.
+//   4. Lo que va a la sala: el regulador cuenta sus cambios (cambios()) y solo ESOS se esperan;
+//      la medida de cada segundo va a la sala sin esperar su candado (Room::setRetornoTope con
+//      esperar = false): con la sala libre entra y no publica nada; un cambio publica «room».
 // ============================================================================
 
 #include <cstdio>
@@ -15,6 +18,7 @@
 #include <vector>
 
 #include "RetornoCompartido.hpp"
+#include "Room.hpp"
 #include "TopeRetorno.hpp"
 
 using namespace ba::gateway;
@@ -188,6 +192,34 @@ void fijo() {
     CHECK(!r.estado(false).contains("decisiones"), "sin historial en la sala");
 }
 
+void sala() {
+    // El contador de cambios: uno por decisión, nada por la medida de cada segundo.
+    ReguladorRetorno r;
+    r.ajustes(AjustesTope{});
+    std::int64_t t = 0;
+    CHECK(r.cambios() == 0, "sin medir, sin cambios");
+    CHECK(r.medir(kMedio, t += 1000) && r.cambios() == 1, "la primera vuelta es un cambio (inicio)");
+    CHECK(correr(r, kMedio, t, 60000) < 0 && r.cambios() == 1, "la medida de cada segundo no es un cambio");
+    CHECK(correr(r, kNoLlega, t, 6000) > 0 && r.cambios() == 2 && r.tope() == 480, "bajar es un cambio");
+
+    // La sala: con esperar = false y la sala libre, entra; sin cambio de tope no publica.
+    Room room(Room::Cfg{});
+    int fotos = 0;
+    Room::Sinks s;
+    s.toHosts = [&](const std::string& ev, const nlohmann::json&) {
+        if (ev == "room") ++fotos;
+    };
+    room.setSinks(s);
+    nlohmann::json e = r.estado(false);
+    CHECK(room.setRetornoTope(e, true) && fotos == 1, "un cambio: espera y publica");
+    e["medida"]["cpu_maquina"] = 42.0;
+    CHECK(room.setRetornoTope(e, false), "la medida, con la sala libre, entra sin esperar");
+    CHECK(fotos == 1, "la medida sola no publica");
+    CHECK(room.snapshot()["retornoTope"]["medida"].value("cpu_maquina", 0.0) == 42.0, "la foto lleva la medida nueva");
+    CHECK(correr(r, kNoLlega, t, 6000) > 0 && r.tope() == 360 && r.cambios() == 3, "baja otra vez");
+    CHECK(room.setRetornoTope(r.estado(false), true) && fotos == 2, "el cambio publica");
+}
+
 } // namespace
 
 int main() {
@@ -196,6 +228,7 @@ int main() {
     bajar();
     subir();
     fijo();
+    sala();
     if (g_fallos == 0) std::printf("test_tope_retorno: OK\n");
     return g_fallos == 0 ? 0 : 1;
 }

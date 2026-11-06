@@ -291,7 +291,12 @@ class Room {
     /// viaja en el snapshot como `retornoTope` ({modo, alto, causa, motivo, desdeMs, medida,
     /// decision, escalones}). Publica en el acto si cambió el tope, el modo o la causa; la
     /// medida de cada segundo viaja con el próximo snapshot.
-    void setRetornoTope(const nlohmann::json& t);
+    /// `esperar` = false (la medida de cada segundo, desde el hilo de la carga): si la sala está
+    /// ocupada no la espera y devuelve false (esa medida se pierde; la próxima llega en un
+    /// segundo). Con la sala llena el candado se demora: medido el 2026-11-05 en la PC de
+    /// pruebas, hasta 980 ms mientras entraban 200, y ese hilo es también el que pide las capas
+    /// de cada cámara cada 250 ms. Un cambio de tope se pasa con `esperar` = true.
+    bool setRetornoTope(const nlohmann::json& t, bool esperar = true);
 
     /// Vista de solo lectura para la tablet: fila, fichas, tiempos (sin claves
     /// ni IPs ni chat).
