@@ -9,6 +9,7 @@
 
 #include "Piezas.hpp"
 #include "Reloj.hpp"
+#include "TrazaPad.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "ipc/HealthBlock.hpp"
 #include "ipc/HoraQpc.hpp"
@@ -89,6 +90,7 @@ std::uint64_t contenidoQpc(GstElement* sink, GstSample* s, GstBuffer* b) {
 GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
     auto* ll = static_cast<Llamada*>(d);
     auto* self = static_cast<Vistas*>(ll->vistas);
+    BA_SONDA(const std::int64_t llegoUs = ba::diag::TrazaCuadros::ahoraUs();)
     GstSample* s = gst_app_sink_pull_sample(GST_APP_SINK(sink));
     if (s == nullptr) return GST_FLOW_OK;
     GstVideoInfo info;
@@ -126,6 +128,10 @@ GstFlowReturn Vistas::alCuadro(GstElement* sink, gpointer d) {
             auto it = self->vistas_.find(ll->clave);
             if (it != self->vistas_.end()) {
                 c.serie = ++self->serie_;
+                // SONDA: el número de este cuadro en esta vista y su paso por el tramo «sale».
+                BA_SONDA(Una& un = *it->second; c.numero = ++un.numero;
+                         if (!un.trSale) un.trSale = ba::diag::traza("vista:" + ll->clave + ":sale");
+                         un.trSale->anotar(llegoUs, static_cast<std::int64_t>(c.contenidoQpc / 1000), static_cast<std::int64_t>(c.numero));)
                 it->second->cuadro = c; // el anterior se suelta acá (o cuando lo suelte quien lo tenga)
                 aviso = it->second->aviso;
                 leida = g_get_monotonic_time() - it->second->leidoUs < 500'000;
@@ -210,6 +216,14 @@ void Vistas::armar(const std::string& clave, Una& u) {
     g_signal_connect_data(s, "new-sample", G_CALLBACK(&Vistas::alCuadro), new Llamada{this, clave},
                           [](gpointer d, GClosure*) { delete static_cast<Llamada*>(d); }, static_cast<GConnectFlags>(0));
     gst_object_unref(s);
+    // SONDA: lo que entra a la vista (antes de achicarla en la GPU), con su hora.
+    BA_SONDA(if (GstElement* en = gst_bin_get_by_name(GST_BIN(p), "entra")) {
+        if (GstPad* pad = gst_element_get_static_pad(en, "src")) {
+            trazarPad(pad, "vista:" + clave + ":entra");
+            gst_object_unref(pad);
+        }
+        gst_object_unref(en);
+    })
     // BA_MEDIR_VISTAS=1: lo que ENTRA a la vista (para separar «no llega» de «no da abasto»).
     if (const char* m = std::getenv("BA_MEDIR_VISTAS"); m != nullptr && std::string(m) == "1")
         if (GstElement* en = gst_bin_get_by_name(GST_BIN(p), "entra")) {

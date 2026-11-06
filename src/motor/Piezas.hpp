@@ -292,8 +292,9 @@ void fuentesDePruebaEnHora(GstElement* pipeline, GstClockTime ahora);
 /// `antes` corre en ese hilo justo antes de recalcular: poner la latencia en
 /// el mezclador (min-upstream-latency) toma su candado, que el recálculo tiene
 /// mientras dura; hecho desde el bucle del motor, lo trababa igual. Un pedido
-/// pendiente se queda con el último `antes`.
-void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes = {});
+/// pendiente se queda con el último `antes`. `despues` corre en ese hilo con la latencia ya
+/// repartida (para lo que se ajusta a ella; también se queda el último).
+void recalcularLatenciaAparte(GstElement* pipeline, std::function<void()> antes = {}, std::function<void()> despues = {});
 
 /// Suelta los hilos de las fuentes que ya terminaron (pasó el EOS y su tarea
 /// quedó en pausa): una fuente de un cuadro (el rótulo, un color, la placa)

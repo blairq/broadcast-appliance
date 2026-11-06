@@ -205,6 +205,9 @@ class Composicion {
         bool saliendo = false;
     };
     void aplicarLatencia();
+    /// Lo que deja cada intersink esperando justo al plazo de su mezclador (sale a su hora, ver
+    /// el .cpp): corre después de cada recálculo de la latencia.
+    std::function<void()> alinearSalidas() const;
     void ponerCapa(Rama& r, const Capa& c, double alfa);
     /// Los números de la sombra a su elemento, con la caja (en el lienzo) donde se ve la imagen.
     static void ponerSombra(Rama& r, const SombraCapa& s, int margen, int cajaAncho, int cajaAlto, bool contener);

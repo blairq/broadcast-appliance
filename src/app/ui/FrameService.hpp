@@ -59,6 +59,7 @@
 #include "comun/UsoPorVistas.hpp"
 #include "diag/RitmoCuadros.hpp"
 #include "diag/SondasCuadros.hpp"
+#include "diag/TrazaCuadros.hpp"
 #include "ipc/CanalesRegistro.hpp"
 #include "ui/ProveedorCuadros.hpp"
 
@@ -176,6 +177,9 @@ class FrameService : public ProveedorCuadros {
         mutable std::int64_t intervaloVistoUs = 0;
         /// SONDA: cada cuánto llega un cuadro nuevo de esta clave a la interfaz (diag/SondasCuadros.hpp).
         BA_SONDA(std::shared_ptr<ba::diag::RitmoCuadros> ritmo = std::make_shared<ba::diag::RitmoCuadros>();)
+        /// SONDA: cada cuadro tomado, con su hora de origen y su número en la vista del motor
+        /// (diag/TrazaCuadros: «ui:<clave>:tomado»).
+        BA_SONDA(std::shared_ptr<ba::diag::TrazaCuadros> traza;)
     };
     /// El hilo que lee los canales entre procesos (en el .cpp).
     class Canales;
