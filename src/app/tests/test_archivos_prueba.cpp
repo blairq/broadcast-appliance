@@ -82,15 +82,15 @@ int main(int argc, char** argv) {
     {
         const fs::path consola = base / "consola.txt";
         CHECK(ar::leerLineasDesde(consola, 0).texto.empty() && ar::leerLineasDesde(consola, 0).hasta == 0, "sin archivo: nada");
-        std::ofstream(consola) << "uno\ndos\ntr";
+        std::ofstream(consola, std::ios::binary) << "uno\ndos\ntr"; // binario: en Windows el modo texto escribe \r\n
         ar::Tramo t = ar::leerLineasDesde(consola, 0);
         CHECK(t.texto == "uno\ndos\n" && t.hasta == 8, "lee las líneas enteras (la de la mitad, la próxima)");
-        std::ofstream(consola, std::ios::app) << "es\ncuatro\n";
+        std::ofstream(consola, std::ios::binary | std::ios::app) << "es\ncuatro\n";
         t = ar::leerLineasDesde(consola, t.hasta);
         CHECK(t.texto == "tres\ncuatro\n", "sigue desde donde quedó");
         const ar::Tramo nada = ar::leerLineasDesde(consola, t.hasta);
         CHECK(nada.texto.empty() && nada.hasta == t.hasta, "sin nada nuevo: nada");
-        std::ofstream(consola) << "otra\n";
+        std::ofstream(consola, std::ios::binary) << "otra\n";
         CHECK(ar::leerLineasDesde(consola, t.hasta).texto == "otra\n", "si lo volvieron a empezar, desde el principio");
         std::ofstream(consola) << "1234567890";
         CHECK(ar::leerLineasDesde(consola, 0, 4).texto == "1234", "una línea más larga que el tope: se toma igual");
