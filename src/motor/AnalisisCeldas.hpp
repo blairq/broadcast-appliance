@@ -281,16 +281,25 @@ class AnalisisCeldas {
         for (std::size_t a = 0; a < inicios.size();) {
             std::size_t b = a;
             while (b < inicios.size() && inicios[b].t - inicios[a].t < 1'000'000'000LL) ++b;
+            // Uno por persona (una celda que cambió de lugar es otro tramo con el mismo id).
             std::vector<double> ts;
-            for (std::size_t k = a; k < b; ++k) ts.push_back(static_cast<double>(inicios[k].t) / 1e6);
+            std::vector<std::size_t> cuales;
+            std::vector<std::string> ids;
+            for (std::size_t k = a; k < b; ++k) {
+                const std::string& id = celdas_[inicios[k].celda].id;
+                if (std::find(ids.begin(), ids.end(), id) != ids.end()) continue;
+                ids.push_back(id);
+                ts.push_back(static_cast<double>(inicios[k].t) / 1e6);
+                cuales.push_back(inicios[k].celda);
+            }
             const double med = percentil(ts, 0.5);
             const double d = ts.back() - ts.front();
-            // Solo las vueltas que vio al menos la mitad de las celdas con destello.
-            if (conDestello > 0 && 2 * (b - a) >= conDestello) {
+            // Las vueltas que vieron al menos 3 personas.
+            if (ts.size() >= 3) {
                 dispersion.push_back(d);
-                for (std::size_t k = a; k < b; ++k) desfase[inicios[k].celda].push_back(static_cast<double>(inicios[k].t) / 1e6 - med);
+                for (std::size_t k = 0; k < ts.size(); ++k) desfase[cuales[k]].push_back(ts[k] - med);
                 if (eventos.size() < 20)
-                    eventos.push_back({{"t_ms", r1(ts.front() - static_cast<double>(primeroNs_) / 1e6)}, {"celdas", b - a}, {"dispersion_ms", r1(d)}});
+                    eventos.push_back({{"t_ms", r1(ts.front() - static_cast<double>(primeroNs_) / 1e6)}, {"celdas", ts.size()}, {"dispersion_ms", r1(d)}});
             }
             a = b;
         }
