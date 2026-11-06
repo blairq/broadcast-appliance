@@ -742,9 +742,11 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
                             for (const auto& c : x.value("celdas", json::array()))
                                 celdas.push_back({{"persona", c.value("persona", std::string())},
                                                   {"capa", c.value("capa", std::string())},
-                                                  {"ritmo", c.value("ritmo", json::object())}});
+                                                  {"ritmo", c.value("ritmo", json::object())},
+                                                  {"atraso_ms", c.value("atraso_ms", json())}});
                             gw.push_back({{"canal", x.value("canal", 0)},
                                           {"publicado", x.value("ritmo_publicado", json::object())},
+                                          {"espera_ms", x.value("espera_ms", json())},
                                           {"celdas", std::move(celdas)}});
                         }
                         r["gateway"] = std::move(gw);

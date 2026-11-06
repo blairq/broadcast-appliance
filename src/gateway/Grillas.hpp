@@ -166,6 +166,17 @@ class Grillas {
     struct PedidoCelda {
         int ancho = 0, alto = 0;       ///< a qué tamaño: el lugar más grande que ocupa, cubriéndolo (nunca más que el cuadro)
         std::vector<std::uint8_t> bgra; ///< ancho*alto*4 bytes, filas de ancho*4: a llenar
+        /// La hora de su contenido en el reloj de los sellos (HealthBlock::nowQpc, ns; 0 = no se
+        /// sabe): la que le dio libwebrtc (codecs::horaDeContenido: la captura del invitado
+        /// llevada a este reloj más la espera de su jitter buffer, sincronizada con su audio).
+        /// El pintor elige con ella el cuadro de cada celda: el mismo instante en todas.
+        std::uint64_t contenidoQpc = 0;
+        /// Su hora RTP (90 kHz, la del reloj de captura del que manda) y cuándo llegó de la red
+        /// su primer paquete (reloj de los sellos, ns; 0 = no se sabe): con las dos, el instante
+        /// de captura (Retrato::instanteDe), que no depende de la espera de cada jitter buffer ni
+        /// de cada decodificador.
+        std::uint32_t rtp = 0;
+        std::uint64_t llegadaRedQpc = 0;
         bool vale() const { return retrato_ != nullptr; }
 
        private:
@@ -261,13 +272,23 @@ class Grillas {
         int w = 0, h = 0;
         std::int64_t ms = 0;    ///< cuándo llegó
         std::uint64_t seq = 0;  ///< su número (1, 2, …; 0 = vacío)
+        /// El instante que muestra, en el reloj de los sellos (ns): el de su captura
+        /// (Retrato::instanteDe; sin RTP ni llegada, la hora de su contenido); 0 = no se sabe (se
+        /// elige por orden de llegada).
+        std::uint64_t instante = 0;
     };
     /// Cuántos cuadros guarda cada persona. El pintor muestra UNO NUEVO por vuelta (el
     /// siguiente al que mostró, ver Retrato::elegir), no el último que llegó: la cámara y el
     /// pintor van los dos a 30 pero sin la misma fase, y con el temblor de la red y del
     /// decodificador a veces llegaban dos entre una vuelta y la otra (uno se pisaba) y a
     /// veces ninguno (se repetía): 30 que llegan se veían a 24-27.
-    static constexpr int kCola = 4;
+    /// Con la hora de cada cuadro (Foto::instante), el pintor muestra en todas las celdas el
+    /// MISMO instante (el tic menos una espera común, Grilla::esperaNs): la cola guarda lo que
+    /// llega antes de su turno (la espera común es la del invitado más lento) y el elegido.
+    static constexpr int kCola = 8;
+    /// Los buffers del canal BA.Grilla.<k> (SlotConfig::buffers): como los de los invitados
+    /// (MediaPump::kBuffersMezcla), su lector en el motor los lee todos en orden.
+    static constexpr int kBuffersCanal = 6;
     struct Retrato {
         std::mutex m;
         Foto cola[kCola];             ///< los últimos, por seq % kCola
@@ -284,15 +305,51 @@ class Grillas {
         BA_SONDA(ba::diag::RitmoCuadros ritmoRed; ba::diag::RitmoCuadros ritmoDeco; ba::diag::RitmoCuadros ritmoGuardado;
                  std::atomic<std::uint64_t> tirados{0};)
         int fundidoPendienteMs = 0;   ///< > 0: el próximo cuadro en vivo arranca el fundido
+        /// Lo que tarda en llegar a la cola desde su instante (ns; llegada − Foto::instante):
+        /// sube rápido y baja despacio (un percentil alto, sin guardar la serie). Con él, el
+        /// pintor sabe cuánto esperar para que todos tengan el cuadro de un instante.
+        double atrasoNs = 0;
+        std::uint64_t atrasoQpc = 0;        ///< cuándo se midió (0 = nunca)
+        /// El reloj de captura del que manda (instanteDe): la hora RTP desenvuelta (64 bits) y el
+        /// desfase hasta el reloj de los sellos, el MÍNIMO de (llegada de la red − hora RTP): la
+        /// captura más la espera de red más corta, la misma para todos los de una red.
+        bool conRtp = false;
+        std::uint32_t rtpUltimo = 0;
+        std::int64_t rtpExt = 0;
+        std::int64_t desfaseRtpNs = 0;
+        /// El instante de captura de un cuadro, en el reloj de los sellos (ns): su hora RTP más el
+        /// desfase mínimo. Sin hora de red, 0. Con `m` tomado.
+        std::uint64_t instanteDe(std::uint32_t rtp, std::uint64_t llegadaRedQpc);
 
         /// El último que llegó (nullptr si ninguno). Con `m` tomado.
         const Foto* ultimo() const { return seq == 0 ? nullptr : &cola[seq % kCola]; }
         /// El que toca mostrar a quien ya mostró `visto`: el siguiente que tenga guardado,
         /// salvo los que llegaron hace más de `atrasoMs` (el pintor se los perdió: si hay uno
         /// más nuevo, se saltean). Sin nuevos, el último (se repite). Con `m` tomado.
-        const Foto* elegir(std::uint64_t visto, std::int64_t ahoraMs, std::int64_t atrasoMs) const {
+        ///
+        /// Con `objetivo` (el instante que muestra el mosaico en este tic, ns en el reloj de los
+        /// sellos; 0 = no hay) y cuadros con su instante: el más nuevo que no pasa de `objetivo`
+        /// (todas las celdas muestran el mismo instante, por más que cada decodificador entregue
+        /// a su ritmo); nunca uno anterior al que ya mostró. Si ninguno llegó todavía a ese
+        /// instante, se repite el que mostró, salvo que el siguiente lleve esperando más de
+        /// `esperaMaxMs` (su hora no es creíble: se muestra como antes, por orden de llegada).
+        const Foto* elegir(std::uint64_t visto, std::int64_t ahoraMs, std::int64_t atrasoMs, std::uint64_t objetivo = 0,
+                           std::int64_t esperaMaxMs = 0) const {
             if (seq == 0) return nullptr;
             const std::uint64_t primero = seq >= static_cast<std::uint64_t>(kCola) ? seq - kCola + 1 : 1;
+            if (objetivo != 0 && cola[seq % kCola].instante != 0) {
+                const Foto* elegido = nullptr;
+                for (std::uint64_t s = std::max(visto + 1, primero); s <= seq; ++s) {
+                    const Foto& f = cola[s % kCola];
+                    if (f.instante != 0 && f.instante <= objetivo) elegido = &f;
+                }
+                if (elegido != nullptr) return elegido;
+                const std::uint64_t siguiente = std::max(visto + 1, primero);
+                if (visto >= primero && visto <= seq && (siguiente > seq || ahoraMs - cola[siguiente % kCola].ms <= esperaMaxMs))
+                    return &cola[visto % kCola]; // todavía no es su hora: se repite
+                if (siguiente <= seq) return &cola[siguiente % kCola];
+                return &cola[seq % kCola];
+            }
             for (std::uint64_t s = std::max(visto + 1, primero); s < seq; ++s)
                 if (ahoraMs - cola[s % kCola].ms <= atrasoMs) return &cola[s % kCola];
             return &cola[seq % kCola];
@@ -354,6 +411,9 @@ class Grillas {
         /// SONDA: el ritmo de los mosaicos publicados (BA.Grilla.<k>).
         BA_SONDA(std::unique_ptr<ba::diag::RitmoCuadros> ritmoPublicado = std::make_unique<ba::diag::RitmoCuadros>();)
         bool sucia = true;
+        /// La espera común (ns): cada tic muestra el instante tic − esperaNs en todas las celdas
+        /// (Retrato::elegir). La del invitado más lento (Retrato::atrasoNs), suavizada; −1 = todavía no.
+        double esperaNs = -1;
         // medición
         std::uint64_t pintados = 0;
         double msPintar = 0;
@@ -378,7 +438,8 @@ class Grillas {
     /// Pinta el rótulo `r` en la celda `c` (con el estilo de la grilla).
     static void pintarRotulo(std::uint8_t* lienzo, int W, int H, const Grillas::Rect& celda, const Rotulo& r,
                              const EstiloRotulo& e);
-    void pintarLocked(Grilla& g, std::int64_t ahoraMs);
+    /// `ticQpc`: la hora del tic para el que se pinta (reloj de los sellos, ns; 0 = no se sabe).
+    void pintarLocked(Grilla& g, std::int64_t ahoraMs, std::uint64_t ticQpc = 0);
     void bucle();
     /// Saca los retratos que ninguna grilla usa ni anima (con mu_ tomado).
     void limpiarRetratosLocked();

@@ -315,6 +315,17 @@ void entregarCamara(const webrtc::VideoFrame& frame, DestinoCamara& destino, std
         cuenta.salteados.fetch_add(1, std::memory_order_relaxed);
         return;
     }
+    // La hora del contenido: ba-app la usa de PTS. La grilla elige el cuadro de cada celda por
+    // su instante de captura (el mismo en todas, Grillas::Retrato::elegir): su hora RTP y cuándo
+    // llegó de la red su primer paquete, en el reloj de los sellos.
+    const std::uint64_t contenido = horaDeContenido(frame);
+    celda.contenidoQpc = contenido;
+    celda.rtp = frame.timestamp();
+    if (!frame.packet_infos().empty() && horaContenido().hay.load(std::memory_order_relaxed)) {
+        const std::int64_t q = frame.packet_infos().begin()->receive_time().us() * 1000 +
+                               horaContenido().desfaseNs.load(std::memory_order_relaxed);
+        if (frame.packet_infos().begin()->receive_time().us() > 0 && q > 0) celda.llegadaRedQpc = static_cast<std::uint64_t>(q);
+    }
     ba::diag::MedirPase medir(fDecodificado, static_cast<std::uint64_t>(w) * h * 3 / 2);
     if (!frame.packet_infos().empty()) {
         const std::int64_t llego = frame.packet_infos().begin()->receive_time().us();
@@ -380,7 +391,7 @@ void entregarCamara(const webrtc::VideoFrame& frame, DestinoCamara& destino, std
             destino.guardarCelda(std::move(celda));
             cuenta.celdasCpu.fetch_add(1, std::memory_order_relaxed);
         }
-        destino.entero(bgra.data(), w, h, horaDeContenido(frame));
+        destino.entero(bgra.data(), w, h, contenido);
         cuenta.enteros.fetch_add(1, std::memory_order_relaxed);
         return;
     }
