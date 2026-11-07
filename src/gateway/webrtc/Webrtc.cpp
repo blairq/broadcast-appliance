@@ -2177,6 +2177,22 @@ nlohmann::json WebrtcHub::retornoCompartido() const {
     return out;
 }
 
+void WebrtcHub::sondearSenal() {
+    auto* st = static_cast<RtcHubState*>(rtcFactory_);
+    if (st == nullptr || !st->signaling) return;
+    static ba::diag::Frontera& f = ba::diag::frontera(
+        "rtc.senal", 0, "sonda → hilo de señalización de libwebrtc (ofertas, estados, estadísticas; uno para todas las fábricas)");
+    // Una sola en vuelo: si el hilo está trabado, no se apilan (la espera larga ya se anota
+    // cuando por fin corre).
+    static std::atomic<bool> enVuelo{false};
+    if (enVuelo.exchange(true)) return;
+    const std::uint64_t t0 = ba::diag::relojNs();
+    st->signaling->PostTask([t0] {
+        f.pase(0, 0, ba::diag::relojNs() - t0 + 1);
+        enVuelo.store(false);
+    });
+}
+
 nlohmann::json WebrtcHub::codecsVideo() const {
     if (rtcFactory_ != nullptr) return codecs::estado();
     return nlohmann::json::object();

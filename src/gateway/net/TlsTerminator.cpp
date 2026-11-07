@@ -8,10 +8,12 @@
 
 #include "net/TlsTerminator.hpp"
 
+#include "ajustes/Ajustes.hpp"
 #include "i18n/I18nTexto.hpp"
 #include "security/CredentialStore.hpp"
 #include "platform/Hilo.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cerrno>
 #include <chrono>
@@ -44,6 +46,7 @@ using SockT = SOCKET;
 #include <fcntl.h>
 #include <netinet/in.h>
 #include <netinet/tcp.h>
+#include <poll.h>
 #include <sys/select.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
@@ -90,6 +93,32 @@ bool sendAllRaw(long long s, const char* p, size_t n) {
         n -= static_cast<size_t>(r);
     }
     return true;
+}
+
+/// Espera hasta `ms` a que haya algo para leer en `a` o en `b` (bit 1: a, bit 2: b; -1 si
+/// falló). Con poll y no con select: select no sirve con descriptores de más de FD_SETSIZE
+/// (1024 en POSIX), y con cientos de conexiones abiertas los números pasan de ahí.
+int esperarLectura(long long a, long long b, int ms) {
+#ifdef _WIN32
+    WSAPOLLFD p[2]{};
+    p[0].fd = static_cast<SOCKET>(a);
+    p[0].events = POLLRDNORM;
+    p[1].fd = static_cast<SOCKET>(b);
+    p[1].events = POLLRDNORM;
+    const int r = WSAPoll(p, 2, ms);
+    const short hay = POLLRDNORM | POLLHUP | POLLERR;
+#else
+    pollfd p[2]{};
+    p[0].fd = static_cast<int>(a);
+    p[0].events = POLLIN;
+    p[1].fd = static_cast<int>(b);
+    p[1].events = POLLIN;
+    const int r = ::poll(p, 2, ms);
+    const short hay = POLLIN | POLLHUP | POLLERR;
+#endif
+    if (r < 0) return -1;
+    if (r == 0) return 0;
+    return ((p[0].revents & hay) ? 1 : 0) | ((p[1].revents & hay) ? 2 : 0);
 }
 
 std::string ipText(uint32_t netOrder) {
@@ -441,8 +470,16 @@ void TlsTerminator::acceptLoop() {
 #else
         if (c < 0) continue;
 #endif
-        if (active_.load() >= 64) {
+        // El tope de conexiones a la vez es el de la escucha de atrás (room.maxConexiones, una
+        // por invitado y algo más): el TLS no puede dejar entrar menos que la sala. Era 64 fijo
+        // y en Windows (donde el HTTPS de la red local lo atiende este terminador, no ba-web)
+        // la sala por https se llenaba en 64: el resto veía cerrar la conexión en el apretón
+        // de manos (2026-11-06, 200 invitados de prueba: entraban 64). El tope por IP lo pone
+        // la escucha de atrás, que recibe la IP real en la línea PROXY.
+        const int tope = (std::max)(64, ba::ajustes::entero("room.maxConexiones", 1024));
+        if (active_.load() >= tope) {
             closeSock(static_cast<long long>(c));
+            avisarTope(tope);
             continue;
         }
         active_++;
@@ -452,6 +489,20 @@ void TlsTerminator::acceptLoop() {
             active_--;
         }).detach();
     }
+}
+
+void TlsTerminator::avisarTope(int tope) {
+    // A lo sumo un aviso cada 10 s, con los rechazos callados en el medio.
+    const auto ahora = std::chrono::steady_clock::now().time_since_epoch();
+    const long long ms = std::chrono::duration_cast<std::chrono::milliseconds>(ahora).count();
+    long long antes = ultimoAvisoTope_.load();
+    if (ms - antes < 10000 || !ultimoAvisoTope_.compare_exchange_strong(antes, ms)) {
+        ++rechazosCallados_;
+        return;
+    }
+    if (log_)
+        log_(llenar(traducir("gateway", "https: conexión rechazada, tope de %1 conexiones a la vez (y %2 rechazos más sin anotar)"),
+                    {std::to_string(tope), std::to_string(rechazosCallados_.exchange(0))}));
 }
 
 void TlsTerminator::serve(long long fd, uint32_t peerIp, uint16_t peerPort) {
@@ -514,18 +565,14 @@ void TlsTerminator::serve(long long fd, uint32_t peerIp, uint16_t peerPort) {
     // --- Bombeo en los dos sentidos -------------------------------------------------
     std::vector<char> buf(16384);
     while (ok && !stop_.load()) {
-        fd_set rd;
-        FD_ZERO(&rd);
-        FD_SET(static_cast<SockT>(fd), &rd);
-        FD_SET(static_cast<SockT>(back), &rd);
-        timeval tv{0, 200000};
         const bool pending = mbedtls_ssl_get_bytes_avail(&ssl) > 0;
+        int listos = 0;
         if (!pending) {
-            const int s = select(static_cast<int>(std::max(fd, back)) + 1, &rd, nullptr, nullptr, &tv);
-            if (s < 0) break;
-            if (s == 0) continue;
+            listos = esperarLectura(fd, back, 200);
+            if (listos < 0) break;
+            if (listos == 0) continue;
         }
-        if (pending || FD_ISSET(static_cast<SockT>(fd), &rd)) {
+        if (pending || (listos & 1)) {
             const int n = mbedtls_ssl_read(&ssl, reinterpret_cast<unsigned char*>(buf.data()), buf.size());
             if (n > 0) {
                 if (!sendAllRaw(back, buf.data(), static_cast<size_t>(n))) break;
@@ -533,7 +580,7 @@ void TlsTerminator::serve(long long fd, uint32_t peerIp, uint16_t peerPort) {
                 break; // cierre del navegador o error
             }
         }
-        if (!pending && FD_ISSET(static_cast<SockT>(back), &rd)) {
+        if (!pending && (listos & 2)) {
             const int n = static_cast<int>(
                 ::recv(static_cast<SockT>(back), buf.data(), static_cast<int>(buf.size()), 0));
             if (n <= 0) break;

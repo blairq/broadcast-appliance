@@ -22,7 +22,8 @@
 //   Si la conexion viene del puente del tunel (127.0.0.1) con su propia
 //   cabecera PROXY, se respeta la IP original que trae.
 //
-// Threading: un thread de accept y uno por conexion.
+// Threading: un thread de accept y uno por conexion (hasta room.maxConexiones a la vez,
+// como la escucha de atrás).
 // ============================================================================
 #pragma once
 
@@ -75,6 +76,7 @@ class TlsTerminator {
     void acceptLoop();
     void serve(long long fd, uint32_t peerIp, uint16_t peerPort);
     void releaseWsa(); // suelta el WSAStartup propio (no-op fuera de Windows)
+    void avisarTope(int tope); // el rechazo por tope, al registro (uno cada 10 s)
 
     Config cfg_;
     LogFn log_;
@@ -85,6 +87,8 @@ class TlsTerminator {
     bool selfSigned_ = false;
     std::atomic<bool> stop_{false};
     std::atomic<int> active_{0};
+    std::atomic<long long> ultimoAvisoTope_{0};
+    std::atomic<int> rechazosCallados_{0};
     std::thread accept_;
 #ifdef _WIN32
     bool wsa_ = false; // WSAStartup propio (ver TlsTerminator.cpp, "Socket de escucha")
