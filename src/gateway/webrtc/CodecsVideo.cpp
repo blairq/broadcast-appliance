@@ -218,6 +218,7 @@ struct CuentaEntrega {
     std::atomic<std::uint64_t> celdasConEntero{0}; ///< … de esas, en la misma vuelta que el entero
     std::atomic<std::uint64_t> celdasCpu{0};    ///< celda achicada en el procesador
     std::atomic<std::uint64_t> fallas{0};       ///< no se pudo leer el cuadro
+    std::atomic<std::uint64_t> viejos{0};       ///< salió más tarde que gateway.cuadroViejoMs: no se entregó
 };
 CuentaEntrega& cuentaEntrega() {
     static CuentaEntrega c;
@@ -302,6 +303,19 @@ void entregarCamara(const webrtc::VideoFrame& frame, DestinoCamara& destino, std
     const int h = deCostado ? buf->width() : buf->height();
     if (w <= 0 || h <= 0) return;
 
+    // Un cuadro que sale del decodificador mucho después de llegar de la red (la máquina no da
+    // abasto: colas de decodificar atrasadas) no se convierte ni se entrega: ya no le sirve a
+    // nadie en vivo, y convertirlo (bajarlo de la placa) es lo que más cuesta. Así la cola se
+    // pone al día sola en vez de atrasarse cada vez más (con 200 invitados en la .177 llegaban
+    // con 1-8 s de atraso y, detrás, se trababan las ofertas de los que entraban).
+    if (!frame.packet_infos().empty()) {
+        const std::int64_t llego = frame.packet_infos().begin()->receive_time().us();
+        const int viejoMs = ba::ajustes::entero("gateway.cuadroViejoMs", 1000);
+        if (viejoMs > 0 && llego > 0 && rtc::TimeMicros() - llego > static_cast<std::int64_t>(viejoMs) * 1000) {
+            cuenta.viejos.fetch_add(1, std::memory_order_relaxed);
+            return;
+        }
+    }
     // Primero preguntar: lo que nadie usa no se convierte.
     const bool entero = destino.quiereEntero();
     // SONDA (diag/SondasCuadros.hpp): cuándo llegó de la red el primer paquete de este cuadro y
@@ -504,7 +518,8 @@ nlohmann::json estado() {
             j["hora_contenido"]["adelanto_ms"] = {{"ultimo", static_cast<double>(hc.adelantoUs.load()) / 1000},
                                                   {"min", static_cast<double>(hc.adelantoMinUs.load()) / 1000},
                                                   {"max", static_cast<double>(hc.adelantoMaxUs.load()) / 1000}};
-    j["entrega"] = {{"salteados", e.salteados.load()},       {"enteros", e.enteros.load()},
+    j["entrega"] = {{"viejos", e.viejos.load()},
+                    {"salteados", e.salteados.load()},       {"enteros", e.enteros.load()},
                     {"enteros_placa", e.enterosPlaca.load()}, {"celdas_placa", e.celdasPlaca.load()},
                     {"celdas_cpu", e.celdasCpu.load()},       {"fallas", e.fallas.load()},
                     {"celdas_placa_con_entero", e.celdasConEntero.load()}};
