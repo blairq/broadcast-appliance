@@ -645,8 +645,11 @@ class DecodificadorMf : public webrtc::VideoDecoder {
 // los slices (ID3D11VideoDecoder, formato «corto»: el driver lee la cabecera de cada
 // slice), y el cuadro se copia a una textura de paso PROPIA (una por decodificador, se
 // reusa) y se espera con una cerca (ID3D11Fence: el hilo duerme, no gira) antes de leerla.
-// Un solo dispositivo para todos (`gateway.dispositivosPlaca`, 1 de fábrica): lo que se
-// hace con su contexto bajo candado es encolar trabajo (µs).
+// Los decodificadores se reparten entre `gateway.dispositivosPlaca` dispositivos (4 de
+// fábrica), cada uno con su contexto y su candado. Con uno solo (como era) todo pasaba de a
+// un cuadro por él, y el driver de AMD hace adentro una llamada a su servicio (amdsacli64):
+// medido en la .177 con 200 invitados (2026-11-06), ~300-400 cuadros/s en total con 1
+// dispositivo y ~1500 con 4 (8 no suma más: el tope es de la placa o del driver).
 //
 // Los cuadros salen en el orden en que llegan (sin reordenar por POC): WebRTC no manda
 // cuadros B. Sin formato corto en la placa, con campos entrelazados, FMO, no 4:2:0 de 8
@@ -669,7 +672,7 @@ std::shared_ptr<DispositivoVideo> dispositivoVideo() {
     static std::vector<std::shared_ptr<DispositivoVideo>> pozo;
     static int turno = 0;
     static bool fallo = false;
-    const int cuantos = std::clamp(ba::ajustes::entero("gateway.dispositivosPlaca", 1), 1, 8);
+    const int cuantos = std::clamp(ba::ajustes::entero("gateway.dispositivosPlaca", 4), 1, 8);
     std::lock_guard<std::mutex> l(m);
     if (pozo.size() < static_cast<size_t>(cuantos) && !fallo) {
         auto d = std::make_shared<DispositivoVideo>();
