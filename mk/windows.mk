@@ -14,8 +14,9 @@
 #
 # El CRT y el Windows SDK son de Microsoft: bajarlos (xwin) implica aceptar la
 # licencia de Visual Studio Build Tools -> BA_ACCEPT_MSVC_LICENSE=1.
-WIN_BUILD_DIR ?= build/win
-WIN_RELEASE   ?= release-win
+# SONDAS=1 (build de diagnóstico): en su propia carpeta, para no recompilar todo el de siempre.
+WIN_BUILD_DIR ?= build/win$(if $(filter 1,$(SONDAS)),-sondas,)
+WIN_RELEASE   ?= release-win$(if $(filter 1,$(SONDAS)),-sondas,)
 WIN_TOOLCHAIN := $(CURDIR)/cmake/toolchains/windows-clang-cl.cmake
 # El Qt del host de la máquina que compila (moc, rcc, qmlcachegen): x86_64 o arm64.
 QT6_HOST_PATH = $(CURDIR)/$(EXTERNS_DIR)/qt6-host/$(QT6_VER)/$(QT6_HOST_DIR)

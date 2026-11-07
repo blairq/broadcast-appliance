@@ -22,6 +22,7 @@
 #include "MedidorCeldas.hpp" // motor
 #include "Motor.hpp"
 #include "platform/Hilo.hpp"
+#include "diag/SondasCuadros.hpp"
 
 #include <QDateTime>
 #include <QFont>
@@ -750,6 +751,17 @@ std::string ControlGrillas::medir(int segundos, const json& opciones, std::funct
                                           {"celdas", std::move(celdas)}});
                         }
                         r["gateway"] = std::move(gw);
+                    }
+                    if constexpr (ba::diag::kSondasCuadros) {
+                        // SONDA: cada cuadro guardado y cada elección del pintor, por persona
+                        // (los últimos 15 s; gateway/Grillas.cpp, /api/v1/grillas/trazas).
+                        yo->p_.sala.get("/api/v1/grillas/trazas", [yo, r = std::move(r), listo](bool ok2, const QJsonObject& t) mutable {
+                            if (!yo) return;
+                            if (ok2) r["gateway_trazas"] = json::parse(QJsonDocument(t).toJson(QJsonDocument::Compact).toStdString(), nullptr, false);
+                            yo->ultimaMedicion_ = r;
+                            if (listo) listo(r);
+                        });
+                        return;
                     }
                     yo->ultimaMedicion_ = r;
                     if (listo) listo(r);

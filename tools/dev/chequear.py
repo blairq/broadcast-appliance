@@ -67,7 +67,8 @@ def main():
                 saltar = True
                 continue
             out.append(a)
-        out += ["-fsyntax-only", f]
+        # CHEQUEAR_FLAGS: flags de más (p. ej. -DBA_SONDAS_CUADROS para ver el código de las sondas).
+        out += shlex.split(os.environ.get("CHEQUEAR_FLAGS", "")) + ["-fsyntax-only", f]
         r = subprocess.run(out, cwd=e["directory"], capture_output=True, text=True)
         errores = [l for l in r.stderr.splitlines() if " error: " in l or "fatal error" in l]
         print(("OK   " if r.returncode == 0 else "FALLA ") + arg)

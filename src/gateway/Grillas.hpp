@@ -304,6 +304,23 @@ class Grillas {
         // y de lo que se guardó en la cola. `tirados`: los que el balde no dejó entrar.
         BA_SONDA(ba::diag::RitmoCuadros ritmoRed; ba::diag::RitmoCuadros ritmoDeco; ba::diag::RitmoCuadros ritmoGuardado;
                  std::atomic<std::uint64_t> tirados{0};)
+        // SONDA: cada cuadro guardado (su hora de red, RTP, el instante calculado, el desfase
+        // elegido y el brillo de la caja del destello de hinchada) y cada elección del pintor
+        // (el tic, el instante que buscaba y el cuadro que mostró). Anillos con `m` tomado;
+        // GET /api/v1/grillas/trazas (docs/local/sincronia-windows.md).
+        struct PasoGuardado {
+            std::int64_t t = 0, red = 0, rtp = 0, instante = 0, desfase = 0, contenido = 0; ///< µs (reloj de los sellos; rtp: hora RTP desenvuelta; contenido: la de libwebrtc)
+            std::uint64_t seq = 0;
+            float brillo = 0;
+        };
+        struct PasoElegido {
+            std::int64_t tic = 0, objetivo = 0, instante = 0; ///< µs
+            std::uint64_t seq = 0;
+            int canal = 0; ///< la grilla (una persona puede estar en más de una)
+        };
+        static constexpr std::size_t kTraza = 2048;
+        BA_SONDA(std::vector<PasoGuardado> trazaG = std::vector<PasoGuardado>(kTraza); std::uint64_t nG = 0;
+                 std::vector<PasoElegido> trazaE = std::vector<PasoElegido>(kTraza); std::uint64_t nE = 0;)
         int fundidoPendienteMs = 0;   ///< > 0: el próximo cuadro en vivo arranca el fundido
         /// Lo que tarda en llegar a la cola desde su instante (ns; llegada − Foto::instante):
         /// sube rápido y baja despacio (un percentil alto, sin guardar la serie). Con él, el
