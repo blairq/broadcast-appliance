@@ -10,6 +10,7 @@
 // La API de control del operador esta en AdminApi.cpp.
 // ============================================================================
 
+#include "diag/Frontera.hpp"
 #include "diag/Metricas.hpp"
 #include "i18n/I18nPerfiles.hpp"
 #include "SignalingServer.hpp"
@@ -332,9 +333,18 @@ bool SignalingServer::start() {
                                       std::chrono::steady_clock::now().time_since_epoch())
                                       .count();
             for (const auto& [pid, idx] : sesiones) revisarCapas(pid); // p. ej. un espectador que se fue sin avisar
+            // Cada GetStats pasa por el hilo de señalización de libwebrtc (el mismo de las
+            // ofertas y de los «conectados»), que espera a los de trabajo y de red: lo que tarda
+            // cada uno va a la frontera «rtc.estadisticas».
+            static ba::diag::Frontera& fEst = ba::diag::frontera(
+                "rtc.estadisticas", 0, "estadísticas de cada conexión (GetStats, por el hilo de señalización), cada 2 s");
             for (const auto& [pid, idx] : sesiones)
                 if (WebrtcSession* s = hub_.session(idx)) {
-                    const nlohmann::json j = nlohmann::json::parse(s->estadisticas(), nullptr, false);
+                    nlohmann::json j;
+                    {
+                        ba::diag::MedirPase medir(fEst);
+                        j = nlohmann::json::parse(s->estadisticas(), nullptr, false);
+                    }
                     if (j.is_object() && !j.empty()) room_.setRed(pid, j, ahora);
                     // Lo que le sale a una pantalla (codificador, capas, qué lo limita), cada
                     // 30 s: junto con lo que ella dice que recibe, se ve dónde se traba.
@@ -3829,6 +3839,7 @@ void SignalingServer::bucleCarga() {
             }
             vistas_ = std::move(ahora);
         }
+        hub_.sondearSenal(); // cada 250 ms: ¿el hilo de señalización de libwebrtc atiende?
         // Cada segundo: la carga y los cps de la capa baja.
         if (++vuelta >= 4) {
             vuelta = 0;

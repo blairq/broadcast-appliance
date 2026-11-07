@@ -294,6 +294,8 @@ nlohmann::json WebrtcHub::audioCompartidoEstado() const {
     return nlohmann::json::array();
 }
 
+void WebrtcHub::sondearSenal() {}
+
 nlohmann::json WebrtcHub::retornoCompartido() const {
     nlohmann::json out = nlohmann::json::array();
     return out;

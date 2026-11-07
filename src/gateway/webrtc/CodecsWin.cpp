@@ -645,8 +645,11 @@ class DecodificadorMf : public webrtc::VideoDecoder {
 // los slices (ID3D11VideoDecoder, formato «corto»: el driver lee la cabecera de cada
 // slice), y el cuadro se copia a una textura de paso PROPIA (una por decodificador, se
 // reusa) y se espera con una cerca (ID3D11Fence: el hilo duerme, no gira) antes de leerla.
-// Un solo dispositivo para todos (`gateway.dispositivosPlaca`, 1 de fábrica): lo que se
-// hace con su contexto bajo candado es encolar trabajo (µs).
+// Los decodificadores se reparten entre `gateway.dispositivosPlaca` dispositivos (4 de
+// fábrica), cada uno con su contexto y su candado. Con uno solo (como era) todo pasaba de a
+// un cuadro por él, y el driver de AMD hace adentro una llamada a su servicio (amdsacli64):
+// medido en la .177 con 200 invitados (2026-11-06), ~300-400 cuadros/s en total con 1
+// dispositivo y ~1500 con 4 (8 no suma más: el tope es de la placa o del driver).
 //
 // Los cuadros salen en el orden en que llegan (sin reordenar por POC): WebRTC no manda
 // cuadros B. Sin formato corto en la placa, con campos entrelazados, FMO, no 4:2:0 de 8
@@ -669,7 +672,7 @@ std::shared_ptr<DispositivoVideo> dispositivoVideo() {
     static std::vector<std::shared_ptr<DispositivoVideo>> pozo;
     static int turno = 0;
     static bool fallo = false;
-    const int cuantos = std::clamp(ba::ajustes::entero("gateway.dispositivosPlaca", 1), 1, 8);
+    const int cuantos = std::clamp(ba::ajustes::entero("gateway.dispositivosPlaca", 4), 1, 8);
     std::lock_guard<std::mutex> l(m);
     if (pozo.size() < static_cast<size_t>(cuantos) && !fallo) {
         auto d = std::make_shared<DispositivoVideo>();
@@ -1197,8 +1200,10 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
         const ptrdiff_t paso = static_cast<ptrdiff_t>(m.RowPitch);
         const uint8_t* y = base + static_cast<ptrdiff_t>(cropArr_) * paso + cropIzq_;
         const uint8_t* uv = base + static_cast<ptrdiff_t>(altoCod_) * paso + static_cast<ptrdiff_t>(cropArr_ / 2) * paso + (cropIzq_ & ~1);
+        l.unlock(); // la copia, sin el candado del dispositivo (ver convertirPaso)
         libyuv::NV12ToI420(y, static_cast<int>(paso), uv, static_cast<int>(paso), i420->MutableDataY(), i420->StrideY(),
                            i420->MutableDataU(), i420->StrideU(), i420->MutableDataV(), i420->StrideV(), w_, h_);
+        l.lock();
         dev_->ctx->Unmap(paso_.Get(), 0);
         return i420;
     }
@@ -1208,17 +1213,29 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
         std::unique_lock<std::mutex> l(dev_->m);
         D3D11_MAPPED_SUBRESOURCE m{};
         if (!mapearPaso(l, m)) return false;
-        convertirPaso(m, dst, pasoDst);
+        convertirPaso(l, m, dst, pasoDst);
         return true;
     }
 
     /// El NV12 mapeado de la textura de paso → BGRA (con el recorte del SPS), y la suelta.
-    void convertirPaso(const D3D11_MAPPED_SUBRESOURCE& m, uint8_t* dst, int pasoDst) {
+    /// La conversión (trabajo del procesador: ~1-2 ms un 720p) va SIN el candado del
+    /// dispositivo: el candado es uno para todos los decodificadores (el contexto inmediato
+    /// es uno) y con la conversión adentro los 6 hilos «dec» se hacían fila detrás de él.
+    /// Medido en la .177 con 200 invitados (2026-11-06): 15-19 ms por cuadro en
+    /// video.decodificado, cinco de los seis hilos esperando el candado, las colas de
+    /// decodificar atrasadas segundos y, detrás de ellas, el hilo de trabajo de libwebrtc
+    /// (VideoReceiveStream2::SetAndGetRecordingState espera a la cola de decodificar) y el de
+    /// señalización: las ofertas y los «conectados» de los que entraban, trabados minutos.
+    /// La textura de paso es de este decodificador (nadie más la toca) y el contexto queda
+    /// libre para los otros mientras está mapeada; Unmap vuelve a tomar el candado.
+    void convertirPaso(std::unique_lock<std::mutex>& l, const D3D11_MAPPED_SUBRESOURCE& m, uint8_t* dst, int pasoDst) {
         const auto* base = static_cast<const uint8_t*>(m.pData);
         const ptrdiff_t paso = static_cast<ptrdiff_t>(m.RowPitch);
         const uint8_t* y = base + static_cast<ptrdiff_t>(cropArr_) * paso + cropIzq_;
         const uint8_t* uv = base + static_cast<ptrdiff_t>(altoCod_) * paso + static_cast<ptrdiff_t>(cropArr_ / 2) * paso + (cropIzq_ & ~1);
+        l.unlock();
         libyuv::NV12ToARGB(y, static_cast<int>(paso), uv, static_cast<int>(paso), dst, pasoDst, w_, h_);
+        l.lock();
         dev_->ctx->Unmap(paso_.Get(), 0);
     }
 
@@ -1240,7 +1257,7 @@ class DecodificadorD3d11 : public webrtc::VideoDecoder {
             hrUltimo_ = hr;
             return false;
         }
-        convertirPaso(m, dst, pasoDst);
+        convertirPaso(l, m, dst, pasoDst);
         if (conCelda && leerCelda(tw, th, celda, pasoCelda)) {
             celdaHecha = true;
             ++gCeldasConEntero;

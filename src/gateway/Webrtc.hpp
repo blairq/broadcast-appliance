@@ -346,6 +346,11 @@ class WebrtcHub {
     nlohmann::json audioCompartidoEstado() const;
     /// Cómo anda el retorno compartido: [{nombre, emisiones, capas: [...]}] (RetornoRtc.hpp).
     nlohmann::json retornoCompartido() const;
+    /// Sonda del hilo de señalización de libwebrtc (uno para todas las fábricas: por ahí pasan
+    /// las ofertas, los cambios de estado de cada conexión y las estadísticas): le manda una
+    /// tarea vacía y anota cuánto esperó en la frontera «rtc.senal» (gateway_estado). Si el
+    /// hilo se queda esperando a otro, las ofertas y los «conectados» se atrasan juntos.
+    void sondearSenal();
     /// Los códecs de video de esta máquina: qué elige «auto», si H.264 va por la placa y
     /// los decodificadores abiertos por implementación (CodecsVideo.hpp). {} sin backend real.
     nlohmann::json codecsVideo() const;
