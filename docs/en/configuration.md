@@ -65,7 +65,9 @@ talks to them privately; they only see the operator) → admitted to the room, w
 camera, microphone, **screen or window sharing**, files to show,
 chat and raised hand. The operator runs everything from the Conference page or from the
 **web dashboard** (`/control/`: Services → Web control, paired with a QR code
-and approved in the app; works on a phone or tablet).
+and approved in the app; works on a phone or tablet). With the «everything»
+profile it goes straight to the new dashboard (`/control/app/`, the app's own
+dashboard, with the Mixer in a tab); the previous HTML web control is deprecated.
 
 - **Real WebRTC** on Linux: `make deps-webrtc BA_WEBRTC_TARGET=linux` and
   `make build` build the gateway with libwebrtc (static, no system

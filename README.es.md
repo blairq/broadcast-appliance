@@ -96,8 +96,10 @@ adentro de la carpeta, en Windows, macOS y Linux.
 - **Conferencia.** Los invitados entran por WebRTC con un enlace: lobby
   privado, chat, modo oradores con reloj, hasta 512 invitados. Una grilla de
   personas que se adapta y agranda al que tiene la palabra (animado, con borde de
-  color); a quien nadie ve se lo pausa y los demás entran escalonados. Medido:
-  ~160 invitados con margen en una PC con Ryzen 9 y Radeon RX 5700 XT
+  color); a quien nadie ve se lo pausa y los demás entran escalonados. Desde la
+  2.1, con el backend rehecho, pasó de 10-15 conexiones externas a unas 60 en
+  una MacBook y hasta 150 en una PC mediana. Medido: ~160 invitados con margen
+  en una PC con Ryzen 9 y Radeon RX 5700 XT
   ([capacidad](docs/hardware/README.md)); una prueba integrada da el número de
   tu máquina.
 - **Asamblea.** Integrantes presenciales y remotos, recinto con sus bancas,
@@ -110,8 +112,11 @@ adentro de la carpeta, en Windows, macOS y Linux.
   estado en vivo, documentos), y el aparato sirve las páginas de cada puesto:
   invitados desde el navegador, el público (preguntas y votaciones), el
   teleprompter en una tablet o un celular, los rótulos en vivo, la corrección de
-  subtítulos, la sesión remota de los integrantes, la consola de la presidencia
-  y un tablero. Cada enlace, con su QR, en la página *Servicios*.
+  subtítulos, la sesión remota de los integrantes y la consola de la presidencia.
+  Y el **mismo tablero de la app en el navegador** (tablet, notebook o teléfono):
+  sus tarjetas, preview, programa y TAKE, con una disposición propia por aparato,
+  y el **Mezclador entero** en una pestaña. Cada enlace, con su QR, en la página
+  *Servicios*.
 - **Desde internet.** Un túnel incorporado (Pinggy) le da al evento una
   dirección pública para que entren invitados, público e integrantes de afuera,
   con el video de los remotos por su propio relé (TURN), sin tocar el router.

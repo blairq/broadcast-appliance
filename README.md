@@ -99,7 +99,9 @@ Windows, macOS and Linux.
 - **Conference.** Guests join by WebRTC from a link: a private lobby, chat,
   speaker mode with timer, up to 512 guests. A people grid that adapts and
   enlarges whoever has the floor (animated, with a colored border); guests
-  nobody sees are paused and the rest enter staggered. Measured: ~160 guests
+  nobody sees are paused and the rest enter staggered. Since 2.1, with the
+  reworked backend, it went from 10–15 external connections to about 60 on a
+  MacBook and up to 150 on a mid-range PC. Measured: ~160 guests
   with headroom on a Ryzen 9 + Radeon RX 5700 XT PC
   ([capacity](docs/en/capacity.md)); a built-in test gives the number for
   your own machine.
@@ -112,9 +114,11 @@ Windows, macOS and Linux.
 - **Web pages for everyone.** Each event has its public page (programme, live
   status, documents), and the appliance serves a page for each role: guests from
   the browser, the audience (questions and votes), the teleprompter on a tablet
-  or a phone, live titles, subtitle correction, the members' remote session, the
-  chair console and a dashboard. Every link, with its QR code, on the *Services*
-  page.
+  or a phone, live titles, subtitle correction, the members' remote session and
+  the chair console. And the **app's own dashboard in the browser** (tablet,
+  laptop or phone): its cards, preview, program and TAKE, with a layout of its
+  own per device, and the **whole Mixer** in a tab. Every link, with its QR code,
+  on the *Services* page.
 - **From the internet.** A built-in tunnel (Pinggy) gives the event a public
   address so guests, audience and members can join from outside, with the remote
   video over its own relay (TURN), without touching the router.

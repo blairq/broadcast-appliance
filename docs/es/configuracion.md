@@ -65,8 +65,11 @@ les habla en privado; ellos solo ven al operador) → admitidos a la sala, con
 cámara, micrófono, **pantalla o ventana compartida**, archivos para mostrar,
 chat y mano levantada. El operador maneja todo desde la página Conferencia o desde el
 **dashboard web** (`/control/`: Servicios → Control web, se empareja con un QR
-y se aprueba en la app; anda en celular o tablet; ver
-[`docs/funciones/CONTROL-WEB.md`](../../docs/funciones/CONTROL-WEB.md)).
+y se aprueba en la app; anda en celular o tablet). Con el perfil «todo» pasa solo
+al tablero nuevo (`/control/app/`, el mismo dashboard de la app, con el Mezclador
+en una pestaña; ver [`docs/funciones/TABLERO-WEB.md`](../../docs/funciones/TABLERO-WEB.md)).
+El control web en HTML de antes queda en desuso
+([`docs/funciones/CONTROL-WEB.md`](../../docs/funciones/CONTROL-WEB.md)).
 
 - **WebRTC real** en Linux: `make deps-webrtc BA_WEBRTC_TARGET=linux` y
   `make build` compilan el gateway con libwebrtc (estático, sin dependencias
