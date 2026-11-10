@@ -84,6 +84,10 @@ class Reloj {
 
     /// El pipeline usa el reloj y el base_time del estudio (y no lo cambia solo).
     void adoptar(GstElement* pipeline) const;
+    /// Lo mismo SIN el base_time del estudio: un archivo (los saltos y las pausas le cambian
+    /// el suyo; Entrada::corregirOffset lo lleva a la hora del estudio). Recibe igual el GL
+    /// del motor, el mapa y la prioridad de sus hilos.
+    void adoptarConSuBase(GstElement* pipeline) const;
 
     // --- La latencia del estudio ---
     /// -1 = automático (250 ms).

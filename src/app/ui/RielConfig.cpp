@@ -95,9 +95,11 @@ const std::vector<Grupo>& catalogo() {
           {29, "enlaces", "⇄",
            QT_TRANSLATE_NOOP("riel", "Servicios: todos los enlaces web y sus códigos QR (invitados, público, teleprompter, rótulos, "
            "botonera, sesión remota…) con su estado, para activar, copiar, abrir o mostrar en QR")},
-          {32, "manuales", "❒",
-           QT_TRANSLATE_NOOP("riel", "Manuales: la biblioteca de manuales de usuario que arma el asistente (capturas y documentos "
-           "Word y PDF), para generarla y abrirla")},
+          // Comentada (2026-11-07, pedido del usuario): fuera del menú por ahora. La página
+          // (ManualesPage.qml, cmpManuales en Main.qml) y sus herramientas MCP siguen.
+          // {32, "manuales", "❒",
+          //  QT_TRANSLATE_NOOP("riel", "Manuales: la biblioteca de manuales de usuario que arma el asistente (capturas y documentos "
+          //  "Word y PDF), para generarla y abrirla")},
           // Ante última: se mira cuando algo anduvo mal, no en el día a día.
           {13, "registro", "❑", QT_TRANSLATE_NOOP("riel", "Logs del sistema: todo lo que pasa, de los tres procesos")},
           {6, "configuracion", "⚙", QT_TRANSLATE_NOOP("riel", "Configuración")}}},

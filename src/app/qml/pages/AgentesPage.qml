@@ -57,6 +57,21 @@ Rectangle {
             }
         }
 
+        // Lo de arriba (el oído y los roles) se desplaza si no entra: con la ventana baja, la
+        // lista de roles se salía por abajo. Ocupa lo que necesita, hasta el 60 % del alto; el
+        // resto es de las corridas.
+        ScrollView {
+            id: arriba
+            Layout.fillWidth: true
+            Layout.preferredHeight: Math.min(arribaCol.implicitHeight, page.height * 0.6)
+            contentWidth: availableWidth
+            contentHeight: arribaCol.implicitHeight
+            clip: true
+        ColumnLayout {
+            id: arribaCol
+            width: arriba.availableWidth
+            spacing: 12
+
         // --- El oído: Parakeet o Nemotron para cada uno (y la alerta de los dos a la vez) ---
         PanelOidos { Layout.fillWidth: true }
 
@@ -76,6 +91,9 @@ Rectangle {
                         required property var modelData
                         Layout.fillWidth: true
                         spacing: 6
+                        // Dos renglones: en uno solo (interruptor, nombre, dos llaves, motor,
+                        // modelo, estado y dos botones: ~1500 px) se pisaban con la ventana angosta.
+                        // Arriba: qué rol es, cómo está y qué se le puede pedir.
                         RowLayout {
                             Layout.fillWidth: true
                             spacing: 12
@@ -84,27 +102,56 @@ Rectangle {
                                 onToggled: (wanted) => page.d.setActivo(fila.modelData.id, wanted)
                             }
                             ColumnLayout {
-                                // Un layout adentro de otro tiene fillWidth en TRUE
-                                // por defecto: sin esto se come el ancho de los
-                                // desplegables de la derecha.
-                                Layout.fillWidth: false
-                                Layout.preferredWidth: 220
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 160
                                 spacing: 1
-                                Text { text: fila.modelData.titulo; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
+                                Text { Layout.fillWidth: true; elide: Text.ElideRight
+                                       text: fila.modelData.titulo; color: Theme.text; font { pixelSize: 14; weight: Font.DemiBold } }
                                 Text {
                                     Layout.fillWidth: true
                                     text: fila.modelData.descripcion; color: Theme.textDim; font.pixelSize: 11
                                     wrapMode: Text.WordWrap
                                 }
                             }
+                            StatusPill {
+                                text: fila.modelData.corriendo ? qsTr("trabajando") : (fila.modelData.enCola > 0 ? qsTr("%1 en cola").arg(fila.modelData.enCola) : (fila.modelData.activo ? qsTr("escuchando") : qsTr("apagado")))
+                                dot: fila.modelData.corriendo ? Theme.accent : (fila.modelData.activo ? Theme.ok : Theme.textFaint)
+                                pulse: fila.modelData.corriendo
+                                medidaDe: qsTr("escuchando")
+                            }
+                            GlassButton {
+                                compact: true; text: qsTr("Instrucciones"); icon: "☰"
+                                active: instrucciones.visible
+                                onClicked: {
+                                    if (!instrucciones.visible) promptTexto.text = fila.modelData.prompt || ""
+                                    instrucciones.visible = !instrucciones.visible
+                                }
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: fila.modelData.promptEditado ? qsTr("Qué es y cómo trabaja este rol (su prompt) · editado") : qsTr("Qué es y cómo trabaja este rol (su prompt)")
+                            }
+                            GlassButton {
+                                compact: true; text: qsTr("Hablar directo"); icon: "✎"
+                                enabled: fila.modelData.activo
+                                visible: fila.modelData.enLaApp !== true // no se le encargan cosas: lo usa la app
+                                onClicked: encargo.visible = !encargo.visible
+                                ToolTip.visible: hovered; ToolTip.delay: 400
+                                ToolTip.text: qsTr("Pedirle algo a este rol ahora, sin esperar un disparador")
+                            }
+                        }
+                        // Abajo: cómo trabaja (llaves, motor y modelo). Un Flow: si no entra en el
+                        // ancho, baja de renglón en vez de apretar y pisarse.
+                        Flow {
+                            id: ajustesRol
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 56
+                            spacing: 12
                             // La libertad de este rol: las herramientas propias
                             // del agente (consola, archivos, internet) ademas de
                             // su juego MCP. Se ve de lejos cuando esta prendida
                             // porque no es un detalle: la salvaguarda de
                             // aprobaciones no la cubre.
                             ColumnLayout {
-                                Layout.fillWidth: false
-                                Layout.preferredWidth: 110
+                                width: 140
                                 spacing: 1
                                 // Un rol que usa la app por dentro (el tótem) no corre en una consola.
                                 visible: fila.modelData.enLaApp !== true
@@ -137,8 +184,7 @@ Rectangle {
                             // Dónde corre cada encargo: en la conversación del evento (la
                             // del asistente de automatización, con OpenCode) o en su sesión.
                             ColumnLayout {
-                                Layout.fillWidth: false
-                                Layout.preferredWidth: 110
+                                width: 160
                                 spacing: 1
                                 visible: fila.modelData.enLaApp !== true
                                 RowLayout {
@@ -170,7 +216,7 @@ Rectangle {
                             }
                             ComboBox {
                                 id: provBox
-                                Layout.preferredWidth: 250
+                                width: 230
                                 model: page.d.proveedores
                                 textRole: "name"; valueRole: "id"
                                 displayText: fila.modelData.proveedor === "" ? qsTr("El del asistente") : currentText
@@ -181,9 +227,8 @@ Rectangle {
                             }
                             ComboBox {
                                 id: modeloBox
-                                // Ocupa lo que sobra de la fila: los nombres son largos.
-                                Layout.fillWidth: true
-                                Layout.minimumWidth: 300
+                                // Los nombres son largos: ancho, pero nunca más que el renglón.
+                                width: Math.min(460, ajustesRol.width)
                                 editable: true
                                 model: page.d.modelos[fila.modelData.proveedor] || []
                                 editText: fila.modelData.modelo
@@ -195,30 +240,6 @@ Rectangle {
                                 ToolTip.visible: hovered
                                 ToolTip.text: editText !== "" ? qsTr("%1\n(vacío: el de fábrica del motor)").arg(editText)
                                                               : qsTr("Modelo (vacío: el de fábrica del motor)")
-                            }
-                            StatusPill {
-                                text: fila.modelData.corriendo ? qsTr("trabajando") : (fila.modelData.enCola > 0 ? qsTr("%1 en cola").arg(fila.modelData.enCola) : (fila.modelData.activo ? qsTr("escuchando") : qsTr("apagado")))
-                                dot: fila.modelData.corriendo ? Theme.accent : (fila.modelData.activo ? Theme.ok : Theme.textFaint)
-                                pulse: fila.modelData.corriendo
-                                medidaDe: qsTr("escuchando")
-                            }
-                            GlassButton {
-                                compact: true; text: qsTr("Instrucciones"); icon: "☰"
-                                active: instrucciones.visible
-                                onClicked: {
-                                    if (!instrucciones.visible) promptTexto.text = fila.modelData.prompt || ""
-                                    instrucciones.visible = !instrucciones.visible
-                                }
-                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: fila.modelData.promptEditado ? qsTr("Qué es y cómo trabaja este rol (su prompt) · editado") : qsTr("Qué es y cómo trabaja este rol (su prompt)")
-                            }
-                            GlassButton {
-                                compact: true; text: qsTr("Hablar directo"); icon: "✎"
-                                enabled: fila.modelData.activo
-                                visible: fila.modelData.enLaApp !== true // no se le encargan cosas: lo usa la app
-                                onClicked: encargo.visible = !encargo.visible
-                                ToolTip.visible: hovered; ToolTip.delay: 400
-                                ToolTip.text: qsTr("Pedirle algo a este rol ahora, sin esperar un disparador")
                             }
                         }
                         RowLayout {
@@ -313,6 +334,8 @@ Rectangle {
                 }
             }
         }
+        } // arribaCol
+        } // arriba (ScrollView)
 
         // --- Corridas ------------------------------------------------------------
         RowLayout {
@@ -324,6 +347,7 @@ Rectangle {
         Panel {
             Layout.fillWidth: true
             Layout.fillHeight: true
+            Layout.minimumHeight: 160
             ListView {
                 id: lista
                 anchors { fill: parent; margins: 8 }

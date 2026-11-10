@@ -2086,6 +2086,12 @@ endif()
     target_include_directories(test_vocabulario PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
     target_link_libraries(test_vocabulario PRIVATE ba_app_agente ba_app_asamblea ba_core)
     add_test(NAME test_vocabulario COMMAND test_vocabulario)
+    # Las rutas guardadas de las fuentes (arranque/RutasPortables): ida y vuelta al mismo archivo.
+    add_executable(test_rutas_portables tests/test_rutas_portables.cpp arranque/RutasPortables.cpp)
+    target_include_directories(test_rutas_portables PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_link_libraries(test_rutas_portables PRIVATE ba_core Qt6::Core nlohmann_json::nlohmann_json)
+    set_target_properties(test_rutas_portables PROPERTIES BUILD_RPATH "${BA_QT_PREFIX}/lib")
+    add_test(NAME test_rutas_portables COMMAND test_rutas_portables)
     # La configuración chica que se guarda en Config/ (modo en vivo, escenas, rótulo, interfaz).
     add_executable(test_config_persistida tests/test_config_persistida.cpp)
     target_include_directories(test_config_persistida PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

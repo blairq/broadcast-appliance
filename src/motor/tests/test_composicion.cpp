@@ -15,6 +15,8 @@
 //     clave hasta que arranca; arrancada, termina en la última. Y capaEn (la cuenta) sola.
 //   - la Mezcla de GStreamer: otro módulo de varias entradas (el compositor con las
 //     propiedades de cada pad; smpte con sus dos pads fijos).
+//   - un ARCHIVO de video (medio, H.264 rojo): sus cuadros llegan al programa (en la Mac,
+//     vtdec los entrega en GL), también en bucle.
 
 #include "Composicion.hpp"
 #include "Piezas.hpp"
@@ -32,6 +34,7 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <filesystem>
 #include <memory>
 #include <thread>
 #include <tuple>
@@ -99,6 +102,33 @@ std::string txt(const Rgb& c) { return "(" + std::to_string(c.r) + "," + std::to
 json color(const char* argb) {
     return {{"pipeline", std::string("videotestsrc is-live=true do-timestamp=true pattern=solid-color foreground-color=") + argb +
                              " ! video/x-raw,width=320,height=180,framerate=30/1"}};
+}
+
+/// Un H.264 rojo liso de `seg` segundos en `ruta`, con el codificador que haya. El nombre del
+/// codificador, o "" si no hay con qué hacerlo.
+std::string hacerMp4Rojo(const std::string& ruta, double seg) {
+    const char* enc = hayFabrica("x264enc") ? "x264enc" : hayFabrica("openh264enc") ? "openh264enc"
+                    : hayFabrica("vtenc_h264")                                       ? "vtenc_h264"
+                                                                                     : nullptr;
+    if (enc == nullptr || !hayFabrica("mp4mux") || !hayFabrica("h264parse")) return {};
+    const std::string d = "videotestsrc num-buffers=" + std::to_string(static_cast<int>(seg * 30)) +
+                          " pattern=solid-color foreground-color=0xffff0000 ! video/x-raw,width=320,height=180,framerate=30/1 ! "
+                          "videoconvert ! " + enc + " ! h264parse ! mp4mux ! filesink location=" + entreComillas(ruta);
+    GError* e = nullptr;
+    GstElement* p = gst_parse_launch(d.c_str(), &e);
+    if (e != nullptr) {
+        g_error_free(e);
+        return {};
+    }
+    gst_element_set_state(p, GST_STATE_PLAYING);
+    GstBus* bus = gst_element_get_bus(p);
+    GstMessage* m = gst_bus_timed_pop_filtered(bus, 20 * GST_SECOND, static_cast<GstMessageType>(GST_MESSAGE_EOS | GST_MESSAGE_ERROR));
+    const bool ok = m != nullptr && GST_MESSAGE_TYPE(m) == GST_MESSAGE_EOS;
+    if (m != nullptr) gst_message_unref(m);
+    gst_object_unref(bus);
+    gst_element_set_state(p, GST_STATE_NULL);
+    gst_object_unref(p);
+    return ok ? enc : "";
 }
 
 void esperar(std::vector<Entrada*>& es, Composicion& c, int ms) {
@@ -776,6 +806,47 @@ int main() {
         const Rgb c = vo.en(320, 180);
         std::printf("mezcla (%s): %s; error «%s»\n", modulo, txt(c).c_str(), otro.estado().value("error", "").c_str());
         CHECK(c.r >= 0 && otro.estado()["capas"].size() == 2, (std::string(modulo) + ": da imagen con sus dos entradas").c_str());
+    }
+    // Un ARCHIVO de video (un medio) en el programa. 2026-11-10: el pipeline del medio no
+    // recibía el contexto GL del motor (Reloj::adoptarConSuBase): sus texturas eran de otro
+    // contexto y el programa salía negro o con las de otras entradas.
+    {
+        const std::string mp4 = (std::filesystem::temp_directory_path() / "ba_test_composicion_rojo.mp4").string();
+        const std::string enc = hacerMp4Rojo(mp4, 2.0);
+        if (enc.empty()) {
+            std::printf("sin codificador H.264 (o mp4mux): no se prueba el medio de video\n");
+        } else {
+            auto medio = std::make_unique<Entrada>(reloj, lz, "archivo", json{{"medio", true}, {"local_file", mp4}, {"looping", true}});
+            Composicion pm(reloj, lz, "programa_medio");
+            // Como el motor: el tic y el estado de la entrada (el hilo «motor-entradas»).
+            const auto correr = [&](int ms) {
+                const auto fin = std::chrono::steady_clock::now() + std::chrono::milliseconds(ms);
+                while (std::chrono::steady_clock::now() < fin) {
+                    medio->tic();
+                    medio->refrescarEstado();
+                    pm.tic();
+                    std::this_thread::sleep_for(std::chrono::milliseconds(20));
+                }
+            };
+            Escena e;
+            e.nombre = "con archivo";
+            e.capas.push_back({"archivo", 0, 0, 0, 0}); // todo el lienzo
+            pm.mostrar(e);
+            correr(1500);
+            Visor vm(reloj, pm.productor(), pm.latenciaSalidaNs(), lz.ancho, lz.alto);
+            correr(800);
+            Rgb c = vm.en(320, 180);
+            std::printf("medio de video (%s): %s; entrada %s\n", enc.c_str(), txt(c).c_str(),
+                        medio->estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).substr(0, 400).c_str());
+            CHECK(igual(c, 255, 0, 0), "medio de video: sus cuadros llegan al programa (rojo)");
+            // Pasada una vuelta del archivo (2 s): en bucle sigue llegando.
+            correr(2500);
+            c = vm.en(320, 180);
+            std::printf("medio de video, después de una vuelta: %s\n", txt(c).c_str());
+            CHECK(igual(c, 255, 0, 0), "medio de video: en bucle sigue llegando");
+        }
+        std::error_code ec;
+        std::filesystem::remove(mp4, ec);
     }
     std::printf("composición: %s\n", prog.estado().dump(-1, ' ', false, nlohmann::json::error_handler_t::replace).c_str());
     std::printf("== test_composicion: %s ==\n", fallos == 0 ? "OK" : "FALLOS");

@@ -283,6 +283,32 @@ int main(int argc, char** argv) {
         CHECK(l[2].ch == U' ' && l[2].extra.isEmpty(), "ni la vacia que sigue");
     }
 
+    // Cambiar de tamaño con líneas largas partidas y el historial lleno, muchas veces seguidas
+    // (lo que hace la interfaz al reacomodarse con el asistente escribiendo). 2026-11-07, en
+    // la PC de pruebas: dos caídas en libvterm (resize_buffer, al reacomodar las líneas).
+    {
+        TerminalSession s;
+        s.resize(120, 30);
+        std::uint32_t semilla = 12345;
+        const auto azar = [&semilla](int n) {
+            semilla = semilla * 1664525u + 1013904223u;
+            return static_cast<int>((semilla >> 8) % static_cast<std::uint32_t>(n));
+        };
+        QByteArray texto;
+        for (int i = 0; i < 400; ++i) {
+            texto += "\x1b[3" + QByteArray::number(i % 8) + "m";
+            texto += QByteArray(20 + azar(300), static_cast<char>('a' + i % 26));
+            texto += "\x1b[0m";
+            texto += (i % 7 == 0) ? "\r\n\r\n" : "\r\n";
+        }
+        s.alimentarParaPruebas(texto);
+        for (int i = 0; i < 2000; ++i) {
+            s.resize(20 + azar(200), 5 + azar(60));
+            if (i % 50 == 0) s.alimentarParaPruebas(QByteArray(azar(500) + 1, 'z') + "\r\n");
+        }
+        CHECK(s.cols() >= 20 && s.rows() >= 5, "cambiar de tamaño muchas veces con líneas partidas: sigue andando");
+    }
+
     if (g_failures == 0) std::printf("test_terminal: OK\n");
     return g_failures == 0 ? 0 : 1;
 }

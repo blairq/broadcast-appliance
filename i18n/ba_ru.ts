@@ -923,7 +923,7 @@
         <translation>Каждая роль занимается только своим, с одноразовым агентом на каждое задание. Ассистент ✦ об этом не знает.</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+111"/>
         <source>Usa la máquina</source>
         <translation>Использует компьютер</translation>
     </message>
@@ -938,7 +938,7 @@
         <translation>Помимо управления приложением, может пользоваться терминалом, читать и записывать файлы и выходить в интернет (например, скачать изображение и положить его в Medios). Такие действия НЕ проходят через одобрения ассистента: включайте только если роли это нужно.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+17"/>
         <source>Aparte</source>
         <translation>Отдельно</translation>
     </message>
@@ -968,7 +968,7 @@
         <translation>Движок этой роли. Пусто: тот же, что у ассистента ✦.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+15"/>
         <source>%1
 (vacío: el de fábrica del motor)</source>
         <translation>%1
@@ -980,7 +980,7 @@
         <translation>Модель (пусто: по умолчанию для движка)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-125"/>
         <source>trabajando</source>
         <translation>работает</translation>
     </message>
@@ -1026,7 +1026,7 @@
         <translation>Попросить эту роль о чём-то сейчас, не дожидаясь триггера</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+116"/>
         <source>Qué tiene que hacer %1…</source>
         <translation>Что должен сделать %1…</translation>
     </message>
@@ -1093,7 +1093,7 @@
         <translation>Внимание: с этим движком то, что люди говорят у терминала регистрации (их данные), уходит с этого компьютера в этот сервис. Подходят собственная модель, OpenRouter и Gemini с ключом; по учётной записи (Claude, OpenCode Go) — нет.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+15"/>
         <source>Corridas</source>
         <translation>Запуски</translation>
     </message>
@@ -1107,7 +1107,7 @@
         </translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <source>%1 · %2 s · %3 herr.</source>
         <translation>%1 · %2 с · %3 инстр.</translation>
     </message>
@@ -12410,6 +12410,14 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>Fluidez</name>
+    <message>
+        <location filename="../src/app/ui/Fluidez.cpp" line="+68"/>
+        <source>El video de «%1» se ve a saltos (llegan los cuadros desparejos). Ver video_fluidez.</source>
+        <translation>Видео «%1» идёт рывками (кадры приходят неравномерно). См. video_fluidez.</translation>
+    </message>
+</context>
+<context>
     <name>FlujosTexto</name>
     <message>
         <location filename="../src/app/agent/FlujosTexto.cpp" line="+161"/>
@@ -12428,7 +12436,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>FrameService</name>
     <message>
-        <location filename="../src/app/ui/FrameService.cpp" line="+237"/>
+        <location filename="../src/app/ui/FrameService.cpp" line="+309"/>
         <source>Programa</source>
         <translation>Программа</translation>
     </message>
@@ -12778,7 +12786,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>Параметры</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+39"/>
         <source>Sí: 34; No: 12; Abstenciones: 3</source>
         <translation>За: 34; Против: 12; Воздержались: 3</translation>
     </message>
@@ -31947,7 +31955,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>в «%1» (не в эфире)</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+69"/>
         <source>Al aire</source>
         <translation>В эфир</translation>
     </message>
@@ -35352,7 +35360,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+146"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+147"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (не удалось: %2)</translation>
     </message>
@@ -35387,7 +35395,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>не ответил</translation>
     </message>
     <message>
-        <location line="+162"/>
+        <location line="+165"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Конференция перезапущена с новыми настройками.</translation>
     </message>
@@ -35407,7 +35415,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Интерфейс завис на %1 с; эфир продолжался</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+203"/>
         <source>Guardado</source>
         <translation>Сохранено</translation>
     </message>
@@ -35417,7 +35425,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>Не удалось сохранить: %1</translation>
     </message>
     <message>
-        <location line="-310"/>
+        <location line="-311"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>Восстановлено то, что было в эфире до сбоя (заставка или чёрный)</translation>
     </message>
@@ -42143,6 +42151,26 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de los invitados: dispositivos de la placa para decodificar</source>
+        <translation>Видео гостей: устройства видеокарты для декодирования</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Windows con H.264 por la placa: cuántos dispositivos D3D11 se reparten los decodificadores. Cada uno tiene su contexto y su candado: con uno solo, todos los cuadros pasan de a uno por él (en la PC de pruebas, ~350 cuadros/s con 1 y ~1500 con 4).</source>
+        <translation>Windows с H.264 на видеокарте: на сколько устройств D3D11 распределяются декодеры. У каждого свой контекст и своя блокировка: если оно одно, все кадры проходят через него по одному (на тестовом ПК ~350 кадров/с с 1 и ~1500 с 4).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de los invitados: no entregar cuadros más viejos que</source>
+        <translation>Видео гостей: не передавать кадры старше чем</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Un cuadro de cámara que sale del decodificador más tarde que esto desde que llegó de la red no se convierte ni se le pasa a la app ni a la grilla (se decodifica igual: lo necesitan los que siguen). Con la máquina pasada, así se pone al día sola en vez de atrasarse cada vez más. 0: entregar todos.</source>
+        <translation>Кадр камеры, который выходит из декодера позже этого срока после прихода из сети, не преобразуется и не передаётся ни приложению, ни сетке (декодируется всё равно: он нужен следующим). При перегруженной машине так она сама догоняет, а не отстаёт всё больше. 0: передавать все.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: achicar desde una copia en la placa</source>
         <translation>Видео гостей: уменьшать из копии на видеокарте</translation>
     </message>
@@ -42512,7 +42540,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>не является одним из вариантов</translation>
     </message>
     <message>
-        <location line="-244"/>
+        <location line="-246"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Хранимых сообщений чата</translation>
     </message>
@@ -42667,7 +42695,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Windows: напрямую — gateway передаёт каждый кадр видеокарте без посредников (меньше нагрузки на процессор и меньше потоков); Media Foundation — декодер Windows (для сравнения или если с видеокартой проблемы).</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+17"/>
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>Разговор с гостем: насколько приглушается программа</translation>
     </message>
@@ -46144,7 +46172,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-961"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-964"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>запуск: %1 занял %2 мс</translation>
     </message>
@@ -48730,7 +48758,7 @@ Datos (de %2): %3</source>
         <translation>Только растворяется.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+484"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+487"/>
         <source>Terminó la medición «%1». Mirala (calibracion_medicion {&quot;id&quot;: &quot;%1&quot;}) y el análisis (calibracion_ver) y contale al operador, corto y en criollo, qué se nota de la sala y qué conviene hacer después. No apliques nada ni midas de nuevo sin que te lo pida.</source>
         <translation>Измерение «%1» закончено. Посмотри его (calibracion_medicion {&quot;id&quot;: &quot;%1&quot;}) и анализ (calibracion_ver) и кратко и простыми словами расскажи оператору, что видно по залу и что делать дальше. Ничего не применяй и не измеряй снова, пока не попросят.</translation>
     </message>
@@ -53166,17 +53194,22 @@ Datos (de %2): %3</source>
         <translation>нельзя менять кодирование при активных выходах</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+92"/>
-        <source>no hay ninguna fuente «%1» (tiene que estar en alguna escena)</source>
-        <translation>источника «%1» нет (он должен быть в какой-нибудь сцене)</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+93"/>
         <source>el gráfico no puede llevarse a sí mismo adentro</source>
         <translation>графика не может содержать саму себя</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+6"/>
+        <source>no hay ninguna fuente ni escena «%1» (una fuente tiene que estar en alguna escena)</source>
+        <translation>нет ни источника, ни сцены «%1» (источник должен быть в какой-нибудь сцене)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la escena «%1» lleva este gráfico: se vería adentro de sí misma</source>
+        <translation>сцена «%1» содержит этот графический элемент: она оказалась бы внутри самой себя</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>«%1» es una banca con la palabra: elegí la cámara</source>
         <translation>«%1» — это место с правом слова: выберите камеру</translation>
     </message>
@@ -53925,7 +53958,7 @@ Datos (de %2): %3</source>
         <translation>не удалось обрезать &apos;%1&apos; в &apos;%2&apos; (обрезка больше изображения?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+190"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+191"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>сцены пока нельзя создавать</translation>
     </message>
@@ -53965,12 +53998,12 @@ Datos (de %2): %3</source>
         <translation>измерение уже идёт</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+44"/>
         <source>no hay ninguna grilla de personas andando</source>
         <translation>ни одна сетка участников не работает</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+54"/>
         <source>la entrada de la grilla no lee el canal tal cual</source>
         <translation>вход сетки не читает канал как есть</translation>
     </message>
@@ -53980,7 +54013,7 @@ Datos (de %2): %3</source>
         <translation>вход сетки не собран</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+107"/>
         <source>no hay una grilla de personas que se llame «%1» (crear_fuente con type ba_grilla)</source>
         <translation>сетки участников с именем «%1» нет (crear_fuente с type ba_grilla)</translation>
     </message>
@@ -55526,7 +55559,7 @@ Datos (de %2): %3</source>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-740"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-743"/>
         <source>cada evento a su carpeta: %1</source>
         <translation>каждое мероприятие в свою папку: %1</translation>
     </message>
@@ -56038,7 +56071,7 @@ Datos (de %2): %3</source>
         <location line="+7"/>
         <location filename="../src/gateway/Botonera.cpp" line="+90"/>
         <location line="+2"/>
-        <location filename="../src/gateway/SignalingServer.cpp" line="+661"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="+673"/>
         <location line="+9"/>
         <location line="+354"/>
         <location line="+109"/>
@@ -56046,7 +56079,7 @@ Datos (de %2): %3</source>
         <location line="+3"/>
         <location line="+27"/>
         <location line="+129"/>
-        <location line="+146"/>
+        <location line="+151"/>
         <location line="+65"/>
         <location line="+268"/>
         <location line="+16"/>
@@ -56372,7 +56405,7 @@ Datos (de %2): %3</source>
         <translation>Неизвестный сервис «%1».</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Grillas.cpp" line="+235"/>
+        <location filename="../src/gateway/Grillas.cpp" line="+236"/>
         <source>falta «rotulos» (una lista)</source>
         <translation>отсутствует «rotulos» (список)</translation>
     </message>
@@ -56397,7 +56430,7 @@ Datos (de %2): %3</source>
         <translation>подпись «%1»: маска не равна w*h</translation>
     </message>
     <message>
-        <location line="+83"/>
+        <location line="+86"/>
         <source>falta «grillas» (una lista)</source>
         <translation>нет «grillas» (список)</translation>
     </message>
@@ -56452,7 +56485,7 @@ Datos (de %2): %3</source>
         <translation>у ячейки «%1» нет размера</translation>
     </message>
     <message>
-        <location line="+671"/>
+        <location line="+856"/>
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>сетки: BA.Grilla.%1 готова (%2x%3)</translation>
     </message>
@@ -56462,12 +56495,12 @@ Datos (de %2): %3</source>
         <translation>сетки: не удалось опубликовать BA.Grilla.%1</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+20"/>
         <source>grillas: BA.Grilla.%1 %2x%3, %4 personas (+%5), %6 ms por cuadro</source>
         <translation>сетки: BA.Grilla.%1 %2x%3, людей: %4 (+%5), %6 мс на кадр</translation>
     </message>
     <message>
-        <location filename="../src/gateway/MediaPump.cpp" line="+283"/>
+        <location filename="../src/gateway/MediaPump.cpp" line="+284"/>
         <source>escena %1</source>
         <translation>сцена %1</translation>
     </message>
@@ -56487,7 +56520,7 @@ Datos (de %2): %3</source>
         <translation>MediaPump: остановлен</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+16"/>
         <source>video out: %1 listo (%2x%3)</source>
         <translation>video out: %1 готов (%2x%3)</translation>
     </message>
@@ -56507,7 +56540,7 @@ Datos (de %2): %3</source>
         <translation>audio out: не удалось создать %1 (пропущено)</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+34"/>
         <source>MediaPump: lugares %1 -&gt; %2 (sin reiniciar)</source>
         <translation>MediaPump: места %1 -&gt; %2 (без перезапуска)</translation>
     </message>
@@ -56542,12 +56575,12 @@ Datos (de %2): %3</source>
         <translation>оператор: камера (BA.Operator) подписана (%1x%2)</translation>
     </message>
     <message>
-        <location line="-900"/>
+        <location line="-904"/>
         <source>retorno video</source>
         <translation>контроль видео</translation>
     </message>
     <message>
-        <location line="+157"/>
+        <location line="+161"/>
         <source>salida %1: nadie la mira, se suelta su bajada</source>
         <translation>выход %1: никто его не смотрит, приём освобождается</translation>
     </message>
@@ -56638,7 +56671,7 @@ Datos (de %2): %3</source>
         <translation>во время проверки с его микрофона не пришёл звук (звук отключён?)</translation>
     </message>
     <message>
-        <location line="+277"/>
+        <location line="+288"/>
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>отправка %1: %2 fps (%3x%4)</translation>
     </message>
@@ -56928,12 +56961,12 @@ Datos (de %2): %3</source>
         <translation>никто</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1640"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1645"/>
         <source>pantalla %1 sale: %2</source>
         <translation>экран %1 выходит: %2</translation>
     </message>
     <message>
-        <location line="-67"/>
+        <location line="-76"/>
         <source>señalización: falló la inicialización de sockets</source>
         <translation>сигнализация: не удалось инициализировать сокеты</translation>
     </message>
@@ -56943,7 +56976,7 @@ Datos (de %2): %3</source>
         <translation>сигнализация: не удалось выполнить bind %1:%2 (порт занят или неверный адрес?)</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+81"/>
         <source>señalización: escuchando en %1:%2 (webroot=%3)</source>
         <translation>сигнализация: слушает на %1:%2 (webroot=%3)</translation>
     </message>
@@ -57013,7 +57046,7 @@ Datos (de %2): %3</source>
         <translation>соединение: исключение %1</translation>
     </message>
     <message>
-        <location line="+1017"/>
+        <location line="+1022"/>
         <source>archivos: subida fallida de %1 (código %2)</source>
         <translation>файлы: загрузка %1 не удалась (код %2)</translation>
     </message>
@@ -57193,12 +57226,12 @@ Datos (de %2): %3</source>
         <translation>тест зала: завершён (%1); ключ отозван, удалено тестовых участников: %2</translation>
     </message>
     <message>
-        <location line="+235"/>
+        <location line="+236"/>
         <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
         <translation>видео: загрузка видеодвижка %1; к/с нижнего слоя переходят со ступени %2 на %3 (из %4)</translation>
     </message>
     <message>
-        <location line="-3375"/>
+        <location line="-3381"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>адреса: сеть %1, извне %2</translation>
     </message>
@@ -57232,7 +57265,7 @@ Datos (de %2): %3</source>
         <translation>нет мероприятия</translation>
     </message>
     <message>
-        <location line="+322"/>
+        <location line="+327"/>
         <source>falta `texto` (o es demasiado largo)</source>
         <translation>нет `texto` (или он слишком длинный)</translation>
     </message>
@@ -57643,7 +57676,7 @@ Datos (de %2): %3</source>
         <translation>стек IP: трафик туннеля идёт в WebRTC через локальную сеть</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/TlsTerminator.cpp" line="+192"/>
+        <location filename="../src/gateway/net/TlsTerminator.cpp" line="+221"/>
         <source>https: certificado propio (Credenciales/tls-propio)</source>
         <translation>https: собственный сертификат (Credenciales/tls-propio)</translation>
     </message>
@@ -57679,7 +57712,12 @@ Datos (de %2): %3</source>
         <translation>порт уже занят</translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="+89"/>
+        <source>https: conexión rechazada, tope de %1 conexiones a la vez (y %2 rechazos más sin anotar)</source>
+        <translation>https: соединение отклонено, предел — %1 одновременных соединений (и ещё %2 отказов не записано)</translation>
+    </message>
+    <message>
+        <location line="-118"/>
         <source>https: no se pudo crear el socket (error %1)</source>
         <translation>https: не удалось создать сокет (ошибка %1)</translation>
     </message>
@@ -57969,7 +58007,7 @@ Datos (de %2): %3</source>
         <translation>SetProcessDefaultCpuSets не удалось (%1)</translation>
     </message>
     <message>
-        <location filename="../src/gateway/TopeRetorno.cpp" line="+194"/>
+        <location filename="../src/gateway/TopeRetorno.cpp" line="+195"/>
         <source>retorno: fijo en %1p (Configuración)</source>
         <translation>возврат: фиксировано %1p (Настройки)</translation>
     </message>
@@ -58173,7 +58211,7 @@ Datos (de %2): %3</source>
         <translation>не удалось прочитать кадры рендерера: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/graficos/GraficoSource.cpp" line="+101"/>
+        <location filename="../src/app/graficos/GraficoSource.cpp" line="+102"/>
         <source>Gráfico animado</source>
         <translation>Анимированная графика</translation>
     </message>
@@ -58234,7 +58272,7 @@ Datos (de %2): %3</source>
         <translation>нет</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+995"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+998"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>«%1» не запустился при открытии: %2</translation>
     </message>
@@ -68360,7 +68398,7 @@ Antes de inventar uno nuevo, mirá si alguno de estos sirve cambiándole los par
     <message>
         <location line="+13"/>
         <location line="+33"/>
-        <location line="+172"/>
+        <location line="+173"/>
         <location line="+92"/>
         <location line="+37"/>
         <location line="+27"/>
@@ -68368,7 +68406,7 @@ Antes de inventar uno nuevo, mirá si alguno de estos sirve cambiándole los par
         <translation>Нет движка графики.</translation>
     </message>
     <message>
-        <location line="-351"/>
+        <location line="-352"/>
         <source>Ver cómo queda un gráfico</source>
         <translation>Посмотреть, как выглядит графика</translation>
     </message>
@@ -68421,36 +68459,7 @@ Mirá las imágenes de verdad: ahí se ve si el texto entra tarde, si la caja ta
         <translation>Рисует графику и воспроизводит её в источнике «Анимированная графика» сцены. ЭТО ВИДНО В ЭФИРЕ, если эта сцена в программе.</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, lo ve el público.
-
-La fuente tiene que existir en una escena: se agrega como cualquier otra, con tipo «Gráfico animado» (ba_grafico). `grafico_en_escena` las lista con su id.
-
-Se dibuja en otro proceso y sale al aire con los primeros cuadros; el resto llega andando.
-
-CUÁNTO QUEDA EN PANTALLA lo dice el parámetro del gráfico `salidaEn` («Cuándo se va», en milisegundos, dentro de `parametros`): a ese momento arranca la animación de salida y el gráfico se va solo (una placa de apertura: 4000-5000). Con 0, o si el gráfico no lo tiene, queda puesto hasta grafico_ocultar (un zócalo que se sostiene). Lo quieto entre la entrada y la salida no se dibuja: puede quedarse 60 s sin costo. `duracionMs` NO hace falta (solo cuenta para un gráfico sin `salidaEn`: cuánta animación dibujar).
-
-EN EL GUION es distinto: una cue de gráfico dice `seVa` (al-avanzar: títulos y placas se van solos cuando el guion pasa a otra cue; sola; queda) y si no lo dice manda la ficha del gráfico (`seVa`). Para eventos con guion, preferí cues a grafico_mostrar.
-
-Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y se sostiene. Con `repetir`, vuelve a empezar (un ticker).
-
-VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámara»): un gráfico que tiene un parámetro de tipo «fuente» lleva una fuente de video de la app que entra, queda y se va con él. Decila con `video` (el nombre de la fuente como lo da scene_list, p. ej. «Cámara 1») o en `parametros`. Si esa fuente ya está en la escena del gráfico se anima esa y al terminar vuelve a su lugar; si no, se suma sola mientras dure el gráfico.</source>
-        <translation>Перед этим нужно посмотреть графику через grafico_probar. Как только она вышла, её видит аудитория.
-
-Источник должен существовать в сцене: добавляется как любой другой, с типом «Анимированная графика» (ba_grafico). `grafico_en_escena` перечисляет их с id.
-
-Рисуется в другом процессе и выходит в эфир с первыми кадрами; остальное приходит на ходу.
-
-СКОЛЬКО ОНА ОСТАЁТСЯ НА ЭКРАНЕ, задаёт параметр графики `salidaEn` («Когда уходит», в миллисекундах, внутри `parametros`): в этот момент начинается анимация выхода, и графика уходит сама (заставка открытия: 4000-5000). При 0, или если у графики его нет, она остаётся до grafico_ocultar (титр, который держится). Неподвижная часть между входом и выходом не рисуется: она может держаться 60 с без затрат. `duracionMs` НЕ нужен (важен только для графики без `salidaEn`: сколько анимации рисовать).
-
-В СЦЕНАРИИ иначе: команда графики указывает `seVa` (al-avanzar: заголовки и заставки уходят сами, когда сценарий переходит к другой команде; sola; queda), а если не указывает — решает описание графики (`seVa`). Для мероприятий со сценарием предпочитайте команды, а не grafico_mostrar.
-
-Без `repetir` последний кадр застывает — именно это нужно титру, который входит и держится. С `repetir` начинается заново (бегущая строка).
-
-ЖИВОЕ ВИДЕО ВНУТРИ (камера выступающего в титре, «Титр с камерой»): графика с параметром типа «fuente» несёт видеоисточник приложения, который входит, остаётся и уходит вместе с ней. Укажите его в `video` (имя источника, как его даёт scene_list, напр. «Cámara 1») или в `parametros`. Если этот источник уже есть в сцене графики, анимируется он и в конце возвращается на место; если нет — добавляется сам на время графики.</translation>
-    </message>
-    <message>
-        <location line="+24"/>
+        <location line="+28"/>
         <location line="+155"/>
         <source>Id de la fuente (grafico_en_escena).</source>
         <translation>Id источника (grafico_en_escena).</translation>
@@ -68471,12 +68480,7 @@ VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámar
         <translation>Только для графики БЕЗ `salidaEn`: сколько анимации рисовать (иначе — по её описанию).</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>La fuente de video que va adentro del gráfico (como en scene_list): llena sus parámetros de tipo «fuente». Solo para gráficos con video en vivo.</source>
-        <translation>Видеоисточник внутри графики (как в scene_list): заполняет её параметры типа «fuente». Только для графики с живым видео.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+10"/>
         <source>Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al aire y la deja armada; sale con TAKE (preview_al_aire).</source>
         <translation>Загрузить в ПРЕДПРОСМОТР вместо эфира: рисует её в сцене, которая не в эфире, и оставляет загруженной; выходит по TAKE (preview_al_aire).</translation>
     </message>
@@ -68700,7 +68704,41 @@ Después, en la descripción: {&quot;tipo&quot;: &quot;medio&quot;, &quot;archiv
         <translation>Имеющиеся связи и, главное, ИСТОЧНИКИ ДАННЫХ, которые можно использовать.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-309"/>
+        <source>Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, lo ve el público.
+
+La fuente tiene que existir en una escena: se agrega como cualquier otra, con tipo «Gráfico animado» (ba_grafico). `grafico_en_escena` las lista con su id.
+
+Se dibuja en otro proceso y sale al aire con los primeros cuadros; el resto llega andando.
+
+CUÁNTO QUEDA EN PANTALLA lo dice el parámetro del gráfico `salidaEn` («Cuándo se va», en milisegundos, dentro de `parametros`): a ese momento arranca la animación de salida y el gráfico se va solo (una placa de apertura: 4000-5000). Con 0, o si el gráfico no lo tiene, queda puesto hasta grafico_ocultar (un zócalo que se sostiene). Lo quieto entre la entrada y la salida no se dibuja: puede quedarse 60 s sin costo. `duracionMs` NO hace falta (solo cuenta para un gráfico sin `salidaEn`: cuánta animación dibujar).
+
+EN EL GUION es distinto: una cue de gráfico dice `seVa` (al-avanzar: títulos y placas se van solos cuando el guion pasa a otra cue; sola; queda) y si no lo dice manda la ficha del gráfico (`seVa`). Para eventos con guion, preferí cues a grafico_mostrar.
+
+Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y se sostiene. Con `repetir`, vuelve a empezar (un ticker).
+
+VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámara»): un gráfico que tiene un parámetro de tipo «fuente» lleva una fuente de video de la app que entra, queda y se va con él. Decila con `video` (el nombre de la fuente como lo da scene_list, p. ej. «Cámara 1») o en `parametros`. Si esa fuente ya está en la escena del gráfico se anima esa y al terminar vuelve a su lugar; si no, se suma sola mientras dure el gráfico. En vez de una fuente puede ir el nombre de una ESCENA (va entera, como se ve: un plano armado); no una que lleve este mismo gráfico.</source>
+        <translation>Перед этим нужно посмотреть графику через grafico_probar. Как только она вышла, её видит аудитория.
+
+Источник должен существовать в сцене: добавляется как любой другой, с типом «Анимированная графика» (ba_grafico). `grafico_en_escena` перечисляет их с id.
+
+Рисуется в другом процессе и выходит в эфир с первыми кадрами; остальное приходит на ходу.
+
+СКОЛЬКО ОНА ОСТАЁТСЯ НА ЭКРАНЕ, задаёт параметр графики `salidaEn` («Когда уходит», в миллисекундах, внутри `parametros`): в этот момент начинается анимация выхода, и графика уходит сама (заставка открытия: 4000-5000). При 0, или если у графики его нет, она остаётся до grafico_ocultar (титр, который держится). Неподвижная часть между входом и выходом не рисуется: она может держаться 60 с без затрат. `duracionMs` НЕ нужен (важен только для графики без `salidaEn`: сколько анимации рисовать).
+
+В СЦЕНАРИИ иначе: команда графики указывает `seVa` (al-avanzar: заголовки и заставки уходят сами, когда сценарий переходит к другой команде; sola; queda), а если не указывает — решает описание графики (`seVa`). Для мероприятий со сценарием предпочитайте команды, а не grafico_mostrar.
+
+Без `repetir` последний кадр застывает — именно это нужно титру, который входит и держится. С `repetir` начинается заново (бегущая строка).
+
+ЖИВОЕ ВИДЕО ВНУТРИ (камера выступающего в титре, «Титр с камерой»): графика с параметром типа «fuente» несёт видеоисточник приложения, который входит, остаётся и уходит вместе с ней. Укажите его в `video` (имя источника, как его даёт scene_list, напр. «Cámara 1») или в `parametros`. Если этот источник уже есть в сцене графики, анимируется он и в конце возвращается на место; если нет — добавляется сам на время графики. Вместо источника можно указать имя СЦЕНЫ (она идёт целиком, как выглядит: готовый план); но не сцену, которая содержит эту же графику.</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>La fuente de video (como en scene_list) o la escena que va adentro del gráfico: llena sus parámetros de tipo «fuente». Solo para gráficos con video en vivo.</source>
+        <translation>Видеоисточник (как в scene_list) или сцена, которая идёт внутрь графики: заполняет её параметры типа «fuente». Только для графики с живым видео.</translation>
+    </message>
+    <message>
+        <location line="+271"/>
         <source>Un vinculo dice de donde sale cada campo de un grafico, una sola vez, y despues se mantiene solo: cuando lo que resuelve cambia (cambio el orador, cambio la escena), el grafico vuelve a salir al aire con lo nuevo.
 
 `origenes` es lo que se puede poner entre llaves, CON SU VALOR DE AHORA. Miralo antes de escribir un vinculo: si el origen que ibas a usar no esta en esa lista, no existe, y el vinculo no se va a guardar.
@@ -68857,7 +68895,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
 С этим набором графика собирается БЕЗ написания кода: так и стоит делать всегда, когда его достаточно. Писать QML вручную — только когда набора действительно не хватает, потому что там снова появляются подводные камни (см. `help {&quot;topic&quot;: &quot;graficos&quot;}`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+23"/>
+        <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+26"/>
         <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima: el orador crece | achicando: el orador crece y los demás se achican; animado en transicion_ms y el borde del orador aparece con un fundido), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador (&quot;&quot; = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
         <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (ячейки с «+N», 0 = без ограничения), solo_con_camara, sin_al_aire (без тех, кто уже в эфире в другом источнике или в другой видимой сетке, включая сцены слоёв DSK), resaltar (того, кто говорит), grupo (сетки одной группы делят людей без повторов; &quot;&quot; = отдельная), orden_en_grupo (первая задаёт порядок и режим), reparto (en_orden: заполняет первую до её предела; parejo: поровну в каждой), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo и color_resaltar (&quot;#AARRGGBB&quot;). Когда кто-то говорит: al_hablar (sin_cambios: сетка не меняется, только камера выступающего в высоком качестве | resaltar: никто не двигается, выступающий с рамкой | destacar: выступающий крупно, остальные в полосе в том же порядке | superponer: выступающий поверх, в промежутке, который оставляет сетка | escena: сетка не меняется, а другая сетка с muestra=orador показывает только его | nada: без выступающего), agrandar (resaltar и escena: нет | encima: выступающий увеличивается | achicando: выступающий увеличивается, а остальные уменьшаются; анимация за transicion_ms, рамка выступающего появляется плавно), pasar_a_escena (escena: a_mano | automatico | asistente: всегда предупреждает оператора), salida_orador (&quot;&quot; = основной), escena_orador (задаёт grilla_personas_escena_orador), disparo (voz: устойчивый голос voz_ms | palabra: слово в собрании | orador: выступающий в эфире конференции | manual: grilla_personas_destacar), voz_ms, minimo_ms (выступающий не меняется раньше: гистерезис), precarga (следующий уже запрашивает высокий слой), destacar_lugar (centro|izquierda), destacar_tamano (% холста), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (от низкого к HD). Имена: nombres (no|nombre|nombre_cargo), nombre_tamano (% высоты ячейки), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) и sigue (сетка, чьего выступающего показывает; &quot;&quot; = первая, где он есть): сцена выступающего.</translation>
     </message>
@@ -68894,14 +68932,14 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     <message>
         <location line="+7"/>
         <location line="+27"/>
-        <location line="+30"/>
         <location line="+34"/>
+        <location line="+88"/>
         <location line="+52"/>
         <source>la grilla de personas todavía no arrancó</source>
         <translation>сетка участников ещё не запущена</translation>
     </message>
     <message>
-        <location line="-131"/>
+        <location line="-189"/>
         <source>Cambiar los ajustes de una grilla de personas</source>
         <translation>Изменить настройки сетки участников</translation>
     </message>
@@ -68912,12 +68950,12 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+5"/>
-        <location line="+52"/>
+        <location line="+110"/>
         <source>el nombre de la fuente ba_grilla</source>
         <translation>имя источника ba_grilla</translation>
     </message>
     <message>
-        <location line="-51"/>
+        <location line="-109"/>
         <source>los ajustes a cambiar</source>
         <translation>настройки для изменения</translation>
     </message>
@@ -68942,7 +68980,32 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>где сетка находится в программе, в долях холста</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+3"/>
+        <source>otras zonas del programa a medir igual (un invitado en su lugar, una cámara): [{id, x, y, w, h en fracciones del lienzo, cps que manda}]; el resultado va en `zonas`</source>
+        <translation>другие области программы, которые тоже нужно измерить (гость на своём месте, камера): [{id, x, y, w, h в долях холста, кадров/с, которые она шлёт}]; результат — в `zonas`</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Si los videos se ven parejos o a saltos</source>
+        <translation>Плавно ли идут видео или рывками</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>La app se mide sola, siempre: por cada video que dibuja, cada cuánto llega un cuadro nuevo en cada tramo (intervalo p50/p95/max en ms de los últimos 128, huecos = intervalos de más de 1,5 veces el período que debería tener, cps contra esperado_cps) y si viene «a_saltos» (sostenido 5 s; se avisa al operador). `grilla`: cada celda de la grilla de personas con lo del gateway (red: lo que llegó; deco: lo que salió del decodificador; guardado; pintado: lo que se ve en el mosaico, con salteados y repetidos; tirados) y el ritmo del mosaico publicado. `fuentes`: lo que llega a la interfaz por clave (program, guest:N…). `vistas`: cada video en pantalla (tomados, dibujados, salteados, tope_cps). `ventanas`: los cuadros que pone cada ventana en la pantalla. `peor`: el video con más huecos.</source>
+        <translation>Приложение всегда измеряет себя само: для каждого видео, которое оно рисует, — как часто приходит новый кадр на каждом участке (интервал p50/p95/max в мс по последним 128, пропуски = интервалы длиннее 1,5 положенного периода, кадров/с против esperado_cps) и идёт ли оно «a_saltos» (держится 5 с; оператора предупреждают). `grilla`: каждая ячейка сетки людей с данными шлюза (сеть: что пришло; деко: что вышло из декодера; сохранено; отрисовано: что видно в мозаике, с пропущенными и повторёнными; выброшено) и темп опубликованной мозаики. `fuentes`: что приходит в интерфейс по ключу (program, guest:N…). `vistas`: каждое видео на экране (взято, нарисовано, пропущено, tope_cps). `ventanas`: кадры, которые каждое окно выводит на экран. `peor`: видео с наибольшим числом пропусков.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>solo en un build con las sondas de los cuadros: cada cuadro en cada tramo de los últimos N segundos (`trazas`: por tramo, t, origen y dato en µs desde `trazas_base_us`)</source>
+        <translation>только в сборке с зондами кадров: каждый кадр на каждом участке за последние N секунд (`trazas`: по участку, t, источник и значение в мкс от `trazas_base_us`)</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la medición de fluidez todavía no arrancó</source>
+        <translation>измерение плавности ещё не началось</translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>la persona: sala:&lt;id&gt; o asamblea:&lt;id&gt; (ver grilla_personas_estado)</source>
         <translation>человек: sala:&lt;id&gt; или asamblea:&lt;id&gt; (см. grilla_personas_estado)</translation>
     </message>
@@ -88533,6 +88596,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2"/>
+        <source>fluidez video a saltos entrecortado trabado cuadros perdidos repetidos ritmo intervalo fps parejo</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>плавность видео рывки дёргается подвисает потерянные кадры повторы темп интервал fps плавно</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>cambiar tope orden prioridad grupo repartir entre escenas parejo llenar en orden solo con camara</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>изменить лимит порядок приоритет группа распределить по сценам поровну заполнять по порядку только с камерой</translation>
@@ -90453,8 +90522,8 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../src/motor/Composicion.cpp" line="+1242"/>
-        <location filename="../src/motor/Entrada.cpp" line="+1729"/>
+        <location filename="../src/motor/Composicion.cpp" line="+1498"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1764"/>
         <location line="+226"/>
         <location filename="../src/motor/Mezcla.cpp" line="+451"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+235"/>
@@ -90467,7 +90536,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../src/motor/Entrada.cpp" line="-638"/>
+        <location filename="../src/motor/Entrada.cpp" line="-656"/>
         <source>el pipeline no arrancó</source>
         <translation>конвейер не запустился</translation>
     </message>
@@ -90533,7 +90602,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location filename="../src/motor/Capturas.cpp" line="+148"/>
-        <location filename="../src/motor/Composicion.cpp" line="-728"/>
+        <location filename="../src/motor/Composicion.cpp" line="-730"/>
         <source>falta %1</source>
         <translation>нет %1</translation>
     </message>
@@ -90553,22 +90622,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>нет bacapturaventana (ScreenCaptureKit, macOS 12.3 или новее)</translation>
     </message>
     <message>
-        <location filename="../src/motor/Composicion.cpp" line="-242"/>
+        <location filename="../src/motor/Composicion.cpp" line="-421"/>
         <location line="+20"/>
         <location line="+10"/>
-        <location line="+67"/>
-        <location line="+96"/>
+        <location line="+79"/>
+        <location line="+263"/>
         <location line="+121"/>
         <source>composición %1: %2</source>
         <translation>композиция %1: %2</translation>
     </message>
     <message>
-        <location line="-306"/>
+        <location line="-485"/>
         <source>composición %1: con el módulo «%2»: %3</source>
         <translation>композиция %1: с модулем «%2»: %3</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+80"/>
         <source>mezcla %1: %2 cuadros/s, hueco %3 ms (pts %4 ms)</source>
         <translation>микс %1: %2 кадров/с, пропуск %3 мс (pts %4 мс)</translation>
     </message>
@@ -90578,7 +90647,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>компоновщик не запустился</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+61"/>
+        <source>composición %1: sale a su hora (plazo del mezclador %2 ms, latencia del pipeline %3 ms)</source>
+        <translation>композиция %1: выходит вовремя (срок микшера %2 мс, задержка конвейера %3 мс)</translation>
+    </message>
+    <message>
+        <location line="+211"/>
         <source>el mezclador no tiene el puerto «%1»</source>
         <translation>у микшера нет порта «%1»</translation>
     </message>
@@ -90613,7 +90687,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>композиция %1: нет %2 (слой %3 идёт без тени)</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+72"/>
         <source>composición %1: la capa «%2» se armó en %3 ms (crear %4, propiedades (el productor) %5, agregar y enlazar %6, el pad del mezclador %7, arrancar %8)</source>
         <translation>композиция %1: слой «%2» собран за %3 мс (создание %4, свойства (производитель) %5, добавление и связывание %6, пад микшера %7, запуск %8)</translation>
     </message>
@@ -90628,7 +90702,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>композиция %1 (%2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-979"/>
+        <location filename="../src/motor/Entrada.cpp" line="-996"/>
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1: заставку не удалось собрать (%2): без заставки</translation>
     </message>
@@ -90643,7 +90717,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: заставка пересобрана за %2 мс</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+67"/>
         <source>%1: en reposo (no hay nadie en su lugar) en %2 ms</source>
         <translation>%1: в покое (на месте никого нет) через %2 мс</translation>
     </message>
@@ -90659,15 +90733,15 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+70"/>
-        <location line="+203"/>
+        <location line="+207"/>
         <location line="+38"/>
         <location line="+110"/>
-        <location line="+1105"/>
+        <location line="+1133"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location line="-1449"/>
+        <location line="-1481"/>
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>микрофон %1: ожидание подключения</translation>
     </message>
@@ -90707,7 +90781,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: окно открылось, идёт захват</translation>
     </message>
     <message>
-        <location line="+126"/>
+        <location line="+130"/>
         <source>el rack de audio todavía no está (la app no registró barack): se agrega cuando esté</source>
         <translation>аудиорэка пока нет (приложение не зарегистрировало barack): он будет добавлен, когда появится</translation>
     </message>
@@ -90717,7 +90791,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: цепочка: %2</translation>
     </message>
     <message>
-        <location line="+367"/>
+        <location line="+381"/>
         <source>%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
         <translation>%1: метки времени его видео скачут (%2 мс, %3 мс): переравнивание не выполняется в течение минуты</translation>
     </message>
@@ -90737,7 +90811,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1: его звук несёт свои метки времени (сдвиг %2 мс от студии): переравнивается</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+35"/>
         <source>%1 llega tarde (%2 ms, el tope del estudio es %3 ms): va con su propia demora</source>
         <translation>%1 опаздывает (%2 мс, предел студии %3 мс): идёт со своей задержкой</translation>
     </message>
@@ -90823,7 +90897,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>действие: play, pausa, reiniciar или parar</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+331"/>
         <source>la entrada no está andando</source>
         <translation>вход не работает</translation>
     </message>
@@ -91244,7 +91318,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>нет %1, чтобы дать %2 для «%3»: идёт в системной памяти</translation>
     </message>
     <message>
-        <location line="+176"/>
+        <location line="+178"/>
         <source>el elegido a mano</source>
         <translation>выбранный вручную</translation>
     </message>
@@ -91274,7 +91348,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>не удалось прочитать файл</translation>
     </message>
     <message>
-        <location line="+420"/>
+        <location line="+424"/>
         <source>sin contexto GL para el video: %1 (se compone en la CPU)</source>
         <translation>нет контекста GL для видео: %1 (композитинг на CPU)</translation>
     </message>
@@ -91628,12 +91702,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>трансляция на %1: продолжается с кодировщиком %2</translation>
     </message>
     <message>
-        <location filename="../src/motor/Vistas.cpp" line="+143"/>
+        <location filename="../src/motor/Vistas.cpp" line="+152"/>
         <source>vista %1: %2 cuadros/s, hueco máx %3 ms</source>
         <translation>вид %1: %2 кадров/с, макс. пропуск %3 мс</translation>
     </message>
     <message>
-        <location line="+84"/>
+        <location line="+93"/>
         <source>entra a vista %1: %2 cuadros/s</source>
         <translation>вход в вид %1: %2 кадров/с</translation>
     </message>
@@ -95334,12 +95408,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Сервисы: все веб-ссылки и их QR-коды (гости, аудитория, телесуфлёр, титры, пульт управления, удалённое заседание…) с состоянием — включить, скопировать, открыть или показать QR</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Manuales: la biblioteca de manuales de usuario que arma el asistente (capturas y documentos Word y PDF), para generarla y abrirla</source>
-        <translation>Руководства: библиотека руководств пользователя, которую собирает ассистент (снимки экрана, документы Word и PDF), — сгенерировать и открыть</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+8"/>
         <source>Logs del sistema: todo lo que pasa, de los tres procesos</source>
         <translation>Системные журналы: всё, что происходит, от всех трёх процессов</translation>
     </message>
@@ -98716,22 +98785,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Не в эфире</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+14"/>
         <source>Control</source>
         <translation>Управление</translation>
     </message>
     <message>
-        <location line="-82"/>
+        <location line="-86"/>
         <source>Desconectado</source>
         <translation>Отключено</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+94"/>
         <source>Pantalla completa</source>
         <translation>Полный экран</translation>
     </message>
     <message>
-        <location line="-86"/>
+        <location line="-90"/>
         <source>Emparejar este aparato</source>
         <translation>Сопрячь это устройство</translation>
     </message>
@@ -98771,7 +98840,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Да, выполнить</translation>
     </message>
     <message>
-        <location line="+170"/>
+        <location line="+176"/>
         <source>Escenas</source>
         <translation>Сцены</translation>
     </message>
@@ -98906,7 +98975,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>Следующий ▶</translation>
     </message>
     <message>
-        <location line="-136"/>
+        <location line="-142"/>
         <source>Cámara %1</source>
         <translation>Камера %1</translation>
     </message>
@@ -98992,6 +99061,16 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2"/>
+        <source>Este control web está en desuso: usá el tablero nuevo, el mismo de la app.</source>
+        <translation>Этот веб-пульт устарел: используйте новую панель — ту же, что в приложении.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Este control web está en desuso. El tablero nuevo necesita que en la app le den a este aparato el perfil «todo».</source>
+        <translation>Этот веб-пульт устарел. Для новой панели этому устройству нужно назначить в приложении профиль «всё».</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Estante</source>
         <translation>Полка</translation>
     </message>
@@ -99022,6 +99101,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+4"/>
+        <source>Abrir el tablero nuevo</source>
+        <translation>Открыть новую панель</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Multipantalla</source>
         <translation>Мультиэкран</translation>
     </message>
@@ -99640,11 +99724,61 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>%1 perdidos</source>
         <translation>потеряно %1</translation>
     </message>
+    <message>
+        <location line="+1468"/>
+        <source>Usar el control web clásico</source>
+        <translation>Открыть классический веб-пульт</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Emparejar en el control web</source>
+        <translation>Связать в веб-пульте</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>En este aparato la pantalla completa se logra agregando la página a la pantalla de inicio (Compartir → Agregar a inicio) y abriéndola desde ahí.</source>
+        <translation>На этом устройстве полноэкранный режим получается, если добавить страницу на экран «Домой» (Поделиться → На экран «Домой») и открывать её оттуда.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se puede mostrar el tablero</source>
+        <translation>Не удаётся показать панель</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Abrí el control web desde el QR de la app (Servicios → Control web), emparejalo y volvé acá.</source>
+        <translation>Откройте веб-пульт по QR-коду приложения (Сервисы → Веб-пульт), свяжите устройство и вернитесь сюда.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cargando el tablero…</source>
+        <translation>Загрузка панели…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lo quitaron en la app.</source>
+        <translation>Его удалили в приложении.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Emparejalo de nuevo desde el QR de la app.</source>
+        <translation>Свяжите его заново по QR-коду приложения.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El tablero se cerró</source>
+        <translation>Панель закрылась</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se pudo cargar el tablero</source>
+        <translation>Не удалось загрузить панель</translation>
+    </message>
 </context>
 <context>
     <name>web/correccion</name>
     <message>
-        <location line="+2"/>
+        <location line="-1484"/>
         <source>no se pudo mandar (%1)</source>
         <translation>не удалось отправить (%1)</translation>
     </message>

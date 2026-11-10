@@ -1308,7 +1308,8 @@ void Entrada::armar() {
     }
     if (medio_) {
         // Un archivo: el reloj del estudio pero su propio base_time (los saltos lo cambian).
-        gst_pipeline_use_clock(GST_PIPELINE(p), reloj_.clock());
+        // Con el GL del motor como los demás (antes solo el reloj: el video no se veía).
+        reloj_.adoptarConSuBase(p);
     } else {
         reloj_.adoptar(p);
     }

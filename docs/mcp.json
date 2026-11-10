@@ -18573,7 +18573,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 323
+        "linea": 325
       },
       "roles": [
         "asistente",
@@ -18601,7 +18601,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 299
+        "linea": 301
       },
       "roles": [
         "asistente",
@@ -18684,7 +18684,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 392
+        "linea": 394
       },
       "roles": [
         "asistente",
@@ -18724,7 +18724,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 434
+        "linea": 436
       },
       "roles": [
         "asistente",
@@ -18760,7 +18760,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 370
+        "linea": 372
       },
       "roles": [
         "asistente",
@@ -18806,7 +18806,7 @@
           },
           "video": {
             "type": "string",
-            "description": "La fuente de video que va adentro del gráfico (como en scene_list): llena sus parámetros de tipo «fuente». Solo para gráficos con video en vivo."
+            "description": "La fuente de video (como en scene_list) o la escena que va adentro del gráfico: llena sus parámetros de tipo «fuente». Solo para gráficos con video en vivo."
           },
           "armar": {
             "type": "boolean",
@@ -18870,7 +18870,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 277
+        "linea": 279
       },
       "roles": [
         "asistente",
@@ -18946,7 +18946,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 576
+        "linea": 578
       },
       "roles": [
         "asistente",
@@ -18985,7 +18985,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 544
+        "linea": 546
       },
       "roles": [
         "asistente",
@@ -19047,7 +19047,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 488
+        "linea": 490
       },
       "roles": [
         "asistente",
@@ -19075,7 +19075,7 @@
       },
       "donde": {
         "archivo": "src/app/mcp/McpGraficoTools.cpp",
-        "linea": 465
+        "linea": 467
       },
       "roles": [
         "asistente",

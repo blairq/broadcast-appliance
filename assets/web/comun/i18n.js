@@ -20,12 +20,14 @@
 // (BAi18n.elegir, se recuerda en este navegador), si no según `preferir` (el del evento
 // es el que pasa la página o, si no, el del evento abierto, que manda el gateway):
 //   "navegador" (invitados, público remoto): el del navegador si lo hay, si no el del evento;
-//   "evento" (pantallas, presidencia): el del evento.
+//   "evento" (pantallas, presidencia): el del evento;
+//   "app" (el tablero web, que es la interfaz de la app): el de la interfaz de la app
+//   (Configuración → Idioma), si no el del navegador.
 // tools/i18n/extraer.py encuentra los t("…") y data-i18n="…" para el .ts.
 (function () {
   "use strict";
   const CLAVE_ELEGIDO = "ba.idioma";
-  const estado = { contexto: "web/comun", evento: "", preferir: "evento", idioma: "es", perfil: null, cadena: [],
+  const estado = { contexto: "web/comun", evento: "", app: "", preferir: "evento", idioma: "es", perfil: null, cadena: [],
                   idiomas: [] };
 
   function guardado() {
@@ -102,14 +104,18 @@
       estado.idiomas = j.idiomas || [];
       // El del evento abierto, si la página no lo sabe por su cuenta.
       if (!estado.evento && j.evento) estado.evento = j.evento;
+      estado.app = j.app || "";
     } catch (e) {
       estado.idiomas = [];
     }
     const url = new URLSearchParams(location.search).get("idioma");
     const evento = buscar(estado.evento, true);
     const navegador = buscar(delNavegador(), false);
+    const app = buscar(estado.app, true);
     const pedido = buscar(url, true) || buscar(guardado(), true) ||
-                   (estado.preferir === "navegador" ? navegador || evento : evento || navegador) ||
+                   // Un gateway anterior a «app» en idiomas.json: el del evento, que suele ser el mismo.
+                   (estado.preferir === "app" ? app || evento || navegador :
+                    estado.preferir === "navegador" ? navegador || evento : evento || navegador) ||
                    estado.idiomas.find((p) => p.fuente) || { codigo: "es", plural: "uno-otro", fuente: true };
     estado.idioma = pedido.codigo;
     estado.perfil = pedido;

@@ -217,6 +217,14 @@ else
     log "AVISO: no está $HINCHADA_HOST/dist: hinchada sale de lo que haya en el volumen"
 fi
 
+# El tablero web (WebAssembly, /control/app/) se arma en la Mac (make tablero-web) y no está
+# en git: se monta de solo lectura y cmake lo toma de BA_TABLERO_WEB_DIR. Sin esto el .zip
+# de Windows y el .tar.gz de Linux salían sin /control/app/.
+TABLERO_HOST="$(cd "$GITDIR/.." && pwd)/build-tablero-web/salida"
+[ -f "$TABLERO_HOST/ba-tablero.wasm" ] || morir "falta el tablero web ($TABLERO_HOST): make tablero-web"
+case "$TABLERO_HOST" in *" "*) morir "la ruta del tablero web no puede tener espacios: $TABLERO_HOST" ;; esac
+MONTAR_TABLERO="-v $TABLERO_HOST:/tablero-web:ro -e BA_TABLERO_WEB_DIR=/tablero-web"
+
 # Un registro por corrida en dist/logs/ (ignorado por git): todo lo que sale por la
 # terminal, para ver después qué falló y dónde se fue el tiempo. Los registros de los
 # tests que fallaron quedan al lado, en dist/logs/<corrida>/.
@@ -246,7 +254,7 @@ log "$([ "$VALIDAR" = 1 ] && echo validando || echo compilando) $QUE ($ARQ) en e
 # «todo» es la receta entera; «tests-win», solo los tests de Windows bajo Wine (validación arm64).
 correr() {
     d run --rm --platform "linux/$1" --privileged \
-    -v "$VOLUMEN:/trabajo" -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" $MONTAR_SIMBOLOS $MONTAR_HINCHADA \
+    -v "$VOLUMEN:/trabajo" -v "$GITDIR:/repo.git:ro" -v "$ROOT/dist:/salida" $MONTAR_SIMBOLOS $MONTAR_HINCHADA $MONTAR_TABLERO \
     -v "$ROOT/tools/ci/capa-docker.sh:/capa-docker.sh:ro" \
     -v "$CCACHE_VOL:/ccache" -e CCACHE_DIR=/ccache -e CCACHE_MAXSIZE=30G \
     -e MODO="$MODO" -e CAPA="$CAPA" -e VALIDAR="$VALIDAR" -e ETAPA="$3" -e INCOMPLETO="$VALIDAR" \

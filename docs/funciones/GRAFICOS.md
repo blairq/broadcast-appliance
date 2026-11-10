@@ -268,10 +268,16 @@ adentro de la descripción:
 }]
 ```
 
-- `fuente`: el nombre de una fuente de la app o, mejor, un parámetro de tipo
-  **`fuente`** (`{"clave": "camara", "tipo": "fuente"}`): en el editor y en
-  Rótulos se elige de una lista; por MCP, `grafico_mostrar {"video": "Cámara 1"}`.
-  Vacío: el gráfico sale sin video.
+- `fuente`: el nombre de una fuente de la app **o de una escena**, o mejor, un
+  parámetro de tipo **`fuente`** (`{"clave": "camara", "tipo": "fuente"}`): en el
+  editor y en Rótulos se elige de una lista (primero las entradas de video, después
+  las escenas); por MCP, `grafico_mostrar {"video": "Cámara 1"}` o
+  `{"video": "Plano del orador"}`. Vacío: el gráfico sale sin video.
+- **Una escena** va entera, como se ve (la cámara con su recorte, dos invitados, un
+  rótulo propio…), siempre en una capa aparte, del tamaño del lienzo dentro del
+  recuadro. Se compone aparte mientras el gráfico la muestra. Su audio no viaja con
+  el gráfico. No puede ser una escena que lleve este mismo gráfico (directo o por
+  el video de otro gráfico suyo): se vería adentro de sí misma, y se rechaza.
 - `x`, `y`, `ancho`, `alto` en **píxeles del gráfico** (su tamaño declarado): si
   mueven el gráfico en la escena, el recuadro va con él. Lo que una clave no dice
   lo hereda de la anterior. `recorte` ({izq, arr, der, aba}) en fracciones de la

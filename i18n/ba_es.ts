@@ -15,7 +15,7 @@
 <context>
     <name>AgentesPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/AgentesPage.qml" line="+321"/>
+        <location filename="../src/app/qml/pages/AgentesPage.qml" line="+344"/>
         <source>%n reciente</source>
         <translation>
             <numerusform>%n reciente</numerusform>
@@ -23,7 +23,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+84"/>
+        <location line="+85"/>
         <source>fin: %n turno, %1 s</source>
         <translation>
             <numerusform>fin: %n turno, %1 s</numerusform>
@@ -492,7 +492,7 @@
 <context>
     <name>GraficosPage</name>
     <message numerus="yes">
-        <location filename="../src/app/qml/pages/GraficosPage.qml" line="+472"/>
+        <location filename="../src/app/qml/pages/GraficosPage.qml" line="+473"/>
         <source>%n cuadro</source>
         <translation>
             <numerusform>%n cuadro</numerusform>
@@ -1856,7 +1856,7 @@ No se borran del disco: si alguno estaba en una escena, se lo saca de ahí y lis
 <context>
     <name>web/correccion</name>
     <message numerus="yes">
-        <location line="+560"/>
+        <location line="+566"/>
         <source>%n esperando</source>
         <translation>
             <numerusform>%n esperando</numerusform>

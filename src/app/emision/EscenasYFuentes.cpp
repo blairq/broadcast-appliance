@@ -1087,11 +1087,23 @@ std::string EscenasYFuentes::ponerVideoDeGrafico(const std::string& grafico, con
         quitarVideoDeGrafico(grafico);
         return {};
     }
-    for (const auto& c : capas) {
+    json listas = capas;                // las de una escena, con su id
+    std::set<std::string> escenasUsadas; // ids
+    for (auto& c : listas) {
         const std::string f = c.value("fuente", std::string());
-        const auto it = sources_.find(f);
-        if (it == sources_.end()) return ba::i18n::llenar(ba::i18n::traducir("emision", "no hay ninguna fuente «%1» (tiene que estar en alguna escena)"), {f});
         if (f == grafico) return ba::i18n::traducir("emision", "el gráfico no puede llevarse a sí mismo adentro");
+        const auto it = sources_.find(f);
+        if (it == sources_.end()) {
+            // Una escena entera (un plano armado: cámara con su recorte, dos invitados…).
+            const EscenaApp* esc = escena(f);
+            if (esc == nullptr)
+                return ba::i18n::llenar(ba::i18n::traducir("emision", "no hay ninguna fuente ni escena «%1» (una fuente tiene que estar en alguna escena)"), {f});
+            if (escenaLlevaGrafico(esc->id, grafico))
+                return ba::i18n::llenar(ba::i18n::traducir("emision", "la escena «%1» lleva este gráfico: se vería adentro de sí misma"), {f});
+            c["escena"] = esc->id;
+            escenasUsadas.insert(esc->id);
+            continue;
+        }
         if (it->second.banca) return ba::i18n::llenar(ba::i18n::traducir("emision", "«%1» es una banca con la palabra: elegí la cámara"), {f});
         if (it->second.global) return ba::i18n::llenar(ba::i18n::traducir("emision", "«%1» es una entrada de audio, no tiene video"), {f});
     }
@@ -1099,9 +1111,44 @@ std::string EscenasYFuentes::ponerVideoDeGrafico(const std::string& grafico, con
     for (const EscenaApp& e : scenes_)
         for (const Item& i : e.items) enEscena = enEscena || i.fuente == grafico;
     if (!enEscena) return ba::i18n::llenar(ba::i18n::traducir("emision", "el gráfico «%1» no está en ninguna escena"), {grafico});
-    videoDeGraficos_[grafico] = {{"capas", capas}, {"desde_ns", 0}};
+    // Las escenas nuevas se piden ANTES de soltar las de antes: una que sigue no se rearma.
+    json ids = json::array();
+    for (const std::string& id : escenasUsadas) {
+        const std::string productor = m_.motor_ ? m_.motor_->usarEscena(id) : std::string();
+        for (auto& c : listas)
+            if (c.value("escena", std::string()) == id) c["productor"] = productor;
+        ids.push_back(id);
+    }
+    json antes;
+    if (const auto viejo = videoDeGraficos_.find(grafico); viejo != videoDeGraficos_.end()) antes = viejo->second;
+    videoDeGraficos_[grafico] = {{"capas", listas}, {"desde_ns", 0}, {"escenas", ids}};
     publicarEscenasCon(grafico);
+    // Las de antes, ya sin nadie que las lea.
+    if (antes.is_object()) soltarEscenasDeVideo(antes);
     return {};
+}
+
+bool EscenasYFuentes::escenaLlevaGrafico(const std::string& escenaId, const std::string& grafico, int profundidad) const {
+    // Tan anidado ya no se sigue: se trata como si la llevara (mejor rechazar que un lazo).
+    if (profundidad > 8) return true;
+    const EscenaApp* e = escena(escenaId);
+    if (e == nullptr) return false;
+    for (const Item& i : e->items) {
+        if (i.fuente == grafico) return true;
+        const auto v = videoDeGraficos_.find(i.fuente);
+        if (v == videoDeGraficos_.end()) continue;
+        for (const auto& c : v->second.value("capas", json::array())) {
+            const std::string otra = c.value("escena", std::string());
+            if (!otra.empty() && escenaLlevaGrafico(otra, grafico, profundidad + 1)) return true;
+        }
+    }
+    return false;
+}
+
+void EscenasYFuentes::soltarEscenasDeVideo(const json& video) {
+    if (!m_.motor_) return;
+    for (const auto& id : video.value("escenas", json::array()))
+        if (id.is_string()) m_.motor_->soltarEscena(id.get<std::string>());
 }
 
 void EscenasYFuentes::empezarVideoDeGrafico(const std::string& grafico, std::int64_t desdeNs) {
@@ -1112,7 +1159,13 @@ void EscenasYFuentes::empezarVideoDeGrafico(const std::string& grafico, std::int
 }
 
 void EscenasYFuentes::quitarVideoDeGrafico(const std::string& grafico) {
-    if (videoDeGraficos_.erase(grafico) > 0) publicarEscenasCon(grafico);
+    const auto it = videoDeGraficos_.find(grafico);
+    if (it == videoDeGraficos_.end()) return;
+    const json video = std::move(it->second);
+    videoDeGraficos_.erase(it);
+    // Primero la escena sin el video (deja de leer la composición), después se suelta.
+    publicarEscenasCon(grafico);
+    soltarEscenasDeVideo(video);
 }
 
 void EscenasYFuentes::publicarEscenasCon(const std::string& fuente) {
@@ -1152,22 +1205,40 @@ void EscenasYFuentes::sumarVideoDeGraficos(const EscenaApp& e, json& capas) cons
         int j = 0;
         for (const auto& vc : v->second.value("capas", json::array())) {
             const std::string f = vc.value("fuente", std::string());
-            const auto fu = sources_.find(f);
-            if (fu == sources_.end() || fu->second.banca || fu->second.global) continue;
-            const bool comp = !fu->second.compProductor.empty();
-            const std::string entrada = comp ? kPrefijoCompositor + f : f;
-            const json sale = entradas.contains(f) ? entradas[f].value("sale", json::object()) : json::object();
+            // Una escena entera: su composición aparte (pedida en ponerVideoDeGrafico), del
+            // tamaño del lienzo, siempre en una capa propia. Nunca la misma escena (un lazo).
+            const std::string escenaId = vc.value("escena", std::string());
+            std::string entrada, productor;
+            int fuenteW = 0, fuenteH = 0;
+            bool propia = vc.value("propia", false);
+            if (!escenaId.empty()) {
+                if (escenaId == e.id || vc.value("productor", std::string()).empty()) continue;
+                entrada = "escena:" + escenaId;
+                productor = vc.value("productor", std::string());
+                fuenteW = static_cast<int>(W);
+                fuenteH = static_cast<int>(H);
+                propia = true;
+            } else {
+                const auto fu = sources_.find(f);
+                if (fu == sources_.end() || fu->second.banca || fu->second.global) continue;
+                const bool comp = !fu->second.compProductor.empty();
+                entrada = comp ? kPrefijoCompositor + f : f;
+                if (comp) productor = fu->second.compProductor;
+                const json sale = entradas.contains(f) ? entradas[f].value("sale", json::object()) : json::object();
+                fuenteW = sale.value("ancho", 0);
+                fuenteH = sale.value("alto", 0);
+            }
             bool contener = true;
-            const json claves = graficos::video::clavesEnLienzo(vc, caja, sale.value("ancho", 0), sale.value("alto", 0), &contener);
+            const json claves = graficos::video::clavesEnLienzo(vc, caja, fuenteW, fuenteH, &contener);
             if (claves.empty()) continue;
             // Ya está en la escena: se anima esa (y al quitarla vuelve a como estaba). Si no, o si
             // la declaración quiere una propia, una capa más.
             int existente = -1;
-            if (!vc.value("propia", false))
+            if (!propia)
                 for (std::size_t i = 0; i < capas.size() && existente < 0; ++i)
                     if (capas[i].value("entrada", std::string()) == entrada && !capas[i].contains("claves")) existente = static_cast<int>(i);
             json c = existente >= 0 ? capas[static_cast<std::size_t>(existente)] : json{{"entrada", entrada}};
-            if (comp && existente < 0) c["productor"] = fu->second.compProductor;
+            if (!productor.empty() && existente < 0) c["productor"] = productor;
             // Lo de antes de arrancar: la primera clave (casi siempre con alfa 0).
             const json& k0 = claves[0];
             const json& r0 = k0["recorte"];
@@ -1220,6 +1291,12 @@ void EscenasYFuentes::reponer(const Copia& c) {
     micInputs_ = c.mics;
     scenes_ = c.escenas;
     for (const auto& e : scenes_) publicarEscena(e);
+    // Las escenas que muestran los gráficos (las pedidas vivían en el motor de antes): se
+    // piden de nuevo en este, ya con las escenas definidas. El productor se llama igual.
+    if (m_.motor_)
+        for (const auto& [g, video] : videoDeGraficos_)
+            for (const auto& id : video.value("escenas", json::array()))
+                if (id.is_string()) m_.motor_->usarEscena(id.get<std::string>());
 }
 
 void EscenasYFuentes::vaciar() {

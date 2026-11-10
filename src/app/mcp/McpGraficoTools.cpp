@@ -178,7 +178,8 @@ void McpService::registerGraficoTools() {
             "que tiene un parámetro de tipo «fuente» lleva una fuente de video de la app que entra, queda y "
             "se va con él. Decila con `video` (el nombre de la fuente como lo da scene_list, p. ej. «Cámara 1») o en `parametros`. "
             "Si esa fuente ya está en la escena del gráfico se anima esa y al terminar vuelve a su lugar; si "
-            "no, se suma sola mientras dure el gráfico.");
+            "no, se suma sola mientras dure el gráfico. En vez de una fuente puede ir el nombre de una ESCENA "
+            "(va entera, como se ve: un plano armado); no una que lleve este mismo gráfico.");
         t.inputSchema = {
             {"type", "object"},
             {"properties",
@@ -196,7 +197,7 @@ void McpService::registerGraficoTools() {
               {"repetir", {{"type", "boolean"}, {"default", false}}},
               {"video",
                {{"type", "string"},
-                {"description", QT_TRANSLATE_NOOP("mcp", "La fuente de video que va adentro del gráfico (como en scene_list): llena sus "
+                {"description", QT_TRANSLATE_NOOP("mcp", "La fuente de video (como en scene_list) o la escena que va adentro del gráfico: llena sus "
                                 "parámetros de tipo «fuente». Solo para gráficos con video en vivo.")}}},
               {"armar",
                {{"type", "boolean"},
@@ -250,9 +251,10 @@ void McpService::registerGraficoTools() {
                     return done(ToolResult::error(ba::i18n::llenar(
                         ba::i18n::traducir("mcp", "«%1» no lleva video en vivo (no tiene un parámetro de tipo «fuente»)."),
                         {a["nombre"].get<std::string>()})));
-                if (vm_.ventanilla().foto().tipoDe(video).empty())
+                // Una fuente o una escena entera (la escena va como se ve).
+                if (vm_.ventanilla().foto().tipoDe(video).empty() && vm_.ventanilla().foto().escena(video) == nullptr)
                     return done(ToolResult::error(ba::i18n::llenar(
-                        ba::i18n::traducir("mcp", "No hay ninguna fuente «%1» (scene_list las dice)."), {video})));
+                        ba::i18n::traducir("mcp", "No hay ninguna fuente ni escena «%1» (scene_list las dice)."), {video})));
                 for (const QString& k : claves) par[k] = QString::fromStdString(video);
             }
             // Por el emisor, no por abajo: asi queda anotado con que valores

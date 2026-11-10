@@ -226,8 +226,26 @@
   });
   addEventListener("hashchange", () => { if (listo) armarTablero(); });
 
+  // --- En desuso: el tablero de entrada es el de WebAssembly (/control/app/) --------------------
+  // Un aparato con el perfil completo («todo») va derecho al tablero nuevo; este queda para los
+  // perfiles acotados (el tablero nuevo necesita «todo») y, a pedido, con /control/?clasico (lo
+  // que abre el tablero nuevo cuando no puede arrancar: así no rebotan entre las dos).
+  const clasico = new URLSearchParams(location.search).has("clasico");
+  const perfilCompleto = (p) => p === "*" || (Array.isArray(p) && p.includes("*"));
+  function avisoDesuso(completo) {
+    const a = $("avisoDesuso");
+    a.querySelector("span").textContent = completo
+      ? t("Este control web está en desuso: usá el tablero nuevo, el mismo de la app.")
+      : t("Este control web está en desuso. El tablero nuevo necesita que en la app le den a este aparato el perfil «todo».");
+    a.querySelector("a").classList.toggle("oculto", !completo);
+    a.classList.remove("oculto");
+  }
+
   await BA.conexion.arrancar({
     alListo(m) {
+      const completo = perfilCompleto(BA.control.perfil);
+      if (completo && !clasico && !sola()) { location.replace("/control/app/"); return; }
+      avisoDesuso(completo);
       // Lo que este aparato recuerda lo guarda la app (en su registro); la copia local queda
       // solo para pintar rápido mientras se conecta.
       const prefs = (m && m.preferencias) || {};

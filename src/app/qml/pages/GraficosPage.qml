@@ -407,7 +407,8 @@ Rectangle {
                                         visible: modelData.tipo === "fuente"
                                         Layout.fillWidth: true
                                         editable: true
-                                        model: Studio.inputs.videoInputs.map(f => f.name)
+                                        // Las entradas de video y, después, las escenas (va la escena entera, como se ve).
+                                        model: Studio.inputs.videoInputs.map(f => f.name).concat(Studio.escenas.nombres)
                                         readonly property var valor: page.g.valores[modelData.clave]
                                         editText: valor === undefined ? "" : String(valor)
                                         onActivated: page.g.setValor(modelData.clave, currentText)

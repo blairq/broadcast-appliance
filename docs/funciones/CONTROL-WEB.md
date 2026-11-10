@@ -6,6 +6,12 @@ estado. Todo lo que se toca ahí lo hace la app con sus mismas herramientas (las
 botonera), con las mismas reglas: lo que cambia el aire pide confirmación en la pantalla del aparato
 si hay transmisión o grabación.
 
+> **En desuso.** El tablero de entrada es el de WebAssembly (`/control/app/`,
+> [TABLERO-WEB.md](TABLERO-WEB.md)): el mismo dashboard de la app. Un aparato con el perfil
+> «todo» que abre `/control/` pasa solo allá. Este tablero en HTML queda para los aparatos con
+> un perfil acotado y, a pedido, en `/control/?clasico`. Emparejar sigue siendo acá, igual que
+> siempre.
+
 ## Emparejar un aparato (una sola vez)
 
 1. En la app, **Servicios → Control** muestra un QR.

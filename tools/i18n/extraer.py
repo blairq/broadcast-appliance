@@ -5,6 +5,7 @@ lupdate lee C++ y QML. Lo demás se marca así y sale de acá:
   - la web (assets/web/<interfaz>/): `t("texto")` en el JS y, en el HTML,
     `data-i18n="texto"` (el contenido), `data-i18n-placeholder`, `data-i18n-title`,
     `data-i18n-aria-label`, `data-i18n-alt`. El contexto es `web/<interfaz>` (`web/comun` lo de todas).
+  - la página del tablero web (src/tablero-web/web: puente.js), con el contexto `web/control`.
 
 Cada texto sale como QT_TRANSLATE_NOOP("<contexto>", "<texto>") (QT_TRANSLATE_N_NOOP si
 lleva %n: es un plural), así entra al mismo .ts que el resto y la traducción se hace en un
@@ -18,6 +19,7 @@ import sys
 
 RAIZ = pathlib.Path(__file__).resolve().parents[2]
 WEB = RAIZ / "assets" / "web"
+TABLERO_WEB = RAIZ / "src" / "tablero-web" / "web"
 
 # t("…") / t('…') que no sea parte de otro nombre (st(, x.t(, $t()
 JS_T = re.compile(r"""(?<![\w.$])t\(\s*(["'])((?:\\.|(?!\1).)*?)\1""", re.S)
@@ -53,14 +55,21 @@ def de_html(attr: str) -> str:
             .replace("&amp;", "&"))
 
 
-def textos_web():
+def archivos_web():
+    """(archivo, contexto): assets/web/<interfaz>/ con web/<interfaz>, y la página del tablero
+    web (src/tablero-web/web: puente.js) con web/control, el contexto que usa al traducir."""
     for f in sorted(WEB.rglob("*")):
+        yield f, f"web/{f.relative_to(WEB).parts[0]}" if f.is_file() else ""
+    for f in sorted(TABLERO_WEB.rglob("*")):
+        yield f, "web/control"
+
+
+def textos_web():
+    for f, contexto in archivos_web():
         if f.suffix not in (".js", ".html", ".htm", ".mjs") or not f.is_file():
             continue
         if f == WEB / "comun" / "i18n.js":  # el traductor mismo: sus ejemplos no son textos
             continue
-        interfaz = f.relative_to(WEB).parts[0]
-        contexto = f"web/{interfaz}"
         texto = f.read_text(encoding="utf-8", errors="replace")
         if f.suffix in (".html", ".htm"):
             for m in HTML_ATTR.finditer(texto):

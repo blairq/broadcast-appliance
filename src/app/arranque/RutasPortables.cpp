@@ -35,25 +35,39 @@ bool pareceRutaAbsoluta(const std::string& s) {
     return s.size() > 2 && std::isalpha(static_cast<unsigned char>(s[0])) && s[1] == ':' && (s[2] == '\\' || s[2] == '/');
 }
 
+/// Una relativa que no empieza por una carpeta conocida (lo guardado antes de que relativa()
+/// mirara eso: «Manuales/es/videos/x.mp4»), pero que nombra un archivo que existe en los
+/// datos. Un texto cualquiera («sí/no») no coincide con un archivo existente.
+bool esArchivoDeLosDatos(const std::string& s) {
+    if (s.empty() || s.find('/') == std::string::npos || pareceRutaAbsoluta(s) || s.find("://") != std::string::npos) return false;
+    std::error_code ec;
+    return fs::is_regular_file(ba::platform::rutaDeDatos(s), ec);
+}
+
 std::string relativa(const std::string& s) {
+    // Solo lo que absoluta() sabe rearmar al leer: lo que empieza por una carpeta de los
+    // datos. Lo demás de adentro de los datos («Manuales/…», «Runtime/…») queda absoluto (y
+    // absoluta() lo rearma igual si la carpeta se movió). Antes se guardaba relativo y al
+    // leer quedaba así: el archivo se buscaba en la configuración y no estaba (un video de
+    // los manuales en una escena: «Resource not found» en cada arranque, 2026-11-10).
     if (s.rfind("file://", 0) == 0) {
         const QString local = QUrl(QString::fromStdString(s)).toLocalFile();
         if (local.isEmpty()) return s;
         const std::string r = ba::platform::rutaGuardable(fs::path(local.toStdWString()));
-        return pareceRutaAbsoluta(r) ? s : "file:" + r;
+        return pareceRutaAbsoluta(r) || !empiezaPorCarpetaDeDatos(r) ? s : "file:" + r;
     }
     if (!pareceRutaAbsoluta(s)) return s;
     const std::string r = ba::platform::rutaGuardable(fs::path(std::u8string(s.begin(), s.end())));
-    return pareceRutaAbsoluta(r) ? s : r;
+    return pareceRutaAbsoluta(r) || !empiezaPorCarpetaDeDatos(r) ? s : r;
 }
 
 std::string absoluta(const std::string& s) {
     if (s.rfind("file:", 0) == 0 && s.rfind("file://", 0) != 0) {
         const std::string r = s.substr(5);
-        if (!empiezaPorCarpetaDeDatos(r)) return s;
+        if (!empiezaPorCarpetaDeDatos(r) && !esArchivoDeLosDatos(r)) return s;
         return QUrl::fromLocalFile(QString::fromStdWString(ba::platform::rutaDeDatos(r).wstring())).toString().toStdString();
     }
-    if (empiezaPorCarpetaDeDatos(s)) {
+    if (empiezaPorCarpetaDeDatos(s) || esArchivoDeLosDatos(s)) {
         const std::u8string u = ba::platform::rutaDeDatos(s).u8string();
         return std::string(u.begin(), u.end());
     }

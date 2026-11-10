@@ -21,6 +21,9 @@
 #include <QGuiApplication>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
+#include <QHash>
+#include <QLocale>
+#include <QTranslator>
 #include <QQuickStyle>
 #include <QQuickWindow>
 #include <QJsonArray>
@@ -64,6 +67,63 @@ void avisarPagina(const char* que, const QString& detalle) {
 #else
     Q_UNUSED(que);
     Q_UNUSED(detalle);
+#endif
+}
+
+/// qsTr y tr del tablero, con los catálogos de la app que ya cargó la página (comun/i18n.js:
+/// /comun/i18n/<idioma>.json, los mismos de arranque/TraductorQt en la app). Sin esto el
+/// tablero salía siempre en el original (español) aunque la app estuviera en otro idioma.
+class TraductorWeb : public QTranslator {
+public:
+    QString translate(const char* context, const char* sourceText, const char* disambiguation = nullptr,
+                      int n = -1) const override {
+#ifdef __EMSCRIPTEN__
+        if (sourceText == nullptr || *sourceText == '\0') return {};
+        // Como TraductorQt: lupdate guarda el contexto sin el namespace.
+        const char* corto = context != nullptr ? context : "";
+        for (const char* c = corto; *c != '\0'; ++c)
+            if (c[0] == ':' && c[1] == ':') corto = c + 2;
+        // Lo mismo se pide en cada binding: se guarda (salvo los plurales, que dependen de n).
+        const QByteArray clave = QByteArray(corto) + '\x04' + sourceText + '\x04' + (disambiguation ? disambiguation : "");
+        if (n < 0)
+            if (auto it = cache_.constFind(clave); it != cache_.constEnd()) return *it;
+        emscripten::val puente = emscripten::val::global("baPuente");
+        // Sin traducción, un QString NULO (no uno vacío): QCoreApplication::translate sigue con
+        // el original solo si es nulo; uno vacío lo toma como traducción y deja TODOS los qsTr
+        // en blanco (pasó: la barra de arriba, hecha solo de textos, desaparecía).
+        QString r;
+        if (!puente.isUndefined()) {
+            const std::string s = puente.call<std::string>("traducir", std::string(corto), std::string(sourceText),
+                                                           std::string(disambiguation ? disambiguation : ""), n);
+            if (!s.empty()) r = QString::fromStdString(s);
+        }
+        if (n < 0) cache_.insert(clave, r);
+        return r;
+#else
+        Q_UNUSED(context);
+        Q_UNUSED(sourceText);
+        Q_UNUSED(disambiguation);
+        Q_UNUSED(n);
+        return {};
+#endif
+    }
+    bool isEmpty() const override { return false; }
+
+private:
+    mutable QHash<QByteArray, QString> cache_;
+};
+
+/// El idioma que eligió la página: el traductor, los formatos (QLocale) y la dirección.
+void instalarIdioma() {
+    static TraductorWeb traductor;
+    QCoreApplication::installTranslator(&traductor);
+#ifdef __EMSCRIPTEN__
+    emscripten::val puente = emscripten::val::global("baPuente");
+    if (puente.isUndefined()) return;
+    const QJsonObject p = QJsonDocument::fromJson(QByteArray::fromStdString(puente.call<std::string>("idioma"))).object();
+    const QString codigo = p.value(QStringLiteral("codigo")).toString();
+    if (!codigo.isEmpty()) QLocale::setDefault(QLocale(QString(codigo).replace('-', '_')));
+    QGuiApplication::setLayoutDirection(p.value(QStringLiteral("rtl")).toBool() ? Qt::RightToLeft : Qt::LeftToRight);
 #endif
 }
 
@@ -154,6 +214,7 @@ int main(int argc, char** argv) {
     QQuickStyle::setStyle(QStringLiteral("Basic")); // como la app (arranque/GuiMode.cpp)
     auto* app = new QGuiApplication(argc, argv);
     QGuiApplication::setApplicationName(QStringLiteral("Broadcast Appliance"));
+    instalarIdioma(); // antes de cargar cualquier QML
     // Las letras de la app (Theme.font, Theme.mono), adentro del .wasm.
     for (QDirIterator it(QStringLiteral(":/fuentes"), {QStringLiteral("*.ttf")}); it.hasNext();)
         QFontDatabase::addApplicationFont(it.next());

@@ -922,7 +922,7 @@
         <translation>Each role handles only its own job, with a one-shot agent per task. The ✦ assistant isn&apos;t told.</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+111"/>
         <source>Usa la máquina</source>
         <translation>Uses the computer</translation>
     </message>
@@ -937,7 +937,7 @@
         <translation>Besides running the app, it can use the terminal, read and write files and go online (for example, download an image and put it in Medios). What it does this way does NOT go through the assistant&apos;s approvals: turn it on only if the role needs it.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+17"/>
         <source>Aparte</source>
         <translation>Separate</translation>
     </message>
@@ -967,7 +967,7 @@
         <translation>Engine for this role. Empty: the same as the ✦ assistant.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+15"/>
         <source>%1
 (vacío: el de fábrica del motor)</source>
         <translation>%1
@@ -979,7 +979,7 @@
         <translation>Model (empty: the engine&apos;s default)</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-125"/>
         <source>trabajando</source>
         <translation>working</translation>
     </message>
@@ -1025,7 +1025,7 @@
         <translation>Ask this role for something now, without waiting for a trigger</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+116"/>
         <source>Qué tiene que hacer %1…</source>
         <translation>What %1 should do…</translation>
     </message>
@@ -1092,7 +1092,7 @@
         <translation>Note: with this engine, what people say at the kiosk (their data) leaves this computer for that service. Your own model, OpenRouter and Gemini with a key work; account-based ones (Claude, OpenCode Go) don&apos;t.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+15"/>
         <source>Corridas</source>
         <translation>Runs</translation>
     </message>
@@ -1105,7 +1105,7 @@
         </translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <source>%1 · %2 s · %3 herr.</source>
         <translation>%1 · %2 s · %3 tools</translation>
     </message>
@@ -12357,6 +12357,14 @@ Turn it on from the Log.</translation>
     </message>
 </context>
 <context>
+    <name>Fluidez</name>
+    <message>
+        <location filename="../src/app/ui/Fluidez.cpp" line="+68"/>
+        <source>El video de «%1» se ve a saltos (llegan los cuadros desparejos). Ver video_fluidez.</source>
+        <translation>The video of «%1» is choppy (frames arrive unevenly). See video_fluidez.</translation>
+    </message>
+</context>
+<context>
     <name>FlujosTexto</name>
     <message>
         <location filename="../src/app/agent/FlujosTexto.cpp" line="+161"/>
@@ -12375,7 +12383,7 @@ Turn it on from the Log.</translation>
 <context>
     <name>FrameService</name>
     <message>
-        <location filename="../src/app/ui/FrameService.cpp" line="+237"/>
+        <location filename="../src/app/ui/FrameService.cpp" line="+309"/>
         <source>Programa</source>
         <translation>Program</translation>
     </message>
@@ -12725,7 +12733,7 @@ It&apos;s changed in its code (Plugins section, or by asking the assistant). Her
         <translation>Parameters</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+39"/>
         <source>Sí: 34; No: 12; Abstenciones: 3</source>
         <translation>Yes: 34; No: 12; Abstain: 3</translation>
     </message>
@@ -31803,7 +31811,7 @@ Add one in Scenes and sources: place it where you want the lower third to appear
         <translation>in “%1” (not on air)</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+69"/>
         <source>Al aire</source>
         <translation>On air</translation>
     </message>
@@ -35195,7 +35203,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+146"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+147"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1 (failed: %2)</translation>
     </message>
@@ -35230,7 +35238,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>didn&apos;t respond</translation>
     </message>
     <message>
-        <location line="+162"/>
+        <location line="+165"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>Conference restarted with the new settings.</translation>
     </message>
@@ -35250,7 +35258,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>The interface froze for %1 s; the broadcast kept going</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+203"/>
         <source>Guardado</source>
         <translation>Saved</translation>
     </message>
@@ -35260,7 +35268,7 @@ and it reopens on its own. Settings, credentials, recordings and files are NOT t
         <translation>Couldn&apos;t save: %1</translation>
     </message>
     <message>
-        <location line="-310"/>
+        <location line="-311"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>What was on air before the outage was restored (slate or black)</translation>
     </message>
@@ -43449,6 +43457,26 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de los invitados: dispositivos de la placa para decodificar</source>
+        <translation>Guest video: GPU devices for decoding</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Windows con H.264 por la placa: cuántos dispositivos D3D11 se reparten los decodificadores. Cada uno tiene su contexto y su candado: con uno solo, todos los cuadros pasan de a uno por él (en la PC de pruebas, ~350 cuadros/s con 1 y ~1500 con 4).</source>
+        <translation>Windows with H.264 on the GPU: how many D3D11 devices the decoders are spread across. Each one has its own context and lock: with only one, every frame goes through it one at a time (on the test PC, ~350 frames/s with 1 and ~1500 with 4).</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de los invitados: no entregar cuadros más viejos que</source>
+        <translation>Guest video: don&apos;t deliver frames older than</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Un cuadro de cámara que sale del decodificador más tarde que esto desde que llegó de la red no se convierte ni se le pasa a la app ni a la grilla (se decodifica igual: lo necesitan los que siguen). Con la máquina pasada, así se pone al día sola en vez de atrasarse cada vez más. 0: entregar todos.</source>
+        <translation>A camera frame that leaves the decoder later than this after arriving from the network is not converted or passed to the app or the grid (it is still decoded: the following ones need it). With an overloaded machine, this way it catches up by itself instead of falling further and further behind. 0: deliver all.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: achicar desde una copia en la placa</source>
         <translation>Guest video: shrink from a copy on the GPU</translation>
     </message>
@@ -43818,7 +43846,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>isn&apos;t one of the options</translation>
     </message>
     <message>
-        <location line="-244"/>
+        <location line="-246"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>Chat messages kept</translation>
     </message>
@@ -43973,7 +44001,7 @@ Choose something else in Outputs → Screens.</translation>
         <translation>Windows: direct, the gateway hands each frame to the GPU with no middleman (less CPU and fewer threads); Media Foundation, the Windows decoder (for comparison or if the GPU has trouble).</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+17"/>
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>Talking to a guest: how much the program dips</translation>
     </message>
@@ -45970,7 +45998,7 @@ Choose something else in Outputs → Screens.</translation>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-961"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-964"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>startup: %1 took %2 ms</translation>
     </message>
@@ -48554,7 +48582,7 @@ Data (from %2): %3</translation>
         <translation>Just fades out.</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+484"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+487"/>
         <source>Terminó la medición «%1». Mirala (calibracion_medicion {&quot;id&quot;: &quot;%1&quot;}) y el análisis (calibracion_ver) y contale al operador, corto y en criollo, qué se nota de la sala y qué conviene hacer después. No apliques nada ni midas de nuevo sin que te lo pida.</source>
         <translation>Measurement «%1» finished. Look at it (calibracion_medicion {&quot;id&quot;: &quot;%1&quot;}) and at the analysis (calibracion_ver) and tell the operator, briefly and in plain words, what the room shows and what to do next. Do not apply anything or measure again unless asked.</translation>
     </message>
@@ -52988,17 +53016,22 @@ Data (from %2): %3</translation>
         <translation>can&apos;t change the encoding with active outputs</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+92"/>
-        <source>no hay ninguna fuente «%1» (tiene que estar en alguna escena)</source>
-        <translation>there&apos;s no source “%1” (it has to be in some scene)</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+93"/>
         <source>el gráfico no puede llevarse a sí mismo adentro</source>
         <translation>the graphic can&apos;t contain itself</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+6"/>
+        <source>no hay ninguna fuente ni escena «%1» (una fuente tiene que estar en alguna escena)</source>
+        <translation>there is no source or scene «%1» (a source has to be in some scene)</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la escena «%1» lleva este gráfico: se vería adentro de sí misma</source>
+        <translation>scene «%1» contains this graphic: it would appear inside itself</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>«%1» es una banca con la palabra: elegí la cámara</source>
         <translation>“%1” is a seat with the floor: choose the camera</translation>
     </message>
@@ -53747,7 +53780,7 @@ Data (from %2): %3</translation>
         <translation>couldn&apos;t crop &apos;%1&apos; in &apos;%2&apos; (crop larger than the image?)</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+190"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+191"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>scenes can&apos;t be created yet</translation>
     </message>
@@ -53787,12 +53820,12 @@ Data (from %2): %3</translation>
         <translation>a measurement is already in progress</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+44"/>
         <source>no hay ninguna grilla de personas andando</source>
         <translation>no people grid is running</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+54"/>
         <source>la entrada de la grilla no lee el canal tal cual</source>
         <translation>the grid input doesn&apos;t read the channel as is</translation>
     </message>
@@ -53802,7 +53835,7 @@ Data (from %2): %3</translation>
         <translation>the grid input isn&apos;t set up</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+107"/>
         <source>no hay una grilla de personas que se llame «%1» (crear_fuente con type ba_grilla)</source>
         <translation>there&apos;s no people grid called “%1” (crear_fuente with type ba_grilla)</translation>
     </message>
@@ -55348,7 +55381,7 @@ Data (from %2): %3</translation>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-740"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-743"/>
         <source>cada evento a su carpeta: %1</source>
         <translation>each event to its folder: %1</translation>
     </message>
@@ -55860,7 +55893,7 @@ Data (from %2): %3</translation>
         <location line="+7"/>
         <location filename="../src/gateway/Botonera.cpp" line="+90"/>
         <location line="+2"/>
-        <location filename="../src/gateway/SignalingServer.cpp" line="+661"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="+673"/>
         <location line="+9"/>
         <location line="+354"/>
         <location line="+109"/>
@@ -55868,7 +55901,7 @@ Data (from %2): %3</translation>
         <location line="+3"/>
         <location line="+27"/>
         <location line="+129"/>
-        <location line="+146"/>
+        <location line="+151"/>
         <location line="+65"/>
         <location line="+268"/>
         <location line="+16"/>
@@ -56194,7 +56227,7 @@ Data (from %2): %3</translation>
         <translation>Unknown service “%1”.</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Grillas.cpp" line="+235"/>
+        <location filename="../src/gateway/Grillas.cpp" line="+236"/>
         <source>falta «rotulos» (una lista)</source>
         <translation>«rotulos» is missing (a list)</translation>
     </message>
@@ -56219,7 +56252,7 @@ Data (from %2): %3</translation>
         <translation>label «%1»: the mask is not w*h</translation>
     </message>
     <message>
-        <location line="+83"/>
+        <location line="+86"/>
         <source>falta «grillas» (una lista)</source>
         <translation>“grillas” is missing (a list)</translation>
     </message>
@@ -56274,7 +56307,7 @@ Data (from %2): %3</translation>
         <translation>cell for “%1” has no size</translation>
     </message>
     <message>
-        <location line="+671"/>
+        <location line="+856"/>
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>grids: BA.Grilla.%1 ready (%2x%3)</translation>
     </message>
@@ -56284,12 +56317,12 @@ Data (from %2): %3</translation>
         <translation>grids: couldn&apos;t publish BA.Grilla.%1</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+20"/>
         <source>grillas: BA.Grilla.%1 %2x%3, %4 personas (+%5), %6 ms por cuadro</source>
         <translation>grids: BA.Grilla.%1 %2x%3, %4 people (+%5), %6 ms per frame</translation>
     </message>
     <message>
-        <location filename="../src/gateway/MediaPump.cpp" line="+283"/>
+        <location filename="../src/gateway/MediaPump.cpp" line="+284"/>
         <source>escena %1</source>
         <translation>scene %1</translation>
     </message>
@@ -56309,7 +56342,7 @@ Data (from %2): %3</translation>
         <translation>MediaPump: stopped</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+16"/>
         <source>video out: %1 listo (%2x%3)</source>
         <translation>video out: %1 ready (%2x%3)</translation>
     </message>
@@ -56329,7 +56362,7 @@ Data (from %2): %3</translation>
         <translation>audio out: couldn&apos;t create %1 (skipped)</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+34"/>
         <source>MediaPump: lugares %1 -&gt; %2 (sin reiniciar)</source>
         <translation>MediaPump: slots %1 -&gt; %2 (no restart)</translation>
     </message>
@@ -56364,12 +56397,12 @@ Data (from %2): %3</translation>
         <translation>operator: camera (BA.Operator) subscribed (%1x%2)</translation>
     </message>
     <message>
-        <location line="-900"/>
+        <location line="-904"/>
         <source>retorno video</source>
         <translation>video return</translation>
     </message>
     <message>
-        <location line="+157"/>
+        <location line="+161"/>
         <source>salida %1: nadie la mira, se suelta su bajada</source>
         <translation>output %1: nobody is watching it, its downlink is released</translation>
     </message>
@@ -56460,7 +56493,7 @@ Data (from %2): %3</translation>
         <translation>no audio came from their microphone during the test (is it muted?)</translation>
     </message>
     <message>
-        <location line="+277"/>
+        <location line="+288"/>
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>uplink %1: %2 fps (%3x%4)</translation>
     </message>
@@ -56750,12 +56783,12 @@ Data (from %2): %3</translation>
         <translation>nobody</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1640"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1645"/>
         <source>pantalla %1 sale: %2</source>
         <translation>screen %1 out: %2</translation>
     </message>
     <message>
-        <location line="-67"/>
+        <location line="-76"/>
         <source>señalización: falló la inicialización de sockets</source>
         <translation>signaling: socket initialization failed</translation>
     </message>
@@ -56765,7 +56798,7 @@ Data (from %2): %3</translation>
         <translation>signaling: couldn&apos;t bind %1:%2 (port in use or invalid address?)</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+81"/>
         <source>señalización: escuchando en %1:%2 (webroot=%3)</source>
         <translation>signaling: listening on %1:%2 (webroot=%3)</translation>
     </message>
@@ -56835,7 +56868,7 @@ Data (from %2): %3</translation>
         <translation>connection: exception %1</translation>
     </message>
     <message>
-        <location line="+1017"/>
+        <location line="+1022"/>
         <source>archivos: subida fallida de %1 (código %2)</source>
         <translation>files: upload of %1 failed (code %2)</translation>
     </message>
@@ -57015,12 +57048,12 @@ Data (from %2): %3</translation>
         <translation>room test: ended (%1); credential revoked, %2 test participants removed</translation>
     </message>
     <message>
-        <location line="+235"/>
+        <location line="+236"/>
         <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
         <translation>video: video engine load %1; low-layer fps go from step %2 to %3 (of %4)</translation>
     </message>
     <message>
-        <location line="-3375"/>
+        <location line="-3381"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>addresses: network %1, outside %2</translation>
     </message>
@@ -57054,7 +57087,7 @@ Data (from %2): %3</translation>
         <translation>no event</translation>
     </message>
     <message>
-        <location line="+322"/>
+        <location line="+327"/>
         <source>falta `texto` (o es demasiado largo)</source>
         <translation>`texto` missing (or too long)</translation>
     </message>
@@ -57465,7 +57498,7 @@ Data (from %2): %3</translation>
         <translation>IP stack: tunnel traffic goes to WebRTC through the local network</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/TlsTerminator.cpp" line="+192"/>
+        <location filename="../src/gateway/net/TlsTerminator.cpp" line="+221"/>
         <source>https: certificado propio (Credenciales/tls-propio)</source>
         <translation>https: custom certificate (Credenciales/tls-propio)</translation>
     </message>
@@ -57501,7 +57534,12 @@ Data (from %2): %3</translation>
         <translation>the port is already in use</translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="+89"/>
+        <source>https: conexión rechazada, tope de %1 conexiones a la vez (y %2 rechazos más sin anotar)</source>
+        <translation>https: connection rejected, limit of %1 simultaneous connections (and %2 more rejections not logged)</translation>
+    </message>
+    <message>
+        <location line="-118"/>
         <source>https: no se pudo crear el socket (error %1)</source>
         <translation>https: couldn&apos;t create the socket (error %1)</translation>
     </message>
@@ -57791,7 +57829,7 @@ Data (from %2): %3</translation>
         <translation>SetProcessDefaultCpuSets failed (%1)</translation>
     </message>
     <message>
-        <location filename="../src/gateway/TopeRetorno.cpp" line="+194"/>
+        <location filename="../src/gateway/TopeRetorno.cpp" line="+195"/>
         <source>retorno: fijo en %1p (Configuración)</source>
         <translation>return: fixed at %1p (Configuration)</translation>
     </message>
@@ -57995,7 +58033,7 @@ Data (from %2): %3</translation>
         <translation>couldn&apos;t read the renderer&apos;s frames: %1</translation>
     </message>
     <message>
-        <location filename="../src/app/graficos/GraficoSource.cpp" line="+101"/>
+        <location filename="../src/app/graficos/GraficoSource.cpp" line="+102"/>
         <source>Gráfico animado</source>
         <translation>Animated graphic</translation>
     </message>
@@ -58046,7 +58084,7 @@ Data (from %2): %3</translation>
         <translation>each layer of “escena” must be an object</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+995"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+998"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>“%1” didn&apos;t start on open: %2</translation>
     </message>
@@ -68136,7 +68174,7 @@ Non-empty `plugin`: that Python plugin draws it (help {&quot;topic&quot;: &quot;
     <message>
         <location line="+13"/>
         <location line="+33"/>
-        <location line="+172"/>
+        <location line="+173"/>
         <location line="+92"/>
         <location line="+37"/>
         <location line="+27"/>
@@ -68144,7 +68182,7 @@ Non-empty `plugin`: that Python plugin draws it (help {&quot;topic&quot;: &quot;
         <translation>No graphics engine.</translation>
     </message>
     <message>
-        <location line="-351"/>
+        <location line="-352"/>
         <source>Ver cómo queda un gráfico</source>
         <translation>Preview a graphic</translation>
     </message>
@@ -68197,36 +68235,7 @@ Actually look at the images: that is where you see whether the text comes in lat
         <translation>Draws the graphic and plays it in an “Animated graphic” source in a scene. THIS IS SEEN ON AIR if that scene is in program.</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, lo ve el público.
-
-La fuente tiene que existir en una escena: se agrega como cualquier otra, con tipo «Gráfico animado» (ba_grafico). `grafico_en_escena` las lista con su id.
-
-Se dibuja en otro proceso y sale al aire con los primeros cuadros; el resto llega andando.
-
-CUÁNTO QUEDA EN PANTALLA lo dice el parámetro del gráfico `salidaEn` («Cuándo se va», en milisegundos, dentro de `parametros`): a ese momento arranca la animación de salida y el gráfico se va solo (una placa de apertura: 4000-5000). Con 0, o si el gráfico no lo tiene, queda puesto hasta grafico_ocultar (un zócalo que se sostiene). Lo quieto entre la entrada y la salida no se dibuja: puede quedarse 60 s sin costo. `duracionMs` NO hace falta (solo cuenta para un gráfico sin `salidaEn`: cuánta animación dibujar).
-
-EN EL GUION es distinto: una cue de gráfico dice `seVa` (al-avanzar: títulos y placas se van solos cuando el guion pasa a otra cue; sola; queda) y si no lo dice manda la ficha del gráfico (`seVa`). Para eventos con guion, preferí cues a grafico_mostrar.
-
-Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y se sostiene. Con `repetir`, vuelve a empezar (un ticker).
-
-VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámara»): un gráfico que tiene un parámetro de tipo «fuente» lleva una fuente de video de la app que entra, queda y se va con él. Decila con `video` (el nombre de la fuente como lo da scene_list, p. ej. «Cámara 1») o en `parametros`. Si esa fuente ya está en la escena del gráfico se anima esa y al terminar vuelve a su lugar; si no, se suma sola mientras dure el gráfico.</source>
-        <translation>Before using this you must have checked the graphic with grafico_probar. Once it is out, the audience sees it.
-
-The source must exist in a scene: it is added like any other, with type “Animated graphic” (ba_grafico). `grafico_en_escena` lists them with their id.
-
-It is drawn in another process and goes on air with the first frames; the rest arrives while it plays.
-
-HOW LONG IT STAYS ON SCREEN is set by the graphic&apos;s `salidaEn` parameter (“When it leaves”, in milliseconds, inside `parametros`): at that moment the exit animation starts and the graphic leaves on its own (an opening slate: 4000-5000). With 0, or if the graphic does not have it, it stays until grafico_ocultar (a lower third that holds). The still part between entrance and exit is not drawn: it can stay 60 s at no cost. `duracionMs` is NOT needed (it only matters for a graphic without `salidaEn`: how much animation to draw).
-
-IN THE RUNDOWN it is different: a graphic cue says `seVa` (al-avanzar: titles and slates leave on their own when the rundown moves to another cue; sola; queda) and if it does not, the graphic&apos;s definition decides (`seVa`). For events with a rundown, prefer cues over grafico_mostrar.
-
-Without `repetir`, the last frame stays frozen — which is what a lower third that enters and holds wants. With `repetir`, it starts over (a ticker).
-
-LIVE VIDEO INSIDE (the speaker&apos;s camera in the lower third, “Lower third with camera”): a graphic that has a parameter of type “fuente” carries a video source from the app that enters, stays and leaves with it. Name it with `video` (the source name as scene_list gives it, e.g. “Cámara 1”) or in `parametros`. If that source is already in the graphic&apos;s scene, that one is animated and goes back to its place at the end; otherwise, it is added automatically while the graphic lasts.</translation>
-    </message>
-    <message>
-        <location line="+24"/>
+        <location line="+28"/>
         <location line="+155"/>
         <source>Id de la fuente (grafico_en_escena).</source>
         <translation>Source id (grafico_en_escena).</translation>
@@ -68247,12 +68256,7 @@ LIVE VIDEO INSIDE (the speaker&apos;s camera in the lower third, “Lower third 
         <translation>Only for a graphic WITHOUT `salidaEn`: how much animation to draw (otherwise, what its definition says).</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>La fuente de video que va adentro del gráfico (como en scene_list): llena sus parámetros de tipo «fuente». Solo para gráficos con video en vivo.</source>
-        <translation>The video source that goes inside the graphic (as in scene_list): fills its parameters of type “fuente”. Only for graphics with live video.</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+10"/>
         <source>Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al aire y la deja armada; sale con TAKE (preview_al_aire).</source>
         <translation>Load it in PREVIEW instead of on air: it draws it in a scene that is not on air and leaves it loaded; it goes out with TAKE (preview_al_aire).</translation>
     </message>
@@ -68476,7 +68480,41 @@ Then, in the description: {&quot;tipo&quot;: &quot;medio&quot;, &quot;archivo&qu
         <translation>The existing bindings and, above all, the ORIGINS that can be used.</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-309"/>
+        <source>Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, lo ve el público.
+
+La fuente tiene que existir en una escena: se agrega como cualquier otra, con tipo «Gráfico animado» (ba_grafico). `grafico_en_escena` las lista con su id.
+
+Se dibuja en otro proceso y sale al aire con los primeros cuadros; el resto llega andando.
+
+CUÁNTO QUEDA EN PANTALLA lo dice el parámetro del gráfico `salidaEn` («Cuándo se va», en milisegundos, dentro de `parametros`): a ese momento arranca la animación de salida y el gráfico se va solo (una placa de apertura: 4000-5000). Con 0, o si el gráfico no lo tiene, queda puesto hasta grafico_ocultar (un zócalo que se sostiene). Lo quieto entre la entrada y la salida no se dibuja: puede quedarse 60 s sin costo. `duracionMs` NO hace falta (solo cuenta para un gráfico sin `salidaEn`: cuánta animación dibujar).
+
+EN EL GUION es distinto: una cue de gráfico dice `seVa` (al-avanzar: títulos y placas se van solos cuando el guion pasa a otra cue; sola; queda) y si no lo dice manda la ficha del gráfico (`seVa`). Para eventos con guion, preferí cues a grafico_mostrar.
+
+Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y se sostiene. Con `repetir`, vuelve a empezar (un ticker).
+
+VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámara»): un gráfico que tiene un parámetro de tipo «fuente» lleva una fuente de video de la app que entra, queda y se va con él. Decila con `video` (el nombre de la fuente como lo da scene_list, p. ej. «Cámara 1») o en `parametros`. Si esa fuente ya está en la escena del gráfico se anima esa y al terminar vuelve a su lugar; si no, se suma sola mientras dure el gráfico. En vez de una fuente puede ir el nombre de una ESCENA (va entera, como se ve: un plano armado); no una que lleve este mismo gráfico.</source>
+        <translation>Before using this you must have checked the graphic with grafico_probar. Once it is out, the audience sees it.
+
+The source must exist in a scene: it is added like any other, with type “Animated graphic” (ba_grafico). `grafico_en_escena` lists them with their id.
+
+It is drawn in another process and goes on air with the first frames; the rest arrives while it plays.
+
+HOW LONG IT STAYS ON SCREEN is set by the graphic&apos;s `salidaEn` parameter (“When it leaves”, in milliseconds, inside `parametros`): at that moment the exit animation starts and the graphic leaves on its own (an opening slate: 4000-5000). With 0, or if the graphic does not have it, it stays until grafico_ocultar (a lower third that holds). The still part between entrance and exit is not drawn: it can stay 60 s at no cost. `duracionMs` is NOT needed (it only matters for a graphic without `salidaEn`: how much animation to draw).
+
+IN THE RUNDOWN it is different: a graphic cue says `seVa` (al-avanzar: titles and slates leave on their own when the rundown moves to another cue; sola; queda) and if it does not, the graphic&apos;s definition decides (`seVa`). For events with a rundown, prefer cues over grafico_mostrar.
+
+Without `repetir`, the last frame stays frozen — which is what a lower third that enters and holds wants. With `repetir`, it starts over (a ticker).
+
+LIVE VIDEO INSIDE (the speaker&apos;s camera in the lower third, “Lower third with camera”): a graphic that has a parameter of type “fuente” carries a video source from the app that enters, stays and leaves with it. Name it with `video` (the source name as scene_list gives it, e.g. “Cámara 1”) or in `parametros`. If that source is already in the graphic&apos;s scene, that one is animated and goes back to its place at the end; otherwise, it is added automatically while the graphic lasts. Instead of a source it can be the name of a SCENE (it goes whole, as it looks: a ready-made shot); not one that contains this same graphic.</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>La fuente de video (como en scene_list) o la escena que va adentro del gráfico: llena sus parámetros de tipo «fuente». Solo para gráficos con video en vivo.</source>
+        <translation>The video source (as in scene_list) or the scene that goes inside the graphic: fills its parameters of type «fuente». Only for graphics with live video.</translation>
+    </message>
+    <message>
+        <location line="+271"/>
         <source>Un vinculo dice de donde sale cada campo de un grafico, una sola vez, y despues se mantiene solo: cuando lo que resuelve cambia (cambio el orador, cambio la escena), el grafico vuelve a salir al aire con lo nuevo.
 
 `origenes` es lo que se puede poner entre llaves, CON SU VALOR DE AHORA. Miralo antes de escribir un vinculo: si el origen que ibas a usar no esta en esa lista, no existe, y el vinculo no se va a guardar.
@@ -68633,7 +68671,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
 With this repertoire you build a graphic WITHOUT writing code: it is what you should always do when it is enough. Write QML by hand only when the repertoire truly falls short, because that is where the pitfalls come back (see `help {&quot;topic&quot;: &quot;graficos&quot;}`).</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+23"/>
+        <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+26"/>
         <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima: el orador crece | achicando: el orador crece y los demás se achican; animado en transicion_ms y el borde del orador aparece con un fundido), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador (&quot;&quot; = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
         <translation>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (cells with the «+N», 0 = no limit), solo_con_camara, sin_al_aire (without those already on air in another source or in another visible grid, counting the scenes of the DSK layers), resaltar (whoever speaks), grupo (grids with the same group share the people without repeating; &quot;&quot; = alone), orden_en_grupo (the first one sets the order and the mode), reparto (en_orden: fills the first up to its limit; parejo: the same number in each one), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo and color_resaltar (&quot;#AARRGGBB&quot;). When someone speaks: al_hablar (sin_cambios: the grid is not touched, only the speaker&apos;s camera in high | resaltar: nobody moves, the speaker with a border | destacar: the speaker large and the others in a strip, in the same order | superponer: the speaker on top in a gap the grid leaves | escena: the grid does not change and another grid with muestra=orador shows them alone | nada: no speaker), agrandar (resaltar and escena: no | encima: the speaker grows | achicando: the speaker grows and the others shrink; animated over transicion_ms and the speaker&apos;s border fades in), pasar_a_escena (escena: a_mano | automatico | asistente: always tells the operator), salida_orador (&quot;&quot; = the main one), escena_orador (set by grilla_personas_escena_orador), disparo (voz: sustained voice voz_ms | palabra: the assembly&apos;s floor | orador: the conference&apos;s on-air speaker | manual: grilla_personas_destacar), voz_ms, minimo_ms (the speaker does not change sooner: hysteresis), precarga (the next one already requests the high layer), destacar_lugar (centro|izquierda), destacar_tamano (% of the canvas), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (from low to HD). Names: nombres (no|nombre|nombre_cargo), nombre_tamano (% of the cell height), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) and sigue (the grid whose speaker it shows; &quot;&quot; = the first that has one): the speaker scene.</translation>
     </message>
@@ -68670,14 +68708,14 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     <message>
         <location line="+7"/>
         <location line="+27"/>
-        <location line="+30"/>
         <location line="+34"/>
+        <location line="+88"/>
         <location line="+52"/>
         <source>la grilla de personas todavía no arrancó</source>
         <translation>the people grid has not started yet</translation>
     </message>
     <message>
-        <location line="-131"/>
+        <location line="-189"/>
         <source>Cambiar los ajustes de una grilla de personas</source>
         <translation>Change a people grid&apos;s settings</translation>
     </message>
@@ -68688,12 +68726,12 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
     </message>
     <message>
         <location line="+5"/>
-        <location line="+52"/>
+        <location line="+110"/>
         <source>el nombre de la fuente ba_grilla</source>
         <translation>the name of the ba_grilla source</translation>
     </message>
     <message>
-        <location line="-51"/>
+        <location line="-109"/>
         <source>los ajustes a cambiar</source>
         <translation>the settings to change</translation>
     </message>
@@ -68718,7 +68756,32 @@ With this repertoire you build a graphic WITHOUT writing code: it is what you sh
         <translation>where the grid is in the program, in canvas fractions</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+3"/>
+        <source>otras zonas del programa a medir igual (un invitado en su lugar, una cámara): [{id, x, y, w, h en fracciones del lienzo, cps que manda}]; el resultado va en `zonas`</source>
+        <translation>other program areas to measure as well (a guest in their slot, a camera): [{id, x, y, w, h as fractions of the canvas, fps it sends}]; the result goes in `zonas`</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Si los videos se ven parejos o a saltos</source>
+        <translation>Whether videos look smooth or choppy</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>La app se mide sola, siempre: por cada video que dibuja, cada cuánto llega un cuadro nuevo en cada tramo (intervalo p50/p95/max en ms de los últimos 128, huecos = intervalos de más de 1,5 veces el período que debería tener, cps contra esperado_cps) y si viene «a_saltos» (sostenido 5 s; se avisa al operador). `grilla`: cada celda de la grilla de personas con lo del gateway (red: lo que llegó; deco: lo que salió del decodificador; guardado; pintado: lo que se ve en el mosaico, con salteados y repetidos; tirados) y el ritmo del mosaico publicado. `fuentes`: lo que llega a la interfaz por clave (program, guest:N…). `vistas`: cada video en pantalla (tomados, dibujados, salteados, tope_cps). `ventanas`: los cuadros que pone cada ventana en la pantalla. `peor`: el video con más huecos.</source>
+        <translation>The app always measures itself: for each video it draws, how often a new frame arrives at each stage (p50/p95/max interval in ms over the last 128, gaps = intervals longer than 1.5 times the period it should have, fps versus esperado_cps) and whether it is «a_saltos» (sustained for 5 s; the operator is warned). `grilla`: each cell of the people grid with the gateway&apos;s data (network: what arrived; deco: what left the decoder; stored; painted: what shows in the mosaic, with skipped and repeated; dropped) and the rate of the published mosaic. `fuentes`: what reaches the interface per key (program, guest:N…). `vistas`: each video on screen (taken, drawn, skipped, tope_cps). `ventanas`: the frames each window puts on screen. `peor`: the video with the most gaps.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>solo en un build con las sondas de los cuadros: cada cuadro en cada tramo de los últimos N segundos (`trazas`: por tramo, t, origen y dato en µs desde `trazas_base_us`)</source>
+        <translation>only in a build with frame probes: every frame at every stage over the last N seconds (`trazas`: per stage, t, origin and data in µs since `trazas_base_us`)</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la medición de fluidez todavía no arrancó</source>
+        <translation>the smoothness measurement has not started yet</translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>la persona: sala:&lt;id&gt; o asamblea:&lt;id&gt; (ver grilla_personas_estado)</source>
         <translation>the person: sala:&lt;id&gt; or asamblea:&lt;id&gt; (see grilla_personas_estado)</translation>
     </message>
@@ -88337,6 +88400,12 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     </message>
     <message>
         <location line="+2"/>
+        <source>fluidez video a saltos entrecortado trabado cuadros perdidos repetidos ritmo intervalo fps parejo</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>smoothness video choppy stuttering frozen dropped frames repeated rate interval fps smooth</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>cambiar tope orden prioridad grupo repartir entre escenas parejo llenar en orden solo con camara</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>change limit order priority group distribute across scenes evenly fill in order camera only</translation>
@@ -90257,8 +90326,8 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../src/motor/Composicion.cpp" line="+1242"/>
-        <location filename="../src/motor/Entrada.cpp" line="+1729"/>
+        <location filename="../src/motor/Composicion.cpp" line="+1498"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1764"/>
         <location line="+226"/>
         <location filename="../src/motor/Mezcla.cpp" line="+451"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+235"/>
@@ -90271,7 +90340,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../src/motor/Entrada.cpp" line="-638"/>
+        <location filename="../src/motor/Entrada.cpp" line="-656"/>
         <source>el pipeline no arrancó</source>
         <translation>the pipeline did not start</translation>
     </message>
@@ -90337,7 +90406,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     </message>
     <message>
         <location filename="../src/motor/Capturas.cpp" line="+148"/>
-        <location filename="../src/motor/Composicion.cpp" line="-728"/>
+        <location filename="../src/motor/Composicion.cpp" line="-730"/>
         <source>falta %1</source>
         <translation>%1 is missing</translation>
     </message>
@@ -90357,22 +90426,22 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>bacapturaventana is missing (ScreenCaptureKit, macOS 12.3 or newer)</translation>
     </message>
     <message>
-        <location filename="../src/motor/Composicion.cpp" line="-242"/>
+        <location filename="../src/motor/Composicion.cpp" line="-421"/>
         <location line="+20"/>
         <location line="+10"/>
-        <location line="+67"/>
-        <location line="+96"/>
+        <location line="+79"/>
+        <location line="+263"/>
         <location line="+121"/>
         <source>composición %1: %2</source>
         <translation>composition %1: %2</translation>
     </message>
     <message>
-        <location line="-306"/>
+        <location line="-485"/>
         <source>composición %1: con el módulo «%2»: %3</source>
         <translation>composition %1: with the “%2” module: %3</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+80"/>
         <source>mezcla %1: %2 cuadros/s, hueco %3 ms (pts %4 ms)</source>
         <translation>mix %1: %2 frames/s, gap %3 ms (pts %4 ms)</translation>
     </message>
@@ -90382,7 +90451,12 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>the compositor did not start</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+61"/>
+        <source>composición %1: sale a su hora (plazo del mezclador %2 ms, latencia del pipeline %3 ms)</source>
+        <translation>composition %1: goes out on time (mixer deadline %2 ms, pipeline latency %3 ms)</translation>
+    </message>
+    <message>
+        <location line="+211"/>
         <source>el mezclador no tiene el puerto «%1»</source>
         <translation>the mixer has no “%1” port</translation>
     </message>
@@ -90417,7 +90491,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>composition %1: %2 is missing (layer %3 goes without shadow)</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+72"/>
         <source>composición %1: la capa «%2» se armó en %3 ms (crear %4, propiedades (el productor) %5, agregar y enlazar %6, el pad del mezclador %7, arrancar %8)</source>
         <translation>composition %1: layer “%2” built in %3 ms (create %4, properties (the producer) %5, add and link %6, mixer pad %7, start %8)</translation>
     </message>
@@ -90432,7 +90506,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>composition %1 (%2): %3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-979"/>
+        <location filename="../src/motor/Entrada.cpp" line="-996"/>
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1: the slate could not be built (%2): no slate</translation>
     </message>
@@ -90447,7 +90521,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1: slate rebuilt in %2 ms</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+67"/>
         <source>%1: en reposo (no hay nadie en su lugar) en %2 ms</source>
         <translation>%1: idle (nobody in their place) in %2 ms</translation>
     </message>
@@ -90463,15 +90537,15 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     </message>
     <message>
         <location line="+70"/>
-        <location line="+203"/>
+        <location line="+207"/>
         <location line="+38"/>
         <location line="+110"/>
-        <location line="+1105"/>
+        <location line="+1133"/>
         <source>%1: %2</source>
         <translation>%1: %2</translation>
     </message>
     <message>
-        <location line="-1449"/>
+        <location line="-1481"/>
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>microphone %1: waiting for it to be connected</translation>
     </message>
@@ -90511,7 +90585,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1: window opened, capturing</translation>
     </message>
     <message>
-        <location line="+126"/>
+        <location line="+130"/>
         <source>el rack de audio todavía no está (la app no registró barack): se agrega cuando esté</source>
         <translation>the audio rack is not there yet (the app has not registered barack): it will be added when it is</translation>
     </message>
@@ -90521,7 +90595,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1: chain: %2</translation>
     </message>
     <message>
-        <location line="+367"/>
+        <location line="+381"/>
         <source>%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
         <translation>%1: its video timestamps jump back and forth (%2 ms, %3 ms): not realigning for one minute</translation>
     </message>
@@ -90541,7 +90615,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>%1: its audio carries its own timestamps (offset %2 ms from the studio): realigning</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+35"/>
         <source>%1 llega tarde (%2 ms, el tope del estudio es %3 ms): va con su propia demora</source>
         <translation>%1 arrives late (%2 ms, the studio limit is %3 ms): it runs with its own delay</translation>
     </message>
@@ -90627,7 +90701,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>action: play, pausa, reiniciar or parar</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+331"/>
         <source>la entrada no está andando</source>
         <translation>the input is not running</translation>
     </message>
@@ -91048,7 +91122,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>no %1 to give %2 to “%3”: using system memory</translation>
     </message>
     <message>
-        <location line="+176"/>
+        <location line="+178"/>
         <source>el elegido a mano</source>
         <translation>the one chosen manually</translation>
     </message>
@@ -91078,7 +91152,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>could not read the file</translation>
     </message>
     <message>
-        <location line="+420"/>
+        <location line="+424"/>
         <source>sin contexto GL para el video: %1 (se compone en la CPU)</source>
         <translation>no GL context for video: %1 (compositing on the CPU)</translation>
     </message>
@@ -91432,12 +91506,12 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>stream to %1: continuing with encoder %2</translation>
     </message>
     <message>
-        <location filename="../src/motor/Vistas.cpp" line="+143"/>
+        <location filename="../src/motor/Vistas.cpp" line="+152"/>
         <source>vista %1: %2 cuadros/s, hueco máx %3 ms</source>
         <translation>view %1: %2 frames/s, max gap %3 ms</translation>
     </message>
     <message>
-        <location line="+84"/>
+        <location line="+93"/>
         <source>entra a vista %1: %2 cuadros/s</source>
         <translation>entering view %1: %2 frames/s</translation>
     </message>
@@ -95136,12 +95210,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>Services: all the web links and their QR codes (guests, audience, teleprompter, lower thirds, control surface, remote session…) with their status, to enable, copy, open or show as QR</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Manuales: la biblioteca de manuales de usuario que arma el asistente (capturas y documentos Word y PDF), para generarla y abrirla</source>
-        <translation>Manuals: the user manual library the assistant builds (screenshots and Word and PDF documents), to generate and open it</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+8"/>
         <source>Logs del sistema: todo lo que pasa, de los tres procesos</source>
         <translation>System logs: everything that happens, from all three processes</translation>
     </message>
@@ -98517,22 +98586,22 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>Off air</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+14"/>
         <source>Control</source>
         <translation>Control</translation>
     </message>
     <message>
-        <location line="-82"/>
+        <location line="-86"/>
         <source>Desconectado</source>
         <translation>Disconnected</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+94"/>
         <source>Pantalla completa</source>
         <translation>Full screen</translation>
     </message>
     <message>
-        <location line="-86"/>
+        <location line="-90"/>
         <source>Emparejar este aparato</source>
         <translation>Pair this device</translation>
     </message>
@@ -98572,7 +98641,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>Yes, do it</translation>
     </message>
     <message>
-        <location line="+170"/>
+        <location line="+176"/>
         <source>Escenas</source>
         <translation>Scenes</translation>
     </message>
@@ -98707,7 +98776,7 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <translation>Next ▶</translation>
     </message>
     <message>
-        <location line="-136"/>
+        <location line="-142"/>
         <source>Cámara %1</source>
         <translation>Camera %1</translation>
     </message>
@@ -98793,6 +98862,16 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     </message>
     <message>
         <location line="+2"/>
+        <source>Este control web está en desuso: usá el tablero nuevo, el mismo de la app.</source>
+        <translation>This web control is deprecated: use the new dashboard, the same one as in the app.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Este control web está en desuso. El tablero nuevo necesita que en la app le den a este aparato el perfil «todo».</source>
+        <translation>This web control is deprecated. The new dashboard needs this device to be given the «everything» profile in the app.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Estante</source>
         <translation>Shelf</translation>
     </message>
@@ -98823,6 +98902,11 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
     </message>
     <message>
         <location line="+4"/>
+        <source>Abrir el tablero nuevo</source>
+        <translation>Open the new dashboard</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Multipantalla</source>
         <translation>Multiview</translation>
     </message>
@@ -99441,11 +99525,61 @@ PROPOSE, DON&apos;T APPLY: show the person what changes and apply only if they c
         <source>%1 perdidos</source>
         <translation>%1 dropped</translation>
     </message>
+    <message>
+        <location line="+1468"/>
+        <source>Usar el control web clásico</source>
+        <translation>Use the classic web control</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Emparejar en el control web</source>
+        <translation>Pair in the web control</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>En este aparato la pantalla completa se logra agregando la página a la pantalla de inicio (Compartir → Agregar a inicio) y abriéndola desde ahí.</source>
+        <translation>On this device full screen is achieved by adding the page to the home screen (Share → Add to Home Screen) and opening it from there.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se puede mostrar el tablero</source>
+        <translation>The dashboard can&apos;t be shown</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Abrí el control web desde el QR de la app (Servicios → Control web), emparejalo y volvé acá.</source>
+        <translation>Open the web control from the app&apos;s QR code (Services → Web control), pair it and come back here.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cargando el tablero…</source>
+        <translation>Loading the dashboard…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lo quitaron en la app.</source>
+        <translation>It was removed in the app.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Emparejalo de nuevo desde el QR de la app.</source>
+        <translation>Pair it again from the app&apos;s QR code.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El tablero se cerró</source>
+        <translation>The dashboard closed</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se pudo cargar el tablero</source>
+        <translation>The dashboard couldn&apos;t be loaded</translation>
+    </message>
 </context>
 <context>
     <name>web/correccion</name>
     <message>
-        <location line="+2"/>
+        <location line="-1484"/>
         <source>no se pudo mandar (%1)</source>
         <translation>couldn&apos;t send (%1)</translation>
     </message>

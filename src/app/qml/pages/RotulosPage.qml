@@ -155,7 +155,8 @@ Rectangle {
                                         Layout.fillWidth: true
                                         editable: true
                                         font.pixelSize: 14
-                                        model: Studio.inputs.videoInputs.map(f => f.name)
+                                        // Las entradas de video y, después, las escenas (va la escena entera, como se ve).
+                                        model: Studio.inputs.videoInputs.map(f => f.name).concat(Studio.escenas.nombres)
                                         editText: {
                                             const v = tarjeta.modelData.valores[modelData.clave]
                                             return v === undefined ? "" : String(v)

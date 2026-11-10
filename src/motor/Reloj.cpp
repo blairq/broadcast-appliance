@@ -380,12 +380,19 @@ GstClockTime Reloj::ahora() const {
 }
 
 void Reloj::adoptar(GstElement* pipeline) const {
-    registrarPipeline(pipeline); // para el mapa (Mapa.hpp)
-    darContextoGpu(pipeline);    // el GL del motor, el mismo para todos
-    prioridadEnPipeline(pipeline); // sus hilos de streaming: nombre y núcleos rápidos
-    gst_pipeline_use_clock(GST_PIPELINE(pipeline), clock_);
+    adoptarConSuBase(pipeline);
     gst_element_set_start_time(pipeline, GST_CLOCK_TIME_NONE); // el base_time no lo cambia solo
     gst_element_set_base_time(pipeline, base_);
+}
+
+void Reloj::adoptarConSuBase(GstElement* pipeline) const {
+    registrarPipeline(pipeline); // para el mapa (Mapa.hpp)
+    // El GL del motor, el mismo para todos. Sin él, un archivo (que antes solo tomaba el reloj)
+    // publicaba texturas de OTRO contexto: el programa las leía por número en el suyo y
+    // mostraba las de otras entradas, o nada (2026-11-10).
+    darContextoGpu(pipeline);
+    prioridadEnPipeline(pipeline); // sus hilos de streaming: nombre y núcleos rápidos
+    gst_pipeline_use_clock(GST_PIPELINE(pipeline), clock_);
 }
 
 void Reloj::ponerTope(std::int64_t ms) {

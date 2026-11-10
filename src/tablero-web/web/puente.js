@@ -31,15 +31,40 @@
   let pedido = false;     // ya se le pidió el modelo a la app
   const cola = [];        // lo que llegó antes de que el módulo estuviera
 
+  // Los textos de la página. t() solo MARCA el texto (para tools/i18n/extraer.py, contexto
+  // web/control): se traduce al mostrarlo (tr), porque los primeros avisos salen antes de que
+  // esté cargado el idioma; cuando carga, el aviso que esté a la vista se vuelve a pintar.
+  const t = (s) => s;
+  const tr = (s) => (s && window.BAi18n ? BAi18n.t(s) : s || "");
+
+  let avisoActual = null; // [titulo, texto, opciones]: para volver a pintarlo en su idioma
   function aviso(titulo, texto, opciones = {}) {
+    avisoActual = [titulo, texto, opciones];
     $("aviso").classList.remove("oculto");
     $("aviso").classList.toggle("encima", !!opciones.encima);
-    $("aviso-titulo").textContent = titulo;
-    $("aviso-texto").textContent = texto || "";
+    $("aviso-titulo").textContent = tr(titulo);
+    $("aviso-texto").textContent = typeof texto === "function" ? texto() : tr(texto); // función: armado de partes
     $("girando").classList.toggle("oculto", !opciones.girando);
-    $("aviso-enlace").classList.toggle("oculto", !opciones.enlace);
+    // enlace: "emparejar" (a /control/, que empareja y vuelve acá) o "clasico" (el control web
+    // en desuso, con ?clasico: /control/ manda a los de perfil «todo» acá y rebotarían).
+    const enlace = $("aviso-enlace");
+    enlace.classList.toggle("oculto", !opciones.enlace);
+    enlace.href = opciones.enlace === "clasico" ? "/control/?clasico" : "/control/";
+    enlace.textContent = opciones.enlace === "clasico" ? tr(t("Usar el control web clásico")) : tr(t("Emparejar en el control web"));
   }
-  const sinAviso = () => $("aviso").classList.add("oculto");
+  const sinAviso = () => { avisoActual = null; $("aviso").classList.add("oculto"); };
+
+  // --- El idioma ---------------------------------------------------------------------------
+  // El de la interfaz de la app (Configuración → Idioma; ?idioma= o lo elegido en este
+  // navegador ganan), con los mismos catálogos que la app (/comun/i18n/, ver comun/i18n.js).
+  // Se carga ANTES del módulo: el traductor de Qt (main.cpp) le pregunta a baPuente.traducir
+  // desde el primer qsTr.
+  const idiomaListo = (window.BAi18n
+    ? BAi18n.iniciar({ contexto: "web/control", preferir: "app" }).catch((e) => console.warn("tablero: idioma", e))
+    : Promise.resolve()).then(() => {
+    $("reconectando").textContent = tr(t("Reconectando…"));
+    if (avisoActual) aviso(...avisoActual);
+  });
   const reconectando = (si) => $("reconectando").classList.toggle("oculto", !si);
   const recargar = () => { reconectando(true); location.reload(); };
 
@@ -99,6 +124,21 @@
   document.addEventListener("webkitfullscreenchange", avisarCompleta);
 
   window.baPuente = {
+    // qsTr/tr del tablero (main.cpp, TraductorWeb): el contexto es el de lupdate (el nombre
+    // del .qml o de la clase). "" = sin traducción (Qt deja el original).
+    traducir(contexto, texto, desambiguacion, n) {
+      if (!window.BAi18n) return "";
+      const op = { contexto };
+      if (desambiguacion) op.desambiguacion = desambiguacion;
+      if (n >= 0) op.n = n;
+      const r = BAi18n.t(texto, op);
+      return r === texto ? "" : r;
+    },
+    // El idioma elegido: {codigo, rtl} (para QLocale y la dirección de la interfaz).
+    idioma() {
+      const p = window.BAi18n && BAi18n.perfil;
+      return JSON.stringify(p ? { codigo: p.codigo, rtl: !!p.rtl } : { codigo: "es", rtl: false });
+    },
     pantallaCompleta() {
       try {
         if (enCompleta()) {
@@ -107,8 +147,7 @@
         }
         const pedir = docEl.requestFullscreen || docEl.webkitRequestFullscreen;
         if (!pedir) {
-          return "En este aparato la pantalla completa se logra agregando la página a la pantalla de inicio "
-            + "(Compartir → Agregar a inicio) y abriéndola desde ahí.";
+          return tr(t("En este aparato la pantalla completa se logra agregando la página a la pantalla de inicio (Compartir → Agregar a inicio) y abriéndola desde ahí."));
         }
         const r = pedir.call(docEl);
         if (r && r.catch) r.catch(() => {});
@@ -138,19 +177,19 @@
     },
     estado(que, detalle) {
       if (que === "listo") { sinAviso(); window.baTableroListo = true; }
-      else if (que === "error") aviso("No se puede mostrar el tablero", detalle, { enlace: true });
+      else if (que === "error") aviso(t("No se puede mostrar el tablero"), detalle, { enlace: "clasico" });
     },
   };
 
   // --- La conexión ------------------------------------------------------------------------
   const token = leer(CLAVE_TOKEN);
   if (!token) {
-    aviso("Este aparato no está emparejado",
-          "Abrí el control web desde el QR de la app (Servicios → Control web), emparejalo y volvé acá.",
-          { enlace: true });
+    aviso(t("Este aparato no está emparejado"),
+          t("Abrí el control web desde el QR de la app (Servicios → Control web), emparejalo y volvé acá."),
+          { enlace: "emparejar" });
     return;
   }
-  aviso("Cargando el tablero…", "", { girando: true });
+  aviso(t("Cargando el tablero…"), "", { girando: true });
   canal = BAWs.abrir({
     rol: "control",
     auth: () => ({ token }),
@@ -174,8 +213,10 @@
     alRechazo: (m) => {
       reconectando(false);
       if (m.error_codigo !== "intentos") borrar(CLAVE_TOKEN);
-      aviso("Este aparato ya no está habilitado",
-            (m.error || "Lo quitaron en la app.") + " Emparejalo de nuevo desde el QR de la app.", { enlace: true });
+      // m.error viene de la app en español (marcado en web/comun): tr() lo traduce igual.
+      const porQue = m.error || t("Lo quitaron en la app.");
+      aviso(t("Este aparato ya no está habilitado"),
+            () => tr(porQue) + " " + tr(t("Emparejalo de nuevo desde el QR de la app.")), { enlace: "emparejar" });
     },
     alCaer: () => {
       if (autenticado) seCayo = true;
@@ -185,18 +226,20 @@
   });
 
   // --- El módulo ---------------------------------------------------------------------------
-  qtLoad({
+  idiomaListo.then(() => qtLoad({
     locateFile: (f) => f + (version ? "?v=" + version : ""),
     qt: {
       containerElements: [$("pantalla")],
-      entryFunction: window.createQtAppInstance,
-      onExit: (e) => aviso("El tablero se cerró", e && e.text ? e.text : "", { enlace: true }),
+      // Qt 6.8 exporta el arranque como <target>_entry (ba_tablero_entry); antes era
+      // createQtAppInstance. Sin él, qtLoad falla con «config.qt.entryFunction is required».
+      entryFunction: window.ba_tablero_entry || window.createQtAppInstance,
+      onExit: (e) => aviso(t("El tablero se cerró"), e && e.text ? e.text : "", { enlace: "clasico" }),
     },
-  }).then((r) => {
+  })).then((r) => {
     modulo = r.instance || r;
     window.baModulo = modulo;
     pedirModelo();
   }).catch((e) => {
-    aviso("No se pudo cargar el tablero", String(e && e.message ? e.message : e), { enlace: true });
+    aviso(t("No se pudo cargar el tablero"), String(e && e.message ? e.message : e), { enlace: "clasico" });
   });
 })();

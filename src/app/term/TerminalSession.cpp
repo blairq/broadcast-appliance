@@ -138,7 +138,11 @@ TerminalSession::TerminalSession(QObject* parent) : QObject(parent), pty_(std::m
     state_ = vterm_obtain_state(vt_);
     vterm_screen_set_callbacks(screen_, &kScreenCallbacks, this);
     vterm_screen_enable_altscreen(screen_, 1);
-    vterm_screen_enable_reflow(screen_, true);
+    // SIN reacomodar las líneas al cambiar el ancho: el reflow de libvterm (resize_buffer)
+    // abortaba o escribía fuera de su buffer con líneas largas partidas y muchos cambios de
+    // tamaño (dos caídas en la PC de pruebas, 2026-11-07; test_terminal lo reproduce). Lo
+    // que corre en la terminal se redibuja solo al cambiar el tamaño (SIGWINCH).
+    vterm_screen_enable_reflow(screen_, false);
     vterm_screen_set_damage_merge(screen_, VTERM_DAMAGE_SCROLL);
     const VTermColor fg = rgb(kDefaultFg);
     const VTermColor bg = rgb(kDefaultBg);

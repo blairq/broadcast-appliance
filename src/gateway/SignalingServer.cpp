@@ -12,7 +12,9 @@
 
 #include "diag/Frontera.hpp"
 #include "diag/Metricas.hpp"
+#include "i18n/I18nIdioma.hpp"
 #include "i18n/I18nPerfiles.hpp"
+#include "platform/Paths.hpp"
 #include "SignalingServer.hpp"
 #include "RetornoCompartido.hpp"
 #include "Canal.hpp"
@@ -1439,7 +1441,12 @@ void SignalingServer::handleGuestHttp(long long fd, const std::string& method, c
                 const auto e = eventoWeb_.find("estado");
                 if (e != eventoWeb_.end() && e->is_object()) evento = e->value("idioma", std::string());
             }
-            http::sendResponse(fd, 200, "application/json", nlohmann::json{{"idiomas", l}, {"evento", evento}}.dump());
+            // El de la interfaz de la app (Configuración → Idioma, launcher.json): lo usa el
+            // tablero web, que es la misma interfaz. Se lee cada vez (no el de cuando arrancó
+            // el gateway): cambiarlo en la app vale en la próxima carga de la página.
+            const std::string app = ba::i18n::idiomaDeLaMaquina(ba::platform::dataRoot());
+            http::sendResponse(fd, 200, "application/json",
+                               nlohmann::json{{"idiomas", l}, {"evento", evento}, {"app", app}}.dump());
             return;
         }
         if (rel.rfind("i18n/", 0) == 0) {

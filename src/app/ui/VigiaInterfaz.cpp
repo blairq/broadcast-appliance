@@ -51,6 +51,10 @@ VigiaInterfaz::VigiaInterfaz(QObject* app) : QObject(app) {
         return v.enCurso();
     };
     traba_.iniciar(std::move(o), diag::idDelHilo()); // este es el hilo de la interfaz
+    // Al cerrar, el bucle deja de dar vueltas a propósito y el cierre ordenado (apagar el motor)
+    // tarda lo suyo en el mismo hilo: eso no es una traba. Sin esto cada cierre de más de 2 s
+    // dejaba un volcado «traba-interfaz» (PC de pruebas, 2026-11-07: AppRuntime::stop).
+    connect(QCoreApplication::instance(), &QCoreApplication::aboutToQuit, this, [this]() { traba_.detener(); });
 }
 
 VigiaInterfaz::~VigiaInterfaz() {

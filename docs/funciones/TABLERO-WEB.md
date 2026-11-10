@@ -8,15 +8,19 @@ No es una copia: es la misma interfaz de la app (sus archivos QML) compilada par
 navegador con Qt para WebAssembly. Cuando se cambia una tarjeta en la app, cambia también
 en la web, sin hacer nada aparte.
 
-La superficie de control de siempre (`/control/`, en HTML) sigue estando y no cambia.
+**Es el tablero web de entrada.** El control web en HTML (`/control/`) quedó **en desuso**:
+un aparato con el perfil «todo» que entra a `/control/` pasa solo a `/control/app/`. El HTML
+queda para los aparatos con un perfil acotado (el tablero nuevo necesita «todo») y, a pedido,
+en `/control/?clasico` (es lo que ofrece el tablero nuevo cuando no puede arrancar). Las
+superficies de una página (presentador, cámara, escaleta) siguen como estaban.
 
 ## Cómo se abre
 
 1. Emparejá el aparato **una sola vez**, como para el control web: en la app,
    **Servicios → Control web → Emparejar**, escaneá el QR con el aparato y aprobalo en la
    app. Para el tablero completo el aparato necesita el perfil **«todo»**.
-2. En ese aparato abrí `http://<la-ip-de-la-app>:8787/control/app/` (o el mismo
-   enlace del control web, cambiando `/control/` por `/control/app/`). No pide nada más:
+2. Aprobado con el perfil «todo», el aparato pasa solo al tablero. Después basta con abrir
+   el enlace del control web (`/control/`) o directo `/control/app/`. No pide nada más:
    usa el permiso que el aparato guardó al emparejarse. Si refrescás la página o se
    reinicia la app, vuelve solo.
 
@@ -66,6 +70,12 @@ Disposición → Restablecer» lo deja como vino de fábrica.
 Con varias salidas, el aparato **maneja la que elige arriba**: escenas, preview, programa,
 TAKE, línea… todo el tablero trabaja sobre esa salida, sin cambiar la que tiene elegida la
 app. La elegida se recuerda por aparato (es la misma que en el control web HTML).
+
+### Idioma
+
+El tablero sale en el idioma de la app (Configuración → Idioma), con sus mismas
+traducciones. Cambiarlo en la app vale en la próxima carga de la página. Para ver un aparato
+en otro idioma, `?idioma=en` (o `pt-BR`, `fr`…) en la dirección.
 
 ### Pantalla completa
 

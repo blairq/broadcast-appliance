@@ -139,6 +139,10 @@ body { padding-bottom: env(safe-area-inset-bottom); }
 .alarma-sistema { position: sticky; top: 0; z-index: 25; margin: 0 clamp(16px, 3vw, 28px); padding: 12px 18px;
   border-radius: var(--radio-chico); color: #fff; background: var(--aire); box-shadow: var(--relieve-alto); font-weight: 600; }
 .alarma-sistema.terminada { color: var(--texto); background: var(--superficie-plana); border: 1px solid var(--borde); }
+/* En desuso: el tablero de entrada es /control/app/ (el de WebAssembly). */
+.aviso-desuso { margin: 10px clamp(16px, 3vw, 28px) 0; padding: 10px 16px; border-radius: var(--radio-chico);
+  color: var(--texto); background: var(--superficie-plana); border: 1px solid var(--borde); }
+.aviso-desuso a { font-weight: 600; color: inherit; }
 
 /* --- Sala ----------------------------------------------------------------------------------- */
 .sala-cabeza, .sala-enlace { gap: 12px; }

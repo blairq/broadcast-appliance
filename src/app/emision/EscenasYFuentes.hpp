@@ -107,6 +107,10 @@ class EscenasYFuentes {
     void setTraer(const std::string& entrada, const std::string& compositor, const std::string& productor);
 
     // --- Video en vivo dentro de un gráfico -----------------------------------------------
+    /// Cada capa lleva una fuente (una cámara, un invitado) o una ESCENA: esa va con su
+    /// composición aparte del motor (usarEscena, como los DSK), pedida mientras el gráfico la
+    /// muestra. Una escena que terminaría adentro de sí misma (lleva este gráfico, directo o
+    /// por los gráficos de sus capas) se rechaza.
     std::string ponerVideoDeGrafico(const std::string& grafico, const nlohmann::json& capas);
     void empezarVideoDeGrafico(const std::string& grafico, std::int64_t desdeNs);
     void quitarVideoDeGrafico(const std::string& grafico);
@@ -177,6 +181,10 @@ class EscenasYFuentes {
     void sumarVideoDeGraficos(const EscenaApp& e, nlohmann::json& capas) const;
     /// Vuelve a publicar las escenas que tienen esa fuente.
     void publicarEscenasCon(const std::string& fuente);
+    /// ¿La escena (id) lleva el gráfico, directo o por el video (escenas) de sus gráficos?
+    bool escenaLlevaGrafico(const std::string& escenaId, const std::string& grafico, int profundidad = 0) const;
+    /// Suelta en el motor las escenas que pidió el video de un gráfico (su "escenas").
+    void soltarEscenasDeVideo(const nlohmann::json& video);
     /// La ranura de una fuente ba_banca (1 si no dice).
     int ranuraDe(const Fuente& f) const;
     /// Le manda la escena al motor (si está al aire o armada, cambia andando).
@@ -199,7 +207,8 @@ class EscenasYFuentes {
         std::string escena, fuente;
     };
     std::vector<RecortePendiente> recortesPendientes_;
-    /// Gráfico (nombre de su fuente) → {capas (VideoEnGrafico::aJson), desde_ns}.
+    /// Gráfico (nombre de su fuente) → {capas (VideoEnGrafico::aJson; la de una escena, con su
+    /// "escena" (id) y "productor"), desde_ns, escenas: [ids pedidos con usarEscena]}.
     std::map<std::string, nlohmann::json> videoDeGraficos_;
     /// entrada -> {compositor, productor} (ver setTraer).
     std::map<std::string, std::pair<std::string, std::string>> traer_;

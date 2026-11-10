@@ -921,7 +921,7 @@
         <translation>每个角色只处理自己的工作，每项任务使用一次性代理。✦ 助手不会收到通知。</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+111"/>
         <source>Usa la máquina</source>
         <translation>使用电脑</translation>
     </message>
@@ -936,7 +936,7 @@
         <translation>除了操作应用外，还能使用终端、读写文件和访问互联网（例如下载图片并放入 Medios）。以此方式执行的操作不经过助手的批准：仅在角色确实需要时开启。</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+17"/>
         <source>Aparte</source>
         <translation>独立</translation>
     </message>
@@ -966,7 +966,7 @@
         <translation>此角色的引擎。留空：与 ✦ 助手相同。</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+15"/>
         <source>%1
 (vacío: el de fábrica del motor)</source>
         <translation>%1
@@ -978,7 +978,7 @@
         <translation>模型（留空：引擎默认值）</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="-125"/>
         <source>trabajando</source>
         <translation>工作中</translation>
     </message>
@@ -1024,7 +1024,7 @@
         <translation>立即向此角色提出请求，无需等待触发器</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+116"/>
         <source>Qué tiene que hacer %1…</source>
         <translation>%1 需要做什么…</translation>
     </message>
@@ -1091,7 +1091,7 @@
         <translation>注意：使用此引擎时，人们在签到一体机上说的话（其个人数据）会从本机发送到该服务。可用：自有模型、OpenRouter 和带密钥的 Gemini；基于账户的（Claude、OpenCode Go）不可用。</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+15"/>
         <source>Corridas</source>
         <translation>运行记录</translation>
     </message>
@@ -1103,7 +1103,7 @@
         </translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <source>%1 · %2 s · %3 herr.</source>
         <translation>%1 · %2 秒 · %3 个工具</translation>
     </message>
@@ -12304,6 +12304,14 @@ Se prende desde el Registro.</source>
     </message>
 </context>
 <context>
+    <name>Fluidez</name>
+    <message>
+        <location filename="../src/app/ui/Fluidez.cpp" line="+68"/>
+        <source>El video de «%1» se ve a saltos (llegan los cuadros desparejos). Ver video_fluidez.</source>
+        <translation>「%1」的视频卡顿（帧到达不均匀）。见 video_fluidez。</translation>
+    </message>
+</context>
+<context>
     <name>FlujosTexto</name>
     <message>
         <location filename="../src/app/agent/FlujosTexto.cpp" line="+161"/>
@@ -12322,7 +12330,7 @@ Se prende desde el Registro.</source>
 <context>
     <name>FrameService</name>
     <message>
-        <location filename="../src/app/ui/FrameService.cpp" line="+237"/>
+        <location filename="../src/app/ui/FrameService.cpp" line="+309"/>
         <source>Programa</source>
         <translation>节目</translation>
     </message>
@@ -12672,7 +12680,7 @@ Se cambia en su código (sección Plugins, o pidiéndoselo al asistente). Acá s
         <translation>参数</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+39"/>
         <source>Sí: 34; No: 12; Abstenciones: 3</source>
         <translation>赞成：34；反对：12；弃权：3</translation>
     </message>
@@ -31659,7 +31667,7 @@ Agregale una en Escenas y fuentes: ubicala donde querés que se vea el zócalo, 
         <translation>在「%1」中（未播出）</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+69"/>
         <source>Al aire</source>
         <translation>播出</translation>
     </message>
@@ -35038,7 +35046,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
 <context>
     <name>StudioViewModel</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+146"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+147"/>
         <source>%1 (no se pudo: %2)</source>
         <translation>%1（失败：%2）</translation>
     </message>
@@ -35073,7 +35081,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无响应</translation>
     </message>
     <message>
-        <location line="+162"/>
+        <location line="+165"/>
         <source>Conferencia reiniciada con la configuración nueva.</source>
         <translation>会议已使用新设置重启。</translation>
     </message>
@@ -35093,7 +35101,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>界面卡顿了 %1 秒；播出未中断</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+203"/>
         <source>Guardado</source>
         <translation>已保存</translation>
     </message>
@@ -35103,7 +35111,7 @@ y vuelve a abrir sola. Configuración, credenciales, grabaciones y archivos NO s
         <translation>无法保存：%1</translation>
     </message>
     <message>
-        <location line="-310"/>
+        <location line="-311"/>
         <source>Se restauró lo que estaba al aire antes del corte (placa o negro)</source>
         <translation>已恢复中断前的播出内容（垫片画面或黑场）</translation>
     </message>
@@ -41795,6 +41803,26 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Video de los invitados: dispositivos de la placa para decodificar</source>
+        <translation>嘉宾视频：用于解码的 GPU 设备</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Windows con H.264 por la placa: cuántos dispositivos D3D11 se reparten los decodificadores. Cada uno tiene su contexto y su candado: con uno solo, todos los cuadros pasan de a uno por él (en la PC de pruebas, ~350 cuadros/s con 1 y ~1500 con 4).</source>
+        <translation>Windows 下用 GPU 解码 H.264：解码器分摊到多少个 D3D11 设备上。每个设备有自己的上下文和锁：只有一个时，所有帧都要逐个经过它（在测试 PC 上，1 个约 350 帧/秒，4 个约 1500 帧/秒）。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Video de los invitados: no entregar cuadros más viejos que</source>
+        <translation>嘉宾视频：不交付早于此时长的帧</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Un cuadro de cámara que sale del decodificador más tarde que esto desde que llegó de la red no se convierte ni se le pasa a la app ni a la grilla (se decodifica igual: lo necesitan los que siguen). Con la máquina pasada, así se pone al día sola en vez de atrasarse cada vez más. 0: entregar todos.</source>
+        <translation>从网络到达后，晚于此时长才离开解码器的摄像头帧，既不转换，也不交给应用或网格（仍会解码：后续的帧需要它）。机器过载时，这样能自己追上进度，而不是越拖越久。0：全部交付。</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Video de los invitados: achicar desde una copia en la placa</source>
         <translation>嘉宾视频：从显卡上的副本缩小</translation>
     </message>
@@ -42164,7 +42192,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>不是可选项之一</translation>
     </message>
     <message>
-        <location line="-244"/>
+        <location line="-246"/>
         <source>Mensajes de chat que se guardan</source>
         <translation>保留的聊天消息数</translation>
     </message>
@@ -42319,7 +42347,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
         <translation>Windows：直接模式下，gateway 不经中间层把每一帧交给 GPU（占用更少处理器和线程）；Media Foundation 为 Windows 自带解码器（用于对比，或 GPU 出问题时）。</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+17"/>
         <source>Hablarle a un invitado: cuánto baja el programa</source>
         <translation>与嘉宾通话：节目音量降低多少</translation>
     </message>
@@ -45796,7 +45824,7 @@ Elegí otra cosa en Salidas → Pantallas.</source>
     </message>
     <message>
         <location line="-57"/>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-961"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-964"/>
         <source>arranque: %1 tardó %2 ms</source>
         <translation>启动：%1 耗时 %2 毫秒</translation>
     </message>
@@ -48378,7 +48406,7 @@ Datos (de %2): %3</source>
         <translation>只淡出。</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+484"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+487"/>
         <source>Terminó la medición «%1». Mirala (calibracion_medicion {&quot;id&quot;: &quot;%1&quot;}) y el análisis (calibracion_ver) y contale al operador, corto y en criollo, qué se nota de la sala y qué conviene hacer después. No apliques nada ni midas de nuevo sin que te lo pida.</source>
         <translation>测量“%1”已完成。查看它（calibracion_medicion {&quot;id&quot;: &quot;%1&quot;}）和分析（calibracion_ver），用简短易懂的话告诉操作员这个房间的情况以及接下来该做什么。未经要求不要应用任何内容，也不要重新测量。</translation>
     </message>
@@ -52810,17 +52838,22 @@ Datos (de %2): %3</source>
         <translation>输出处于活动状态时无法更改编码</translation>
     </message>
     <message>
-        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+92"/>
-        <source>no hay ninguna fuente «%1» (tiene que estar en alguna escena)</source>
-        <translation>没有来源「%1」（必须位于某个场景中）</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location filename="../src/app/emision/EscenasYFuentes.cpp" line="+93"/>
         <source>el gráfico no puede llevarse a sí mismo adentro</source>
         <translation>图形不能包含自身</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+6"/>
+        <source>no hay ninguna fuente ni escena «%1» (una fuente tiene que estar en alguna escena)</source>
+        <translation>没有名为「%1」的源或场景（源必须在某个场景中）</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>la escena «%1» lleva este gráfico: se vería adentro de sí misma</source>
+        <translation>场景「%1」包含此图形：它会出现在自身内部</translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>«%1» es una banca con la palabra: elegí la cámara</source>
         <translation>「%1」是发言席位：请选择摄像机</translation>
     </message>
@@ -53569,7 +53602,7 @@ Datos (de %2): %3</source>
         <translation>无法裁切「%2」中的「%1」（裁切范围大于图像？）</translation>
     </message>
     <message>
-        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+190"/>
+        <location filename="../src/app/escenas/ControlGrillas.cpp" line="+191"/>
         <source>todavía no se pueden crear escenas</source>
         <translation>暂时还不能创建场景</translation>
     </message>
@@ -53609,12 +53642,12 @@ Datos (de %2): %3</source>
         <translation>已有测量在进行中</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+44"/>
         <source>no hay ninguna grilla de personas andando</source>
         <translation>没有正在运行的人物网格</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+54"/>
         <source>la entrada de la grilla no lee el canal tal cual</source>
         <translation>网格输入未按原样读取通道</translation>
     </message>
@@ -53624,7 +53657,7 @@ Datos (de %2): %3</source>
         <translation>网格输入未搭建</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+107"/>
         <source>no hay una grilla de personas que se llame «%1» (crear_fuente con type ba_grilla)</source>
         <translation>没有名为「%1」的人员网格（用 crear_fuente，type 为 ba_grilla）</translation>
     </message>
@@ -55170,7 +55203,7 @@ Datos (de %2): %3</source>
 <context>
     <name>eventos</name>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="-740"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="-743"/>
         <source>cada evento a su carpeta: %1</source>
         <translation>每个活动放入各自的文件夹：%1</translation>
     </message>
@@ -55682,7 +55715,7 @@ Datos (de %2): %3</source>
         <location line="+7"/>
         <location filename="../src/gateway/Botonera.cpp" line="+90"/>
         <location line="+2"/>
-        <location filename="../src/gateway/SignalingServer.cpp" line="+661"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="+673"/>
         <location line="+9"/>
         <location line="+354"/>
         <location line="+109"/>
@@ -55690,7 +55723,7 @@ Datos (de %2): %3</source>
         <location line="+3"/>
         <location line="+27"/>
         <location line="+129"/>
-        <location line="+146"/>
+        <location line="+151"/>
         <location line="+65"/>
         <location line="+268"/>
         <location line="+16"/>
@@ -56016,7 +56049,7 @@ Datos (de %2): %3</source>
         <translation>未知服务「%1」。</translation>
     </message>
     <message>
-        <location filename="../src/gateway/Grillas.cpp" line="+235"/>
+        <location filename="../src/gateway/Grillas.cpp" line="+236"/>
         <source>falta «rotulos» (una lista)</source>
         <translation>缺少“rotulos”（一个列表）</translation>
     </message>
@@ -56041,7 +56074,7 @@ Datos (de %2): %3</source>
         <translation>标签“%1”：蒙版尺寸不是 w*h</translation>
     </message>
     <message>
-        <location line="+83"/>
+        <location line="+86"/>
         <source>falta «grillas» (una lista)</source>
         <translation>缺少「grillas」（列表）</translation>
     </message>
@@ -56096,7 +56129,7 @@ Datos (de %2): %3</source>
         <translation>「%1」的单元格没有尺寸</translation>
     </message>
     <message>
-        <location line="+671"/>
+        <location line="+856"/>
         <source>grillas: BA.Grilla.%1 listo (%2x%3)</source>
         <translation>网格：BA.Grilla.%1 已就绪（%2x%3）</translation>
     </message>
@@ -56106,12 +56139,12 @@ Datos (de %2): %3</source>
         <translation>网格：无法发布 BA.Grilla.%1</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+20"/>
         <source>grillas: BA.Grilla.%1 %2x%3, %4 personas (+%5), %6 ms por cuadro</source>
         <translation>网格：BA.Grilla.%1 %2x%3，%4 人（+%5），每帧 %6 毫秒</translation>
     </message>
     <message>
-        <location filename="../src/gateway/MediaPump.cpp" line="+283"/>
+        <location filename="../src/gateway/MediaPump.cpp" line="+284"/>
         <source>escena %1</source>
         <translation>场景 %1</translation>
     </message>
@@ -56131,7 +56164,7 @@ Datos (de %2): %3</source>
         <translation>MediaPump：已停止</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+16"/>
         <source>video out: %1 listo (%2x%3)</source>
         <translation>视频输出：%1 已就绪（%2x%3）</translation>
     </message>
@@ -56151,7 +56184,7 @@ Datos (de %2): %3</source>
         <translation>音频输出：无法创建 %1（跳过）</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+34"/>
         <source>MediaPump: lugares %1 -&gt; %2 (sin reiniciar)</source>
         <translation>MediaPump：位置 %1 -&gt; %2（无需重启）</translation>
     </message>
@@ -56186,12 +56219,12 @@ Datos (de %2): %3</source>
         <translation>操作员：摄像头（BA.Operator）已订阅（%1x%2）</translation>
     </message>
     <message>
-        <location line="-900"/>
+        <location line="-904"/>
         <source>retorno video</source>
         <translation>视频返送</translation>
     </message>
     <message>
-        <location line="+157"/>
+        <location line="+161"/>
         <source>salida %1: nadie la mira, se suelta su bajada</source>
         <translation>输出 %1：无人观看，释放其下行</translation>
     </message>
@@ -56282,7 +56315,7 @@ Datos (de %2): %3</source>
         <translation>测试期间未收到其麦克风的音频（是否已静音？）</translation>
     </message>
     <message>
-        <location line="+277"/>
+        <location line="+288"/>
         <source>sube %1: %2 fps (%3x%4)</source>
         <translation>上行 %1：%2 fps（%3x%4）</translation>
     </message>
@@ -56572,12 +56605,12 @@ Datos (de %2): %3</source>
         <translation>无人</translation>
     </message>
     <message>
-        <location filename="../src/gateway/SignalingServer.cpp" line="-1640"/>
+        <location filename="../src/gateway/SignalingServer.cpp" line="-1645"/>
         <source>pantalla %1 sale: %2</source>
         <translation>屏幕 %1 输出：%2</translation>
     </message>
     <message>
-        <location line="-67"/>
+        <location line="-76"/>
         <source>señalización: falló la inicialización de sockets</source>
         <translation>信令：套接字初始化失败</translation>
     </message>
@@ -56587,7 +56620,7 @@ Datos (de %2): %3</source>
         <translation>信令：无法绑定 %1:%2（端口被占用或地址无效？）</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+81"/>
         <source>señalización: escuchando en %1:%2 (webroot=%3)</source>
         <translation>信令：正在监听 %1:%2（webroot=%3）</translation>
     </message>
@@ -56657,7 +56690,7 @@ Datos (de %2): %3</source>
         <translation>连接：异常 %1</translation>
     </message>
     <message>
-        <location line="+1017"/>
+        <location line="+1022"/>
         <source>archivos: subida fallida de %1 (código %2)</source>
         <translation>文件：%1 上传失败（代码 %2）</translation>
     </message>
@@ -56837,12 +56870,12 @@ Datos (de %2): %3</source>
         <translation>会场测试：已结束（%1）；凭据已撤销，已移出 %2 名测试参与者</translation>
     </message>
     <message>
-        <location line="+235"/>
+        <location line="+236"/>
         <source>video: carga del motor de video %1; los cps de la capa baja pasan del escalón %2 al %3 (de %4)</source>
         <translation>视频：视频引擎负载 %1；低层帧率从第 %2 级变为第 %3 级（共 %4 级）</translation>
     </message>
     <message>
-        <location line="-3375"/>
+        <location line="-3381"/>
         <source>direcciones: red %1, afuera %2</source>
         <translation>地址：网络 %1，外部 %2</translation>
     </message>
@@ -56876,7 +56909,7 @@ Datos (de %2): %3</source>
         <translation>没有活动</translation>
     </message>
     <message>
-        <location line="+322"/>
+        <location line="+327"/>
         <source>falta `texto` (o es demasiado largo)</source>
         <translation>缺少 `texto`（或过长）</translation>
     </message>
@@ -57287,7 +57320,7 @@ Datos (de %2): %3</source>
         <translation>IP 协议栈：隧道流量经本地网络交给 WebRTC</translation>
     </message>
     <message>
-        <location filename="../src/gateway/net/TlsTerminator.cpp" line="+192"/>
+        <location filename="../src/gateway/net/TlsTerminator.cpp" line="+221"/>
         <source>https: certificado propio (Credenciales/tls-propio)</source>
         <translation>https：自有证书（Credenciales/tls-propio）</translation>
     </message>
@@ -57323,7 +57356,12 @@ Datos (de %2): %3</source>
         <translation>端口已被占用</translation>
     </message>
     <message>
-        <location line="-29"/>
+        <location line="+89"/>
+        <source>https: conexión rechazada, tope de %1 conexiones a la vez (y %2 rechazos más sin anotar)</source>
+        <translation>https：连接被拒绝，同时连接上限为 %1（另有 %2 次拒绝未记录）</translation>
+    </message>
+    <message>
+        <location line="-118"/>
         <source>https: no se pudo crear el socket (error %1)</source>
         <translation>https：无法创建套接字（错误 %1）</translation>
     </message>
@@ -57613,7 +57651,7 @@ Datos (de %2): %3</source>
         <translation>SetProcessDefaultCpuSets 失败（%1）</translation>
     </message>
     <message>
-        <location filename="../src/gateway/TopeRetorno.cpp" line="+194"/>
+        <location filename="../src/gateway/TopeRetorno.cpp" line="+195"/>
         <source>retorno: fijo en %1p (Configuración)</source>
         <translation>返送：固定为 %1p（设置）</translation>
     </message>
@@ -57817,7 +57855,7 @@ Datos (de %2): %3</source>
         <translation>无法读取渲染器的帧：%1</translation>
     </message>
     <message>
-        <location filename="../src/app/graficos/GraficoSource.cpp" line="+101"/>
+        <location filename="../src/app/graficos/GraficoSource.cpp" line="+102"/>
         <source>Gráfico animado</source>
         <translation>动画图形</translation>
     </message>
@@ -57878,7 +57916,7 @@ Datos (de %2): %3</source>
         <translation>否</translation>
     </message>
     <message>
-        <location filename="../src/app/ui/StudioViewModel.cpp" line="+995"/>
+        <location filename="../src/app/ui/StudioViewModel.cpp" line="+998"/>
         <source>«%1» no arrancó al abrir: %2</source>
         <translation>「%1」打开时未启动：%2</translation>
     </message>
@@ -67992,7 +68030,7 @@ Antes de inventar uno nuevo, mirá si alguno de estos sirve cambiándole los par
     <message>
         <location line="+13"/>
         <location line="+33"/>
-        <location line="+172"/>
+        <location line="+173"/>
         <location line="+92"/>
         <location line="+37"/>
         <location line="+27"/>
@@ -68000,7 +68038,7 @@ Antes de inventar uno nuevo, mirá si alguno de estos sirve cambiándole los par
         <translation>没有图形引擎。</translation>
     </message>
     <message>
-        <location line="-351"/>
+        <location line="-352"/>
         <source>Ver cómo queda un gráfico</source>
         <translation>预览图形效果</translation>
     </message>
@@ -68053,36 +68091,7 @@ Mirá las imágenes de verdad: ahí se ve si el texto entra tarde, si la caja ta
         <translation>绘制图形并在场景的「动画图形」来源中播放。如果该场景在节目中，「会在播出中显示」。</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, lo ve el público.
-
-La fuente tiene que existir en una escena: se agrega como cualquier otra, con tipo «Gráfico animado» (ba_grafico). `grafico_en_escena` las lista con su id.
-
-Se dibuja en otro proceso y sale al aire con los primeros cuadros; el resto llega andando.
-
-CUÁNTO QUEDA EN PANTALLA lo dice el parámetro del gráfico `salidaEn` («Cuándo se va», en milisegundos, dentro de `parametros`): a ese momento arranca la animación de salida y el gráfico se va solo (una placa de apertura: 4000-5000). Con 0, o si el gráfico no lo tiene, queda puesto hasta grafico_ocultar (un zócalo que se sostiene). Lo quieto entre la entrada y la salida no se dibuja: puede quedarse 60 s sin costo. `duracionMs` NO hace falta (solo cuenta para un gráfico sin `salidaEn`: cuánta animación dibujar).
-
-EN EL GUION es distinto: una cue de gráfico dice `seVa` (al-avanzar: títulos y placas se van solos cuando el guion pasa a otra cue; sola; queda) y si no lo dice manda la ficha del gráfico (`seVa`). Para eventos con guion, preferí cues a grafico_mostrar.
-
-Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y se sostiene. Con `repetir`, vuelve a empezar (un ticker).
-
-VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámara»): un gráfico que tiene un parámetro de tipo «fuente» lleva una fuente de video de la app que entra, queda y se va con él. Decila con `video` (el nombre de la fuente como lo da scene_list, p. ej. «Cámara 1») o en `parametros`. Si esa fuente ya está en la escena del gráfico se anima esa y al terminar vuelve a su lugar; si no, se suma sola mientras dure el gráfico.</source>
-        <translation>使用前必须先用 grafico_probar 查看过图形。一旦播出，观众就会看到。
-
-来源必须存在于某个场景中：像其他来源一样添加，类型为「动画图形」（ba_grafico）。`grafico_en_escena` 会列出这些来源及其 id。
-
-在另一个进程中绘制，前几帧就绪即播出；其余帧在播放过程中陆续到达。
-
-在屏幕上停留多久由图形参数 `salidaEn`（「何时退出」，毫秒，位于 `parametros` 中）决定：到该时刻开始退场动画，图形自动离开（开场垫片画面：4000-5000）。为 0 或图形没有该参数时，一直保留到 grafico_ocultar（持续显示的字幕条）。入场和退场之间的静止部分不重新绘制：停留 60 秒也没有开销。「不」需要 `duracionMs`（仅对没有 `salidaEn` 的图形有效：绘制多长的动画）。
-
-在串联单中则不同：图形提示点用 `seVa` 指定（al-avanzar：串联单转到其他提示点时标题和垫片画面自动离开；sola；queda），未指定时以图形参考卡（`seVa`）为准。对于有串联单的活动，优先使用提示点而不是 grafico_mostrar。
-
-不带 `repetir` 时，最后一帧保持不动 — 这正是入场后持续显示的字幕条所需要的。带 `repetir` 时会重新开始（滚动字幕）。
-
-内嵌实时视频（字幕条中的发言人摄像机，「带摄像机的字幕条」）：带有「fuente」类型参数的图形会包含应用中的一个视频来源，随图形一同入场、停留和离开。用 `video`（scene_list 给出的来源名称，例如「Cámara 1」）或在 `parametros` 中指定。如果该来源已在图形所在场景中，则对其做动画，结束后回到原位；否则在图形持续期间自动添加。</translation>
-    </message>
-    <message>
-        <location line="+24"/>
+        <location line="+28"/>
         <location line="+155"/>
         <source>Id de la fuente (grafico_en_escena).</source>
         <translation>来源 id（grafico_en_escena）。</translation>
@@ -68103,12 +68112,7 @@ VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámar
         <translation>仅用于「没有」`salidaEn` 的图形：绘制多长的动画（否则按其参考卡）。</translation>
     </message>
     <message>
-        <location line="+5"/>
-        <source>La fuente de video que va adentro del gráfico (como en scene_list): llena sus parámetros de tipo «fuente». Solo para gráficos con video en vivo.</source>
-        <translation>放入图形内部的视频来源（与 scene_list 中一致）：填入其「fuente」类型的参数。仅用于带实时视频的图形。</translation>
-    </message>
-    <message>
-        <location line="+5"/>
+        <location line="+10"/>
         <source>Armarlo en el PREVIEW en vez de al aire: lo dibuja en una escena que no está al aire y la deja armada; sale con TAKE (preview_al_aire).</source>
         <translation>载入到「预览」而不是播出：在不在播的场景中绘制并保持载入；用 TAKE（preview_al_aire）播出。</translation>
     </message>
@@ -68332,7 +68336,41 @@ Después, en la descripción: {&quot;tipo&quot;: &quot;medio&quot;, &quot;archiv
         <translation>现有的联动，尤其是可用的「数据源」。</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-309"/>
+        <source>Antes de usar esto hay que haber mirado el gráfico con grafico_probar. Una vez que sale, lo ve el público.
+
+La fuente tiene que existir en una escena: se agrega como cualquier otra, con tipo «Gráfico animado» (ba_grafico). `grafico_en_escena` las lista con su id.
+
+Se dibuja en otro proceso y sale al aire con los primeros cuadros; el resto llega andando.
+
+CUÁNTO QUEDA EN PANTALLA lo dice el parámetro del gráfico `salidaEn` («Cuándo se va», en milisegundos, dentro de `parametros`): a ese momento arranca la animación de salida y el gráfico se va solo (una placa de apertura: 4000-5000). Con 0, o si el gráfico no lo tiene, queda puesto hasta grafico_ocultar (un zócalo que se sostiene). Lo quieto entre la entrada y la salida no se dibuja: puede quedarse 60 s sin costo. `duracionMs` NO hace falta (solo cuenta para un gráfico sin `salidaEn`: cuánta animación dibujar).
+
+EN EL GUION es distinto: una cue de gráfico dice `seVa` (al-avanzar: títulos y placas se van solos cuando el guion pasa a otra cue; sola; queda) y si no lo dice manda la ficha del gráfico (`seVa`). Para eventos con guion, preferí cues a grafico_mostrar.
+
+Sin `repetir`, el último cuadro queda fijo — que es lo que quiere un zócalo que entra y se sostiene. Con `repetir`, vuelve a empezar (un ticker).
+
+VIDEO EN VIVO ADENTRO (la cámara del orador en el zócalo, «Zócalo con cámara»): un gráfico que tiene un parámetro de tipo «fuente» lleva una fuente de video de la app que entra, queda y se va con él. Decila con `video` (el nombre de la fuente como lo da scene_list, p. ej. «Cámara 1») o en `parametros`. Si esa fuente ya está en la escena del gráfico se anima esa y al terminar vuelve a su lugar; si no, se suma sola mientras dure el gráfico. En vez de una fuente puede ir el nombre de una ESCENA (va entera, como se ve: un plano armado); no una que lleve este mismo gráfico.</source>
+        <translation>使用前必须先用 grafico_probar 查看过图形。一旦播出，观众就会看到。
+
+来源必须存在于某个场景中：像其他来源一样添加，类型为「动画图形」（ba_grafico）。`grafico_en_escena` 会列出这些来源及其 id。
+
+在另一个进程中绘制，前几帧就绪即播出；其余帧在播放过程中陆续到达。
+
+在屏幕上停留多久由图形参数 `salidaEn`（「何时退出」，毫秒，位于 `parametros` 中）决定：到该时刻开始退场动画，图形自动离开（开场垫片画面：4000-5000）。为 0 或图形没有该参数时，一直保留到 grafico_ocultar（持续显示的字幕条）。入场和退场之间的静止部分不重新绘制：停留 60 秒也没有开销。「不」需要 `duracionMs`（仅对没有 `salidaEn` 的图形有效：绘制多长的动画）。
+
+在串联单中则不同：图形提示点用 `seVa` 指定（al-avanzar：串联单转到其他提示点时标题和垫片画面自动离开；sola；queda），未指定时以图形参考卡（`seVa`）为准。对于有串联单的活动，优先使用提示点而不是 grafico_mostrar。
+
+不带 `repetir` 时，最后一帧保持不动 — 这正是入场后持续显示的字幕条所需要的。带 `repetir` 时会重新开始（滚动字幕）。
+
+内嵌实时视频（字幕条中的发言人摄像机，「带摄像机的字幕条」）：带有「fuente」类型参数的图形会包含应用中的一个视频来源，随图形一同入场、停留和离开。用 `video`（scene_list 给出的来源名称，例如「Cámara 1」）或在 `parametros` 中指定。如果该来源已在图形所在场景中，则对其做动画，结束后回到原位；否则在图形持续期间自动添加。也可以不用源，而填一个场景的名称（整个场景照原样放入：一个已搭好的画面）；但不能是包含此图形本身的场景。</translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <source>La fuente de video (como en scene_list) o la escena que va adentro del gráfico: llena sus parámetros de tipo «fuente». Solo para gráficos con video en vivo.</source>
+        <translation>放进图形里的视频源（与 scene_list 中一致）或场景：填入其类型为「fuente」的参数。仅用于带实时视频的图形。</translation>
+    </message>
+    <message>
+        <location line="+271"/>
         <source>Un vinculo dice de donde sale cada campo de un grafico, una sola vez, y despues se mantiene solo: cuando lo que resuelve cambia (cambio el orador, cambio la escena), el grafico vuelve a salir al aire con lo nuevo.
 
 `origenes` es lo que se puede poner entre llaves, CON SU VALOR DE AHORA. Miralo antes de escribir un vinculo: si el origen que ibas a usar no esta en esa lista, no existe, y el vinculo no se va a guardar.
@@ -68489,7 +68527,7 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
 用这套组件无需编写代码即可搭建图形：只要够用，就应该这样做。只有在组件确实不够时才手写 QML，因为那时陷阱会重新出现（见 `help {&quot;topic&quot;: &quot;graficos&quot;}`）。</translation>
     </message>
     <message>
-        <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+23"/>
+        <location filename="../src/app/mcp/McpGrillaTools.cpp" line="+26"/>
         <source>origen (sala|asamblea|ambas), orden (llegada|habla|prioridad), tope (celdas con el «+N», 0 = sin tope), solo_con_camara, sin_al_aire (sin los que ya están al aire en otra fuente o en otra grilla que se ve, contando las escenas de las capas DSK), resaltar (a quien habla), grupo (las grillas con el mismo grupo se reparten la gente sin repetir; &quot;&quot; = sola), orden_en_grupo (la primera manda el orden y el modo), reparto (en_orden: llena la primera hasta su tope; parejo: la misma cantidad en cada una), ancho, alto, proporcion (16:9|4:3|1:1|3:4|9:16|llenar), separacion, margen, transicion_ms, fondo y color_resaltar (&quot;#AARRGGBB&quot;). Cuando alguien habla: al_hablar (sin_cambios: la grilla no se toca, solo la cámara del orador en alta | resaltar: nadie se mueve, el orador con borde | destacar: el orador grande y los demás en una franja, en el mismo orden | superponer: el orador encima en un hueco que le deja la grilla | escena: la grilla no cambia y otra grilla con muestra=orador lo muestra solo | nada: sin orador), agrandar (resaltar y escena: no | encima: el orador crece | achicando: el orador crece y los demás se achican; animado en transicion_ms y el borde del orador aparece con un fundido), pasar_a_escena (escena: a_mano | automatico | asistente: siempre avisa al operador), salida_orador (&quot;&quot; = la principal), escena_orador (la pone grilla_personas_escena_orador), disparo (voz: voz sostenida voz_ms | palabra: la palabra de la asamblea | orador: el orador al aire de la conferencia | manual: grilla_personas_destacar), voz_ms, minimo_ms (el orador no cambia antes: histéresis), precarga (el siguiente ya pide la capa alta), destacar_lugar (centro|izquierda), destacar_tamano (% del lienzo), franja (abajo|costado), superponer_tamano, superponer_completa, fundido_ms (de la baja a la HD). Nombres: nombres (no|nombre|nombre_cargo), nombre_tamano (% del alto de la celda), nombre_color, nombre_fondo, nombre_lugar (abajo|arriba). muestra (todos|orador) y sigue (la grilla cuyo orador muestra; &quot;&quot; = la primera que tenga): la escena del orador.</source>
         <translation>origen (sala|asamblea|ambas)、orden (llegada|habla|prioridad)、tope（含「+N」的单元格数，0 = 不限）、solo_con_camara、sin_al_aire（排除已在其他信号源或其他可见网格中播出的人，包括 DSK 图层的场景）、resaltar（发言者）、grupo（同组的网格分配人员且不重复；&quot;&quot; = 独立）、orden_en_grupo（第一个决定顺序和模式）、reparto（en_orden：先填满第一个直到上限；parejo：每个数量相同）、ancho、alto、proporcion (16:9|4:3|1:1|3:4|9:16|llenar)、separacion、margen、transicion_ms、fondo 和 color_resaltar (&quot;#AARRGGBB&quot;)。有人发言时：al_hablar（sin_cambios：网格不变，只有发言者的摄像头用高清 | resaltar：谁都不动，发言者加边框 | destacar：发言者放大，其他人按原顺序排成一条 | superponer：发言者叠在网格留出的空位上 | escena：网格不变，另一个 muestra=orador 的网格单独显示发言者 | nada：无发言者）、agrandar（resaltar 和 escena：否 | encima：发言者放大 | achicando：发言者放大，其他人缩小；在 transicion_ms 内动画，发言者的边框淡入）、pasar_a_escena（escena：a_mano | automatico | asistente：总会通知操作员）、salida_orador（&quot;&quot; = 主输出）、escena_orador（由 grilla_personas_escena_orador 设置）、disparo（voz：持续语音 voz_ms | palabra：会议的发言权 | orador：会议中正在播出的发言者 | manual：grilla_personas_destacar）、voz_ms、minimo_ms（在此之前发言者不变：迟滞）、precarga（下一位已请求高清层）、destacar_lugar (centro|izquierda)、destacar_tamano（画布的 %）、franja (abajo|costado)、superponer_tamano、superponer_completa、fundido_ms（从低清到高清）。姓名：nombres (no|nombre|nombre_cargo)、nombre_tamano（单元格高度的 %）、nombre_color、nombre_fondo、nombre_lugar (abajo|arriba)。muestra (todos|orador) 和 sigue（显示其发言者的网格；&quot;&quot; = 第一个有发言者的）：发言者场景。</translation>
     </message>
@@ -68526,14 +68564,14 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     <message>
         <location line="+7"/>
         <location line="+27"/>
-        <location line="+30"/>
         <location line="+34"/>
+        <location line="+88"/>
         <location line="+52"/>
         <source>la grilla de personas todavía no arrancó</source>
         <translation>人员网格尚未启动</translation>
     </message>
     <message>
-        <location line="-131"/>
+        <location line="-189"/>
         <source>Cambiar los ajustes de una grilla de personas</source>
         <translation>修改人员网格的设置</translation>
     </message>
@@ -68544,12 +68582,12 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
     </message>
     <message>
         <location line="+5"/>
-        <location line="+52"/>
+        <location line="+110"/>
         <source>el nombre de la fuente ba_grilla</source>
         <translation>ba_grilla 来源的名称</translation>
     </message>
     <message>
-        <location line="-51"/>
+        <location line="-109"/>
         <source>los ajustes a cambiar</source>
         <translation>要修改的设置</translation>
     </message>
@@ -68574,7 +68612,32 @@ Con este repertorio se arma un gráfico SIN escribir código: es lo que conviene
         <translation>网格在节目中的位置，以画布比例表示</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+3"/>
+        <source>otras zonas del programa a medir igual (un invitado en su lugar, una cámara): [{id, x, y, w, h en fracciones del lienzo, cps que manda}]; el resultado va en `zonas`</source>
+        <translation>节目中同样要测量的其他区域（某位嘉宾的位置、某台摄像机）：[{id, x, y, w, h（画布比例）, 其发送的帧率}]；结果放在 `zonas`</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Si los videos se ven parejos o a saltos</source>
+        <translation>视频是流畅还是卡顿</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>La app se mide sola, siempre: por cada video que dibuja, cada cuánto llega un cuadro nuevo en cada tramo (intervalo p50/p95/max en ms de los últimos 128, huecos = intervalos de más de 1,5 veces el período que debería tener, cps contra esperado_cps) y si viene «a_saltos» (sostenido 5 s; se avisa al operador). `grilla`: cada celda de la grilla de personas con lo del gateway (red: lo que llegó; deco: lo que salió del decodificador; guardado; pintado: lo que se ve en el mosaico, con salteados y repetidos; tirados) y el ritmo del mosaico publicado. `fuentes`: lo que llega a la interfaz por clave (program, guest:N…). `vistas`: cada video en pantalla (tomados, dibujados, salteados, tope_cps). `ventanas`: los cuadros que pone cada ventana en la pantalla. `peor`: el video con más huecos.</source>
+        <translation>应用始终自行测量：对它绘制的每个视频，每个环节多久到达一帧新画面（最近 128 帧的 p50/p95/max 间隔，单位 ms；空洞 = 超过应有周期 1.5 倍的间隔；帧率对比 esperado_cps），以及是否「a_saltos」（持续 5 秒；会提醒操作员）。`grilla`：人物网格的每个格子及网关的数据（网络：到达的；解码：离开解码器的；已保存；已绘制：马赛克中可见的，含跳过和重复；已丢弃）以及发布的马赛克的节奏。`fuentes`：按键到达界面的内容（program、guest:N…）。`vistas`：屏幕上的每个视频（取得、绘制、跳过、tope_cps）。`ventanas`：每个窗口放到屏幕上的帧。`peor`：空洞最多的视频。</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>solo en un build con las sondas de los cuadros: cada cuadro en cada tramo de los últimos N segundos (`trazas`: por tramo, t, origen y dato en µs desde `trazas_base_us`)</source>
+        <translation>仅限带帧探针的构建：最近 N 秒内每个环节的每一帧（`trazas`：按环节，t、来源和数据，单位为自 `trazas_base_us` 起的微秒）</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>la medición de fluidez todavía no arrancó</source>
+        <translation>流畅度测量尚未开始</translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>la persona: sala:&lt;id&gt; o asamblea:&lt;id&gt; (ver grilla_personas_estado)</source>
         <translation>人员：sala:&lt;id&gt; 或 asamblea:&lt;id&gt;（见 grilla_personas_estado）</translation>
     </message>
@@ -88141,6 +88204,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2"/>
+        <source>fluidez video a saltos entrecortado trabado cuadros perdidos repetidos ritmo intervalo fps parejo</source>
+        <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
+        <translation>流畅度 视频 卡顿 断续 卡住 丢帧 重复帧 节奏 间隔 帧率 流畅</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>cambiar tope orden prioridad grupo repartir entre escenas parejo llenar en orden solo con camara</source>
         <extracomment>palabras de búsqueda separadas por espacios, en el idioma: sinónimos, no una traducción palabra por palabra</extracomment>
         <translation>修改上限 顺序 优先级 组 在场景之间分配 平均 按顺序填满 仅开摄像头的</translation>
@@ -90061,8 +90130,8 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../src/motor/Composicion.cpp" line="+1242"/>
-        <location filename="../src/motor/Entrada.cpp" line="+1729"/>
+        <location filename="../src/motor/Composicion.cpp" line="+1498"/>
+        <location filename="../src/motor/Entrada.cpp" line="+1764"/>
         <location line="+226"/>
         <location filename="../src/motor/Mezcla.cpp" line="+451"/>
         <location filename="../src/motor/OrigenRed.cpp" line="+235"/>
@@ -90075,7 +90144,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../src/motor/Entrada.cpp" line="-638"/>
+        <location filename="../src/motor/Entrada.cpp" line="-656"/>
         <source>el pipeline no arrancó</source>
         <translation>pipeline 未启动</translation>
     </message>
@@ -90141,7 +90210,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location filename="../src/motor/Capturas.cpp" line="+148"/>
-        <location filename="../src/motor/Composicion.cpp" line="-728"/>
+        <location filename="../src/motor/Composicion.cpp" line="-730"/>
         <source>falta %1</source>
         <translation>缺少 %1</translation>
     </message>
@@ -90161,22 +90230,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>缺少 bacapturaventana（ScreenCaptureKit，macOS 12.3 或更新版本）</translation>
     </message>
     <message>
-        <location filename="../src/motor/Composicion.cpp" line="-242"/>
+        <location filename="../src/motor/Composicion.cpp" line="-421"/>
         <location line="+20"/>
         <location line="+10"/>
-        <location line="+67"/>
-        <location line="+96"/>
+        <location line="+79"/>
+        <location line="+263"/>
         <location line="+121"/>
         <source>composición %1: %2</source>
         <translation>合成 %1：%2</translation>
     </message>
     <message>
-        <location line="-306"/>
+        <location line="-485"/>
         <source>composición %1: con el módulo «%2»: %3</source>
         <translation>合成 %1：使用模块「%2」：%3</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+80"/>
         <source>mezcla %1: %2 cuadros/s, hueco %3 ms (pts %4 ms)</source>
         <translation>混合 %1：%2 帧/秒，间隔 %3 毫秒（pts %4 毫秒）</translation>
     </message>
@@ -90186,7 +90255,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>合成器未启动</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+61"/>
+        <source>composición %1: sale a su hora (plazo del mezclador %2 ms, latencia del pipeline %3 ms)</source>
+        <translation>合成 %1：按时输出（混音器期限 %2 ms，管线延迟 %3 ms）</translation>
+    </message>
+    <message>
+        <location line="+211"/>
         <source>el mezclador no tiene el puerto «%1»</source>
         <translation>混合器没有端口「%1」</translation>
     </message>
@@ -90221,7 +90295,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>合成 %1：缺少 %2（图层 %3 将不带阴影）</translation>
     </message>
     <message>
-        <location line="+70"/>
+        <location line="+72"/>
         <source>composición %1: la capa «%2» se armó en %3 ms (crear %4, propiedades (el productor) %5, agregar y enlazar %6, el pad del mezclador %7, arrancar %8)</source>
         <translation>合成 %1：图层「%2」在 %3 毫秒内搭建完成（创建 %4，属性（生产者）%5，添加和链接 %6，混合器 pad %7，启动 %8）</translation>
     </message>
@@ -90236,7 +90310,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>合成 %1（%2）：%3</translation>
     </message>
     <message>
-        <location filename="../src/motor/Entrada.cpp" line="-979"/>
+        <location filename="../src/motor/Entrada.cpp" line="-996"/>
         <source>%1: la placa no se pudo armar (%2): sin placa</source>
         <translation>%1：无法搭建垫片画面（%2）：无垫片画面</translation>
     </message>
@@ -90251,7 +90325,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：垫片画面在 %2 毫秒内重建</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+67"/>
         <source>%1: en reposo (no hay nadie en su lugar) en %2 ms</source>
         <translation>%1：空闲（其位置上没有人），用时 %2 ms</translation>
     </message>
@@ -90267,15 +90341,15 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+70"/>
-        <location line="+203"/>
+        <location line="+207"/>
         <location line="+38"/>
         <location line="+110"/>
-        <location line="+1105"/>
+        <location line="+1133"/>
         <source>%1: %2</source>
         <translation>%1：%2</translation>
     </message>
     <message>
-        <location line="-1449"/>
+        <location line="-1481"/>
         <source>el micrófono %1: se espera a que se conecte</source>
         <translation>麦克风 %1：等待其连接</translation>
     </message>
@@ -90315,7 +90389,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：窗口已打开，正在采集</translation>
     </message>
     <message>
-        <location line="+126"/>
+        <location line="+130"/>
         <source>el rack de audio todavía no está (la app no registró barack): se agrega cuando esté</source>
         <translation>音频机架尚未就绪（应用未注册 barack）：就绪后添加</translation>
     </message>
@@ -90325,7 +90399,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：链路：%2</translation>
     </message>
     <message>
-        <location line="+367"/>
+        <location line="+381"/>
         <source>%1: las horas de su video van y vienen (%2 ms, %3 ms): no se realinea por un minuto</source>
         <translation>%1：其视频的时间戳来回跳动（%2 毫秒，%3 毫秒）：一分钟内不重新对齐</translation>
     </message>
@@ -90345,7 +90419,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>%1：其音频带有自己的时间戳（与工作室偏差 %2 毫秒）：重新对齐</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+35"/>
         <source>%1 llega tarde (%2 ms, el tope del estudio es %3 ms): va con su propia demora</source>
         <translation>%1 迟到（%2 毫秒，工作室上限为 %3 毫秒）：按其自身延迟输出</translation>
     </message>
@@ -90431,7 +90505,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>操作：play、pausa、reiniciar 或 parar</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+331"/>
         <source>la entrada no está andando</source>
         <translation>输入未运行</translation>
     </message>
@@ -90852,7 +90926,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>没有 %1 可为「%3」提供 %2：使用系统内存</translation>
     </message>
     <message>
-        <location line="+176"/>
+        <location line="+178"/>
         <source>el elegido a mano</source>
         <translation>手动选择的</translation>
     </message>
@@ -90882,7 +90956,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>无法读取文件</translation>
     </message>
     <message>
-        <location line="+420"/>
+        <location line="+424"/>
         <source>sin contexto GL para el video: %1 (se compone en la CPU)</source>
         <translation>视频没有 GL 上下文：%1（在 CPU 上合成）</translation>
     </message>
@@ -91236,12 +91310,12 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>推流到 %1：改用编码器 %2 继续</translation>
     </message>
     <message>
-        <location filename="../src/motor/Vistas.cpp" line="+143"/>
+        <location filename="../src/motor/Vistas.cpp" line="+152"/>
         <source>vista %1: %2 cuadros/s, hueco máx %3 ms</source>
         <translation>视图 %1：%2 帧/秒，最大间隔 %3 毫秒</translation>
     </message>
     <message>
-        <location line="+84"/>
+        <location line="+93"/>
         <source>entra a vista %1: %2 cuadros/s</source>
         <translation>进入视图 %1：%2 帧/秒</translation>
     </message>
@@ -94938,12 +95012,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>服务：所有网页链接及其二维码（嘉宾、观众、提词器、字幕条、控制台、远程会议…）及其状态，可启用、复制、打开或以二维码显示</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <source>Manuales: la biblioteca de manuales de usuario que arma el asistente (capturas y documentos Word y PDF), para generarla y abrirla</source>
-        <translation>手册：由助手生成的用户手册库（截图以及 Word 和 PDF 文档），可生成和打开</translation>
-    </message>
-    <message>
-        <location line="+3"/>
+        <location line="+8"/>
         <source>Logs del sistema: todo lo que pasa, de los tres procesos</source>
         <translation>系统日志：三个进程中发生的一切</translation>
     </message>
@@ -98318,22 +98387,22 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>未播出</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+14"/>
         <source>Control</source>
         <translation>控制</translation>
     </message>
     <message>
-        <location line="-82"/>
+        <location line="-86"/>
         <source>Desconectado</source>
         <translation>已断开</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+94"/>
         <source>Pantalla completa</source>
         <translation>全屏</translation>
     </message>
     <message>
-        <location line="-86"/>
+        <location line="-90"/>
         <source>Emparejar este aparato</source>
         <translation>配对此设备</translation>
     </message>
@@ -98373,7 +98442,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>是，执行</translation>
     </message>
     <message>
-        <location line="+170"/>
+        <location line="+176"/>
         <source>Escenas</source>
         <translation>场景</translation>
     </message>
@@ -98508,7 +98577,7 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <translation>下一个 ▶</translation>
     </message>
     <message>
-        <location line="-136"/>
+        <location line="-142"/>
         <source>Cámara %1</source>
         <translation>摄像机 %1</translation>
     </message>
@@ -98594,6 +98663,16 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+2"/>
+        <source>Este control web está en desuso: usá el tablero nuevo, el mismo de la app.</source>
+        <translation>此网页控制台已弃用：请使用新的仪表板，与应用中的相同。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Este control web está en desuso. El tablero nuevo necesita que en la app le den a este aparato el perfil «todo».</source>
+        <translation>此网页控制台已弃用。新的仪表板需要在应用中为此设备分配“全部”配置。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Estante</source>
         <translation>备选区</translation>
     </message>
@@ -98624,6 +98703,11 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
     </message>
     <message>
         <location line="+4"/>
+        <source>Abrir el tablero nuevo</source>
+        <translation>打开新的仪表板</translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>Multipantalla</source>
         <translation>多画面</translation>
     </message>
@@ -99242,11 +99326,61 @@ PROPONÉ, NO APLIQUES: mostrale a la persona lo que cambia y aplicá solo si con
         <source>%1 perdidos</source>
         <translation>丢帧 %1</translation>
     </message>
+    <message>
+        <location line="+1468"/>
+        <source>Usar el control web clásico</source>
+        <translation>使用经典网页控制台</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Emparejar en el control web</source>
+        <translation>在网页控制台中配对</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>En este aparato la pantalla completa se logra agregando la página a la pantalla de inicio (Compartir → Agregar a inicio) y abriéndola desde ahí.</source>
+        <translation>在此设备上，要全屏需将页面添加到主屏幕（分享 → 添加到主屏幕），然后从那里打开。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se puede mostrar el tablero</source>
+        <translation>无法显示仪表板</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Abrí el control web desde el QR de la app (Servicios → Control web), emparejalo y volvé acá.</source>
+        <translation>用应用的二维码打开网页控制台（服务 → 网页控制台），完成配对后再回到这里。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cargando el tablero…</source>
+        <translation>正在加载仪表板…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Lo quitaron en la app.</source>
+        <translation>已在应用中被移除。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Emparejalo de nuevo desde el QR de la app.</source>
+        <translation>请用应用的二维码重新配对。</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>El tablero se cerró</source>
+        <translation>仪表板已关闭</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>No se pudo cargar el tablero</source>
+        <translation>无法加载仪表板</translation>
+    </message>
 </context>
 <context>
     <name>web/correccion</name>
     <message>
-        <location line="+2"/>
+        <location line="-1484"/>
         <source>no se pudo mandar (%1)</source>
         <translation>无法发送（%1）</translation>
     </message>
