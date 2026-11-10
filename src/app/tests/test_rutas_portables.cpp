@@ -87,7 +87,11 @@ int main() {
     }
     // De afuera de los datos: tal cual, ida y vuelta.
     {
+#if defined(_WIN32)
+        const std::string afuera = "C:/otro/disco/video.mp4"; // sin unidad, en Windows es relativa
+#else
         const std::string afuera = "/otro/disco/video.mp4";
+#endif
         CHECK(ba::app::rutasRelativas(json{{"f", afuera}})["f"] == afuera, "afuera: se guarda tal cual");
         // Como ruta (en Windows la normaliza con «\»: la misma ruta).
         CHECK(fs::path(ba::app::rutasAbsolutas(json{{"f", afuera}})["f"].get<std::string>()) == fs::path(afuera),
