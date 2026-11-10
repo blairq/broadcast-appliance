@@ -89,7 +89,9 @@ int main() {
     {
         const std::string afuera = "/otro/disco/video.mp4";
         CHECK(ba::app::rutasRelativas(json{{"f", afuera}})["f"] == afuera, "afuera: se guarda tal cual");
-        CHECK(ba::app::rutasAbsolutas(json{{"f", afuera}})["f"] == afuera, "afuera: se lee tal cual");
+        // Como ruta (en Windows la normaliza con «\»: la misma ruta).
+        CHECK(fs::path(ba::app::rutasAbsolutas(json{{"f", afuera}})["f"].get<std::string>()) == fs::path(afuera),
+              "afuera: se lee como la misma ruta");
     }
 
     fs::remove_all(datos.parent_path(), ec);
